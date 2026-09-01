@@ -320,4 +320,5 @@ git tag v0.1.0 && git push origin v0.1.0
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache-2.0 — see [LICENSE](LICENSE). Upstream Overseer remains MIT;
+that notice and copyright stay in [NOTICE](NOTICE).

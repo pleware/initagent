@@ -1,0 +1,74 @@
+// Package brand holds every product-identifying string in one place.
+//
+// Upstream has no equivalent package, and that is the point. The branding
+// strings live in the handful of files upstream edits most often, so renaming
+// them in place would put a conflict in every merge. Referencing a constant
+// from here keeps our rename to one file that upstream never touches.
+//
+// Constants are declared for the whole rename inventory even where the call
+// site still carries a literal. Each site switches over the next time it is
+// edited for another reason, so no merge pays for a cosmetic diff.
+package brand
+
+const (
+	// Name is the product name shown to people.
+	Name = "initagent"
+
+	// Binary is the executable name, and the stem of generated helper
+	// scripts and service units.
+	Binary = "initagent"
+
+	// ConfigDir is the per-user data directory, relative to $HOME. Holds
+	// DBFile on a hub and the connector config on a worker.
+	ConfigDir = ".initagent"
+
+	// DBFile is the hub's SQLite database inside ConfigDir.
+	DBFile = "initagent.db"
+
+	// ConnectorConfigFile is the worker connector's config inside ConfigDir.
+	ConnectorConfigFile = "connector.json"
+
+	// TokenPrefix marks an API token so it is recognisable in a log line
+	// without being resolvable. The token value itself stays CSPRNG.
+	TokenPrefix = "iagt_"
+
+	// SessionCookie names the hub's browser session cookie. Renaming it logs
+	// every open browser out once, which is why it moves with the rest.
+	SessionCookie = "initagent_auth"
+)
+
+// Environment variables. Every one we read is derived from EnvPrefix, so a
+// rename cannot leave half the tree reading the old name.
+const (
+	EnvPrefix = "INITAGENT_"
+
+	// EnvManaged is set by an installed service to mark the process as
+	// supervised, which changes how self-update behaves.
+	EnvManaged = EnvPrefix + "MANAGED"
+
+	// EnvWindowsTask names the Scheduled Task to restart after an update.
+	EnvWindowsTask = EnvPrefix + "WINDOWS_TASK"
+
+	// EnvHub and EnvToken configure the CLI without a config file.
+	EnvHub   = EnvPrefix + "HUB"
+	EnvToken = EnvPrefix + "TOKEN"
+)
+
+// Service identities. Renaming these breaks upgrades of an already-installed
+// connector, so they change in one commit rather than gradually.
+const (
+	ConnectorUnit   = Binary + "-connector"
+	LaunchdLabel    = "dev.initagent.connector"
+	WindowsTaskName = "InitagentConnector"
+)
+
+// TmuxKindOpt is the tmux user option carrying coder.kind on a session, read
+// back when listing sessions. Must stay a valid tmux option name.
+const TmuxKindOpt = "@initagent_coder_kind"
+
+// ReleaseSource is where the hub fetches connector binaries for platforms it
+// is not running on. A var, not a const, because it is overridable at build
+// time — continuing what upstream already anticipated for forks:
+//
+//	-ldflags "-X github.com/ErzenXz/overseer/internal/brand.ReleaseSource=owner/repo"
+var ReleaseSource = "pleware/initagent"

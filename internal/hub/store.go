@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ErzenXz/overseer/internal/brand"
+	"github.com/ErzenXz/overseer/internal/id"
 	_ "modernc.org/sqlite"
 )
 
@@ -144,12 +146,15 @@ func randomToken() string {
 
 // CreateDevice registers a device and returns its id and plaintext token.
 func (s *Store) CreateDevice(name, hostname, osName, arch string, isHub bool) (string, string, error) {
-	id := randomToken()[:16]
+	deviceId, err := id.New(id.Device)
+	if err != nil {
+		return "", "", err
+	}
 	token := randomToken()
-	_, err := s.db.Exec(`INSERT INTO devices (id, name, hostname, os, arch, token_hash, is_hub, created_at)
+	_, err = s.db.Exec(`INSERT INTO devices (id, name, hostname, os, arch, token_hash, is_hub, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, name, hostname, osName, arch, hashToken(token), boolInt(isHub), time.Now().Unix())
-	return id, token, err
+		deviceId, name, hostname, osName, arch, hashToken(token), boolInt(isHub), time.Now().Unix())
+	return deviceId, token, err
 }
 
 // DeviceByToken authenticates an agent connection.
@@ -236,12 +241,16 @@ type Project struct {
 }
 
 func (s *Store) CreateProject(name, deviceId, path string) (*Project, error) {
+	projectId, err := id.New(id.Project)
+	if err != nil {
+		return nil, err
+	}
 	now := time.Now().Unix()
 	p := &Project{
-		Id: randomToken()[:16], Name: name, DeviceId: deviceId, Path: path,
+		Id: projectId, Name: name, DeviceId: deviceId, Path: path,
 		CreatedAt: now, UpdatedAt: now,
 	}
-	_, err := s.db.Exec(`INSERT INTO projects (id, name, device_id, path, created_at, updated_at)
+	_, err = s.db.Exec(`INSERT INTO projects (id, name, device_id, path, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)`, p.Id, p.Name, p.DeviceId, p.Path, p.CreatedAt, p.UpdatedAt)
 	return p, err
 }
@@ -369,7 +378,7 @@ type ApiToken struct {
 }
 
 func (s *Store) CreateApiToken(name string) (string, error) {
-	token := "ovsr_" + randomToken()
+	token := brand.TokenPrefix + randomToken()
 	_, err := s.db.Exec(`INSERT INTO api_tokens (name, token_hash, created_at) VALUES (?, ?, ?)`,
 		name, hashToken(token), time.Now().Unix())
 	return token, err

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { api } from '../api'
 import type { Project } from '../types'
+import LanguageSwitcher from './LanguageSwitcher'
 
 const links = [
   { to: '/code', label: 'Code', icon: 'compose' },
@@ -99,7 +100,10 @@ export default function Layout({ version }: { version: string }) {
             <p className="truncate text-xs font-medium text-zinc-300">Personal fleet</p>
             <p className="font-mono text-[9px] text-zinc-700">{version || 'development'}</p>
           </div>
-          <button onClick={logout} className="ml-auto text-[11px] text-zinc-600 hover:text-zinc-200">Log out</button>
+          <div className="ml-auto flex items-center gap-2">
+            <LanguageSwitcher />
+            <button onClick={logout} className="text-[11px] text-zinc-600 hover:text-zinc-200">Log out</button>
+          </div>
         </footer>
       </aside>
 

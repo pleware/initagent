@@ -1,11 +1,13 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, formatBytes, timeAgo } from '../api'
 import { useHubEvents, usePoll } from '../hooks'
 import type { Device } from '../types'
 import AddDeviceModal from '../components/AddDeviceModal'
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   const [devices, setDevices] = useState<Device[] | null>(null)
   const [showAdd, setShowAdd] = useState(false)
 
@@ -37,13 +39,13 @@ export default function Dashboard() {
     <div className="page-shell">
       <header className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="eyebrow mb-3">Live fleet</p>
-          <h1 className="text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">Your machines, at a glance.</h1>
-          <p className="mt-3 text-sm text-zinc-500">Health, capacity, and access across every connected device.</p>
+          <p className="eyebrow mb-3">{t('dashboard.eyebrow')}</p>
+          <h1 className="text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">{t('dashboard.title')}</h1>
+          <p className="mt-3 text-sm text-zinc-500">{t('dashboard.subtitle')}</p>
         </div>
         <div className="flex gap-2">
-          <Link to="/setup" className="btn-secondary">Prepare a machine</Link>
-          <button onClick={() => setShowAdd(true)} className="btn-primary">Add device</button>
+          <Link to="/setup" className="btn-secondary">{t('dashboard.prepareMachine')}</Link>
+          <button onClick={() => setShowAdd(true)} className="btn-primary">{t('dashboard.addDevice')}</button>
         </div>
       </header>
 

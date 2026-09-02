@@ -1,0 +1,81 @@
+{
+  "common": {
+    "add": "Add",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "refresh": "Refresh"
+  },
+  "dashboard": {
+    "title": "Your machines, at a glance.",
+    "subtitle": "Health, capacity, and access across every connected device.",
+    "eyebrow": "Live fleet",
+    "addDevice": "Add device",
+    "prepareMachine": "Prepare a machine",
+    "stats": {
+      "total": "Total",
+      "online": "Online",
+      "attention": "Attention",
+      "platforms": "Platforms"
+    },
+    "noDevices": "No devices connected yet",
+    "noDevicesHint": "Add your first device to get started"
+  },
+  "devices": {
+    "status": {
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "platform": "Platform",
+    "hostname": "Hostname",
+    "lastSeen": "Last seen",
+    "resources": "Resources"
+  },
+  "settings": {
+    "title": "Settings",
+    "account": "Account",
+    "security": "Security",
+    "notifications": "Notifications",
+    "language": "Language",
+    "theme": "Theme"
+  },
+  "auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "signup": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "rememberMe": "Remember me"
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "networkError": "Network error. Please check your connection.",
+    "notFound": "Resource not found",
+    "unauthorized": "Unauthorized. Please log in.",
+    "forbidden": "You don't have permission to access this resource.",
+    "serverError": "Server error. Please try again later."
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Please enter a valid email address",
+    "minLength": "Must be at least {{min}} characters",
+    "maxLength": "Must not exceed {{max}} characters"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "devices": "Devices",
+    "agents": "Agents",
+    "coding": "Coding",
+    "settings": "Settings",
+    "setup": "Setup"
+  }
+}

@@ -1,0 +1,6 @@
+# First-party packages under the coverage gate (CONSTRAINTS.md).
+# One pattern per line, relative to the module root. Comments allowed.
+./internal/brand
+./internal/id
+./internal/ai/capability
+# ./internal/fakecoder   # add in the same commit the fake coder lands

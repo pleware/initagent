@@ -17,6 +17,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y tmux
       - run: go vet ./...
       - run: go test ./...
+      - name: Owned package coverage (≥ 90%)
+        run: bash ./scripts/check-owned-coverage.sh
 
   build:
     runs-on: ubuntu-latest

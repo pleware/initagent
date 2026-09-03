@@ -63,6 +63,13 @@ const (
 	Bridge    Kind = "brg"
 	Attention Kind = "att"
 
+	// ForeignProject is the surrogate for a project owned by a tool on a
+	// worker — an OpenCode project, a Cursor workspace, an editor's own
+	// project file. The correspondence to our project is many-to-many and
+	// the foreign identifier can change under us, which is why it is a row
+	// rather than a column. See drafts 07 and 44.
+	ForeignProject Kind = "fpr"
+
 	Host       Kind = "hst"
 	Device     Kind = "dev"
 	Enrollment Kind = "enr"
@@ -85,21 +92,22 @@ var entities = map[Kind]string{
 	Command: "initagent.hub.command",
 	Event:   "initagent.hub.event",
 
-	Member:    "initagent.project.member",
-	Persona:   "initagent.project.persona",
-	MCPServer: "initagent.project.mcp_server",
-	Repo:      "initagent.project.repo",
-	Secret:    "initagent.project.secret",
-	Todo:      "initagent.project.todo",
-	Task:      "initagent.project.task",
-	Run:       "initagent.project.run",
-	Work:      "initagent.project.work",
-	Draft:     "initagent.project.draft",
-	Evidence:  "initagent.project.evidence",
-	Proof:     "initagent.project.proof",
-	Thread:    "initagent.project.thread",
-	Bridge:    "initagent.project.bridge",
-	Attention: "initagent.project.attention",
+	Member:         "initagent.project.member",
+	Persona:        "initagent.project.persona",
+	MCPServer:      "initagent.project.mcp_server",
+	Repo:           "initagent.project.repo",
+	Secret:         "initagent.project.secret",
+	Todo:           "initagent.project.todo",
+	Task:           "initagent.project.task",
+	Run:            "initagent.project.run",
+	Work:           "initagent.project.work",
+	Draft:          "initagent.project.draft",
+	Evidence:       "initagent.project.evidence",
+	Proof:          "initagent.project.proof",
+	Thread:         "initagent.project.thread",
+	Bridge:         "initagent.project.bridge",
+	Attention:      "initagent.project.attention",
+	ForeignProject: "initagent.project.foreign_project",
 
 	Host:       "initagent.fleet.host",
 	Device:     "initagent.fleet.device",

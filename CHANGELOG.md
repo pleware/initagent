@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Gate gofmt on owned packages in CI
 - 2026-09-03 — Move fake coder behavior under the owned coverage gate
 - 2026-09-02 — Add Milestone 0 foundation: fake coder, completion signal, scheduler
 - 2026-09-02 — Record the product changelog entry for coverage finalization.

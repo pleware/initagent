@@ -1,0 +1,65 @@
+/* initagent theme registry.
+ *
+ * One owning palette for the cockpit, the marketing site, and later CLI
+ * chrome (`03`, `17`). A surface imports this file and reads token names; it
+ * does not define colour values of its own. Retinting the product is a value
+ * edit in one family file, never a sweep through components.
+ *
+ * ---------------------------------------------------------------------------
+ * Families and ids
+ * ---------------------------------------------------------------------------
+ *
+ *   legacy      Today's cockpit palette, carried over verbatim. Dark only,
+ *               and it will not get a light variant. Also serves as the
+ *               `:root` fallback, so an unset or half-built family still
+ *               renders a complete surface instead of unstyled boxes.
+ *   default     Not designed yet. Stub.
+ *   enterprise  Not designed yet. Stub.
+ *
+ * Every family exposes both `<family>-light` and `<family>-dark` as
+ * `data-theme` ids, so the resolver never special-cases a family. A family
+ * without a real light variant points both ids at the same values; the
+ * resolver still reports which modes are genuine (see `ui/src/theme`).
+ *
+ * ---------------------------------------------------------------------------
+ * Token contract
+ * ---------------------------------------------------------------------------
+ *
+ * Every family fills this whole set. Names describe the role, not the hue, so
+ * a warm family and a cold family use identical call sites.
+ *
+ *   Canvas        --ia-bg, --ia-bg-deep, --ia-bg-sunken, --ia-bg-glow,
+ *                 --ia-sidebar, --ia-shell, --ia-statusbar
+ *   Overlays      --ia-line-0 … --ia-line-4 (borders, faintest first)
+ *                 --ia-fill-1 … --ia-fill-5 (raised surfaces and hovers)
+ *                 --ia-fill-sunken, --ia-scrim
+ *   Type          --ia-fg-strong, --ia-fg, --ia-fg-soft, --ia-fg-muted,
+ *                 --ia-fg-subtle, --ia-fg-faint, --ia-fg-ghost
+ *   Accent        --ia-accent, --ia-accent-hover, --ia-accent-on,
+ *                 --ia-accent-fg
+ *   Info          --ia-info, --ia-info-fg, --ia-info-fg-strong
+ *   Status        --ia-ok, --ia-ok-on, --ia-fail, --ia-fail-fg, --ia-code
+ *   Attention     --ia-focus, --ia-signal
+ *   Depth         --ia-shadow-surface, --ia-glow-ok, --ia-glow-info
+ *   Chrome        --ia-scrollbar-thumb, --ia-term-scrollbar
+ *
+ * Two suffixes carry a fixed meaning, so a new family does not have to guess
+ * which of a hue's shades goes where:
+ *
+ *   -on   ink drawn on top of that colour used as a fill (`--ia-accent-on` is
+ *         the button label, not the button)
+ *   -fg   that colour used as text or an icon on the canvas
+ *
+ * Rule: no token without a call site. The set above is exactly what the app
+ * shell (`ui/src/index.css`) consumes today. Terminal palettes, modals, and
+ * the per-state colours still inlined in TSX get tokens in the same change
+ * that migrates those call sites, not before — a token nobody reads is how
+ * the previous starter palette rotted.
+ *
+ * Contrast is aimed at WCAG AA on the family's own canvas. Recheck when a
+ * value moves; nothing here is verified automatically yet.
+ */
+
+@import './legacy.css';
+@import './default.css';
+@import './enterprise.css';

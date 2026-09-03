@@ -1,0 +1,107 @@
+/* legacy — the cockpit palette as it stood before themes existed.
+ *
+ * Carried over value for value, including its inconsistencies: a seven-step
+ * grey ramp, and a leftover lime accent from Overseer sitting next to the
+ * peach primary. That is deliberate. This family's job is to let the shell
+ * move onto tokens without a visible change, so a later retint is a value
+ * edit here and not a regression hunt across components.
+ *
+ * Dark only. `legacy-light` points at the same values because the surface it
+ * describes never had a light variant, and this family will not grow one — a
+ * light mode belongs to `default`, designed as a pair from the start.
+ *
+ * Also serves as the `:root` fallback for families that are still stubs, so
+ * selecting one renders a complete surface instead of unstyled boxes.
+ *
+ * Two deliberate normalisations, both below the threshold where anyone can
+ * see them, taken because carrying them forward would mean a token per
+ * accident:
+ *
+ *   - The shell used eight border alphas (0.035–0.20) and nine fill alphas
+ *     (0.025–0.07), several differing by 0.005. They are collapsed into the
+ *     two ramps below.
+ *   - Three places reached for pure `white` or `zinc-950` where the
+ *     neighbouring rule used `zinc-100` or the accent's own ink. They now use
+ *     the shared token.
+ *
+ * Greys and status hues are the exact Tailwind v4 oklch values of the
+ * utilities they replace (noted per line), not v3 hex equivalents — v4's
+ * palette is oklch-native and the hex approximations drift.
+ */
+
+:root,
+[data-theme='legacy-dark'],
+[data-theme='legacy-light'] {
+  color-scheme: dark;
+
+  /* Canvas — opaque layers, roughly in depth order */
+  --ia-bg: #111315;
+  --ia-bg-deep: #0f1113;
+  --ia-bg-sunken: #0b0d0f;
+  --ia-bg-glow: rgba(130, 170, 255, 0.035);
+  --ia-sidebar: #181a1c;
+  --ia-shell: #151719;
+  --ia-statusbar: #121416;
+
+  /* Overlay ramps — translucent, so they read against any canvas layer.
+     A numbered ramp rather than role names: on this family they genuinely
+     are just steps of white, and inventing meanings would misdescribe it.
+     A light family maps the same steps to black. */
+  --ia-line-0: rgba(255, 255, 255, 0.035);
+  --ia-line-1: rgba(255, 255, 255, 0.06);
+  --ia-line-2: rgba(255, 255, 255, 0.075);
+  --ia-line-3: rgba(255, 255, 255, 0.1);
+  --ia-line-4: rgba(255, 255, 255, 0.2);
+
+  --ia-fill-1: rgba(255, 255, 255, 0.025);
+  --ia-fill-2: rgba(255, 255, 255, 0.035);
+  --ia-fill-3: rgba(255, 255, 255, 0.045);
+  --ia-fill-4: rgba(255, 255, 255, 0.06);
+  --ia-fill-5: rgba(255, 255, 255, 0.075);
+  --ia-fill-sunken: rgba(0, 0, 0, 0.2);
+  --ia-scrim: rgba(0, 0, 0, 0.65);
+
+  /* Type — the inherited zinc ramp, strongest first */
+  --ia-fg-strong: oklch(96.7% 0.001 286.375); /* zinc-100 */
+  --ia-fg: oklch(92% 0.004 286.32); /* zinc-200 */
+  --ia-fg-soft: oklch(87.1% 0.006 286.286); /* zinc-300 */
+  --ia-fg-muted: oklch(70.5% 0.015 286.067); /* zinc-400 */
+  --ia-fg-subtle: oklch(55.2% 0.016 285.938); /* zinc-500 */
+  --ia-fg-faint: oklch(44.2% 0.017 285.786); /* zinc-600 */
+  --ia-fg-ghost: oklch(37% 0.013 285.805); /* zinc-700 */
+
+  /* Accent — peach primary, from the fx workspace pass.
+     `-on` is ink drawn on the fill; `-fg` is the accent used as text on the
+     canvas. They move independently even where they coincide here. */
+  --ia-accent: #ffb86a;
+  --ia-accent-hover: #ffc887;
+  --ia-accent-on: #20170f;
+  --ia-accent-fg: #ffc887;
+
+  /* Info — cool blue for projects and identity marks */
+  --ia-info: #82aaff;
+  --ia-info-fg: #a8c3ff;
+  --ia-info-fg-strong: #bdd0ff;
+
+  /* Status */
+  --ia-ok: #77d9ab;
+  --ia-ok-on: #102119;
+  --ia-fail: oklch(71.2% 0.194 13.428); /* rose-400 */
+  --ia-fail-fg: oklch(81% 0.117 11.638); /* rose-300 */
+  --ia-code: #f2c879;
+
+  /* Attention — both lime here. `signal` is the Overseer leftover and is not
+     expected to survive; `focus` is load-bearing for keyboard users, so a
+     family may move it on its own. */
+  --ia-focus: oklch(89.7% 0.196 126.665); /* lime-300 */
+  --ia-signal: oklch(89.7% 0.196 126.665); /* lime-300 */
+
+  /* Depth */
+  --ia-shadow-surface: 0 18px 60px rgba(0, 0, 0, 0.18);
+  --ia-glow-ok: 0 0 9px rgba(119, 217, 171, 0.55);
+  --ia-glow-info: 0 20px 70px rgba(48, 75, 130, 0.16);
+
+  /* Chrome */
+  --ia-scrollbar-thumb: oklch(37.2% 0.044 257.287); /* slate-700 */
+  --ia-term-scrollbar: #363a3f;
+}

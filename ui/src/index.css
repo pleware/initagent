@@ -1,9 +1,78 @@
 @import 'tailwindcss';
 @import '@xterm/xterm/css/xterm.css';
+@import '../../internal/brand/themes/themes.css';
+
+/*
+  Cockpit shell.
+
+  No colour value appears in this file. Every one comes from the theme tokens
+  in `internal/brand/themes`, so retinting the product is a value edit there
+  and switching `data-theme` on <html> retints this whole sheet at runtime.
+  See `src/theme` for how that attribute gets set.
+
+  Component styles still inlined in TSX have not moved yet; they are the next
+  pass. Until then the app is half on tokens on purpose, rather than gaining a
+  second palette to keep in sync.
+*/
 
 @theme {
   --font-sans: 'Avenir Next', Avenir, 'Segoe UI Variable', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'SFMono-Regular', 'Cascadia Code', 'Roboto Mono', ui-monospace, monospace;
+}
+
+/* `inline` so utilities compile straight to `var(--ia-*)`. Without it Tailwind
+   would add its own indirection layer, and a theme swap would have to move
+   two sets of variables instead of one. */
+@theme inline {
+  --color-canvas: var(--ia-bg);
+  --color-canvas-sunken: var(--ia-bg-sunken);
+  --color-sidebar: var(--ia-sidebar);
+  --color-shell: var(--ia-shell);
+  --color-statusbar: var(--ia-statusbar);
+
+  --color-line-0: var(--ia-line-0);
+  --color-line-1: var(--ia-line-1);
+  --color-line-2: var(--ia-line-2);
+  --color-line-3: var(--ia-line-3);
+  --color-line-4: var(--ia-line-4);
+
+  --color-fill-1: var(--ia-fill-1);
+  --color-fill-2: var(--ia-fill-2);
+  --color-fill-3: var(--ia-fill-3);
+  --color-fill-4: var(--ia-fill-4);
+  --color-fill-5: var(--ia-fill-5);
+  --color-fill-sunken: var(--ia-fill-sunken);
+  --color-scrim: var(--ia-scrim);
+
+  --color-fg-strong: var(--ia-fg-strong);
+  --color-fg: var(--ia-fg);
+  --color-fg-soft: var(--ia-fg-soft);
+  --color-fg-muted: var(--ia-fg-muted);
+  --color-fg-subtle: var(--ia-fg-subtle);
+  --color-fg-faint: var(--ia-fg-faint);
+  --color-fg-ghost: var(--ia-fg-ghost);
+
+  --color-accent: var(--ia-accent);
+  --color-accent-hover: var(--ia-accent-hover);
+  --color-accent-on: var(--ia-accent-on);
+  --color-accent-fg: var(--ia-accent-fg);
+
+  --color-info: var(--ia-info);
+  --color-info-fg: var(--ia-info-fg);
+  --color-info-fg-strong: var(--ia-info-fg-strong);
+
+  --color-ok: var(--ia-ok);
+  --color-ok-on: var(--ia-ok-on);
+  --color-fail: var(--ia-fail);
+  --color-fail-fg: var(--ia-fail-fg);
+  --color-code: var(--ia-code);
+
+  --color-focus: var(--ia-focus);
+  --color-signal: var(--ia-signal);
+
+  --shadow-surface: var(--ia-shadow-surface);
+  --shadow-glow-ok: var(--ia-glow-ok);
+  --shadow-glow-info: var(--ia-glow-info);
 }
 
 html,
@@ -13,10 +82,10 @@ body,
 }
 
 body {
-  @apply bg-[#111315] text-zinc-200 antialiased;
+  @apply bg-canvas text-fg antialiased;
   background-image:
-    radial-gradient(circle at 88% 0%, rgba(130, 170, 255, 0.035), transparent 26rem),
-    linear-gradient(180deg, #111315 0%, #0f1113 100%);
+    radial-gradient(circle at 88% 0%, var(--ia-bg-glow), transparent 26rem),
+    linear-gradient(180deg, var(--ia-bg) 0%, var(--ia-bg-deep) 100%);
   background-attachment: fixed;
   font-feature-settings: 'ss01' 1, 'cv02' 1;
 }
@@ -32,7 +101,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  @apply ring-2 ring-lime-300/70 ring-offset-2 ring-offset-[#0b0d0f];
+  @apply ring-2 ring-focus/70 ring-offset-2 ring-offset-canvas-sunken;
 }
 
 .page-shell {
@@ -40,23 +109,23 @@ select:focus-visible {
 }
 
 .surface {
-  @apply border border-white/[0.07] bg-white/[0.035] shadow-[0_18px_60px_rgba(0,0,0,0.18)];
+  @apply border border-line-2 bg-fill-2 shadow-surface;
 }
 
 .surface-quiet {
-  @apply bg-white/[0.025];
+  @apply bg-fill-1;
 }
 
 .eyebrow {
-  @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-lime-300/80;
+  @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-signal/80;
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center rounded-lg bg-[#ffb86a] px-4 py-2 text-sm font-semibold text-[#20170f] hover:bg-[#ffc887] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45;
+  @apply inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-on hover:bg-accent-hover active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45;
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.035] px-3.5 py-2 text-sm font-medium text-zinc-300 hover:border-white/20 hover:bg-white/[0.07] hover:text-white active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45;
+  @apply inline-flex items-center justify-center rounded-lg border border-line-3 bg-fill-2 px-3.5 py-2 text-sm font-medium text-fg-soft hover:border-line-4 hover:bg-fill-5 hover:text-fg-strong active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45;
 }
 
 .data-number {
@@ -64,7 +133,7 @@ select:focus-visible {
 }
 
 .skeleton {
-  @apply animate-pulse rounded-lg bg-white/[0.055];
+  @apply animate-pulse rounded-lg bg-fill-4;
 }
 
 /* xterm fills its container */
@@ -76,11 +145,11 @@ select:focus-visible {
 /* Application frame: a compact operator console inspired by machine racks,
    not a generic dashboard header. */
 .app-frame {
-  @apply flex h-full min-h-0 bg-[#111315];
+  @apply flex h-full min-h-0 bg-canvas;
 }
 
 .app-sidebar {
-  @apply fixed inset-y-0 left-0 z-50 flex w-[264px] -translate-x-full flex-col border-r border-white/[0.065] bg-[#181a1c] transition-transform duration-200 lg:static lg:translate-x-0;
+  @apply fixed inset-y-0 left-0 z-50 flex w-[264px] -translate-x-full flex-col border-r border-line-1 bg-sidebar transition-transform duration-200 lg:static lg:translate-x-0;
 }
 
 .app-sidebar-open {
@@ -92,19 +161,19 @@ select:focus-visible {
 }
 
 .sidebar-scrim {
-  @apply fixed inset-0 z-40 bg-black/65 backdrop-blur-sm lg:hidden;
+  @apply fixed inset-0 z-40 bg-scrim backdrop-blur-sm lg:hidden;
 }
 
 .mobile-bar {
-  @apply fixed inset-x-0 top-0 z-30 flex h-12 items-center gap-3 border-b border-white/[0.065] bg-[#181a1c]/95 px-3 backdrop-blur lg:hidden;
+  @apply fixed inset-x-0 top-0 z-30 flex h-12 items-center gap-3 border-b border-line-1 bg-sidebar/95 px-3 backdrop-blur lg:hidden;
 }
 
 .sidebar-head {
-  @apply flex h-14 shrink-0 items-center gap-2 border-b border-white/[0.055] px-4;
+  @apply flex h-14 shrink-0 items-center gap-2 border-b border-line-1 px-4;
 }
 
 .brand-mark {
-  @apply grid h-7 w-7 place-items-center rounded-[9px] border border-[#82aaff]/25 bg-[#82aaff]/10 font-mono text-sm text-[#a8c3ff];
+  @apply grid h-7 w-7 place-items-center rounded-[9px] border border-info/25 bg-info/10 font-mono text-sm text-info-fg;
 }
 
 .brand-mark span {
@@ -112,15 +181,15 @@ select:focus-visible {
 }
 
 .sidebar-nav {
-  @apply space-y-0.5 border-b border-white/[0.055] px-2 py-3;
+  @apply space-y-0.5 border-b border-line-1 px-2 py-3;
 }
 
 .sidebar-link {
-  @apply flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-200;
+  @apply flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium text-fg-subtle hover:bg-fill-3 hover:text-fg;
 }
 
 .sidebar-link-active {
-  @apply bg-white/[0.065] text-zinc-100;
+  @apply bg-fill-4 text-fg-strong;
 }
 
 .sidebar-projects {
@@ -128,87 +197,87 @@ select:focus-visible {
 }
 
 .sidebar-section-title {
-  @apply mb-2 flex items-center justify-between px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-700;
+  @apply mb-2 flex items-center justify-between px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-fg-ghost;
 }
 
 .sidebar-add {
-  @apply grid h-5 w-5 place-items-center rounded text-base font-normal text-zinc-600 hover:bg-white/[0.06] hover:text-white;
+  @apply grid h-5 w-5 place-items-center rounded text-base font-normal text-fg-faint hover:bg-fill-4 hover:text-fg-strong;
 }
 
 .project-link {
-  @apply flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-200;
+  @apply flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-fg-subtle hover:bg-fill-3 hover:text-fg;
 }
 
 .project-link-active {
-  @apply bg-[#82aaff]/[0.09] text-[#bdd0ff];
+  @apply bg-info/[0.09] text-info-fg-strong;
 }
 
 .sidebar-footer {
-  @apply flex shrink-0 items-center gap-2.5 border-t border-white/[0.055] p-3;
+  @apply flex shrink-0 items-center gap-2.5 border-t border-line-1 p-3;
 }
 
 .operator-avatar {
-  @apply grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#77d9ab] text-[9px] font-bold text-[#102119];
+  @apply grid h-7 w-7 shrink-0 place-items-center rounded-full bg-ok text-[9px] font-bold text-ok-on;
 }
 
 .skip-link {
-  @apply fixed left-4 top-3 z-[70] -translate-y-20 rounded-md bg-[#ffb86a] px-3 py-2 text-sm font-semibold text-zinc-950 focus:translate-y-0;
+  @apply fixed left-4 top-3 z-[70] -translate-y-20 rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-on focus:translate-y-0;
 }
 
 .coding-shell {
-  @apply flex h-full min-h-[calc(100vh-3rem)] flex-col overflow-hidden bg-[#151719] lg:min-h-screen;
+  @apply flex h-full min-h-[calc(100vh-3rem)] flex-col overflow-hidden bg-shell lg:min-h-screen;
 }
 
 .coding-toolbar {
-  @apply flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.065] bg-[#151719] px-4 sm:px-5;
+  @apply flex h-14 shrink-0 items-center gap-3 border-b border-line-1 bg-shell px-4 sm:px-5;
 }
 
 .machine-pill {
-  @apply hidden items-center gap-2 rounded-lg border border-white/[0.075] bg-white/[0.03] px-2.5 py-1.5 text-[11px] text-zinc-400 sm:flex;
+  @apply hidden items-center gap-2 rounded-lg border border-line-2 bg-fill-2 px-2.5 py-1.5 text-[11px] text-fg-muted sm:flex;
 }
 
 .toolbar-button {
-  @apply grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-transparent text-zinc-600 hover:border-white/[0.08] hover:bg-white/[0.045] hover:text-zinc-200;
+  @apply grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-transparent text-fg-faint hover:border-line-2 hover:bg-fill-3 hover:text-fg;
 }
 
 .toolbar-button-danger:hover {
-  @apply border-rose-400/15 bg-rose-400/[0.06] text-rose-300;
+  @apply border-fail/15 bg-fail/[0.06] text-fail-fg;
 }
 
 .node-dot {
-  @apply inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-700;
+  @apply inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-fg-ghost;
 }
 
 .node-dot-online {
-  @apply bg-[#77d9ab] shadow-[0_0_9px_rgba(119,217,171,0.55)];
+  @apply bg-ok shadow-glow-ok;
 }
 
 .fx-login-hint {
-  @apply flex shrink-0 items-center gap-3 border-b border-[#ffb86a]/10 bg-[#ffb86a]/[0.045] px-4 py-2.5 text-xs text-zinc-500 sm:px-5;
+  @apply flex shrink-0 items-center gap-3 border-b border-accent/10 bg-accent/[0.045] px-4 py-2.5 text-xs text-fg-subtle sm:px-5;
 }
 
 .fx-login-hint strong {
-  @apply font-semibold text-zinc-300;
+  @apply font-semibold text-fg-soft;
 }
 
 .fx-login-hint span:not(.fx-wordmark) {
-  @apply text-zinc-300;
+  @apply text-fg-soft;
 }
 
 .fx-login-hint code {
-  @apply rounded bg-white/[0.07] px-1.5 py-0.5 font-mono text-[#f2c879];
+  @apply rounded bg-fill-5 px-1.5 py-0.5 font-mono text-code;
 }
 
 .fx-login-hint button {
-  @apply ml-auto text-base text-zinc-700 hover:text-zinc-300;
+  @apply ml-auto text-base text-fg-ghost hover:text-fg-soft;
 }
 
 .fx-wordmark {
-  @apply grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-[#ffb86a]/20 bg-[#ffb86a]/10 font-mono text-[11px] font-semibold text-[#ffc887];
+  @apply grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-accent/20 bg-accent/10 font-mono text-[11px] font-semibold text-accent-fg;
 }
 
 .coding-statusbar {
-  @apply flex h-7 shrink-0 items-center gap-4 border-t border-white/[0.055] bg-[#121416] px-4 font-mono text-[9px] text-zinc-700;
+  @apply flex h-7 shrink-0 items-center gap-4 border-t border-line-1 bg-statusbar px-4 font-mono text-[9px] text-fg-ghost;
 }
 
 .code-empty {
@@ -216,20 +285,20 @@ select:focus-visible {
 }
 
 .code-empty-mark {
-  @apply relative grid h-14 w-14 place-items-center rounded-[18px] border border-[#82aaff]/20 bg-[#82aaff]/[0.07] font-mono text-base text-[#a8c3ff] shadow-[0_20px_70px_rgba(48,75,130,0.16)];
+  @apply relative grid h-14 w-14 place-items-center rounded-[18px] border border-info/20 bg-info/[0.07] font-mono text-base text-info-fg shadow-glow-info;
 }
 
 .code-empty-mark::after {
   content: '';
-  @apply absolute -inset-3 -z-10 rounded-[24px] border border-white/[0.035];
+  @apply absolute -inset-3 -z-10 rounded-[24px] border border-line-0;
 }
 
 .field-label {
-  @apply text-xs font-medium text-zinc-400;
+  @apply text-xs font-medium text-fg-muted;
 }
 
 .field-input {
-  @apply w-full rounded-lg border border-white/[0.09] bg-black/20 px-3 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-700 focus:border-[#82aaff]/45 focus:ring-1 focus:ring-[#82aaff]/30;
+  @apply w-full rounded-lg border border-line-3 bg-fill-sunken px-3 py-2.5 text-sm text-fg placeholder:text-fg-ghost focus:border-info/45 focus:ring-1 focus:ring-info/30;
 }
 
 .fx-terminal-host .xterm {
@@ -237,11 +306,11 @@ select:focus-visible {
 }
 
 .fx-terminal-host .xterm-viewport {
-  scrollbar-color: #363a3f transparent;
+  scrollbar-color: var(--ia-term-scrollbar) transparent;
 }
 
 .spinner {
-  @apply h-3 w-3 animate-spin rounded-full border border-zinc-700 border-t-[#ffb86a];
+  @apply h-3 w-3 animate-spin rounded-full border border-fg-ghost border-t-accent;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -258,7 +327,7 @@ select:focus-visible {
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: theme('colors.slate.700');
+  background: var(--ia-scrollbar-thumb);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-track {

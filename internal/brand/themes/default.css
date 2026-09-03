@@ -1,0 +1,23 @@
+/* default — the palette initagent will actually ship. Stub.
+ *
+ * Nothing is set yet, so both ids fall through to the `:root` layer in
+ * `legacy.css` and render today's cockpit. Selecting this family is therefore
+ * safe but pointless until the values land.
+ *
+ * To fill it: copy the token block from `legacy.css`, retint it, and keep
+ * every name — the contract is listed once, in `themes.css`. Set
+ * `color-scheme` per id, because unlike legacy this family is designed as a
+ * light/dark pair and the light id must not inherit a dark `color-scheme`.
+ *
+ * Design intent on record (`03`, `17`): a warm ember accent (the earlier
+ * starter used #e07a3d dark / #c45f28 light) so the product does not read as
+ * a reskinned Overseer, a cool focus colour that does not compete with it,
+ * and status hues that mean queue outcomes rather than decoration. The lime
+ * `--ia-signal` leftover does not survive into this family.
+ */
+
+[data-theme='default-dark'] {
+}
+
+[data-theme='default-light'] {
+}

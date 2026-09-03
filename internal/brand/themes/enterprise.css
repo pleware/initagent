@@ -1,0 +1,21 @@
+/* enterprise — restrained palette for customer-controlled deployments. Stub.
+ *
+ * Nothing is set yet, so both ids fall through to the `:root` layer in
+ * `legacy.css` and render today's cockpit.
+ *
+ * To fill it: copy the token block from `legacy.css`, retint it, and keep
+ * every name — the contract is listed once, in `themes.css`. Set
+ * `color-scheme` per id; this family is a light/dark pair.
+ *
+ * Open before values are chosen (`17`): whether this family is a fixed
+ * initagent look or the seam where an operator supplies their own accent and
+ * canvas. That answer decides whether the tokens are literals here or
+ * defaults overridden per deployment, so it is worth settling before the file
+ * gains a single colour.
+ */
+
+[data-theme='enterprise-dark'] {
+}
+
+[data-theme='enterprise-light'] {
+}

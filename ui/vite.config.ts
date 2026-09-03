@@ -6,6 +6,9 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // index.css imports the theme tokens from ../internal/brand/themes, which
+    // is outside this project root. Dev needs it readable to serve and watch.
+    fs: { allow: ['..'] },
     proxy: {
       '/api': {
         target: 'http://localhost:4200',

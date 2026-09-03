@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Split cockpit colours into theme families behind a resolver
 - 2026-09-03 — Bump CI/release actions to Node 24 runtimes
 - 2026-09-03 — Bump docker actions to Node 24 runtimes
 - 2026-09-03 — Add the hub and site Dockerfiles and publish images to GHCR

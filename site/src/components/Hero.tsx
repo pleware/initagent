@@ -70,7 +70,7 @@ export function Hero() {
             />
             <Screenshot
               src="/shots/dashboard.png"
-              alt="The Overseer fleet dashboard showing a connected device with live CPU, memory and disk readings."
+              alt="The initagent fleet dashboard showing a connected device with live CPU, memory and disk readings."
               width={1440}
               height={900}
               eager

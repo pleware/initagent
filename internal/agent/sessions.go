@@ -11,7 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ErzenXz/overseer/internal/protocol"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/protocol"
 )
 
 // workingWindow: a session with tmux activity within this window is shown as
@@ -23,7 +24,7 @@ var (
 	kindRe        = regexp.MustCompile(`[^a-z0-9_-]+`)
 )
 
-// sanitizeKind keeps @overseer_kind parseable in list-sessions output.
+// sanitizeKind keeps the tmux kind option parseable in list-sessions output.
 func sanitizeKind(kind string) string {
 	return kindRe.ReplaceAllString(strings.ToLower(kind), "")
 }
@@ -39,7 +40,7 @@ func (a *Agent) listSessions() ([]protocol.Session, error) {
 	// sanitizes exotic separators (tabs become '_') in -F output. The kind
 	// field is safe because createSession restricts it to [a-z0-9_-].
 	out, err := exec.Command("tmux", "list-sessions", "-F",
-		"#{session_created} #{session_activity} #{session_attached} k=#{@overseer_kind} #{session_name}").Output()
+		"#{session_created} #{session_activity} #{session_attached} k=#{"+brand.TmuxKindOpt+"} #{session_name}").Output()
 	if err != nil {
 		// "no server running" (exit 1) simply means zero sessions.
 		return sessions, nil
@@ -85,7 +86,7 @@ func (a *Agent) createSession(req protocol.SessionCreate) error {
 		return fmt.Errorf("tmux new-session: %s", strings.TrimSpace(string(out)))
 	}
 	if kind := sanitizeKind(req.Kind); kind != "" {
-		exec.Command("tmux", "set-option", "-t", req.Name, "@overseer_kind", kind).Run()
+		exec.Command("tmux", "set-option", "-t", req.Name, brand.TmuxKindOpt, kind).Run()
 	}
 	if req.Command != "" {
 		// send-keys instead of passing the command to new-session, so the

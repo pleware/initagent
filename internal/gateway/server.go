@@ -3,8 +3,10 @@ package gateway
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -15,18 +17,133 @@ type Health struct {
 	Addr      string `json:"addr"`
 }
 
-// Handler serves the Milestone 0 process surface: health only.
+func httpError(w http.ResponseWriter, code int, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+func writeJSON(w http.ResponseWriter, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func (g *Gateway) baseURL(r *http.Request) string {
+	if g.publicURL != "" {
+		return g.publicURL
+	}
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host
+}
+
+// Handler serves health, enroll, devices, binaries, and the agent websocket.
 func (g *Gateway) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(Health{
-			OK:        true,
-			ProjectID: g.project.ID,
-			Addr:      g.addr,
-		})
+		writeJSON(w, Health{OK: true, ProjectID: g.project.ID, Addr: g.addr})
 	})
+	mux.HandleFunc("POST /api/enroll-tokens", g.handleCreateEnrollToken)
+	mux.HandleFunc("POST /api/enroll", g.handleEnroll)
+	mux.HandleFunc("GET /api/devices", g.handleListDevices)
+	mux.HandleFunc("GET /install/", g.handleInstallScript)
+	mux.HandleFunc("GET /api/agent-binary", g.handleAgentBinary)
+	mux.HandleFunc("GET /api/ws/agent", g.handleAgentWS)
 	return mux
+}
+
+func (g *Gateway) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request) {
+	token, err := g.store.CreateEnrollToken(r.Context(), g.project.ID, EnrollTTL)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	unix, windows := InstallCommands(g.baseURL(r), token)
+	writeJSON(w, EnrollOffer{
+		Token:          token,
+		Command:        unix,
+		WindowsCommand: windows,
+		ProjectID:      g.project.ID,
+	})
+}
+
+func (g *Gateway) handleEnroll(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token    string `json:"token"`
+		Hostname string `json:"hostname"`
+		OS       string `json:"os"`
+		Arch     string `json:"arch"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1<<20)).Decode(&req); err != nil {
+		httpError(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	projectID, ok, err := g.store.ConsumeEnrollToken(r.Context(), req.Token)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if !ok {
+		httpError(w, http.StatusForbidden, "enrollment token is invalid, expired, or already used")
+		return
+	}
+	name := req.Hostname
+	if name == "" {
+		name = "device"
+	}
+	id, token, err := g.store.CreateDevice(r.Context(), projectID, name, req.Hostname, req.OS, req.Arch)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"deviceId": id, "deviceToken": token})
+}
+
+func (g *Gateway) handleListDevices(w http.ResponseWriter, r *http.Request) {
+	devices, err := g.store.ListDevices(r.Context(), g.project.ID)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	out := make([]DeviceView, 0, len(devices))
+	for _, d := range devices {
+		v := DeviceView{Device: d}
+		if p, ok := g.presence(d.ID); ok {
+			v.Online = true
+			v.Tmux = p.hello.Tmux
+			v.AgentVersion = p.hello.Version
+			v.Platform = p.hello.Platform
+			v.PlatformVersion = p.hello.PlatformVersion
+			v.KernelVersion = p.hello.KernelVersion
+			v.Stats = p.stats
+		}
+		out = append(out, v)
+	}
+	writeJSON(w, out)
+}
+
+func (g *Gateway) handleInstallScript(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimPrefix(r.URL.Path, "/install/")
+	token, ok := strings.CutSuffix(name, ".sh")
+	format := "sh"
+	if !ok {
+		token, ok = strings.CutSuffix(name, ".ps1")
+		format = "ps1"
+	}
+	if !ok || !isSimpleToken(token) {
+		httpError(w, http.StatusNotFound, "not found")
+		return
+	}
+	base := g.baseURL(r)
+	if format == "ps1" {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		fmt.Fprintf(w, windowsInstallScript, base, token)
+		return
+	}
+	w.Header().Set("Content-Type", "text/x-shellscript; charset=utf-8")
+	fmt.Fprintf(w, unixInstallScript, base, token)
 }
 
 // Serve listens on addr until ctx is cancelled.

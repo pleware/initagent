@@ -7,12 +7,13 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/ErzenXz/overseer/internal/updater"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/updater"
 )
 
 // managedEnv is set by the installed service definition. Foreground debug
 // agents never replace themselves.
-const managedEnv = "OVERSEER_MANAGED"
+const managedEnv = brand.EnvManaged
 
 // maybeSelfUpdate installs the exact stable release advertised by the hub.
 // It never downgrades and every download is checksum + version verified by the
@@ -34,7 +35,7 @@ func (a *Agent) maybeSelfUpdate(ctx context.Context, hubVersion, repo string) bo
 
 	release, err := updater.ForVersion(ctx, repo, hubVersion, runtime.GOOS, runtime.GOARCH)
 	if err == nil {
-		err = updater.Install(ctx, release, os.Getenv("OVERSEER_WINDOWS_TASK"))
+		err = updater.Install(ctx, release, os.Getenv(brand.EnvWindowsTask))
 	}
 	if err != nil {
 		log.Printf("self-update to %s failed (continuing on %s): %v", hubVersion, a.version, err)

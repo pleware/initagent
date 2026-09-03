@@ -1,9 +1,9 @@
-export const REPO = "https://github.com/ErzenXz/overseer";
+export const REPO = "https://github.com/pleware/initagent";
 export const RELEASES = `${REPO}/releases`;
 export const DOCS = `${REPO}#readme`;
 
 /**
- * Where the Overseer Code waitlist form posts. Left unset by default so the
+ * Where the initagent Code waitlist form posts. Left unset by default so the
  * form tells the truth instead of faking a success state. Set it in .env:
  *   VITE_WAITLIST_ENDPOINT=https://your-endpoint
  */

@@ -36,7 +36,7 @@ jobs:
         run: make cross
       - uses: actions/upload-artifact@v4
         with:
-          name: overseer-binaries
+          name: initagent-binaries
           path: dist/
 
   installer-unix:

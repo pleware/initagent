@@ -1,37 +1,37 @@
 #!/bin/sh
-# Install or remove the Overseer hub as a macOS LaunchAgent.
+# Install or remove the initagent hub as a macOS LaunchAgent.
 # Release binaries are preferred. When no release exists, the installer builds
 # from source with temporary Go and Node toolchains and changes no system SDKs.
 set -eu
 
 ACTION="${1:-install}"
-REPO="${OVERSEER_REPO:-ErzenXz/overseer}"
-VERSION="${OVERSEER_VERSION:-latest}"
-REF="${OVERSEER_REF:-main}"
-ADDR="${OVERSEER_ADDR:-:4200}"
-DATA_DIR="${OVERSEER_DATA_DIR:-$HOME/.overseer}"
-BIN_DIR="${OVERSEER_BIN_DIR:-$HOME/.local/bin}"
-PURGE="${OVERSEER_PURGE:-0}"
-LOCAL_BINARY="${OVERSEER_LOCAL_BINARY:-}"
-INSTALL_SOURCE="${OVERSEER_INSTALL_SOURCE:-auto}"
-GO_VERSION="${OVERSEER_GO_VERSION:-1.25.0}"
-GO_SHA256="${OVERSEER_GO_SHA256:-}"
-NODE_MAJOR="${OVERSEER_NODE_MAJOR:-20}"
-LABEL="${OVERSEER_SERVICE_NAME:-sh.overseer.hub}"
-LAUNCH_AGENT_DIR="${OVERSEER_LAUNCH_AGENT_DIR:-$HOME/Library/LaunchAgents}"
+REPO="${INITAGENT_REPO:-pleware/initagent}"
+VERSION="${INITAGENT_VERSION:-latest}"
+REF="${INITAGENT_REF:-main}"
+ADDR="${INITAGENT_ADDR:-:4200}"
+DATA_DIR="${INITAGENT_DATA_DIR:-$HOME/.initagent}"
+BIN_DIR="${INITAGENT_BIN_DIR:-$HOME/.local/bin}"
+PURGE="${INITAGENT_PURGE:-0}"
+LOCAL_BINARY="${INITAGENT_LOCAL_BINARY:-}"
+INSTALL_SOURCE="${INITAGENT_INSTALL_SOURCE:-auto}"
+GO_VERSION="${INITAGENT_GO_VERSION:-1.25.0}"
+GO_SHA256="${INITAGENT_GO_SHA256:-}"
+NODE_MAJOR="${INITAGENT_NODE_MAJOR:-20}"
+LABEL="${INITAGENT_SERVICE_NAME:-dev.initagent.hub}"
+LAUNCH_AGENT_DIR="${INITAGENT_LAUNCH_AGENT_DIR:-$HOME/Library/LaunchAgents}"
 PLIST="$LAUNCH_AGENT_DIR/$LABEL.plist"
 LOG_DIR="$DATA_DIR/logs"
-BIN="$BIN_DIR/overseer"
-PREVIOUS_BIN="$BIN_DIR/overseer.previous"
+BIN="$BIN_DIR/initagent"
+PREVIOUS_BIN="$BIN_DIR/initagent.previous"
 
-log() { printf '%s\n' "overseer: $*"; }
-die() { printf '%s\n' "overseer: $*" >&2; exit 1; }
+log() { printf '%s\n' "initagent: $*"; }
+die() { printf '%s\n' "initagent: $*" >&2; exit 1; }
 need_cmd() { command -v "$1" >/dev/null 2>&1 || die "missing required command: $1"; }
 
 [ "$(uname -s)" = "Darwin" ] || die "this installer is for macOS"
 ARCH="$(uname -m)"
 case "$ARCH" in x86_64|amd64) ARCH=amd64 ;; arm64|aarch64) ARCH=arm64 ;; *) die "unsupported architecture: $ARCH" ;; esac
-case "$INSTALL_SOURCE" in auto|binary|source) ;; *) die "OVERSEER_INSTALL_SOURCE must be auto, binary, or source" ;; esac
+case "$INSTALL_SOURCE" in auto|binary|source) ;; *) die "INITAGENT_INSTALL_SOURCE must be auto, binary, or source" ;; esac
 
 uninstall() {
   launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || launchctl unload "$PLIST" >/dev/null 2>&1 || true
@@ -54,7 +54,7 @@ mkdir -p "$BIN_DIR" "$LAUNCH_AGENT_DIR" "$LOG_DIR"
 TMP="$(mktemp -d)"
 cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT INT TERM
-ASSET="overseer_darwin_$ARCH"
+ASSET="initagent_darwin_$ARCH"
 
 version_at_least() {
   awk -v have="$1" -v need="$2" '
@@ -75,15 +75,15 @@ download_release_binary() {
     URL="https://github.com/$REPO/releases/download/$VERSION/$ASSET"
   fi
   log "trying release binary: $URL"
-  if ! curl -fL "$URL" -o "$TMP/overseer"; then
+  if ! curl -fL "$URL" -o "$TMP/initagent"; then
     return 1
   fi
   curl -fL "$(dirname "$URL")/checksums.txt" -o "$TMP/checksums.txt" || return 1
   EXPECTED="$(awk -v asset="$ASSET" '$2 == asset || $2 == "*" asset { print $1; exit }' "$TMP/checksums.txt")"
   [ -n "$EXPECTED" ] || die "checksums.txt does not contain $ASSET"
-  ACTUAL="$(shasum -a 256 "$TMP/overseer" | awk '{print $1}')"
+  ACTUAL="$(shasum -a 256 "$TMP/initagent" | awk '{print $1}')"
   [ "$ACTUAL" = "$EXPECTED" ] || die "release checksum verification failed"
-  chmod +x "$TMP/overseer"
+  chmod +x "$TMP/initagent"
 }
 
 ensure_go() {
@@ -100,7 +100,7 @@ ensure_go() {
     case "$GO_VERSION:$ARCH" in
       1.25.0:amd64) GO_SHA256=5bd60e823037062c2307c71e8111809865116714d6f6b410597cf5075dfd80ef ;;
       1.25.0:arm64) GO_SHA256=544932844156d8172f7a28f77f2ac9c15a23046698b6243f633b0a0b00c0749c ;;
-      *) die "set OVERSEER_GO_SHA256 when overriding OVERSEER_GO_VERSION" ;;
+      *) die "set INITAGENT_GO_SHA256 when overriding INITAGENT_GO_VERSION" ;;
     esac
   fi
   ACTUAL="$(shasum -a 256 "$TMP/$GO_ARCHIVE" | awk '{print $1}')"
@@ -147,16 +147,16 @@ build_from_source() {
   rm -rf "$SRC/cmd/overseer/uidist"
   mkdir -p "$SRC/cmd/overseer/uidist"
   cp -R "$SRC/ui/dist/." "$SRC/cmd/overseer/uidist/"
-  (cd "$SRC" && go build -ldflags "-s -w -X main.version=$SOURCE_REF" -o "$TMP/overseer" ./cmd/overseer)
-  chmod +x "$TMP/overseer"
+  (cd "$SRC" && go build -ldflags "-s -w -X main.version=$SOURCE_REF" -o "$TMP/initagent" ./cmd/overseer)
+  chmod +x "$TMP/initagent"
 }
 
 install_binary() {
   if [ -n "$LOCAL_BINARY" ]; then
     [ -f "$LOCAL_BINARY" ] || die "local binary not found: $LOCAL_BINARY"
     log "using local binary: $LOCAL_BINARY"
-    cp "$LOCAL_BINARY" "$TMP/overseer"
-    chmod +x "$TMP/overseer"
+    cp "$LOCAL_BINARY" "$TMP/initagent"
+    chmod +x "$TMP/initagent"
     return
   fi
   if [ "$INSTALL_SOURCE" != source ] && download_release_binary; then return; fi
@@ -172,7 +172,7 @@ xml_escape() {
 install_binary
 launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || launchctl unload "$PLIST" >/dev/null 2>&1 || true
 if [ -f "$BIN" ]; then cp "$BIN" "$PREVIOUS_BIN"; fi
-mv "$TMP/overseer" "$BIN"
+mv "$TMP/initagent" "$BIN"
 
 PLIST_BIN="$(xml_escape "$BIN")"
 PLIST_ADDR="$(xml_escape "$ADDR")"
@@ -184,7 +184,7 @@ cat > "$PLIST" <<EOF
 <plist version="1.0"><dict>
 <key>Label</key><string>$(xml_escape "$LABEL")</string>
 <key>ProgramArguments</key><array><string>$PLIST_BIN</string><string>serve</string><string>--addr</string><string>$PLIST_ADDR</string><string>--data-dir</string><string>$PLIST_DATA</string></array>
-<key>EnvironmentVariables</key><dict><key>OVERSEER_MANAGED</key><string>hub</string></dict>
+<key>EnvironmentVariables</key><dict><key>INITAGENT_MANAGED</key><string>hub</string></dict>
 <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 <key>StandardOutPath</key><string>$PLIST_LOG</string><key>StandardErrorPath</key><string>$PLIST_LOG</string>
 </dict></plist>
@@ -193,8 +193,8 @@ if command -v plutil >/dev/null 2>&1; then plutil -lint "$PLIST" >/dev/null; fi
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 launchctl kickstart -k "gui/$(id -u)/$LABEL"
 
-INSTALLED_VERSION="$("$BIN" version 2>/dev/null | sed 's/^overseer //' || true)"
-[ -n "$INSTALLED_VERSION" ] && log "installed $INSTALLED_VERSION" || log "installed overseer"
+INSTALLED_VERSION="$("$BIN" version 2>/dev/null | sed 's/^initagent //' || true)"
+[ -n "$INSTALLED_VERSION" ] && log "installed $INSTALLED_VERSION" || log "installed initagent"
 case "$ADDR" in :*) OPEN_ADDR="http://localhost$ADDR" ;; *) OPEN_ADDR="http://$ADDR" ;; esac
 log "service: $LABEL"
 log "open: $OPEN_ADDR"

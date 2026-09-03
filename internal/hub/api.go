@@ -11,8 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ErzenXz/overseer/internal/protocol"
-	"github.com/ErzenXz/overseer/internal/updater"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/protocol"
+	"github.com/pleware/initagent/internal/updater"
 )
 
 // --- setup & auth ---
@@ -130,21 +131,11 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request) {
-	token, err := s.store.CreateEnrollToken(15 * time.Minute)
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
+	if s.opts.GatewayURL == "" {
+		httpError(w, http.StatusServiceUnavailable, "gateway URL is required (--gateway-url); enroll must target the project gateway, not the hub")
 		return
 	}
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	base := fmt.Sprintf("%s://%s", scheme, r.Host)
-	writeJSON(w, map[string]string{
-		"token":          token,
-		"command":        fmt.Sprintf("curl -fsSL %s/install/%s.sh | sh", base, token),
-		"windowsCommand": fmt.Sprintf("powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm %s/install/%s.ps1 | iex\"", base, token),
-	})
+	s.proxyGateway(w, r, http.MethodPost, "/api/enroll-tokens")
 }
 
 // --- devices ---
@@ -185,6 +176,10 @@ func (s *Server) deviceViews() ([]deviceView, error) {
 }
 
 func (s *Server) handleListDevices(w http.ResponseWriter, r *http.Request) {
+	if s.opts.GatewayURL != "" {
+		s.proxyGateway(w, r, http.MethodGet, "/api/devices")
+		return
+	}
 	views, err := s.deviceViews()
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
@@ -280,7 +275,7 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleUpdateInstall(w http.ResponseWriter, r *http.Request) {
 	status := s.updates.snapshot()
 	if !status.Managed {
-		httpError(w, http.StatusConflict, "this hub is not running as a managed service; run `overseer update` on the host")
+		httpError(w, http.StatusConflict, "this hub is not running as a managed service; run `"+brand.Binary+" update` on the host")
 		return
 	}
 	go func() {
@@ -295,7 +290,7 @@ func (s *Server) handleUpdateInstall(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleUpdateRollback(w http.ResponseWriter, r *http.Request) {
 	status := s.updates.snapshot()
 	if !status.Managed {
-		httpError(w, http.StatusConflict, "this hub is not running as a managed service; run `overseer rollback` on the host")
+		httpError(w, http.StatusConflict, "this hub is not running as a managed service; run `"+brand.Binary+" rollback` on the host")
 		return
 	}
 	if status.RollbackVersion == "" {

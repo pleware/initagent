@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ErzenXz/overseer/internal/brand"
-	"github.com/ErzenXz/overseer/internal/id"
-	"github.com/ErzenXz/overseer/internal/scheduler"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/scheduler"
 )
 
 func openTest(t *testing.T, projectID string) *Gateway {

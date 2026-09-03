@@ -34,7 +34,7 @@ func TestLatestSelectsPlatformAssetAndChecksums(t *testing.T) {
 		if r.URL.Path != "/repos/acme/overseer/releases/latest" {
 			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
-		fmt.Fprint(w, `{"tag_name":"v1.4.0","draft":false,"prerelease":false,"assets":[{"name":"overseer_linux_arm64","browser_download_url":"https://downloads/binary"},{"name":"checksums.txt","browser_download_url":"https://downloads/checksums"}]}`)
+		fmt.Fprint(w, `{"tag_name":"v1.4.0","draft":false,"prerelease":false,"assets":[{"name":"initagent_linux_arm64","browser_download_url":"https://downloads/binary"},{"name":"checksums.txt","browser_download_url":"https://downloads/checksums"}]}`)
 	}))
 	defer server.Close()
 	oldBase := githubAPIBase
@@ -52,7 +52,7 @@ func TestLatestSelectsPlatformAssetAndChecksums(t *testing.T) {
 
 func TestLatestRejectsReleaseWithoutChecksums(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		fmt.Fprint(w, `{"tag_name":"v1.4.0","assets":[{"name":"overseer_linux_amd64","browser_download_url":"https://downloads/binary"}]}`)
+		fmt.Fprint(w, `{"tag_name":"v1.4.0","assets":[{"name":"initagent_linux_amd64","browser_download_url":"https://downloads/binary"}]}`)
 	}))
 	defer server.Close()
 	oldBase := githubAPIBase

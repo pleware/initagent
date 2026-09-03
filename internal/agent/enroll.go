@@ -11,15 +11,17 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/pleware/initagent/internal/brand"
 )
 
-// ConfigPath returns where the agent config lives (~/.overseer/agent.json).
+// ConfigPath returns where the agent config lives.
 func ConfigPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".overseer", "agent.json"), nil
+	return filepath.Join(home, brand.ConfigDir, brand.ConnectorConfigFile), nil
 }
 
 // LoadConfig reads the enrolled-agent config.
@@ -31,7 +33,7 @@ func LoadConfig() (Config, error) {
 	}
 	b, err := os.ReadFile(p)
 	if err != nil {
-		return cfg, fmt.Errorf("reading %s (is this device enrolled? run `overseer agent enroll`): %w", p, err)
+		return cfg, fmt.Errorf("reading %s (is this device enrolled? run `%s agent enroll`): %w", p, brand.Binary, err)
 	}
 	if err := json.Unmarshal(b, &cfg); err != nil {
 		return cfg, fmt.Errorf("parsing %s: %w", p, err)

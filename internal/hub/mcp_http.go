@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ErzenXz/overseer/internal/fleet"
-	"github.com/ErzenXz/overseer/internal/mcp"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/fleet"
+	"github.com/pleware/initagent/internal/mcp"
 )
 
 // handleMCPHTTP is the remote MCP endpoint (Streamable HTTP transport). Point
@@ -33,7 +34,7 @@ func (s *Server) handleMCPHTTP(w http.ResponseWriter, r *http.Request) {
 
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Bearer ") {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="overseer"`)
+		w.Header().Set("WWW-Authenticate", `Bearer realm="`+brand.Name+`"`)
 		httpError(w, http.StatusUnauthorized, "missing API token (add it as a Bearer token in your MCP client)")
 		return
 	}

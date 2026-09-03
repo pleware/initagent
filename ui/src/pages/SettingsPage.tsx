@@ -97,7 +97,7 @@ function SoftwareUpdates() {
 
       {!status?.managed && status && (
         <p className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-5 text-amber-200/80">
-          This is a standalone/debug run. It can check releases, but automatic replacement is enabled after installing Overseer as a background service. You can also run <code className="font-mono">overseer update</code> manually.
+          This is a standalone/debug run. It can check releases, but automatic replacement is enabled after installing initagent as a background service. You can also run <code className="font-mono">initagent update</code> manually.
         </p>
       )}
       {(message || status?.error) && <p className="mt-4 text-xs leading-5 text-zinc-400">{message || status?.error}</p>}
@@ -144,7 +144,7 @@ function ApiTokens() {
     <section className={cardClass}>
       <h2 className="mb-1 text-lg font-medium text-zinc-100">API tokens</h2>
       <p className="mb-4 text-sm text-zinc-400">
-        For the <code className="text-lime-300">overseer fleet</code> CLI and
+        For the <code className="text-lime-300">initagent fleet</code> CLI and
         the MCP server — this is how your coding agents get hands on the fleet.
       </p>
       <form onSubmit={create} className="mb-4 flex flex-col gap-2 sm:flex-row">
@@ -278,13 +278,13 @@ function McpHelp() {
       </h2>
       <p className="mb-4 text-sm text-zinc-400">
         Run a coding agent on any machine with the{' '}
-        <code className="text-lime-300">overseer</code> binary and an API token,
+        <code className="text-lime-300">initagent</code> binary and an API token,
         and it can see every device, launch worker agents, read their output,
         and steer them. For Claude Code:
       </p>
       <pre className="overflow-x-auto rounded-lg border border-zinc-700 bg-zinc-950 p-4 font-mono text-[13px] leading-relaxed text-zinc-300">
-        {`overseer fleet login --hub ${origin} --token YOUR_API_TOKEN
-claude mcp add overseer -- overseer mcp`}
+        {`initagent fleet login --hub ${origin} --token YOUR_API_TOKEN
+claude mcp add initagent -- initagent mcp`}
       </pre>
       <p className="mt-3 text-xs text-zinc-500">
         Then ask it things like “launch claude in ~/projects/api on the

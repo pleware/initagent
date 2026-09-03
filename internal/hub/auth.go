@@ -13,9 +13,10 @@ import (
 	"time"
 
 	"golang.org/x/crypto/argon2"
+	"github.com/pleware/initagent/internal/brand"
 )
 
-const sessionCookie = "overseer_session"
+const sessionCookie = brand.SessionCookie
 
 // --- password hashing (argon2id) ---
 

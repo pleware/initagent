@@ -1,4 +1,4 @@
-// Package hub implements the Overseer hub: web UI host, REST API, and the
+// Package hub implements the initagent hub: web UI host, REST API, and the
 // rendezvous point every device agent dials into.
 package hub
 
@@ -18,16 +18,21 @@ import (
 
 	"golang.org/x/crypto/acme/autocert"
 
-	"github.com/ErzenXz/overseer/internal/agent"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/agent"
 )
 
 // Options configures a hub server.
 type Options struct {
 	Addr       string // listen address, e.g. ":4200" (ignored when TLSDomain is set)
-	DataDir    string // where overseer.db and binaries/ live
+	DataDir    string // where the hub SQLite file and binaries/ live
 	Version    string
 	GithubRepo string // "owner/name" used to fetch agent binaries for other platforms
 	UI         fs.FS  // embedded web UI (nil = API only)
+
+	// GatewayURL is the project gateway the cockpit enrolls workers into.
+	// Empty means enroll-token minting refuses rather than baking r.Host.
+	GatewayURL string
 
 	// TLSDomain enables automatic HTTPS via Let's Encrypt for this exact
 	// domain. When set, the hub serves HTTPS on :443 and runs an HTTP server on
@@ -61,15 +66,15 @@ func NewServer(opts Options) (*Server, error) {
 		if err != nil {
 			return nil, err
 		}
-		opts.DataDir = filepath.Join(home, ".overseer")
+		opts.DataDir = filepath.Join(home, brand.ConfigDir)
 	}
 	if err := os.MkdirAll(opts.DataDir, 0o700); err != nil {
 		return nil, err
 	}
 	if opts.GithubRepo == "" {
-		opts.GithubRepo = "ErzenXz/overseer"
+		opts.GithubRepo = brand.ReleaseSource
 	}
-	store, err := OpenStore(filepath.Join(opts.DataDir, "overseer.db"))
+	store, err := OpenStore(filepath.Join(opts.DataDir, brand.DBFile))
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +160,7 @@ func (s *Server) runPlain(ctx context.Context) error {
 		defer cancel()
 		srv.Shutdown(shutdownCtx)
 	}()
-	log.Printf("Overseer hub listening on http://%s", displayAddr(ln.Addr().String()))
+	log.Printf("%s hub listening on http://%s", brand.Name, displayAddr(ln.Addr().String()))
 	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 		return err
 	}
@@ -196,7 +201,7 @@ func (s *Server) runTLS(ctx context.Context) error {
 		httpSrv.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("Overseer hub listening on https://%s (auto-TLS via Let's Encrypt)", s.opts.TLSDomain)
+	log.Printf("%s hub listening on https://%s (auto-TLS via Let's Encrypt)", brand.Name, s.opts.TLSDomain)
 	// Certs are supplied by TLSConfig, so no cert/key files here.
 	if err := httpsSrv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		return err

@@ -43,7 +43,7 @@ export default function Login({
             <circle cx="50" cy="50" r="18" className="fill-zinc-950" />
             <circle cx="50" cy="50" r="8" className="fill-lime-100" />
           </svg>
-          <h1 className="text-xl font-semibold text-zinc-100">Overseer</h1>
+          <h1 className="text-xl font-semibold text-zinc-100">initagent</h1>
         </div>
         <p className="mb-6 text-sm text-zinc-400">
           {setupDone

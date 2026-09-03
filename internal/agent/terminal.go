@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/ErzenXz/overseer/internal/protocol"
+	"github.com/pleware/initagent/internal/protocol"
 )
 
 // termStream is one live PTY bridged to a hub channel.

@@ -43,11 +43,11 @@ export function FleetAgents() {
               <div className="overflow-x-auto p-5 font-mono text-[12.5px] leading-[1.9] whitespace-pre text-fg-muted">
                 <div>
                   <span className="mr-2 text-beacon select-none">$</span>
-                  overseer fleet login --hub http://YOUR-HUB:4200 --token TOKEN
+                  initagent fleet login --hub http://YOUR-HUB:4200 --token TOKEN
                 </div>
                 <div>
                   <span className="mr-2 text-beacon select-none">$</span>
-                  claude mcp add overseer -- overseer mcp
+                  claude mcp add initagent -- initagent mcp
                 </div>
               </div>
             </div>
@@ -102,9 +102,9 @@ export function FleetAgents() {
                   Same tools from the CLI
                 </h3>
                 <div className="mt-4 overflow-x-auto font-mono text-[12px] leading-[2] whitespace-pre text-fg-muted">
-                  <div>overseer fleet devices</div>
-                  <div>overseer fleet run homelab -- git status</div>
-                  <div>overseer fleet read homelab build</div>
+                  <div>initagent fleet devices</div>
+                  <div>initagent fleet run homelab -- git status</div>
+                  <div>initagent fleet read homelab build</div>
                 </div>
               </div>
             </div>

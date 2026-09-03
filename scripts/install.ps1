@@ -5,27 +5,27 @@ param(
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$Repo = if ($env:OVERSEER_REPO) { $env:OVERSEER_REPO } else { "ErzenXz/overseer" }
-$Version = if ($env:OVERSEER_VERSION) { $env:OVERSEER_VERSION } else { "latest" }
-$Ref = if ($env:OVERSEER_REF) { $env:OVERSEER_REF } else { "main" }
-$Addr = if ($env:OVERSEER_ADDR) { $env:OVERSEER_ADDR } else { ":4200" }
-$InstallSource = if ($env:OVERSEER_INSTALL_SOURCE) { $env:OVERSEER_INSTALL_SOURCE } else { "auto" }
-$GoVersion = if ($env:OVERSEER_GO_VERSION) { $env:OVERSEER_GO_VERSION } else { "1.25.0" }
-$NodeMajor = if ($env:OVERSEER_NODE_MAJOR) { [int]$env:OVERSEER_NODE_MAJOR } else { 20 }
-$Base = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Overseer" } else { Join-Path $HOME "AppData\Local\Overseer" }
-$BinDir = if ($env:OVERSEER_BIN_DIR) { $env:OVERSEER_BIN_DIR } else { Join-Path $Base "bin" }
-$DataDir = if ($env:OVERSEER_DATA_DIR) { $env:OVERSEER_DATA_DIR } else { Join-Path $Base "data" }
-$Bin = Join-Path $BinDir "overseer.exe"
-$PreviousBin = Join-Path $BinDir "overseer.previous.exe"
-$Task = if ($env:OVERSEER_SERVICE_NAME) { $env:OVERSEER_SERVICE_NAME } else { "OverseerHub" }
-$Runner = Join-Path $BinDir "overseer-hub.ps1"
+$Repo = if ($env:INITAGENT_REPO) { $env:INITAGENT_REPO } else { "pleware/initagent" }
+$Version = if ($env:INITAGENT_VERSION) { $env:INITAGENT_VERSION } else { "latest" }
+$Ref = if ($env:INITAGENT_REF) { $env:INITAGENT_REF } else { "main" }
+$Addr = if ($env:INITAGENT_ADDR) { $env:INITAGENT_ADDR } else { ":4200" }
+$InstallSource = if ($env:INITAGENT_INSTALL_SOURCE) { $env:INITAGENT_INSTALL_SOURCE } else { "auto" }
+$GoVersion = if ($env:INITAGENT_GO_VERSION) { $env:INITAGENT_GO_VERSION } else { "1.25.0" }
+$NodeMajor = if ($env:INITAGENT_NODE_MAJOR) { [int]$env:INITAGENT_NODE_MAJOR } else { 20 }
+$Base = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "Initagent" } else { Join-Path $HOME "AppData\Local\Initagent" }
+$BinDir = if ($env:INITAGENT_BIN_DIR) { $env:INITAGENT_BIN_DIR } else { Join-Path $Base "bin" }
+$DataDir = if ($env:INITAGENT_DATA_DIR) { $env:INITAGENT_DATA_DIR } else { Join-Path $Base "data" }
+$Bin = Join-Path $BinDir "initagent.exe"
+$PreviousBin = Join-Path $BinDir "initagent.previous.exe"
+$Task = if ($env:INITAGENT_SERVICE_NAME) { $env:INITAGENT_SERVICE_NAME } else { "InitagentHub" }
+$Runner = Join-Path $BinDir "initagent-hub.ps1"
 
 if ($InstallSource -notin @("auto", "binary", "source")) {
-  throw "OVERSEER_INSTALL_SOURCE must be auto, binary, or source"
+  throw "INITAGENT_INSTALL_SOURCE must be auto, binary, or source"
 }
 
-function Write-OverseerLog([string]$Message) {
-  Write-Host "overseer: $Message"
+function Write-InitagentLog([string]$Message) {
+  Write-Host "initagent: $Message"
 }
 
 function Invoke-Download([string]$Uri, [string]$OutFile) {
@@ -52,16 +52,16 @@ if ($Action -in @("uninstall", "remove")) {
   Stop-HubTask
   & schtasks.exe /Delete /TN $Task /F 2>$null | Out-Null
   Remove-Item -Force -ErrorAction SilentlyContinue $Bin, $PreviousBin, $Runner
-  if ($env:OVERSEER_PURGE -eq "1") {
+  if ($env:INITAGENT_PURGE -eq "1") {
     $fullData = [IO.Path]::GetFullPath($DataDir)
     $unsafe = @([IO.Path]::GetPathRoot($fullData), [IO.Path]::GetFullPath($HOME), [IO.Path]::GetFullPath($Base))
     if ($unsafe -contains $fullData) { throw "refusing to purge unsafe data directory: $fullData" }
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $fullData
-    Write-OverseerLog "purged data at $fullData"
+    Write-InitagentLog "purged data at $fullData"
   } else {
-    Write-OverseerLog "kept data at $DataDir"
+    Write-InitagentLog "kept data at $DataDir"
   }
-  Write-OverseerLog "uninstalled"
+  Write-InitagentLog "uninstalled"
   exit 0
 }
 
@@ -71,9 +71,9 @@ $Arch = switch -Regex ($RawArch.ToLowerInvariant()) {
   "arm64" { "arm64"; break }
   default { throw "Unsupported architecture: $RawArch" }
 }
-$Asset = "overseer_windows_$Arch"
-$TempRoot = Join-Path ([IO.Path]::GetTempPath()) ("overseer-install-" + [Guid]::NewGuid().ToString("N"))
-$StagedBin = Join-Path $TempRoot "overseer.exe"
+$Asset = "initagent_windows_$Arch"
+$TempRoot = Join-Path ([IO.Path]::GetTempPath()) ("initagent-install-" + [Guid]::NewGuid().ToString("N"))
+$StagedBin = Join-Path $TempRoot "initagent.exe"
 New-Item -ItemType Directory -Force -Path $TempRoot, $BinDir, $DataDir | Out-Null
 
 function Get-ReleaseBinary {
@@ -82,7 +82,7 @@ function Get-ReleaseBinary {
   } else {
     "https://github.com/$Repo/releases/download/$Version/$Asset"
   }
-  Write-OverseerLog "trying release binary: $url"
+  Write-InitagentLog "trying release binary: $url"
   try {
     Invoke-Download $url $StagedBin
     $releaseBase = $url.Substring(0, $url.LastIndexOf('/'))
@@ -92,7 +92,7 @@ function Get-ReleaseBinary {
     return $true
   } catch {
     Remove-Item -Force -ErrorAction SilentlyContinue $StagedBin
-    Write-OverseerLog "release binary unavailable: $($_.Exception.Message)"
+    Write-InitagentLog "release binary unavailable: $($_.Exception.Message)"
     return $false
   }
 }
@@ -104,7 +104,7 @@ function Ensure-GoToolchain {
   }
   if ($current -and $current -ge [version]$GoVersion) { return }
 
-  Write-OverseerLog "using temporary Go $GoVersion toolchain"
+  Write-InitagentLog "using temporary Go $GoVersion toolchain"
   $manifest = Invoke-RestMethod -UseBasicParsing -Uri "https://go.dev/dl/?mode=json&include=all"
   $release = $manifest | Where-Object { $_.version -eq "go$GoVersion" } | Select-Object -First 1
   $file = $release.files | Where-Object { $_.os -eq "windows" -and $_.arch -eq $Arch -and $_.kind -eq "archive" } | Select-Object -First 1
@@ -124,7 +124,7 @@ function Ensure-NodeToolchain {
   }
   if ($current -ge $NodeMajor) { return }
 
-  Write-OverseerLog "using temporary Node $NodeMajor toolchain"
+  Write-InitagentLog "using temporary Node $NodeMajor toolchain"
   $baseUrl = "https://nodejs.org/dist/latest-v$NodeMajor.x"
   $sums = (Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/SHASUMS256.txt").Content
   $pattern = "^[0-9a-fA-F]{64}\s+(node-v[0-9.]+-win-$Arch\.zip)\s*$"
@@ -146,7 +146,7 @@ function Build-FromSource {
   Ensure-GoToolchain
   Ensure-NodeToolchain
   $sourceRef = if ($Version -ne "latest") { $Version } else { $Ref }
-  Write-OverseerLog "building from source: $Repo@$sourceRef"
+  Write-InitagentLog "building from source: $Repo@$sourceRef"
   $archive = Join-Path $TempRoot "source.zip"
   $extractRoot = Join-Path $TempRoot "source-archive"
   Invoke-Download "https://github.com/$Repo/archive/$sourceRef.zip" $archive
@@ -176,16 +176,16 @@ function Build-FromSource {
 }
 
 try {
-  if ($env:OVERSEER_LOCAL_BINARY) {
-    if (-not (Test-Path -LiteralPath $env:OVERSEER_LOCAL_BINARY -PathType Leaf)) { throw "local binary not found: $env:OVERSEER_LOCAL_BINARY" }
-    Write-OverseerLog "using local binary: $env:OVERSEER_LOCAL_BINARY"
-    Copy-Item -Force $env:OVERSEER_LOCAL_BINARY $StagedBin
+  if ($env:INITAGENT_LOCAL_BINARY) {
+    if (-not (Test-Path -LiteralPath $env:INITAGENT_LOCAL_BINARY -PathType Leaf)) { throw "local binary not found: $env:INITAGENT_LOCAL_BINARY" }
+    Write-InitagentLog "using local binary: $env:INITAGENT_LOCAL_BINARY"
+    Copy-Item -Force $env:INITAGENT_LOCAL_BINARY $StagedBin
   } else {
     $downloaded = $false
     if ($InstallSource -ne "source") { $downloaded = Get-ReleaseBinary }
     if (-not $downloaded) {
       if ($InstallSource -eq "binary") { throw "release binary was not available" }
-      Write-OverseerLog "release binary unavailable; falling back to source build"
+      Write-InitagentLog "release binary unavailable; falling back to source build"
       Build-FromSource
     }
   }
@@ -197,8 +197,8 @@ try {
   function Quote-PowerShellLiteral([string]$Value) { return $Value.Replace("'", "''") }
   $runnerLines = @(
     '$ErrorActionPreference = ''Stop''',
-    '$env:OVERSEER_MANAGED = ''hub''',
-    ("`$env:OVERSEER_WINDOWS_TASK = '" + (Quote-PowerShellLiteral $Task) + "'"),
+    '$env:INITAGENT_MANAGED = ''hub''',
+    ("`$env:INITAGENT_WINDOWS_TASK = '" + (Quote-PowerShellLiteral $Task) + "'"),
     ("& '" + (Quote-PowerShellLiteral $Bin) + "' serve --addr '" + (Quote-PowerShellLiteral $Addr) + "' --data-dir '" + (Quote-PowerShellLiteral $DataDir) + "'")
   )
   Set-Content -Path $Runner -Value $runnerLines -Encoding UTF8
@@ -208,11 +208,11 @@ try {
   & schtasks.exe /Run /TN $Task | Out-Null
   if ($LASTEXITCODE -ne 0) { throw "could not start Scheduled Task $Task" }
 
-  $installedVersion = (& $Bin version 2>$null) -replace '^overseer\s+', ''
-  if ($installedVersion) { Write-OverseerLog "installed $installedVersion" } else { Write-OverseerLog "installed overseer" }
+  $installedVersion = (& $Bin version 2>$null) -replace '^initagent\s+', ''
+  if ($installedVersion) { Write-InitagentLog "installed $installedVersion" } else { Write-InitagentLog "installed initagent" }
   $openAddr = if ($Addr.StartsWith(':')) { "http://localhost$Addr" } else { "http://$Addr" }
-  Write-OverseerLog "service: $Task"
-  Write-OverseerLog "open: $openAddr"
+  Write-InitagentLog "service: $Task"
+  Write-InitagentLog "open: $openAddr"
 } finally {
   Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $TempRoot
 }

@@ -1,4 +1,4 @@
-// Package updater discovers, verifies, installs, and rolls back Overseer
+// Package updater discovers, verifies, installs, and rolls back initagent
 // releases. It is shared by the hub and device agents so every machine uses
 // the same conservative update path.
 package updater
@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pleware/initagent/internal/brand"
 )
 
 const defaultTimeout = 5 * time.Minute
@@ -58,7 +60,7 @@ func ForVersion(ctx context.Context, repo, version, goos, goarch string) (Releas
 }
 
 func fetchRelease(ctx context.Context, url, goos, goarch string) (Release, error) {
-	asset := fmt.Sprintf("overseer_%s_%s", goos, goarch)
+	asset := brand.ReleaseAsset(goos, goarch)
 	var release githubRelease
 	if err := getJSON(ctx, url, &release); err != nil {
 		return Release{}, err
@@ -90,7 +92,7 @@ func getJSON(ctx context.Context, url string, dst any) error {
 		return err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "overseer-updater")
+	req.Header.Set("User-Agent", brand.Binary+"-updater")
 	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
 	if err != nil {
 		return err
@@ -262,7 +264,7 @@ func downloadStaged(ctx context.Context, url, exe, want string) (string, error) 
 		return "", err
 	}
 	defer body.Close()
-	pattern := ".overseer-update-*"
+	pattern := "." + brand.Binary + "-update-*"
 	if runtime.GOOS == "windows" {
 		pattern += ".exe"
 	}
@@ -311,7 +313,7 @@ func httpGet(ctx context.Context, url string, limit int64) (io.ReadCloser, error
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "overseer-updater")
+	req.Header.Set("User-Agent", brand.Binary+"-updater")
 	resp, err := (&http.Client{Timeout: defaultTimeout}).Do(req)
 	if err != nil {
 		return nil, err
@@ -344,7 +346,7 @@ func binaryVersion(ctx context.Context, path string) string {
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(string(out)), "overseer "))
+	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(string(out)), brand.Binary+" "))
 }
 
 func swapUnix(exe, staged string) error {
@@ -405,7 +407,7 @@ func backupExecutable(source, destination string) error {
 }
 
 func scheduleWindowsSwap(exe, source, taskName string, rollback bool) error {
-	script, err := os.CreateTemp(filepath.Dir(exe), ".overseer-swap-*.ps1")
+	script, err := os.CreateTemp(filepath.Dir(exe), "."+brand.Binary+"-swap-*.ps1")
 	if err != nil {
 		return err
 	}

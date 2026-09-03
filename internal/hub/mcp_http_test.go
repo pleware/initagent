@@ -55,7 +55,7 @@ func TestMCPHTTPEndpoint(t *testing.T) {
 		}
 		res, _ := out["result"].(map[string]any)
 		info, _ := res["serverInfo"].(map[string]any)
-		if info["name"] != "overseer" {
+		if info["name"] != "initagent" {
 			t.Errorf("serverInfo = %v", info)
 		}
 	})

@@ -123,14 +123,14 @@ export function OverseerCode() {
           {/* Status sits beside the title, not stacked above it as a label. */}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <h2 className="text-[2.6rem] leading-[1.03] font-semibold tracking-tight sm:text-[3.2rem] lg:text-[3.8rem]">
-              Overseer Code
+              initagent Code
             </h2>
             <span className="rounded-control border border-beacon/40 px-2.5 py-1 font-mono text-[11.5px] text-beacon">
               in development
             </span>
           </div>
           <p className="mt-5 max-w-[54ch] text-[17px] leading-relaxed text-fg-muted">
-            Overseer already drives other people&rsquo;s coding agents. The next
+            initagent already drives other people&rsquo;s coding agents. The next
             piece is our own: a coding agent that treats your machines as one
             place to work, not one laptop at a time.
           </p>

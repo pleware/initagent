@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ErzenXz/overseer/internal/agent"
-	"github.com/ErzenXz/overseer/internal/protocol"
+	"github.com/pleware/initagent/internal/agent"
+	"github.com/pleware/initagent/internal/protocol"
 )
 
 // startHub boots a real hub on a loopback port with a temp data dir.

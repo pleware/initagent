@@ -1,17 +1,20 @@
 package hub
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/pleware/initagent/internal/gateway"
 )
 
 func newTestServer(t *testing.T, version string) *Server {
 	t.Helper()
 	srv, err := NewServer(Options{
-		Addr: "127.0.0.1:0", DataDir: t.TempDir(), Version: version, GithubRepo: "ErzenXz/overseer",
+		Addr: "127.0.0.1:0", DataDir: t.TempDir(), Version: version, GithubRepo: "pleware/initagent",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +35,7 @@ func TestAgentBinaryRedirectsForOtherPlatform(t *testing.T) {
 		t.Fatalf("status = %d, want 302", w.Code)
 	}
 	loc := w.Header().Get("Location")
-	want := "https://github.com/ErzenXz/overseer/releases/download/v0.1.0/overseer_plan9_sparc64"
+	want := "https://github.com/pleware/initagent/releases/download/v0.1.0/initagent_plan9_sparc64"
 	if loc != want {
 		t.Errorf("Location = %q, want %q", loc, want)
 	}
@@ -45,7 +48,7 @@ func TestAgentBinaryDevVersionUsesLatest(t *testing.T) {
 	srv.handleAgentBinary(w, req)
 
 	loc := w.Header().Get("Location")
-	if !strings.Contains(loc, "/releases/latest/download/overseer_plan9_sparc64") {
+	if !strings.Contains(loc, "/releases/latest/download/initagent_plan9_sparc64") {
 		t.Errorf("dev build should redirect to latest, got %q", loc)
 	}
 }
@@ -125,15 +128,66 @@ func TestWindowsInstallScriptEmbedsHubAndToken(t *testing.T) {
 	}
 }
 
-func TestCreateEnrollTokenReturnsUnixAndWindowsCommands(t *testing.T) {
+func TestListDevicesAsksGateway(t *testing.T) {
+	gw, err := gateway.Open(gateway.Options{DataDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = gw.Close() })
+	if _, _, err := gw.Store().CreateDevice(context.Background(), gw.Project().ID, "box", "box", "linux", "amd64"); err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(gw.Handler())
+	t.Cleanup(ts.Close)
+
 	srv := newTestServer(t, "v0.1.0")
+	t.Cleanup(func() { _ = srv.store.Close() })
+	srv.opts.GatewayURL = ts.URL
+	req := httptest.NewRequest("GET", "/api/devices", nil)
+	w := httptest.NewRecorder()
+	srv.handleListDevices(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d %s", w.Code, w.Body.String())
+	}
+	var views []gateway.DeviceView
+	if err := json.Unmarshal(w.Body.Bytes(), &views); err != nil {
+		t.Fatal(err)
+	}
+	if len(views) != 1 || views[0].Name != "box" {
+		t.Fatalf("views = %+v", views)
+	}
+}
+
+func TestCreateEnrollTokenRequiresGatewayURL(t *testing.T) {
+	srv := newTestServer(t, "v0.1.0")
+	t.Cleanup(func() { _ = srv.store.Close() })
 	req := httptest.NewRequest("POST", "/api/enroll-tokens", nil)
 	req.Host = "hub.example:4200"
 	w := httptest.NewRecorder()
 	srv.handleCreateEnrollToken(w, req)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503 (must not bake r.Host)", w.Code)
+	}
+}
 
+func TestCreateEnrollTokenAsksGateway(t *testing.T) {
+	gw, err := gateway.Open(gateway.Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = gw.Close() })
+	ts := httptest.NewServer(gw.Handler())
+	t.Cleanup(ts.Close)
+
+	srv := newTestServer(t, "v0.1.0")
+	t.Cleanup(func() { _ = srv.store.Close() })
+	srv.opts.GatewayURL = ts.URL
+	req := httptest.NewRequest("POST", "/api/enroll-tokens", nil)
+	req.Host = "hub.example:4200"
+	w := httptest.NewRecorder()
+	srv.handleCreateEnrollToken(w, req)
 	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d", w.Code)
+		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}
 	var got map[string]string
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
@@ -142,10 +196,13 @@ func TestCreateEnrollTokenReturnsUnixAndWindowsCommands(t *testing.T) {
 	if got["token"] == "" {
 		t.Fatal("token should be returned")
 	}
-	if !strings.Contains(got["command"], "/install/"+got["token"]+".sh") {
-		t.Errorf("unix command should include .sh installer, got %q", got["command"])
+	if strings.Contains(got["command"], "hub.example") {
+		t.Fatalf("command still points at the hub: %q", got["command"])
 	}
-	if !strings.Contains(got["windowsCommand"], "/install/"+got["token"]+".ps1") {
-		t.Errorf("windows command should include .ps1 installer, got %q", got["windowsCommand"])
+	if !strings.Contains(got["command"], ts.URL+"/install/"+got["token"]+".sh") {
+		t.Fatalf("unix command should hit the gateway, got %q", got["command"])
+	}
+	if !strings.Contains(got["windowsCommand"], ts.URL+"/install/"+got["token"]+".ps1") {
+		t.Fatalf("windows command should hit the gateway, got %q", got["windowsCommand"])
 	}
 }

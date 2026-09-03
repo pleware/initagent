@@ -1,10 +1,15 @@
 package hub
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+
+	"github.com/pleware/initagent/internal/brand"
+)
 
 func TestUpdatePreferencePersists(t *testing.T) {
-	t.Setenv("OVERSEER_MANAGED", "")
-	store, err := OpenStore(t.TempDir() + "/overseer.db")
+	t.Setenv(brand.EnvManaged, "")
+	store, err := OpenStore(filepath.Join(t.TempDir(), brand.DBFile))
 	if err != nil {
 		t.Fatal(err)
 	}

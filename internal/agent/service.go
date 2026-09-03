@@ -7,29 +7,34 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/pleware/initagent/internal/brand"
 )
 
-const systemdUnit = `[Unit]
-Description=Overseer device agent
+func systemdUnitText(exe, user string) string {
+	return fmt.Sprintf(`[Unit]
+Description=%s device connector
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 ExecStart=%s agent run
-Environment=OVERSEER_MANAGED=agent
+Environment=%s=agent
 Restart=always
 RestartSec=3
 User=%s
 
 [Install]
 WantedBy=default.target
-`
+`, brand.Name, exe, brand.EnvManaged, user)
+}
 
-const launchdPlist = `<?xml version="1.0" encoding="UTF-8"?>
+func launchdPlistText(exe, logPath string) string {
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>Label</key><string>sh.overseer.agent</string>
+	<key>Label</key><string>%s</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>%s</string>
@@ -37,14 +42,15 @@ const launchdPlist = `<?xml version="1.0" encoding="UTF-8"?>
 		<string>run</string>
 	</array>
 	<key>EnvironmentVariables</key>
-	<dict><key>OVERSEER_MANAGED</key><string>agent</string></dict>
+	<dict><key>%s</key><string>agent</string></dict>
 	<key>RunAtLoad</key><true/>
 	<key>KeepAlive</key><true/>
 	<key>StandardOutPath</key><string>%s</string>
 	<key>StandardErrorPath</key><string>%s</string>
 </dict>
 </plist>
-`
+`, brand.LaunchdLabel, exe, brand.EnvManaged, logPath, logPath)
+}
 
 // InstallService registers the agent to run in the background and starts it now.
 // Linux: user systemd unit (falls back to system unit when running as root).
@@ -65,21 +71,22 @@ func InstallService() error {
 	case "windows":
 		return installWindowsTask(exe)
 	default:
-		return fmt.Errorf("service install not supported on %s; run `overseer agent run` under your own supervisor", runtime.GOOS)
+		return fmt.Errorf("service install not supported on %s; run `%s agent run` under your own supervisor", runtime.GOOS, brand.Binary)
 	}
 }
 
 func installSystemd(exe string) error {
+	unitFile := brand.ConnectorUnit + ".service"
 	if os.Geteuid() == 0 {
 		user := os.Getenv("SUDO_USER")
 		if user == "" {
 			user = "root"
 		}
-		unit := fmt.Sprintf(systemdUnit, exe, user)
-		if err := os.WriteFile("/etc/systemd/system/overseer-agent.service", []byte(unit), 0o644); err != nil {
+		unit := systemdUnitText(exe, user)
+		if err := os.WriteFile("/etc/systemd/system/"+unitFile, []byte(unit), 0o644); err != nil {
 			return err
 		}
-		for _, args := range [][]string{{"daemon-reload"}, {"enable", "--now", "overseer-agent"}} {
+		for _, args := range [][]string{{"daemon-reload"}, {"enable", "--now", brand.ConnectorUnit}} {
 			if out, err := exec.Command("systemctl", args...).CombinedOutput(); err != nil {
 				return fmt.Errorf("systemctl %v: %s", args, out)
 			}
@@ -95,13 +102,13 @@ func installSystemd(exe string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	unit := fmt.Sprintf(systemdUnit, exe, "")
+	unit := systemdUnitText(exe, "")
 	// User units must not set User=.
 	unit = removeLine(unit, "User=")
-	if err := os.WriteFile(filepath.Join(dir, "overseer-agent.service"), []byte(unit), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, unitFile), []byte(unit), 0o644); err != nil {
 		return err
 	}
-	for _, args := range [][]string{{"--user", "daemon-reload"}, {"--user", "enable", "--now", "overseer-agent"}} {
+	for _, args := range [][]string{{"--user", "daemon-reload"}, {"--user", "enable", "--now", brand.ConnectorUnit}} {
 		if out, err := exec.Command("systemctl", args...).CombinedOutput(); err != nil {
 			return fmt.Errorf("systemctl %v: %s", args, out)
 		}
@@ -115,17 +122,17 @@ func installLaunchd(exe string) error {
 	if err != nil {
 		return err
 	}
-	logDir := filepath.Join(home, ".overseer")
+	logDir := filepath.Join(home, brand.ConfigDir)
 	if err := os.MkdirAll(logDir, 0o700); err != nil {
 		return err
 	}
 	logPath := filepath.Join(logDir, "agent.log")
-	plist := fmt.Sprintf(launchdPlist, exe, logPath, logPath)
+	plist := launchdPlistText(exe, logPath)
 	dir := filepath.Join(home, "Library", "LaunchAgents")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	plistPath := filepath.Join(dir, "sh.overseer.agent.plist")
+	plistPath := filepath.Join(dir, brand.LaunchdLabel+".plist")
 	if err := os.WriteFile(plistPath, []byte(plist), 0o644); err != nil {
 		return err
 	}
@@ -140,16 +147,16 @@ func installWindowsTask(exe string) error {
 	// A tiny runner supplies the metadata used by the safe updater. Keeping the
 	// Scheduled Task action simple avoids Windows quoting bugs in paths with
 	// spaces, and the updater can restart the same named task after swapping.
-	runner := filepath.Join(filepath.Dir(exe), "overseer-agent.cmd")
+	runner := filepath.Join(filepath.Dir(exe), brand.ConnectorUnit+".cmd")
 	batchExe := strings.ReplaceAll(exe, "%", "%%")
-	contents := fmt.Sprintf("@echo off\r\nset \"OVERSEER_MANAGED=agent\"\r\nset \"OVERSEER_WINDOWS_TASK=OverseerAgent\"\r\n\"%s\" agent run\r\n", batchExe)
+	contents := fmt.Sprintf("@echo off\r\nset \"%s=agent\"\r\nset \"%s=%s\"\r\n\"%s\" agent run\r\n", brand.EnvManaged, brand.EnvWindowsTask, brand.WindowsTaskName, batchExe)
 	if err := os.WriteFile(runner, []byte(contents), 0o600); err != nil {
 		return err
 	}
 	action := fmt.Sprintf(`"%s"`, runner)
 	for _, args := range [][]string{
-		{"/Create", "/TN", "OverseerAgent", "/SC", "ONLOGON", "/TR", action, "/F"},
-		{"/Run", "/TN", "OverseerAgent"},
+		{"/Create", "/TN", brand.WindowsTaskName, "/SC", "ONLOGON", "/TR", action, "/F"},
+		{"/Run", "/TN", brand.WindowsTaskName},
 	} {
 		if out, err := exec.Command("schtasks.exe", args...).CombinedOutput(); err != nil {
 			return fmt.Errorf("schtasks %v: %s", args, out)

@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ErzenXz/overseer/internal/brand"
-	"github.com/ErzenXz/overseer/internal/id"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/id"
 	_ "modernc.org/sqlite"
 )
 

@@ -1,8 +1,6 @@
 // Package gateway is the project plane: one process, one SQLite file, the
-// shared prj- and the tasks table the scheduler will persist into.
-//
-// Milestone 0 keeps this additive beside upstream. Enroll and completion
-// wiring come in later slices. See drafts 02, 07, 11, and 44.
+// shared prj-, the tasks table, and enroll so workers dial this process
+// rather than the hub. See drafts 02, 07, 10, 11, and 44.
 package gateway
 
 import (
@@ -12,10 +10,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
-	"github.com/ErzenXz/overseer/internal/brand"
-	"github.com/ErzenXz/overseer/internal/id"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/protocol"
 	_ "modernc.org/sqlite"
 )
 
@@ -23,7 +24,11 @@ var (
 	ErrProjectNotFound = errors.New("project not found")
 	ErrBadProjectID    = errors.New("project id must be a prj- identifier")
 	ErrBadTaskID       = errors.New("task id must be a tsk- identifier")
+	ErrBadDeviceID     = errors.New("device id must be a dev- identifier")
 )
+
+// EnrollTTL is how long a minted enroll token can be exchanged.
+const EnrollTTL = 15 * time.Minute
 
 // Project is our project on this gateway. The id is the same prj- the hub
 // minted — not an alias and not a foreign tool project (fpr-).
@@ -42,13 +47,33 @@ type Options struct {
 	// ProjectID is the shared prj-. Empty mints a new one (first project,
 	// started by hand).
 	ProjectID string
+	// PublicURL is the URL baked into install commands when set. Empty
+	// means derive http(s):// from the request Host.
+	PublicURL string
+	// Version is advertised on agent welcome so a connector can self-update.
+	Version string
+	// GithubRepo is "owner/name" used to fetch connector binaries for other
+	// platforms. Empty uses brand.ReleaseSource.
+	GithubRepo string
 }
 
-// Gateway is one process: a store, a bound project, and a health handler.
+type presence struct {
+	hello protocol.Hello
+	stats *protocol.Stats
+}
+
+// Gateway is one process: a store, a bound project, enroll, and health.
 type Gateway struct {
-	store   *Store
-	project Project
-	addr    string
+	store      *Store
+	project    Project
+	addr       string
+	publicURL  string
+	dataDir    string
+	version    string
+	githubRepo string
+
+	mu     sync.Mutex
+	online map[string]presence
 }
 
 // Store is the SQLite file behind the gateway.
@@ -79,6 +104,27 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 CREATE INDEX IF NOT EXISTS tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS tasks_project_state ON tasks(project_id, state);
+CREATE TABLE IF NOT EXISTS devices (
+	id         TEXT PRIMARY KEY,
+	project_id TEXT NOT NULL,
+	name       TEXT NOT NULL,
+	hostname   TEXT NOT NULL DEFAULT '',
+	os         TEXT NOT NULL DEFAULT '',
+	arch       TEXT NOT NULL DEFAULT '',
+	token_hash TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	last_seen  INTEGER NOT NULL DEFAULT 0,
+	FOREIGN KEY(project_id) REFERENCES projects(id)
+);
+CREATE INDEX IF NOT EXISTS devices_project_id ON devices(project_id);
+CREATE TABLE IF NOT EXISTS enroll_tokens (
+	token_hash TEXT PRIMARY KEY,
+	project_id TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	expires_at INTEGER NOT NULL,
+	used       INTEGER NOT NULL DEFAULT 0,
+	FOREIGN KEY(project_id) REFERENCES projects(id)
+);
 `
 
 // Open creates the data dir, opens SQLite, and binds one project.
@@ -121,7 +167,20 @@ func Open(opts Options) (*Gateway, error) {
 		return nil, err
 	}
 
-	return &Gateway{store: store, project: project, addr: addr}, nil
+	repo := opts.GithubRepo
+	if repo == "" {
+		repo = brand.ReleaseSource
+	}
+	return &Gateway{
+		store:      store,
+		project:    project,
+		addr:       addr,
+		publicURL:  strings.TrimRight(opts.PublicURL, "/"),
+		dataDir:    dir,
+		version:    opts.Version,
+		githubRepo: repo,
+		online:     map[string]presence{},
+	}, nil
 }
 
 func openStore(path string) (*Store, error) {

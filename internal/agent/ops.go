@@ -21,7 +21,8 @@ import (
 	psnet "github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/process"
 
-	"github.com/ErzenXz/overseer/internal/protocol"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/protocol"
 )
 
 const (
@@ -136,14 +137,14 @@ func (a *Agent) execCommand(req protocol.Exec) protocol.ExecResult {
 	}
 	if ctx.Err() == context.DeadlineExceeded {
 		res.ExitCode = -1
-		res.Stderr += fmt.Sprintf("\n[overseer] command timed out after %s", timeout)
+		res.Stderr += fmt.Sprintf("\n[%s] command timed out after %s", brand.Name, timeout)
 		return res
 	}
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		res.ExitCode = exitErr.ExitCode()
 	} else if err != nil {
 		res.ExitCode = -1
-		res.Stderr += "\n[overseer] " + err.Error()
+		res.Stderr += "\n[" + brand.Name + "] " + err.Error()
 	}
 	return res
 }
@@ -272,7 +273,7 @@ func (f *fileStream) close() {
 
 func (a *Agent) fsWriteStart(channel uint32, path string) {
 	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".overseer-upload-*")
+	tmp, err := os.CreateTemp(dir, "."+brand.Binary+"-upload-*")
 	if err != nil {
 		a.send(protocol.Msg{Type: protocol.TypeFsErr, Channel: channel, Error: err.Error()})
 		return

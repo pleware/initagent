@@ -1,6 +1,6 @@
-# Overseer build glue.
+# initagent build glue.
 #
-#   make          build everything into ./overseer (UI embedded)
+#   make          build everything into ./initagent (UI embedded)
 #   make ui       build the web UI and stage it for embedding
 #   make go       build the Go binary only (uses last staged UI)
 #   make test     run Go tests
@@ -21,7 +21,7 @@ ui:
 	touch cmd/overseer/uidist/.gitkeep   # keep the go:embed target non-empty for `go test` without a UI build
 
 go:
-	go build -ldflags '$(LDFLAGS)' -o overseer ./cmd/overseer
+	go build -ldflags '$(LDFLAGS)' -o initagent ./cmd/overseer
 
 test:
 	go vet ./...
@@ -31,11 +31,11 @@ cross: ui
 	@mkdir -p dist
 	@for p in $(PLATFORMS); do \
 		os=$${p%/*}; arch=$${p#*/}; \
-		echo "building dist/overseer_$${os}_$${arch}"; \
+		echo "building dist/initagent_$${os}_$${arch}"; \
 		GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 go build -ldflags '$(LDFLAGS)' \
-			-o dist/overseer_$${os}_$${arch} ./cmd/overseer || exit 1; \
+			-o dist/initagent_$${os}_$${arch} ./cmd/overseer || exit 1; \
 	done
 
 clean:
-	rm -rf overseer dist ui/dist cmd/overseer/uidist
+	rm -rf initagent dist ui/dist cmd/overseer/uidist
 	mkdir -p cmd/overseer/uidist && touch cmd/overseer/uidist/.gitkeep

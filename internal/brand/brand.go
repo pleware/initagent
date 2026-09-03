@@ -5,9 +5,12 @@
 // them in place would put a conflict in every merge. Referencing a constant
 // from here keeps our rename to one file that upstream never touches.
 //
-// Constants are declared for the whole rename inventory even where the call
-// site still carries a literal. Each site switches over the next time it is
-// edited for another reason, so no merge pays for a cosmetic diff.
+// Constants are the rename inventory. Call sites import them instead of
+// carrying literals, so a later identity tweak is one file upstream never
+// touches.
+//
+// Visual tokens start in colors.css. That file is a starter palette, not yet
+// applied to the cockpit or the site.
 package brand
 
 const (
@@ -22,6 +25,10 @@ const (
 	// DBFile on a hub and the connector config on a worker.
 	ConfigDir = ".initagent"
 
+	// WindowsAppDir is the folder under %LOCALAPPDATA% for binaries and
+	// setup-center tools on Windows.
+	WindowsAppDir = "Initagent"
+
 	// DBFile is the hub's SQLite database inside ConfigDir.
 	DBFile = "initagent.db"
 
@@ -31,6 +38,9 @@ const (
 
 	// ConnectorConfigFile is the worker connector's config inside ConfigDir.
 	ConnectorConfigFile = "connector.json"
+
+	// FleetConfigFile is the fleet CLI config inside ConfigDir.
+	FleetConfigFile = "fleet.json"
 
 	// TokenPrefix marks an API token so it is recognisable in a log line
 	// without being resolvable. The token value itself stays CSPRNG.
@@ -56,6 +66,10 @@ const (
 	// EnvHub and EnvToken configure the CLI without a config file.
 	EnvHub   = EnvPrefix + "HUB"
 	EnvToken = EnvPrefix + "TOKEN"
+
+	EnvRepo    = EnvPrefix + "REPO"
+	EnvVersion = EnvPrefix + "VERSION"
+	EnvPurge   = EnvPrefix + "PURGE"
 )
 
 // Service identities. Renaming these breaks upgrades of an already-installed
@@ -64,6 +78,15 @@ const (
 	ConnectorUnit   = Binary + "-connector"
 	LaunchdLabel    = "dev.initagent.connector"
 	WindowsTaskName = "InitagentConnector"
+
+	// HubUnit is the systemd unit for a hub install.
+	HubUnit = Binary + "-hub"
+
+	// HubLaunchdLabel is the macOS LaunchAgent label for the hub.
+	HubLaunchdLabel = "dev.initagent.hub"
+
+	// HubWindowsTask is the Scheduled Task name for a hub install.
+	HubWindowsTask = "InitagentHub"
 )
 
 // TmuxKindOpt is the tmux user option carrying coder.kind on a session, read
@@ -74,5 +97,10 @@ const TmuxKindOpt = "@initagent_coder_kind"
 // is not running on. A var, not a const, because it is overridable at build
 // time — continuing what upstream already anticipated for forks:
 //
-//	-ldflags "-X github.com/ErzenXz/overseer/internal/brand.ReleaseSource=owner/repo"
+//	-ldflags "-X github.com/pleware/initagent/internal/brand.ReleaseSource=owner/repo"
 var ReleaseSource = "pleware/initagent"
+
+// ReleaseAsset is the GitHub release filename for a platform build.
+func ReleaseAsset(goos, goarch string) string {
+	return Binary + "_" + goos + "_" + goarch
+}

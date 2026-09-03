@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/ErzenXz/overseer/internal/gateway"
+	"github.com/pleware/initagent/internal/gateway"
 )
 
 func cmdGateway(args []string) error {
@@ -13,6 +13,7 @@ func cmdGateway(args []string) error {
 	addr := fs.String("addr", ":4201", "listen address")
 	dataDir := fs.String("data-dir", "", "data directory (default ~/.initagent)")
 	projectID := fs.String("project", "", "shared prj- (minted on first start if empty)")
+	publicURL := fs.String("public-url", "", "URL baked into enroll commands (default: request Host)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -21,6 +22,8 @@ func cmdGateway(args []string) error {
 		DataDir:   *dataDir,
 		Addr:      *addr,
 		ProjectID: *projectID,
+		PublicURL: *publicURL,
+		Version:   version,
 	})
 	if err != nil {
 		return err

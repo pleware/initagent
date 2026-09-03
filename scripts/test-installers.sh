@@ -10,17 +10,17 @@ cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT INT TERM
 
 MOCK_BIN="$TMP/mock-bin"
-FIXTURE_ROOT="$TMP/fixture/overseer-main"
+FIXTURE_ROOT="$TMP/fixture/initagent-main"
 FIXTURE_ARCHIVE="$TMP/source.tar.gz"
-FAKE_BINARY="$TMP/fake-overseer"
+FAKE_BINARY="$TMP/fake-initagent"
 mkdir -p "$MOCK_BIN" "$FIXTURE_ROOT/ui/dist" "$FIXTURE_ROOT/cmd/overseer/uidist"
 printf '<!doctype html><title>fixture</title>\n' > "$FIXTURE_ROOT/ui/dist/index.html"
 printf 'placeholder\n' > "$FIXTURE_ROOT/cmd/overseer/uidist/.gitkeep"
-tar -czf "$FIXTURE_ARCHIVE" -C "$TMP/fixture" overseer-main
+tar -czf "$FIXTURE_ARCHIVE" -C "$TMP/fixture" initagent-main
 
 cat > "$FAKE_BINARY" <<'EOF'
 #!/bin/sh
-if [ "${1:-}" = version ]; then printf '%s\n' 'overseer test-installer'; fi
+if [ "${1:-}" = version ]; then printf '%s\n' 'initagent test-installer'; fi
 EOF
 chmod +x "$FAKE_BINARY"
 
@@ -119,21 +119,21 @@ run_linux() {
   units="$home/systemd"
   mkdir -p "$home"
   export HOME="$home" INSTALLER_TEST_HOME="$home" INSTALLER_MOCK_OS=Linux INSTALLER_MOCK_ARCH=x86_64
-  output="$(OVERSEER_USER="$(/usr/bin/id -un)" OVERSEER_DATA_DIR="$data" OVERSEER_BIN_DIR="$bindir" OVERSEER_SYSTEMD_DIR="$units" OVERSEER_INSTALL_SOURCE=auto sh "$ROOT/scripts/install.sh" 2>&1)"
+  output="$(INITAGENT_USER="$(/usr/bin/id -un)" INITAGENT_DATA_DIR="$data" INITAGENT_BIN_DIR="$bindir" INITAGENT_SYSTEMD_DIR="$units" INITAGENT_INSTALL_SOURCE=auto sh "$ROOT/scripts/install.sh" 2>&1)"
   printf '%s' "$output" | grep -q 'falling back to source build'
-  [ -x "$data/bin/overseer" ]
-  [ -L "$bindir/overseer" ]
-  grep -q 'ExecStart=' "$units/overseer-hub.service"
-  grep -q '^WorkingDirectory=/' "$units/overseer-hub.service"
-  if grep -q '^WorkingDirectory="' "$units/overseer-hub.service"; then
+  [ -x "$data/bin/initagent" ]
+  [ -L "$bindir/initagent"
+  grep -q 'ExecStart=' "$units/initagent-hub.service"
+  grep -q '^WorkingDirectory=/' "$units/initagent-hub.service"
+  if grep -q '^WorkingDirectory="' "$units/initagent-hub.service"; then
     printf '%s\n' 'quoted WorkingDirectory is invalid in systemd units' >&2
     exit 1
   fi
   if command -v systemd-analyze >/dev/null 2>&1; then
-    systemd-analyze verify "$units/overseer-hub.service" >/dev/null
+    systemd-analyze verify "$units/initagent-hub.service" >/dev/null
   fi
-  OVERSEER_USER="$(/usr/bin/id -un)" OVERSEER_DATA_DIR="$data" OVERSEER_BIN_DIR="$bindir" OVERSEER_SYSTEMD_DIR="$units" sh "$ROOT/scripts/install.sh" uninstall >/dev/null
-  [ ! -e "$bindir/overseer" ]
+  INITAGENT_USER="$(/usr/bin/id -un)" INITAGENT_DATA_DIR="$data" INITAGENT_BIN_DIR="$bindir" INITAGENT_SYSTEMD_DIR="$units" sh "$ROOT/scripts/install.sh" uninstall >/dev/null
+  [ ! -e "$bindir/initagent" ]
   printf '%s\n' 'installer-linux: ok (release 404 -> source fallback -> systemd -> uninstall)'
 }
 
@@ -144,15 +144,15 @@ run_macos() {
   agents="$home/Launch Agents"
   mkdir -p "$home"
   export HOME="$home" INSTALLER_TEST_HOME="$home" INSTALLER_MOCK_OS=Darwin INSTALLER_MOCK_ARCH=arm64
-  output="$(OVERSEER_DATA_DIR="$data" OVERSEER_BIN_DIR="$bindir" OVERSEER_LAUNCH_AGENT_DIR="$agents" OVERSEER_INSTALL_SOURCE=auto sh "$ROOT/scripts/install-macos.sh" 2>&1)"
+  output="$(INITAGENT_DATA_DIR="$data" INITAGENT_BIN_DIR="$bindir" INITAGENT_LAUNCH_AGENT_DIR="$agents" INITAGENT_INSTALL_SOURCE=auto sh "$ROOT/scripts/install-macos.sh" 2>&1)"
   printf '%s' "$output" | grep -q 'falling back to source build'
-  [ -x "$bindir/overseer" ]
-  plist="$agents/sh.overseer.hub.plist"
+  [ -x "$bindir/initagent" ]
+  plist="$agents/dev.initagent.hub.plist"
   [ -f "$plist" ]
   grep -q 'ProgramArguments' "$plist"
   grep -q '&amp;' "$plist"
-  OVERSEER_DATA_DIR="$data" OVERSEER_BIN_DIR="$bindir" OVERSEER_LAUNCH_AGENT_DIR="$agents" sh "$ROOT/scripts/install-macos.sh" uninstall >/dev/null
-  [ ! -e "$bindir/overseer" ]
+  INITAGENT_DATA_DIR="$data" INITAGENT_BIN_DIR="$bindir" INITAGENT_LAUNCH_AGENT_DIR="$agents" sh "$ROOT/scripts/install-macos.sh" uninstall >/dev/null
+  [ ! -e "$bindir/initagent" ]
   printf '%s\n' 'installer-macos: ok (release 404 -> source fallback -> escaped launchd -> uninstall)'
 }
 

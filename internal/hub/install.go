@@ -7,12 +7,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/pleware/initagent/internal/brand"
 )
 
 // installScript is the one-paste device joiner, served with the enrollment
 // token and hub URL baked in. It must stay POSIX-sh compatible.
 const installScript = `#!/bin/sh
-# Overseer device installer — https://overseer.sh
+# initagent device installer
 set -eu
 
 HUB="%s"
@@ -23,21 +25,21 @@ ARCH="$(uname -m)"
 case "$ARCH" in
   x86_64|amd64) ARCH="amd64" ;;
   aarch64|arm64) ARCH="arm64" ;;
-  *) echo "overseer: unsupported architecture: $ARCH" >&2; exit 1 ;;
+  *) echo "initagent: unsupported architecture: $ARCH" >&2; exit 1 ;;
 esac
 case "$OS" in
   linux|darwin) ;;
-  *) echo "overseer: unsupported OS: $OS (Linux and macOS only for now)" >&2; exit 1 ;;
+  *) echo "initagent: unsupported OS: $OS (Linux and macOS only for now)" >&2; exit 1 ;;
 esac
 
-BIN_DIR="$HOME/.overseer/bin"
+BIN_DIR="$HOME/.initagent/bin"
 mkdir -p "$BIN_DIR"
-BIN="$BIN_DIR/overseer"
+BIN="$BIN_DIR/initagent"
 
-echo "→ downloading overseer agent for $OS/$ARCH from the hub..."
+echo "→ downloading initagent agent for $OS/$ARCH from the hub..."
 if ! curl -fSL "$HUB/api/agent-binary?os=$OS&arch=$ARCH" -o "$BIN.tmp"; then
-  echo "overseer: hub has no binary for $OS/$ARCH." >&2
-  echo "Place one at <hub data dir>/binaries/overseer_${OS}_${ARCH} (see README) and retry." >&2
+  echo "initagent: hub has no binary for $OS/$ARCH." >&2
+  echo "Place one at <hub data dir>/binaries/initagent_${OS}_${ARCH} (see README) and retry." >&2
   exit 1
 fi
 mv "$BIN.tmp" "$BIN"
@@ -50,7 +52,7 @@ echo "→ installing background service..."
 "$BIN" agent install-service
 
 echo ""
-echo "✓ Done. This device is now connected to Overseer."
+echo "✓ Done. This device is now connected to initagent."
 echo "  It should appear on your dashboard within a few seconds."
 `
 
@@ -64,15 +66,15 @@ $RawArch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else
 switch -Regex ($RawArch.ToLowerInvariant()) {
   "amd64|x64" { $Arch = "amd64"; break }
   "arm64" { $Arch = "arm64"; break }
-  default { throw "overseer: unsupported architecture: $RawArch" }
+  default { throw "initagent: unsupported architecture: $RawArch" }
 }
 
-$BinDir = Join-Path $env:LOCALAPPDATA "Overseer\bin"
+$BinDir = Join-Path $env:LOCALAPPDATA "Initagent\bin"
 New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
-$Bin = Join-Path $BinDir "overseer.exe"
+$Bin = Join-Path $BinDir "initagent.exe"
 $Tmp = "$Bin.tmp"
 
-Write-Host "-> downloading overseer agent for windows/$Arch from the hub..."
+Write-Host "-> downloading initagent agent for windows/$Arch from the hub..."
 Invoke-WebRequest -UseBasicParsing -Uri "$Hub/api/agent-binary?os=windows&arch=$Arch" -OutFile $Tmp
 Move-Item -Force $Tmp $Bin
 
@@ -83,7 +85,7 @@ Write-Host "-> installing background task..."
 & $Bin agent install-service
 
 Write-Host ""
-Write-Host "Done. This device is now connected to Overseer."
+Write-Host "Done. This device is now connected to initagent."
 Write-Host "It should appear on your dashboard within a few seconds."
 `
 
@@ -136,7 +138,7 @@ func (s *Server) handleInstallScript(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, installScript, base, token)
 }
 
-// handleAgentBinary serves the overseer binary for a requested platform:
+// handleAgentBinary serves the initagent binary for a requested platform:
 // the hub's own executable when the platform matches, otherwise a
 // cross-compiled binary dropped into <data-dir>/binaries/.
 func (s *Server) handleAgentBinary(w http.ResponseWriter, r *http.Request) {
@@ -166,7 +168,7 @@ func (s *Server) handleAgentBinary(w http.ResponseWriter, r *http.Request) {
 	}
 	// A binary manually dropped into the data dir wins (useful for air-gapped
 	// LANs or custom builds).
-	candidate := filepath.Join(s.opts.DataDir, "binaries", fmt.Sprintf("overseer_%s_%s", osName, arch))
+	candidate := filepath.Join(s.opts.DataDir, "binaries", brand.ReleaseAsset(osName, arch))
 	if _, err := os.Stat(candidate); err == nil {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		http.ServeFile(w, r, candidate)
@@ -176,7 +178,7 @@ func (s *Server) handleAgentBinary(w http.ResponseWriter, r *http.Request) {
 	// cross-platform joins work without the hub carrying every binary. Prefer
 	// the release matching the hub's own version; fall back to latest.
 	if s.opts.GithubRepo != "" {
-		asset := fmt.Sprintf("overseer_%s_%s", osName, arch)
+		asset := brand.ReleaseAsset(osName, arch)
 		tag := "latest/download"
 		if v := s.opts.Version; v != "" && strings.HasPrefix(v, "v") && !strings.Contains(v, "-") {
 			tag = "download/" + v

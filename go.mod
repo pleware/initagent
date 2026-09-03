@@ -1,4 +1,4 @@
-module github.com/ErzenXz/overseer
+module github.com/pleware/initagent
 
 go 1.25.0
 

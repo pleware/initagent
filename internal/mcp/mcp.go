@@ -1,6 +1,6 @@
 // Package mcp implements a minimal Model Context Protocol server over stdio,
 // exposing fleet operations so coding agents (Claude Code, Codex, ...) can
-// orchestrate worker agents across every Overseer device.
+// orchestrate worker agents across every initagent device.
 package mcp
 
 import (
@@ -12,7 +12,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ErzenXz/overseer/internal/fleet"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/fleet"
 )
 
 const protocolVersion = "2024-11-05"
@@ -93,7 +94,7 @@ func handle(client *fleet.Client, version string, req rpcRequest) (any, error) {
 		return map[string]any{
 			"protocolVersion": protocolVersion,
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "overseer", "version": version},
+			"serverInfo":      map[string]any{"name": brand.Name, "version": version},
 		}, nil
 	case "tools/list":
 		return map[string]any{"tools": toolDefs()}, nil
@@ -139,7 +140,7 @@ func toolDefs() []map[string]any {
 	return []map[string]any{
 		{
 			"name":        "list_devices",
-			"description": "List every device in the Overseer fleet with online status, OS, and whether tmux is available.",
+			"description": "List every device in the initagent fleet with online status, OS, and whether tmux is available.",
 			"inputSchema": obj(map[string]any{}),
 		},
 		{

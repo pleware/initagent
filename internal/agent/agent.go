@@ -1,4 +1,4 @@
-// Package agent implements the device-side of Overseer: it dials out to the
+// Package agent implements the device-side of initagent: it dials out to the
 // hub over a single WebSocket and serves terminal, exec, stats and file
 // requests over it. It never listens on any port.
 package agent
@@ -22,7 +22,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/shirou/gopsutil/v4/host"
 
-	"github.com/ErzenXz/overseer/internal/protocol"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/protocol"
 )
 
 // Config is what an enrolled agent needs to reach its hub.
@@ -60,7 +61,7 @@ func New(cfg Config, version string) *Agent {
 	}
 }
 
-// augmentManagedPath makes tools installed through Overseer's setup center
+// augmentManagedPath makes tools installed through initagent's setup center
 // available to background agents too. Service managers often start with a
 // much smaller PATH than an interactive shell, especially on macOS/Windows.
 func augmentManagedPath() {
@@ -80,8 +81,8 @@ func managedPathEntries(goos, home, localAppData string) []string {
 		}
 		if filepath.IsAbs(base) {
 			additional = append(additional,
-				filepath.Join(base, "Overseer", "bin"),
-				filepath.Join(base, "Overseer", "tools", "node_modules", ".bin"),
+				filepath.Join(base, brand.WindowsAppDir, "bin"),
+				filepath.Join(base, brand.WindowsAppDir, "tools", "node_modules", ".bin"),
 			)
 		}
 		if homeIsAbsolute {
@@ -90,8 +91,8 @@ func managedPathEntries(goos, home, localAppData string) []string {
 	} else {
 		if homeIsAbsolute {
 			additional = append(additional,
-				filepath.Join(home, ".overseer", "bin"),
-				filepath.Join(home, ".overseer", "tools", "node_modules", ".bin"),
+				filepath.Join(home, brand.ConfigDir, "bin"),
+				filepath.Join(home, brand.ConfigDir, "tools", "node_modules", ".bin"),
 				filepath.Join(home, ".local", "bin"),
 			)
 		}

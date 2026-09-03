@@ -1,8 +1,8 @@
-# Overseer marketing site
+# initagent marketing site
 
-The public landing page for Overseer, and the announcement surface for
-**Overseer Code**. This is a standalone app: it is not the hub UI in
-[`../ui`](../ui) and is never compiled into the `overseer` binary.
+The public landing page for initagent, and the announcement surface for
+**initagent Code**. This is a standalone app: it is not the hub UI in
+[`../ui`](../ui) and is never compiled into the `initagent` binary.
 
 React 19 + Vite 8 + Tailwind v4 + Motion. Geist / Geist Mono are self-hosted
 through Fontsource, so the page makes no third-party requests at runtime.
@@ -28,7 +28,7 @@ broken image, so the page is presentable with none, some, or all of them
 present. To capture:
 
 ```sh
-../overseer serve --addr :4277 --data-dir /tmp/overseer-shots
+../initagent serve --addr :4277 --data-dir /tmp/initagent-shots
 ```
 
 Open `http://localhost:4277`, set an admin password, and screenshot at a
@@ -36,9 +36,9 @@ Open `http://localhost:4277`, set an admin password, and screenshot at a
 dashboard has real data immediately. Launch a session from the device page to
 fill the terminal shot.
 
-## Overseer Code waitlist
+## initagent Code waitlist
 
-The Overseer Code section ships with a **Watch releases** link by default,
+The initagent Code section ships with a **Watch releases** link by default,
 which is a real, working way to be notified.
 
 If you want to collect emails instead, set an endpoint and the section swaps in

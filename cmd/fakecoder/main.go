@@ -12,7 +12,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ErzenXz/overseer/internal/fakecoder"
+	"github.com/pleware/initagent/internal/fakecoder"
 )
 
 func main() {

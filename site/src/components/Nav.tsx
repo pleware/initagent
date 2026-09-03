@@ -5,7 +5,7 @@ import { REPO } from "../lib/site";
 const LINKS = [
   { label: "How it works", href: "#how" },
   { label: "Fleet agents", href: "#agents" },
-  { label: "Overseer Code", href: "#code" },
+  { label: "initagent Code", href: "#code" },
 ];
 
 export function Nav() {
@@ -39,7 +39,7 @@ export function Nav() {
           <a href="#top" className="flex shrink-0 items-center gap-2.5">
             <Eye size={20} weight="regular" className="text-beacon" />
             <span className="text-[15px] font-semibold tracking-tight">
-              Overseer
+              initagent
             </span>
           </a>
 

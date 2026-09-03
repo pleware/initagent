@@ -15,7 +15,7 @@ export function Footer() {
         <div className="flex items-center gap-2.5">
           <Eye size={18} weight="regular" className="text-beacon" />
           <span className="text-[14.5px] font-semibold tracking-tight">
-            Overseer
+            initagent
           </span>
           <span className="text-[13.5px] text-fg-dim">MIT licensed</span>
         </div>
@@ -36,7 +36,7 @@ export function Footer() {
             href={REPO}
             target="_blank"
             rel="noreferrer"
-            aria-label="Overseer on GitHub"
+            aria-label="initagent on GitHub"
             className="text-fg-muted transition-colors hover:text-fg"
           >
             <GithubLogo size={18} weight="regular" />

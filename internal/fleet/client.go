@@ -1,5 +1,5 @@
 // Package fleet is a small REST client for the hub API, used by the
-// `overseer fleet` CLI and the MCP server.
+// initagent fleet CLI and the MCP server.
 package fleet
 
 import (
@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/pleware/initagent/internal/brand"
 )
 
 // Client talks to a hub with an API token.
@@ -21,7 +23,7 @@ type Client struct {
 	http   *http.Client
 }
 
-// ClientConfig is stored at ~/.overseer/fleet.json by `overseer fleet login`.
+// ClientConfig is stored at ~/.initagent/fleet.json by `initagent fleet login`.
 type ClientConfig struct {
 	HubURL string `json:"hubUrl"`
 	Token  string `json:"token"`
@@ -32,7 +34,7 @@ func configPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".overseer", "fleet.json"), nil
+	return filepath.Join(home, brand.ConfigDir, brand.FleetConfigFile), nil
 }
 
 // SaveConfig persists hub URL + API token for later fleet/mcp commands.
@@ -48,11 +50,11 @@ func SaveConfig(cfg ClientConfig) error {
 	return os.WriteFile(p, b, 0o600)
 }
 
-// NewFromEnv builds a client from OVERSEER_HUB/OVERSEER_TOKEN env vars or
-// ~/.overseer/fleet.json.
+// NewFromEnv builds a client from INITAGENT_HUB/INITAGENT_TOKEN env vars or
+// the fleet config file under ConfigDir.
 func NewFromEnv() (*Client, error) {
-	hub := os.Getenv("OVERSEER_HUB")
-	token := os.Getenv("OVERSEER_TOKEN")
+	hub := os.Getenv(brand.EnvHub)
+	token := os.Getenv(brand.EnvToken)
 	if hub == "" || token == "" {
 		p, err := configPath()
 		if err == nil {
@@ -70,7 +72,7 @@ func NewFromEnv() (*Client, error) {
 		}
 	}
 	if hub == "" || token == "" {
-		return nil, fmt.Errorf("no hub configured — run `overseer fleet login --hub URL --token TOKEN` (create a token in the UI under Settings), or set OVERSEER_HUB and OVERSEER_TOKEN")
+		return nil, fmt.Errorf("no hub configured — run `%s fleet login --hub URL --token TOKEN` (create a token in the UI under Settings), or set %s and %s", brand.Binary, brand.EnvHub, brand.EnvToken)
 	}
 	return New(hub, token), nil
 }
@@ -171,7 +173,7 @@ func (c *Client) ResolveDevice(ref string) (*Device, error) {
 			return &devices[i], nil
 		}
 	}
-	return nil, fmt.Errorf("no device named %q — run `overseer fleet devices` to list", ref)
+	return nil, fmt.Errorf("no device named %q — run `%s fleet devices` to list", ref, brand.Binary)
 }
 
 func (c *Client) FleetSessions() ([]Session, error) {

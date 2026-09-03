@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ErzenXz/overseer/internal/id"
+	"github.com/pleware/initagent/internal/id"
 )
 
 // BindProject records the shared prj- on this gateway. Calling it again

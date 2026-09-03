@@ -8,7 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ErzenXz/overseer/internal/updater"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/updater"
 )
 
 const autoUpdateSetting = "auto_updates"
@@ -52,7 +53,7 @@ func newUpdateManager(store *Store, version, repo string) *updateManager {
 			CurrentVersion:  version,
 			RollbackVersion: rollbackVersion,
 			AutoUpdate:      auto,
-			Managed:         os.Getenv("OVERSEER_MANAGED") != "",
+			Managed:         os.Getenv(brand.EnvManaged) != "",
 		},
 	}
 }
@@ -147,7 +148,7 @@ func (m *updateManager) install(ctx context.Context) error {
 	}
 	if !m.status.Managed {
 		m.mu.Unlock()
-		return errors.New("automatic replacement requires an installed background service; use `overseer update` for this standalone binary")
+		return errors.New("automatic replacement requires an installed background service; use `" + brand.Binary + " update` for this standalone binary")
 	}
 	release := m.latest
 	m.status.Applying = true
@@ -168,7 +169,7 @@ func (m *updateManager) install(ctx context.Context) error {
 		m.finishApply(err)
 		return err
 	}
-	err := updater.Install(ctx, release, os.Getenv("OVERSEER_WINDOWS_TASK"))
+	err := updater.Install(ctx, release, os.Getenv(brand.EnvWindowsTask))
 	if err != nil {
 		m.finishApply(err)
 		return err
@@ -205,13 +206,13 @@ func (m *updateManager) rollback() error {
 	}
 	if !m.status.Managed {
 		m.mu.Unlock()
-		return errors.New("rollback requires an installed background service; use `overseer rollback` for this standalone binary")
+		return errors.New("rollback requires an installed background service; use `" + brand.Binary + " rollback` for this standalone binary")
 	}
 	m.status.Applying = true
 	m.status.Error = ""
 	m.mu.Unlock()
 
-	if err := updater.Rollback(os.Getenv("OVERSEER_WINDOWS_TASK")); err != nil {
+	if err := updater.Rollback(os.Getenv(brand.EnvWindowsTask)); err != nil {
 		m.finishApply(err)
 		return err
 	}

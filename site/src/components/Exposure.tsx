@@ -5,7 +5,7 @@ const ROUTES = [
   {
     title: "Built-in Let's Encrypt",
     body: "Point a domain at the machine, open 80 and 443, and the hub obtains and renews a real certificate itself.",
-    code: "overseer serve --tls-domain overseer.example.com --tls-email you@example.com",
+    code: "initagent serve --tls-domain initagent.example.com --tls-email you@example.com",
   },
   {
     title: "Tailscale",
@@ -36,7 +36,7 @@ export function Exposure() {
                   Read this before you put it on the internet.
                 </h2>
                 <p className="mt-4 max-w-[70ch] text-[15.5px] leading-relaxed text-fg-muted">
-                  Overseer binds to <code className="font-mono text-fg">0.0.0.0:4200</code>{" "}
+                  initagent binds to <code className="font-mono text-fg">0.0.0.0:4200</code>{" "}
                   over plain HTTP, which is right for a trusted LAN and wrong for a
                   public address. The MCP endpoint is effectively a remote shell:
                   anyone holding a valid API token can run commands and write files

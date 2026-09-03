@@ -82,7 +82,7 @@ export function Capabilities() {
               <div className="h-[260px] overflow-hidden border-t border-line">
                 <Shot
                   src="/shots/terminal.png"
-                  alt="An Overseer browser terminal attached to a live shell session on a joined device."
+                  alt="An initagent browser terminal attached to a live shell session on a joined device."
                 />
               </div>
             </Cell>
@@ -97,7 +97,7 @@ export function Capabilities() {
               <div className="h-[260px] overflow-hidden border-t border-line">
                 <Shot
                   src="/shots/files.png"
-                  alt="The Overseer file browser listing directories on a remote device."
+                  alt="The initagent file browser listing directories on a remote device."
                 />
               </div>
             </Cell>
@@ -135,15 +135,15 @@ export function Capabilities() {
                 <div className="rounded-control border border-line bg-ink-950/70 p-5 font-mono text-[12.5px] leading-[2] text-fg-muted">
                   <div>
                     <span className="mr-2 text-beacon select-none">$</span>
-                    overseer update --check
+                    initagent update --check
                   </div>
                   <div>
                     <span className="mr-2 text-beacon select-none">$</span>
-                    overseer update
+                    initagent update
                   </div>
                   <div>
                     <span className="mr-2 text-beacon select-none">$</span>
-                    overseer rollback
+                    initagent rollback
                   </div>
                 </div>
               </div>

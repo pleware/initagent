@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ErzenXz/overseer/internal/id"
-	"github.com/ErzenXz/overseer/internal/scheduler"
+	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/scheduler"
 )
 
 // Enqueue inserts a queued task for a bound project. An empty ID is minted

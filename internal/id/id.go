@@ -63,9 +63,9 @@ const (
 	Bridge    Kind = "brg"
 	Attention Kind = "att"
 
-	// ForeignProject is the surrogate for a project owned by a tool on a
-	// worker — an OpenCode project, a Cursor workspace, an editor's own
-	// project file. The correspondence to our project is many-to-many and
+	// ForeignProject is the surrogate for a project we did not mint —
+	// an OpenCode project, a Cursor workspace, a CapCut project reached
+	// through MCP. The correspondence to our project is many-to-many and
 	// the foreign identifier can change under us, which is why it is a row
 	// rather than a column. See drafts 07 and 44.
 	ForeignProject Kind = "fpr"

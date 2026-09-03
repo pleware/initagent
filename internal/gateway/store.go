@@ -55,7 +55,16 @@ type Options struct {
 	// GithubRepo is "owner/name" used to fetch connector binaries for other
 	// platforms. Empty uses brand.ReleaseSource.
 	GithubRepo string
+	// Lease is how long a claimed slot lasts without a heartbeat.
+	// Zero means DefaultLease.
+	Lease time.Duration
 }
+
+// DefaultLease is the Milestone 0 claim duration (capacity of one slot).
+const DefaultLease = 5 * time.Minute
+
+// workerSlots is the Milestone 0 capacity stub: one active task per device.
+const workerSlots = 1
 
 type presence struct {
 	hello protocol.Hello
@@ -71,6 +80,7 @@ type Gateway struct {
 	dataDir    string
 	version    string
 	githubRepo string
+	lease      time.Duration
 
 	mu     sync.Mutex
 	online map[string]presence
@@ -100,6 +110,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 	updated_at         INTEGER NOT NULL,
 	exit_code          INTEGER NOT NULL DEFAULT 0,
 	reason             TEXT NOT NULL DEFAULT '',
+	command            TEXT NOT NULL DEFAULT '',
 	FOREIGN KEY(project_id) REFERENCES projects(id)
 );
 CREATE INDEX IF NOT EXISTS tasks_project_id ON tasks(project_id);
@@ -171,6 +182,10 @@ func Open(opts Options) (*Gateway, error) {
 	if repo == "" {
 		repo = brand.ReleaseSource
 	}
+	lease := opts.Lease
+	if lease <= 0 {
+		lease = DefaultLease
+	}
 	return &Gateway{
 		store:      store,
 		project:    project,
@@ -179,6 +194,7 @@ func Open(opts Options) (*Gateway, error) {
 		dataDir:    dir,
 		version:    opts.Version,
 		githubRepo: repo,
+		lease:      lease,
 		online:     map[string]presence{},
 	}, nil
 }
@@ -193,6 +209,8 @@ func openStore(path string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("applying schema: %w", err)
 	}
+	// Existing files created before command existed; ignore duplicate-column.
+	_, _ = db.Exec(`ALTER TABLE tasks ADD COLUMN command TEXT NOT NULL DEFAULT ''`)
 	return &Store{db: db}, nil
 }
 

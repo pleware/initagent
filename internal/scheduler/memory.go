@@ -137,7 +137,7 @@ func (m *MemoryScheduler) Heartbeat(ctx context.Context, taskID string, workerID
 	}
 
 	if task.AssignedWorkerID != workerID {
-		return fmt.Errorf("task not assigned to this worker")
+		return ErrWrongWorker
 	}
 
 	if task.LeaseExpiry.Before(time.Now()) {

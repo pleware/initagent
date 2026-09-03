@@ -165,8 +165,8 @@ func TestMemoryScheduler_HeartbeatWrongWorker(t *testing.T) {
 
 	// Try to heartbeat from a different worker
 	err := s.Heartbeat(ctx, "task-1", "worker-2")
-	if err == nil {
-		t.Fatal("expected error for heartbeat from wrong worker")
+	if err != ErrWrongWorker {
+		t.Fatalf("expected ErrWrongWorker, got: %v", err)
 	}
 }
 

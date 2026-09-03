@@ -27,6 +27,7 @@ type Task struct {
 	ActorID   string    // persona ID (e.g., psn-...)
 	State     TaskState // current state
 	CoderKind string    // coder kind (e.g., "aider", "openclaw")
+	Command   string    // shell command for Milestone 0 exec dispatch
 
 	// Placement
 	AssignedWorkerID string    // device ID (e.g., dev-...) when assigned

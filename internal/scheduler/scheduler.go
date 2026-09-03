@@ -11,6 +11,7 @@ var (
 	ErrInvalidTransition = errors.New("invalid state transition")
 	ErrTaskNotFound      = errors.New("task not found")
 	ErrLeaseExpired      = errors.New("lease expired")
+	ErrWrongWorker       = errors.New("task not assigned to this worker")
 )
 
 // Scheduler manages task placement, leasing, and completion.

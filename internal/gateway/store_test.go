@@ -173,6 +173,9 @@ func TestStoreAfterClose(t *testing.T) {
 	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: prj}); err == nil {
 		t.Fatal("Enqueue after close")
 	}
+	if _, _, err := g.Store().Claim(ctx, prj, "dev-closed", time.Minute); err == nil {
+		t.Fatal("Claim after close")
+	}
 }
 
 func TestServeEmptyAddrUsesBound(t *testing.T) {

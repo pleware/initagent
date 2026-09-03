@@ -1,5 +1,6 @@
 # Build output
 /overseer
+*.exe
 /dist/
 /ui/dist/
 /ui/node_modules/
@@ -19,7 +20,7 @@
 
 # Test coverage
 coverage*.out
-*/coverage
+coverage
 
 # OS / editor
 .DS_Store

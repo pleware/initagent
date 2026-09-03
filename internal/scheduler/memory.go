@@ -13,7 +13,7 @@ type MemoryScheduler struct {
 	mu sync.RWMutex
 
 	tasks         map[string]*Task
-	queue         []string // task IDs in queue order
+	queue         []string       // task IDs in queue order
 	workerSlots   map[string]int // workerID -> total slots
 	workerActive  map[string]int // workerID -> active tasks count
 	leaseDuration time.Duration

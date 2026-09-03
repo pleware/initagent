@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-02 — Add Milestone 0 foundation: fake coder, completion signal, scheduler
 - 2026-09-02 — Record the product changelog entry for coverage finalization.
 - 2026-09-02 — Add coverage gate, constraints, and brand tests (Milestone 0 Step 2 finalization).
 - 2026-09-02 — Add i18n setup with react-i18next (English only for now).

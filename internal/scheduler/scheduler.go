@@ -7,10 +7,10 @@ import (
 )
 
 var (
-	ErrNoFreeSlot       = errors.New("no free slot available")
+	ErrNoFreeSlot        = errors.New("no free slot available")
 	ErrInvalidTransition = errors.New("invalid state transition")
-	ErrTaskNotFound     = errors.New("task not found")
-	ErrLeaseExpired     = errors.New("lease expired")
+	ErrTaskNotFound      = errors.New("task not found")
+	ErrLeaseExpired      = errors.New("lease expired")
 )
 
 // Scheduler manages task placement, leasing, and completion.
@@ -41,9 +41,9 @@ type Scheduler interface {
 
 // Lease represents a time-bound claim on a worker slot.
 type Lease struct {
-	TaskID    string
-	WorkerID  string
-	ExpiresAt time.Time
+	TaskID            string
+	WorkerID          string
+	ExpiresAt         time.Time
 	HeartbeatInterval time.Duration // recommended interval for heartbeats
 }
 
@@ -62,7 +62,7 @@ type PlacementFilter struct {
 
 // PlacementPreference carries soft preferences for task placement.
 type PlacementPreference struct {
-	HasClone    bool // prefer workers with the repository already cloned
-	LowLoad     bool // prefer workers with lowest recent load
-	HasThread   bool // prefer workers with an existing thread for this todo
+	HasClone  bool // prefer workers with the repository already cloned
+	LowLoad   bool // prefer workers with lowest recent load
+	HasThread bool // prefer workers with an existing thread for this todo
 }

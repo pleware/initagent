@@ -5,4 +5,4 @@
 ./internal/ai/capability
 ./internal/completion
 ./internal/scheduler
-# ./internal/fakecoder   # add in the same commit the fake coder lands
+./internal/fakecoder

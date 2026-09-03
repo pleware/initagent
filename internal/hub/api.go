@@ -135,7 +135,7 @@ func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request)
 		httpError(w, http.StatusServiceUnavailable, "gateway URL is required (--gateway-url); enroll must target the project gateway, not the hub")
 		return
 	}
-	s.proxyGateway(w, r, http.MethodPost, "/api/enroll-tokens")
+	s.proxyGateway(w, r, http.MethodPost, "/api/enroll-tokens", gatewayProxyTimeout)
 }
 
 // --- devices ---
@@ -177,7 +177,7 @@ func (s *Server) deviceViews() ([]deviceView, error) {
 
 func (s *Server) handleListDevices(w http.ResponseWriter, r *http.Request) {
 	if s.opts.GatewayURL != "" {
-		s.proxyGateway(w, r, http.MethodGet, "/api/devices")
+		s.proxyGateway(w, r, http.MethodGet, "/api/devices", gatewayProxyTimeout)
 		return
 	}
 	views, err := s.deviceViews()

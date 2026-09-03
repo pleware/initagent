@@ -75,7 +75,24 @@
     "devices": "Devices",
     "agents": "Agents",
     "coding": "Coding",
+    "tasks": "Tasks",
     "settings": "Settings",
     "setup": "Setup"
+  },
+  "tasks": {
+    "eyebrow": "Task queue",
+    "title": "Run a command",
+    "subtitle": "Submit a task to the project gateway. A worker runs it and reports back — you don't decide when it's done.",
+    "commandLabel": "Command",
+    "commandPlaceholder": "echo hello from the worker",
+    "deviceLabel": "Worker",
+    "anyDevice": "Any online worker",
+    "submit": "Run task",
+    "submitting": "Running…",
+    "noOnlineWorkers": "No workers are online. Enroll a worker, then submit again.",
+    "state": "State",
+    "exitCode": "Exit code",
+    "reason": "Reason",
+    "taskId": "Task"
   }
 }

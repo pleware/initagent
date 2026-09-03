@@ -9,6 +9,7 @@ import AgentsPage from './pages/AgentsPage'
 import SettingsPage from './pages/SettingsPage'
 import SetupPage from './pages/SetupPage'
 import CodingPage from './pages/CodingPage'
+import TasksPage from './pages/TasksPage'
 
 interface Me {
   setupDone: boolean
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/code" replace />} />
         <Route path="/code" element={<CodingPage />} />
         <Route path="/code/:projectId" element={<CodingPage />} />
+        <Route path="/tasks" element={<TasksPage />} />
         <Route path="/fleet" element={<Dashboard />} />
         <Route path="/devices/:id" element={<DevicePage />} />
         <Route path="/agents" element={<AgentsPage />} />

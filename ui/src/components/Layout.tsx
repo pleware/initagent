@@ -6,6 +6,7 @@ import LanguageSwitcher from './LanguageSwitcher'
 
 const links = [
   { to: '/code', label: 'Code', icon: 'compose' },
+  { to: '/tasks', label: 'Tasks', icon: 'terminal' },
   { to: '/fleet', label: 'Fleet', icon: 'grid' },
   { to: '/agents', label: 'Agent runs', icon: 'pulse' },
   { to: '/setup', label: 'Set up nodes', icon: 'spark' },
@@ -132,6 +133,7 @@ function FolderIcon() {
 function NavIcon({ name }: { name: string }) {
   const common = { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8 } as const
   if (name === 'compose') return <svg {...common} aria-hidden><path d="M13.5 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-7.5M16.5 3.5l4 4L11 17l-4.5 1 1-4.5 9-10Z" /></svg>
+  if (name === 'terminal') return <svg {...common} aria-hidden><rect x="3" y="4" width="18" height="16" rx="2" /><path d="m7 9 3 3-3 3M13 15h4" /></svg>
   if (name === 'pulse') return <svg {...common} aria-hidden><path d="M3 12h4l2.2-6 4.2 12 2.3-6H21" /></svg>
   if (name === 'spark') return <svg {...common} aria-hidden><path d="m12 3 1.2 4.1L17 9l-3.8 1.9L12 15l-1.2-4.1L7 9l3.8-1.9L12 3ZM5 16l.7 2.3L8 19.5l-2.3 1.2L5 23l-.7-2.3L2 19.5l2.3-1.2L5 16Z" /></svg>
   if (name === 'sliders') return <svg {...common} aria-hidden><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5" /><circle cx="16" cy="6" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="13" cy="18" r="2" /></svg>

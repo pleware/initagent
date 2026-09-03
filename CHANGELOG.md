@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Proxy task create/get from the hub to the gateway and add a cockpit Tasks page
 - 2026-09-03 — Route task completion through the resolver registry.
 - 2026-09-03 — Dispatch tasks over the agent WebSocket with TypeExec.
 - 2026-09-03 — Persist claim, lease, and heartbeat on the gateway SQLite queue.

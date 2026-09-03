@@ -276,6 +276,8 @@ func (s *Server) routes() {
 	m.HandleFunc("PATCH /api/projects/{id}", s.requireAuth(s.handleUpdateProject))
 	m.HandleFunc("DELETE /api/projects/{id}", s.requireAuth(s.handleDeleteProject))
 	m.HandleFunc("POST /api/projects/{id}/exec", s.requireAuth(s.handleProjectExec))
+	m.HandleFunc("POST /api/tasks", s.requireAuth(s.handleCreateTask))
+	m.HandleFunc("GET /api/tasks/{id}", s.requireAuth(s.handleGetTask))
 	m.HandleFunc("GET /api/agents", s.requireAuth(s.handleFleetAgents))
 	m.HandleFunc("GET /api/presets", s.requireAuth(s.handleListPresets))
 	m.HandleFunc("POST /api/presets", s.requireAuth(s.handleCreatePreset))

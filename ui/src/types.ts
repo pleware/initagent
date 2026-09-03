@@ -50,6 +50,18 @@ export interface ExecResult {
   truncated?: boolean
 }
 
+export interface TaskView {
+  id: string
+  projectId: string
+  state: string
+  command: string
+  assignedWorkerId?: string
+  exitCode: number
+  reason?: string
+  stdout?: string
+  stderr?: string
+}
+
 export interface SetupTool {
   id: 'node' | 'codex' | 'claude' | 'gemini' | 'tailscale'
   name: string

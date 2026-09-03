@@ -2,7 +2,8 @@
 # One pattern per line, relative to the module root. Comments allowed.
 ./internal/brand
 ./internal/id
-./internal/ai/capability
+./internal/registry/ai/capability
+./internal/registry/db/kinds
 ./internal/completion
 ./internal/scheduler
 ./internal/fakecoder

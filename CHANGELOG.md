@@ -2,6 +2,8 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Move task registry under internal/registry and add db/kinds DSN catalogue
+- 2026-09-03 — Move the task registry to internal/registry/ai/capability and add internal/registry/db/kinds
 - 2026-09-03 — Fix Windows test failures (hub SQLite handle, agent PATH IsAbs)
 - 2026-09-03 — Proxy task create/get from the hub to the gateway and add a cockpit Tasks page
 - 2026-09-03 — Route task completion through the resolver registry.

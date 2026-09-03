@@ -3,7 +3,8 @@ export const RELEASES = `${REPO}/releases`;
 export const DOCS = `${REPO}#readme`;
 
 /** Public marketing site and hub-installer origin. Same host serves
- *  `/install.sh`, `/install.ps1`, and `/install-macos.sh`. */
+ *  `/install.sh`, `/install.ps1`, and `/install-macos.sh`.
+ *  The hosted hub is a different origin: `https://app.initagent.dev`. */
 export const SITE = "https://initagent.dev";
 
 /**

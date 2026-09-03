@@ -2,6 +2,9 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Document the hosted hub at app.initagent.dev on PostgreSQL.
+- 2026-09-03 — Note that the hosted hub is PostgreSQL, not SQLite.
+- 2026-09-03 — Point README at initagent.dev (site) and app.initagent.dev (hosted hub).
 - 2026-09-03 — Point public site and hub installers at initagent.dev.
 - 2026-09-03 — Point README and the marketing install commands at initagent.dev
 - 2026-09-03 — Fix the Unix installer test after the binary rename.

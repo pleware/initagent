@@ -4,7 +4,9 @@
 
 **Control all your machines from one browser tab.**
 
-Public site: **[initagent.dev](https://initagent.dev)**
+Public site: **[initagent.dev](https://initagent.dev)** (marketing and
+installers). Hosted hub: **[app.initagent.dev](https://app.initagent.dev)**
+(cloud control plane on PostgreSQL; not live until DNS and deploy land).
 
 Install one hub, paste one command on every other device, and run terminals and
 coding agents across your whole fleet — from your desk or your phone.

@@ -2,8 +2,8 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Add the hub and site Dockerfiles and publish images to GHCR
 - 2026-09-03 — Let the hub run on Postgres through an internal/store dialect seam
-- 2026-09-03 — Add internal/store (dialect seam) and let the hub run on Postgres via --database-url
 - 2026-09-03 — Move the task registry to internal/registry/ai/capability and add internal/registry/db/kinds
 - 2026-09-03 — Fix Windows test failures (hub SQLite handle, agent PATH IsAbs)
 - 2026-09-03 — Proxy task create/get from the hub to the gateway and add a cockpit Tasks page

@@ -1,0 +1,29 @@
+# Build context exclusions for the initagent image. Keeps the Go build
+# context small: no git history, no node_modules, no local build output.
+
+.git
+.github
+.agentize
+.claude
+.omo
+opencode.json
+
+# Built binaries (never bake a stale one in).
+initagent
+overseer
+*.exe
+dist
+
+# Node build trees (each stage installs its own).
+ui/node_modules
+ui/dist
+site/node_modules
+site/dist
+site/.env.local
+
+# Local dev state.
+tmp
+*.db
+*.db-shm
+*.db-wal
+coverage*.out

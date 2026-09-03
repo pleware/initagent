@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -17,14 +16,6 @@ type EnrollOffer struct {
 	Command        string `json:"command"`
 	WindowsCommand string `json:"windowsCommand"`
 	ProjectID      string `json:"project_id"`
-}
-
-// InstallCommands returns the unix and Windows one-paste joiners for baseURL.
-func InstallCommands(baseURL, token string) (unix, windows string) {
-	base := strings.TrimRight(baseURL, "/")
-	unix = fmt.Sprintf("curl -fsSL %s/install/%s.sh | sh", base, token)
-	windows = fmt.Sprintf("powershell -NoProfile -ExecutionPolicy Bypass -Command \"irm %s/install/%s.ps1 | iex\"", base, token)
-	return unix, windows
 }
 
 func hashToken(token string) string {
@@ -82,20 +73,4 @@ func (s *Store) ConsumeEnrollToken(ctx context.Context, token string) (projectID
 		return "", false, err
 	}
 	return projectID, true, nil
-}
-
-// isSimpleToken reports whether s is safe to interpolate into a path or a
-// shell script served for `| sh`.
-func isSimpleToken(s string) bool {
-	if s == "" || len(s) > 64 {
-		return false
-	}
-	for _, r := range s {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_', r == '-', r == '.':
-		default:
-			return false
-		}
-	}
-	return true
 }

@@ -8,6 +8,19 @@ Production origin is **https://initagent.dev**. Hub installers are the same
 host: `/install.sh`, `/install.ps1`, `/install-macos.sh`. There is no
 separate install subdomain.
 
+Those three scripts are owned by [`../scripts`](../scripts) and staged into
+`public/` by the Vite build, for `npm run dev` as well as `npm run build`.
+Edit them there — the copies under `public/` are generated and gitignored, so
+a change made in one place reaches both the installer tests in CI and this
+origin.
+
+That is also why the container image takes the repository root as its build
+context rather than this directory. From the root:
+
+```sh
+docker build -f site/Dockerfile -t initagent-site .
+```
+
 React 19 + Vite 8 + Tailwind v4 + Motion. Geist / Geist Mono are self-hosted
 through Fontsource, so the page makes no third-party requests at runtime.
 

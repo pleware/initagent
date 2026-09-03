@@ -72,8 +72,8 @@ func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 
 	welcome, err := protocol.NewMsg(protocol.TypeWelcome, 0, 0, protocol.Welcome{
 		DeviceId: device.ID,
-		Version:  g.version,
-		Repo:     g.githubRepo,
+		Version:  g.joiner.Version,
+		Repo:     g.joiner.GithubRepo,
 	})
 	if err != nil {
 		return

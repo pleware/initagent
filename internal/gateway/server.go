@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/join"
 	"github.com/pleware/initagent/internal/scheduler"
 )
 
@@ -32,17 +32,6 @@ func writeJSON(w http.ResponseWriter, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func (g *Gateway) baseURL(r *http.Request) string {
-	if g.publicURL != "" {
-		return g.publicURL
-	}
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	return scheme + "://" + r.Host
-}
-
 // Handler serves health, enroll, devices, binaries, the agent websocket,
 // and task enqueue/dispatch.
 func (g *Gateway) Handler() http.Handler {
@@ -53,8 +42,8 @@ func (g *Gateway) Handler() http.Handler {
 	mux.HandleFunc("POST /api/enroll-tokens", g.handleCreateEnrollToken)
 	mux.HandleFunc("POST /api/enroll", g.handleEnroll)
 	mux.HandleFunc("GET /api/devices", g.handleListDevices)
-	mux.HandleFunc("GET /install/", g.handleInstallScript)
-	mux.HandleFunc("GET /api/agent-binary", g.handleAgentBinary)
+	mux.HandleFunc("GET /install/", g.joiner.ServeScript)
+	mux.HandleFunc("GET /api/agent-binary", g.joiner.ServeBinary)
 	mux.HandleFunc("GET /api/ws/agent", g.handleAgentWS)
 	mux.HandleFunc("POST /api/tasks", g.handleCreateTask)
 	mux.HandleFunc("GET /api/tasks/{id}", g.handleGetTask)
@@ -67,7 +56,7 @@ func (g *Gateway) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	unix, windows := InstallCommands(g.baseURL(r), token)
+	unix, windows := join.Commands(g.joiner.BaseURL(r), token)
 	writeJSON(w, EnrollOffer{
 		Token:          token,
 		Command:        unix,
@@ -129,28 +118,6 @@ func (g *Gateway) handleListDevices(w http.ResponseWriter, r *http.Request) {
 		out = append(out, v)
 	}
 	writeJSON(w, out)
-}
-
-func (g *Gateway) handleInstallScript(w http.ResponseWriter, r *http.Request) {
-	name := strings.TrimPrefix(r.URL.Path, "/install/")
-	token, ok := strings.CutSuffix(name, ".sh")
-	format := "sh"
-	if !ok {
-		token, ok = strings.CutSuffix(name, ".ps1")
-		format = "ps1"
-	}
-	if !ok || !isSimpleToken(token) {
-		httpError(w, http.StatusNotFound, "not found")
-		return
-	}
-	base := g.baseURL(r)
-	if format == "ps1" {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprintf(w, windowsInstallScript, base, token)
-		return
-	}
-	w.Header().Set("Content-Type", "text/x-shellscript; charset=utf-8")
-	fmt.Fprintf(w, unixInstallScript, base, token)
 }
 
 func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {

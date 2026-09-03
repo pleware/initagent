@@ -1,7 +1,34 @@
-import { defineConfig } from "vite";
+import { copyFileSync, mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+const here = dirname(fileURLToPath(import.meta.url));
+
+/** Hub installers this origin serves. `../scripts` owns them; the copies in
+ *  `public/` are generated, so a fix never has to be applied twice. */
+const INSTALLERS = ["install.sh", "install.ps1", "install-macos.sh"];
+
+function installers(): Plugin {
+  return {
+    name: "initagent-installers",
+    buildStart() {
+      const out = resolve(here, "public");
+      mkdirSync(out, { recursive: true });
+      for (const name of INSTALLERS) {
+        const from = resolve(here, "..", "scripts", name);
+        try {
+          copyFileSync(from, resolve(out, name));
+        } catch (cause) {
+          throw new Error(`cannot stage installer ${from} into public/`, { cause });
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), installers()],
 });

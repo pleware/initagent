@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/join"
 	"github.com/pleware/initagent/internal/protocol"
 	_ "modernc.org/sqlite"
 )
@@ -76,14 +76,13 @@ type presence struct {
 
 // Gateway is one process: a store, a bound project, enroll, and health.
 type Gateway struct {
-	store      *Store
-	project    Project
-	addr       string
-	publicURL  string
-	dataDir    string
-	version    string
-	githubRepo string
-	lease      time.Duration
+	store   *Store
+	project Project
+	addr    string
+	// joiner serves /install/<token> and the agent binary. It is the shared
+	// implementation, not a gateway-local copy — the hub serves the same one.
+	joiner join.Installer
+	lease  time.Duration
 
 	mu     sync.Mutex
 	online map[string]presence
@@ -190,15 +189,17 @@ func Open(opts Options) (*Gateway, error) {
 		lease = DefaultLease
 	}
 	return &Gateway{
-		store:      store,
-		project:    project,
-		addr:       addr,
-		publicURL:  strings.TrimRight(opts.PublicURL, "/"),
-		dataDir:    dir,
-		version:    opts.Version,
-		githubRepo: repo,
-		lease:      lease,
-		online:     map[string]presence{},
+		store:   store,
+		project: project,
+		addr:    addr,
+		joiner: join.Installer{
+			DataDir:    dir,
+			GithubRepo: repo,
+			Version:    opts.Version,
+			PublicURL:  opts.PublicURL,
+		},
+		lease:  lease,
+		online: map[string]presence{},
 	}, nil
 }
 

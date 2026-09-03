@@ -19,16 +19,6 @@ import (
 	"github.com/pleware/initagent/internal/protocol"
 )
 
-func TestInstallCommandsPointAtBaseURL(t *testing.T) {
-	unix, windows := InstallCommands("http://gw.example:4201", "abc")
-	if !strings.Contains(unix, "http://gw.example:4201/install/abc.sh") {
-		t.Fatalf("unix = %q", unix)
-	}
-	if !strings.Contains(windows, "http://gw.example:4201/install/abc.ps1") {
-		t.Fatalf("windows = %q", windows)
-	}
-}
-
 func TestCreateEnrollTokenHTTPUsesRequestHost(t *testing.T) {
 	g := openTest(t, "")
 	req := httptest.NewRequest(http.MethodPost, "/api/enroll-tokens", nil)
@@ -441,7 +431,7 @@ func TestAgentBinaryServesDroppedFile(t *testing.T) {
 
 func TestAgentBinaryNotFoundWithoutRepo(t *testing.T) {
 	g := openTest(t, "")
-	g.githubRepo = ""
+	g.joiner.GithubRepo = ""
 	req := httptest.NewRequest(http.MethodGet, "/api/agent-binary?os=plan9&arch=sparc64", nil)
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
@@ -530,13 +520,4 @@ func TestAgentWSRejectsNonHello(t *testing.T) {
 		t.Fatal("expected close after bad hello")
 	}
 	_ = conn.Close()
-}
-
-func TestIsSimpleToken(t *testing.T) {
-	if !isSimpleToken("abc-123") {
-		t.Fatal("expected ok")
-	}
-	if isSimpleToken("") || isSimpleToken(`x"y`) || isSimpleToken(strings.Repeat("a", 65)) {
-		t.Fatal("expected reject")
-	}
 }

@@ -9,3 +9,4 @@
 ./internal/scheduler
 ./internal/fakecoder
 ./internal/gateway
+./internal/join

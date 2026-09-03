@@ -1,8 +1,10 @@
-package gateway
+package join
 
-// unixInstallScript is the one-paste joiner. HUB is this gateway's URL.
-const unixInstallScript = `#!/bin/sh
-# initagent device installer — enrolls into the project gateway
+// unixScript is the POSIX one-paste joiner, served with the plane URL and the
+// enrollment token baked in. It must stay POSIX-sh compatible: it is piped
+// into `sh`, not into bash.
+const unixScript = `#!/bin/sh
+# initagent device installer
 set -eu
 
 HUB="%s"
@@ -24,25 +26,28 @@ BIN_DIR="$HOME/.initagent/bin"
 mkdir -p "$BIN_DIR"
 BIN="$BIN_DIR/initagent"
 
-echo "→ downloading agent for $OS/$ARCH from the gateway..."
+echo "→ downloading the initagent agent for $OS/$ARCH..."
 if ! curl -fSL "$HUB/api/agent-binary?os=$OS&arch=$ARCH" -o "$BIN.tmp"; then
-  echo "initagent: gateway has no binary for $OS/$ARCH." >&2
+  echo "initagent: no binary available for $OS/$ARCH." >&2
+  echo "Place one at <data dir>/binaries/initagent_${OS}_${ARCH} (see README) and retry." >&2
   exit 1
 fi
 mv "$BIN.tmp" "$BIN"
 chmod +x "$BIN"
 
-echo "→ enrolling this device with the gateway..."
+echo "→ enrolling this device..."
 "$BIN" agent enroll --hub "$HUB" --token "$TOKEN"
 
 echo "→ installing background service..."
 "$BIN" agent install-service
 
 echo ""
-echo "✓ Done. This device is connected to the project gateway."
+echo "✓ Done. This device is now connected to initagent."
+echo "  It should appear on your dashboard within a few seconds."
 `
 
-const windowsInstallScript = `$ErrorActionPreference = "Stop"
+// windowsScript is the PowerShell one-paste joiner.
+const windowsScript = `$ErrorActionPreference = "Stop"
 
 $Hub = "%s"
 $Token = "%s"
@@ -59,16 +64,17 @@ New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 $Bin = Join-Path $BinDir "initagent.exe"
 $Tmp = "$Bin.tmp"
 
-Write-Host "-> downloading agent for windows/$Arch from the gateway..."
+Write-Host "-> downloading the initagent agent for windows/$Arch..."
 Invoke-WebRequest -UseBasicParsing -Uri "$Hub/api/agent-binary?os=windows&arch=$Arch" -OutFile $Tmp
 Move-Item -Force $Tmp $Bin
 
-Write-Host "-> enrolling this device with the gateway..."
+Write-Host "-> enrolling this device..."
 & $Bin agent enroll --hub $Hub --token $Token
 
 Write-Host "-> installing background task..."
 & $Bin agent install-service
 
 Write-Host ""
-Write-Host "Done. This device is connected to the project gateway."
+Write-Host "Done. This device is now connected to initagent."
+Write-Host "It should appear on your dashboard within a few seconds."
 `

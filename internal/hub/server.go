@@ -18,8 +18,9 @@ import (
 
 	"golang.org/x/crypto/acme/autocert"
 
-	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/agent"
+	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/join"
 )
 
 // Options configures a hub server.
@@ -48,7 +49,11 @@ type Options struct {
 
 // Server is the hub.
 type Server struct {
-	opts          Options
+	opts Options
+	// installer serves /install/<token> and the agent binary. Enroll belongs
+	// to the gateway (draft 10); this is the inherited single-plane path, and
+	// it shares the gateway's implementation rather than carrying a copy.
+	installer     join.Installer
 	store         *Store
 	sessions      *sessionManager
 	loginRL       *rateLimiter
@@ -90,7 +95,12 @@ func NewServer(opts Options) (*Server, error) {
 	}
 	events := newEventBus()
 	s := &Server{
-		opts:     opts,
+		opts: opts,
+		installer: join.Installer{
+			DataDir:    opts.DataDir,
+			GithubRepo: opts.GithubRepo,
+			Version:    opts.Version,
+		},
 		store:    store,
 		sessions: newSessionManager(),
 		loginRL:  newRateLimiter(),
@@ -259,8 +269,8 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/logout", s.handleLogout)
 	m.HandleFunc("GET /api/me", s.handleMe)
 	m.HandleFunc("POST /api/enroll", s.handleEnroll)
-	m.HandleFunc("GET /install/", s.handleInstallScript)
-	m.HandleFunc("GET /api/agent-binary", s.handleAgentBinary)
+	m.HandleFunc("GET /install/", s.installer.ServeScript)
+	m.HandleFunc("GET /api/agent-binary", s.installer.ServeBinary)
 	m.HandleFunc("GET /api/ws/agent", s.handleAgentWS)
 
 	// Remote MCP endpoint (does its own Bearer-token auth).

@@ -122,7 +122,7 @@ run_linux() {
   output="$(INITAGENT_USER="$(/usr/bin/id -un)" INITAGENT_DATA_DIR="$data" INITAGENT_BIN_DIR="$bindir" INITAGENT_SYSTEMD_DIR="$units" INITAGENT_INSTALL_SOURCE=auto sh "$ROOT/scripts/install.sh" 2>&1)"
   printf '%s' "$output" | grep -q 'falling back to source build'
   [ -x "$data/bin/initagent" ]
-  [ -L "$bindir/initagent"
+  [ -L "$bindir/initagent" ]
   grep -q 'ExecStart=' "$units/initagent-hub.service"
   grep -q '^WorkingDirectory=/' "$units/initagent-hub.service"
   if grep -q '^WorkingDirectory="' "$units/initagent-hub.service"; then

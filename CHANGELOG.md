@@ -2,7 +2,8 @@
 
 ## Unreleased — product
 
-- 2026-09-03 — Rename product identity from Overseer to initagent.
+- 2026-09-03 — Fix the Unix installer test after the binary rename.
+- 2026-09-03 — Fix a missing `]` in the Unix installer harness
 - 2026-09-03 — Rename product identity from Overseer to initagent (module, services, env, installers)
 - 2026-09-03 — Enroll workers on the gateway (tokens, install scripts, agent WS)
 - 2026-09-03 — Watch a per-run done file at high trust

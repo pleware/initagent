@@ -8,16 +8,9 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-$List = Join-Path $Root "owned-packages"
-if (-not (Test-Path $List)) {
-    Write-Error "missing $List"
-}
+. (Join-Path $PSScriptRoot "OwnedPackages.ps1")
 
-$pkgs = Get-Content $List |
-    Where-Object { $_ -notmatch '^\s*#' -and $_ -notmatch '^\s*$' }
-if (-not $pkgs) {
-    Write-Error "owned-packages is empty"
-}
+$pkgs = Get-OwnedPackages -Root $Root
 
 $profile = Join-Path $env:TEMP ("ia-owned-cover-{0}.out" -f [guid]::NewGuid().ToString("n"))
 try {

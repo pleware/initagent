@@ -37,7 +37,7 @@ into this module.
 
 | Dimension | Rule | Checked by | Runs at |
 | --- | --- | --- | --- |
-| Format | `gofmt` clean on changed `.go` | `gofmt -l` | every edit |
+| Format | `gofmt` clean on `owned-packages` | `./scripts/check-owned-format.sh` | every edit, CI |
 | Vet | zero issues on owned packages | `go vet $(cat owned-packages)` | every edit |
 | Unit | all owned package tests pass | `go test $(cat owned-packages)` | every edit / CI |
 | **Coverage** | **≥ 90% statements** on the union of `owned-packages` | `./scripts/check-owned-coverage.sh` | task end, CI |

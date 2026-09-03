@@ -7,8 +7,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# shellcheck source=scripts/owned-packages.sh
+. "$ROOT/scripts/owned-packages.sh"
+
 MIN_COVER="${MIN_COVER:-90}"
-LIST="$ROOT/owned-packages"
 PROFILE="${COVERPROFILE:-$(mktemp -t ia-owned-cover.XXXXXX.out)}"
 cleanup() {
   if [[ "${COVERPROFILE:-}" == "" && -f "$PROFILE" ]]; then
@@ -17,16 +19,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ ! -f "$LIST" ]]; then
-  echo "error: missing $LIST" >&2
-  exit 2
-fi
-
-mapfile -t PKGS < <(grep -v '^[[:space:]]*#' "$LIST" | grep -v '^[[:space:]]*$' || true)
-if [[ ${#PKGS[@]} -eq 0 ]]; then
-  echo "error: owned-packages is empty" >&2
-  exit 2
-fi
+mapfile -t PKGS < <(owned_packages "$ROOT")
 
 echo "owned packages: ${PKGS[*]}"
 go test "${PKGS[@]}" "-coverprofile=$PROFILE" "-covermode=set"

@@ -2,6 +2,8 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Watch a per-run done file at high trust
+- 2026-09-03 — Clarify fpr- as a SaaS project reached through MCP
 - 2026-09-03 — Register fpr- for a tool's own project on a worker
 - 2026-09-03 — Gate gofmt on owned packages in CI
 - 2026-09-03 — Move fake coder behavior under the owned coverage gate

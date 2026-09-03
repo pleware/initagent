@@ -14,8 +14,8 @@ type Trust string
 
 const (
 	TrustLow    Trust = "low"    // Heuristic (timeout, activity window)
-	TrustMedium Trust = "medium" // Sentinel string in output
-	TrustHigh   Trust = "high"   // OS exit code or protocol callback
+	TrustMedium Trust = "medium" // Sentinel string in a stream the model can also print
+	TrustHigh   Trust = "high"   // OS exit code, a per-run done file holding that code, or a protocol callback
 )
 
 // Outcome carries the result of a completion check.
@@ -44,7 +44,7 @@ type RunContext struct {
 	LaunchMode  LaunchMode
 	OutputPath  string // path to terminal/log output file (for sentinel/file resolvers)
 	ProcessID   int    // OS pid (for process resolver); 0 if not supervised
-	SentinelDir string // directory to watch for .done file (for file resolver)
+	SentinelDir string // directory of per-run done files: <SentinelDir>/<RunID>.done
 }
 
 // Resolver detects when a coding run completes.

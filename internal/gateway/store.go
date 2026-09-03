@@ -25,6 +25,8 @@ var (
 	ErrBadProjectID    = errors.New("project id must be a prj- identifier")
 	ErrBadTaskID       = errors.New("task id must be a tsk- identifier")
 	ErrBadDeviceID     = errors.New("device id must be a dev- identifier")
+	ErrDeviceOffline   = errors.New("device is not connected")
+	ErrEmptyCommand    = errors.New("task command is empty")
 )
 
 // EnrollTTL is how long a minted enroll token can be exchanged.
@@ -69,6 +71,7 @@ const workerSlots = 1
 type presence struct {
 	hello protocol.Hello
 	stats *protocol.Stats
+	conn  *agentConn
 }
 
 // Gateway is one process: a store, a bound project, enroll, and health.

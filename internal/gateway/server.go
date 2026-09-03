@@ -3,11 +3,15 @@ package gateway
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/scheduler"
 )
 
 // Health is the JSON body of GET /health.
@@ -39,7 +43,8 @@ func (g *Gateway) baseURL(r *http.Request) string {
 	return scheme + "://" + r.Host
 }
 
-// Handler serves health, enroll, devices, binaries, and the agent websocket.
+// Handler serves health, enroll, devices, binaries, the agent websocket,
+// and task enqueue/dispatch.
 func (g *Gateway) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +56,8 @@ func (g *Gateway) Handler() http.Handler {
 	mux.HandleFunc("GET /install/", g.handleInstallScript)
 	mux.HandleFunc("GET /api/agent-binary", g.handleAgentBinary)
 	mux.HandleFunc("GET /api/ws/agent", g.handleAgentWS)
+	mux.HandleFunc("POST /api/tasks", g.handleCreateTask)
+	mux.HandleFunc("GET /api/tasks/{id}", g.handleGetTask)
 	return mux
 }
 
@@ -144,6 +151,70 @@ func (g *Gateway) handleInstallScript(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/x-shellscript; charset=utf-8")
 	fmt.Fprintf(w, unixInstallScript, base, token)
+}
+
+func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Command  string `json:"command"`
+		DeviceID string `json:"deviceId"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1<<20)).Decode(&req); err != nil {
+		httpError(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	if strings.TrimSpace(req.Command) == "" {
+		httpError(w, http.StatusBadRequest, ErrEmptyCommand.Error())
+		return
+	}
+	worker := req.DeviceID
+	if worker == "" {
+		worker = g.firstOnlineID()
+	}
+	if worker == "" {
+		httpError(w, http.StatusServiceUnavailable, ErrDeviceOffline.Error())
+		return
+	}
+	if !id.Is(id.Device, worker) {
+		httpError(w, http.StatusBadRequest, ErrBadDeviceID.Error())
+		return
+	}
+	if g.connFor(worker) == nil {
+		httpError(w, http.StatusServiceUnavailable, ErrDeviceOffline.Error())
+		return
+	}
+	if _, err := g.store.Enqueue(r.Context(), scheduler.Task{
+		ProjectID: g.project.ID,
+		Command:   req.Command,
+	}); err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	view, err := g.RunQueued(r.Context(), worker)
+	if err != nil {
+		code := http.StatusInternalServerError
+		switch {
+		case errors.Is(err, scheduler.ErrNoFreeSlot):
+			code = http.StatusConflict
+		case errors.Is(err, ErrDeviceOffline):
+			code = http.StatusServiceUnavailable
+		}
+		httpError(w, code, err.Error())
+		return
+	}
+	writeJSON(w, view)
+}
+
+func (g *Gateway) handleGetTask(w http.ResponseWriter, r *http.Request) {
+	task, err := g.store.Task(r.Context(), r.PathValue("id"))
+	if err != nil {
+		if errors.Is(err, scheduler.ErrTaskNotFound) || errors.Is(err, ErrBadTaskID) {
+			httpError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, viewTask(task, "", ""))
 }
 
 // Serve listens on addr until ctx is cancelled.

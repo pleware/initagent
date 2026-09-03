@@ -33,7 +33,10 @@ func startHub(t *testing.T) (*Server, string) {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	t.Cleanup(func() {
+		cancel()
+		_ = srv.store.Close()
+	})
 	go srv.Run(ctx)
 
 	base := "http://" + addr
@@ -179,6 +182,7 @@ func TestAuthFlow(t *testing.T) {
 	}
 	ts := httptest.NewServer(srv.mux)
 	t.Cleanup(ts.Close)
+	t.Cleanup(func() { _ = srv.store.Close() })
 
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}

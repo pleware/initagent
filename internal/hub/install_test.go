@@ -19,6 +19,7 @@ func newTestServer(t *testing.T, version string) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = srv.store.Close() })
 	return srv
 }
 
@@ -141,7 +142,6 @@ func TestListDevicesAsksGateway(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	srv := newTestServer(t, "v0.1.0")
-	t.Cleanup(func() { _ = srv.store.Close() })
 	srv.opts.GatewayURL = ts.URL
 	req := httptest.NewRequest("GET", "/api/devices", nil)
 	w := httptest.NewRecorder()
@@ -160,7 +160,6 @@ func TestListDevicesAsksGateway(t *testing.T) {
 
 func TestCreateEnrollTokenRequiresGatewayURL(t *testing.T) {
 	srv := newTestServer(t, "v0.1.0")
-	t.Cleanup(func() { _ = srv.store.Close() })
 	req := httptest.NewRequest("POST", "/api/enroll-tokens", nil)
 	req.Host = "hub.example:4200"
 	w := httptest.NewRecorder()
@@ -180,7 +179,6 @@ func TestCreateEnrollTokenAsksGateway(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	srv := newTestServer(t, "v0.1.0")
-	t.Cleanup(func() { _ = srv.store.Close() })
 	srv.opts.GatewayURL = ts.URL
 	req := httptest.NewRequest("POST", "/api/enroll-tokens", nil)
 	req.Host = "hub.example:4200"

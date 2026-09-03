@@ -1,7 +1,7 @@
 package agent
 
 import (
-	"path/filepath"
+	"path"
 	"testing"
 )
 
@@ -12,9 +12,9 @@ func TestManagedPathEntriesWithoutHomeNeverReturnsRelativePaths(t *testing.T) {
 	if paths := managedPathEntries("windows", "", ".relative-dir"); len(paths) != 0 {
 		t.Fatalf("Windows with a relative base should add no PATH entries: %#v", paths)
 	}
-	for _, path := range managedPathEntries("linux", "", "") {
-		if !filepath.IsAbs(path) {
-			t.Fatalf("managed PATH entry must be absolute: %q", path)
+	for _, p := range managedPathEntries("linux", "", "") {
+		if !path.IsAbs(p) {
+			t.Fatalf("managed PATH entry must be absolute: %q", p)
 		}
 	}
 }

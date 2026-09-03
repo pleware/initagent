@@ -2,6 +2,8 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Point public site and hub installers at initagent.dev.
+- 2026-09-03 — Point README and the marketing install commands at initagent.dev
 - 2026-09-03 — Fix the Unix installer test after the binary rename.
 - 2026-09-03 — Fix a missing `]` in the Unix installer harness
 - 2026-09-03 — Rename product identity from Overseer to initagent (module, services, env, installers)

@@ -4,7 +4,7 @@
 
 **Control all your machines from one browser tab.**
 
-Public site: **[liveagent-lime.vercel.app](https://liveagent-lime.vercel.app)**
+Public site: **[initagent.dev](https://initagent.dev)**
 
 Install one hub, paste one command on every other device, and run terminals and
 coding agents across your whole fleet — from your desk or your phone.
@@ -47,19 +47,19 @@ without copying provider credentials onto every node.
 On a fresh Linux VM with systemd:
 
 ```sh
-curl -fsSL https://liveagent-lime.vercel.app/install.sh | sh
+curl -fsSL https://initagent.dev/install.sh | sh
 ```
 
 On macOS (Intel or Apple Silicon):
 
 ```sh
-curl -fsSL https://liveagent-lime.vercel.app/install-macos.sh | sh
+curl -fsSL https://initagent.dev/install-macos.sh | sh
 ```
 
 On Windows 10/11 or Windows Server 2016+ (x64 or ARM64), from PowerShell:
 
 ```powershell
-irm https://liveagent-lime.vercel.app/install.ps1 | iex
+irm https://initagent.dev/install.ps1 | iex
 ```
 
 The macOS and Windows installers run the hub in the signed-in user's background
@@ -83,7 +83,7 @@ on `:4200`.
 To uninstall the service and binary while keeping hub data:
 
 ```sh
-curl -fsSL https://liveagent-lime.vercel.app/install.sh | sh -s -- uninstall
+curl -fsSL https://initagent.dev/install.sh | sh -s -- uninstall
 ```
 
 Add `INITAGENT_PURGE=1` to also remove `/var/lib/initagent` and the service user.
@@ -94,7 +94,7 @@ set, matching the Linux safety model.
 For HTTPS with Let's Encrypt, point DNS at the VM, open ports 80/443, then run:
 
 ```sh
-curl -fsSL https://liveagent-lime.vercel.app/install.sh \
+curl -fsSL https://initagent.dev/install.sh \
   | env INITAGENT_TLS_DOMAIN=initagent.example.com INITAGENT_TLS_EMAIL=you@example.com sh
 ```
 

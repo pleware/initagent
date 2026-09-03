@@ -4,6 +4,10 @@ The public landing page for initagent, and the announcement surface for
 **initagent Code**. This is a standalone app: it is not the hub UI in
 [`../ui`](../ui) and is never compiled into the `initagent` binary.
 
+Production origin is **https://initagent.dev**. Hub installers are the same
+host: `/install.sh`, `/install.ps1`, `/install-macos.sh`. There is no
+separate install subdomain.
+
 React 19 + Vite 8 + Tailwind v4 + Motion. Geist / Geist Mono are self-hosted
 through Fontsource, so the page makes no third-party requests at runtime.
 

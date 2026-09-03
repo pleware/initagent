@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppleLogo, Check, Copy, LinuxLogo, WindowsLogo } from "@phosphor-icons/react";
+import { SITE } from "../lib/site";
 import { Reveal } from "../lib/reveal";
 
 type Platform = {
@@ -17,8 +18,7 @@ const PLATFORMS: Platform[] = [
     label: "Linux",
     icon: LinuxLogo,
     shell: "sh",
-    command:
-      "curl -fsSL https://liveagent-lime.vercel.app/install.sh | sh",
+    command: `curl -fsSL ${SITE}/install.sh | sh`,
     note: "Installs a systemd unit. The recommended home for an always-on hub.",
   },
   {
@@ -26,8 +26,7 @@ const PLATFORMS: Platform[] = [
     label: "macOS",
     icon: AppleLogo,
     shell: "sh",
-    command:
-      "curl -fsSL https://liveagent-lime.vercel.app/install-macos.sh | sh",
+    command: `curl -fsSL ${SITE}/install-macos.sh | sh`,
     note: "Runs in your signed-in session and starts again at login. Intel or Apple Silicon.",
   },
   {
@@ -35,8 +34,7 @@ const PLATFORMS: Platform[] = [
     label: "Windows",
     icon: WindowsLogo,
     shell: "powershell",
-    command:
-      "irm https://liveagent-lime.vercel.app/install.ps1 | iex",
+    command: `irm ${SITE}/install.ps1 | iex`,
     note: "Windows 10/11 or Server 2016+, x64 or ARM64. Terminals use native ConPTY.",
   },
 ];

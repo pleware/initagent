@@ -34,6 +34,10 @@ type Options struct {
 	// Empty means enroll-token minting refuses rather than baking r.Host.
 	GatewayURL string
 
+	// DatabaseURL, when set, points the store at Postgres instead of the
+	// default SQLite file under DataDir. Empty = SQLite (self-host / OSS).
+	DatabaseURL string
+
 	// TLSDomain enables automatic HTTPS via Let's Encrypt for this exact
 	// domain. When set, the hub serves HTTPS on :443 and runs an HTTP server on
 	// :80 for the ACME challenge + a redirect to HTTPS. TLSEmail is sent to the
@@ -74,7 +78,13 @@ func NewServer(opts Options) (*Server, error) {
 	if opts.GithubRepo == "" {
 		opts.GithubRepo = brand.ReleaseSource
 	}
-	store, err := OpenStore(filepath.Join(opts.DataDir, brand.DBFile))
+	var store *Store
+	var err error
+	if opts.DatabaseURL != "" {
+		store, err = OpenStorePostgres(opts.DatabaseURL)
+	} else {
+		store, err = OpenStore(filepath.Join(opts.DataDir, brand.DBFile))
+	}
 	if err != nil {
 		return nil, err
 	}

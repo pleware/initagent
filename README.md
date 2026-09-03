@@ -269,6 +269,17 @@ options:
 - **A TLS reverse proxy** (Caddy, nginx, Traefik) in front of the single hub
   port, if you already run one.
 
+**Postgres instead of SQLite.** The hub defaults to a local SQLite file under
+`~/.initagent`. To run it on PostgreSQL (for a hosted or shared deployment),
+set `--database-url` (or `INITAGENT_DATABASE_URL`) to a Postgres connection
+string:
+
+```sh
+initagent serve --database-url "postgres://user:pass@db:5432/initagent"
+```
+
+The Postgres driver is `pgx`; self-host stays SQLite with no extra setup.
+
 ## How it works
 
 ```

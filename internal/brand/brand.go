@@ -70,6 +70,9 @@ const (
 	EnvRepo    = EnvPrefix + "REPO"
 	EnvVersion = EnvPrefix + "VERSION"
 	EnvPurge   = EnvPrefix + "PURGE"
+
+	// EnvDatabaseURL switches the hub store from SQLite to Postgres.
+	EnvDatabaseURL = EnvPrefix + "DATABASE_URL"
 )
 
 // Service identities. Renaming these breaks upgrades of an already-installed

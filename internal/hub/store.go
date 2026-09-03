@@ -10,15 +10,16 @@ import (
 
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/id"
-	_ "modernc.org/sqlite"
+	"github.com/pleware/initagent/internal/store"
 )
 
-// Store wraps the hub's SQLite database.
+// Store wraps the hub's database (SQLite for self-host, Postgres for the
+// hosted offering). The db handle rebinds placeholders per dialect.
 type Store struct {
-	db *sql.DB
+	db *store.DB
 }
 
-const schema = `
+const schemaSQLite = `
 CREATE TABLE IF NOT EXISTS settings (
 	key   TEXT PRIMARY KEY,
 	value TEXT NOT NULL
@@ -64,17 +65,78 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
 `
 
+// schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
+// unix-seconds do not overflow int4 in 2038, and auto-increment ids use
+// BIGSERIAL because Postgres has no SQLite AUTOINCREMENT.
+const schemaPostgres = `
+CREATE TABLE IF NOT EXISTS settings (
+	key   TEXT PRIMARY KEY,
+	value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS devices (
+	id         TEXT PRIMARY KEY,
+	name       TEXT NOT NULL,
+	hostname   TEXT NOT NULL DEFAULT '',
+	os         TEXT NOT NULL DEFAULT '',
+	arch       TEXT NOT NULL DEFAULT '',
+	token_hash TEXT NOT NULL,
+	is_hub     INTEGER NOT NULL DEFAULT 0,
+	created_at BIGINT NOT NULL,
+	last_seen  BIGINT NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS enroll_tokens (
+	token_hash TEXT PRIMARY KEY,
+	created_at BIGINT NOT NULL,
+	expires_at BIGINT NOT NULL,
+	used       INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS presets (
+	id      BIGSERIAL PRIMARY KEY,
+	name    TEXT NOT NULL UNIQUE,
+	command TEXT NOT NULL,
+	kind    TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS api_tokens (
+	id         BIGSERIAL PRIMARY KEY,
+	name       TEXT NOT NULL,
+	token_hash TEXT NOT NULL UNIQUE,
+	created_at BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS projects (
+	id         TEXT PRIMARY KEY,
+	name       TEXT NOT NULL,
+	device_id  TEXT NOT NULL,
+	path       TEXT NOT NULL,
+	created_at BIGINT NOT NULL,
+	updated_at BIGINT NOT NULL,
+	FOREIGN KEY(device_id) REFERENCES devices(id)
+);
+CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
+`
+
+// OpenStore opens the hub store on a SQLite file (self-host / OSS path).
 func OpenStore(path string) (*Store, error) {
-	db, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)")
+	return openStore(store.SQLite, path, schemaSQLite)
+}
+
+// OpenStorePostgres opens the hub store on a Postgres connection string
+// (hosted path). The connection is lazy; the first query surfaces a bad DSN.
+func OpenStorePostgres(dsn string) (*Store, error) {
+	return openStore(store.Postgres, dsn, schemaPostgres)
+}
+
+func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
+	db, err := store.OpenDB(d, dsn)
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1) // modernc sqlite prefers a single writer
 	if _, err := db.Exec(schema); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("applying schema: %w", err)
 	}
 	s := &Store{db: db}
 	if err := s.seedPresets(); err != nil {
+		db.Close()
 		return nil, err
 	}
 	return s, nil
@@ -357,11 +419,15 @@ func (s *Store) ListPresets() ([]Preset, error) {
 }
 
 func (s *Store) CreatePreset(name, command, kind string) (int64, error) {
-	res, err := s.db.Exec(`INSERT INTO presets (name, command, kind) VALUES (?, ?, ?)`, name, command, kind)
+	// RETURNING keeps the insert portable: SQLite has no LastInsertId on
+	// Postgres, and pgx does not implement sql.Result.LastInsertId.
+	var id int64
+	err := s.db.QueryRow(`INSERT INTO presets (name, command, kind) VALUES (?, ?, ?) RETURNING id`,
+		name, command, kind).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (s *Store) DeletePreset(id int64) error {

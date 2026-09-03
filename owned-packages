@@ -5,6 +5,7 @@
 ./internal/registry/ai/capability
 ./internal/registry/db/kinds
 ./internal/completion
+./internal/store
 ./internal/scheduler
 ./internal/fakecoder
 ./internal/gateway

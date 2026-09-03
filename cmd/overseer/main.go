@@ -141,6 +141,7 @@ func cmdServe(args []string) error {
 	addr := fs.String("addr", ":4200", "listen address (ignored when --tls-domain is set)")
 	dataDir := fs.String("data-dir", "", "data directory (default ~/"+brand.ConfigDir+")")
 	gatewayURL := fs.String("gateway-url", "", "project gateway URL for enroll (required to add workers)")
+	databaseURL := fs.String("database-url", os.Getenv(brand.EnvDatabaseURL), "Postgres connection string; empty = SQLite under --data-dir")
 	tlsDomain := fs.String("tls-domain", "", "enable automatic HTTPS (Let's Encrypt) for this domain; serves :443 + :80")
 	tlsEmail := fs.String("tls-email", "", "contact email for Let's Encrypt (expiry notices)")
 	fs.Parse(args)
@@ -150,14 +151,15 @@ func cmdServe(args []string) error {
 	}
 
 	srv, err := hub.NewServer(hub.Options{
-		Addr:       *addr,
-		DataDir:    *dataDir,
-		Version:    version,
-		GithubRepo: brand.ReleaseSource,
-		TLSDomain:  *tlsDomain,
-		TLSEmail:   *tlsEmail,
-		UI:         uiFS(),
-		GatewayURL: *gatewayURL,
+		Addr:        *addr,
+		DataDir:     *dataDir,
+		Version:     version,
+		GithubRepo:  brand.ReleaseSource,
+		TLSDomain:   *tlsDomain,
+		TLSEmail:    *tlsEmail,
+		UI:          uiFS(),
+		GatewayURL:  *gatewayURL,
+		DatabaseURL: *databaseURL,
 	})
 	if err != nil {
 		return err

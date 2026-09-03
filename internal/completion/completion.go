@@ -42,9 +42,10 @@ type RunContext struct {
 	RunID       string
 	WorkerID    string
 	LaunchMode  LaunchMode
-	OutputPath  string // path to terminal/log output file (for sentinel/file resolvers)
-	ProcessID   int    // OS pid (for process resolver); 0 if not supervised
-	SentinelDir string // directory of per-run done files: <SentinelDir>/<RunID>.done
+	OutputPath  string      // path to terminal/log output file (for sentinel/file resolvers)
+	ProcessID   int         // OS pid (for process resolver); 0 if not supervised
+	SentinelDir string      // directory of per-run done files: <SentinelDir>/<RunID>.done
+	Exec        *ExecResult // completion payload for a supervised one-shot exec; nil otherwise
 }
 
 // Resolver detects when a coding run completes.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pleware/initagent/internal/completion"
 	"github.com/pleware/initagent/internal/protocol"
 	"github.com/pleware/initagent/internal/scheduler"
 )
@@ -40,8 +41,9 @@ func viewTask(t scheduler.Task, stdout, stderr string) TaskView {
 }
 
 // RunQueued claims the oldest queued task for workerID, runs its command
-// over TypeExec on the live agent socket, and Finish-es the row. Milestone 0
-// completion is the exec exit code, not a completion.Resolver.
+// over TypeExec on the live agent socket, and Finish-es the row. Completion
+// flows through the completion registry: the exec reply becomes a resolver
+// Outcome whose exit code and reason drive the terminal state.
 func (g *Gateway) RunQueued(ctx context.Context, workerID string) (TaskView, error) {
 	if g.connFor(workerID) == nil {
 		return TaskView{}, ErrDeviceOffline
@@ -81,12 +83,30 @@ func (g *Gateway) runClaimed(ctx context.Context, claimed *scheduler.Task) (Task
 	if err != nil {
 		return finish(scheduler.TaskFailed, 1, err.Error(), "", "")
 	}
+
+	outcome, err := g.resolveExec(ctx, claimed, res)
+	if err != nil {
+		return finish(scheduler.TaskFailed, 1, err.Error(), "", "")
+	}
+
 	to := scheduler.TaskDone
-	reason := "exec"
-	if res.ExitCode != 0 {
+	if outcome.ExitCode != 0 {
 		to = scheduler.TaskFailed
 	}
-	return finish(to, res.ExitCode, reason, res.Stdout, res.Stderr)
+	return finish(to, outcome.ExitCode, outcome.Reason, res.Stdout, res.Stderr)
+}
+
+// resolveExec turns the TypeExec reply into a completion Outcome through the
+// registry. The run is supervised (the agent owns the child process), so the
+// exec resolver is the one that fires; the registry drops resolvers that
+// cannot work here (process has no pid, file has no sentinel dir).
+func (g *Gateway) resolveExec(ctx context.Context, task *scheduler.Task, res protocol.ExecResult) (completion.Outcome, error) {
+	return completion.Default.Resolve(ctx, completion.RunContext{
+		RunID:      task.ID,
+		WorkerID:   task.AssignedWorkerID,
+		LaunchMode: completion.LaunchSupervised,
+		Exec:       &completion.ExecResult{ExitCode: res.ExitCode},
+	})
 }
 
 func (g *Gateway) execOn(ctx context.Context, workerID, command string) (protocol.ExecResult, error) {

@@ -106,6 +106,9 @@ func TestCreateTaskExecDone(t *testing.T) {
 	if view.State != string(scheduler.TaskDone) || view.ExitCode != 0 || view.Stdout != "echo hi" {
 		t.Fatalf("view = %+v", view)
 	}
+	if view.Reason != "exec" {
+		t.Fatalf("reason = %q, want the exec resolver's reason", view.Reason)
+	}
 	if view.AssignedWorkerID != deviceID {
 		t.Fatalf("worker = %q", view.AssignedWorkerID)
 	}

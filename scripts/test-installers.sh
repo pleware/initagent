@@ -13,9 +13,9 @@ MOCK_BIN="$TMP/mock-bin"
 FIXTURE_ROOT="$TMP/fixture/initagent-main"
 FIXTURE_ARCHIVE="$TMP/source.tar.gz"
 FAKE_BINARY="$TMP/fake-initagent"
-mkdir -p "$MOCK_BIN" "$FIXTURE_ROOT/ui/dist" "$FIXTURE_ROOT/cmd/overseer/uidist"
+mkdir -p "$MOCK_BIN" "$FIXTURE_ROOT/ui/dist" "$FIXTURE_ROOT/cmd/initagent/uidist"
 printf '<!doctype html><title>fixture</title>\n' > "$FIXTURE_ROOT/ui/dist/index.html"
-printf 'placeholder\n' > "$FIXTURE_ROOT/cmd/overseer/uidist/.gitkeep"
+printf 'placeholder\n' > "$FIXTURE_ROOT/cmd/initagent/uidist/.gitkeep"
 tar -czf "$FIXTURE_ARCHIVE" -C "$TMP/fixture" initagent-main
 
 cat > "$FAKE_BINARY" <<'EOF'

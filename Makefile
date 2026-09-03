@@ -16,12 +16,12 @@ all: ui go
 
 ui:
 	cd ui && npm install --no-audit --no-fund && npm run build
-	rm -rf cmd/overseer/uidist
-	cp -r ui/dist cmd/overseer/uidist
-	touch cmd/overseer/uidist/.gitkeep   # keep the go:embed target non-empty for `go test` without a UI build
+	rm -rf cmd/initagent/uidist
+	cp -r ui/dist cmd/initagent/uidist
+	touch cmd/initagent/uidist/.gitkeep   # keep the go:embed target non-empty for `go test` without a UI build
 
 go:
-	go build -ldflags '$(LDFLAGS)' -o initagent ./cmd/overseer
+	go build -ldflags '$(LDFLAGS)' -o initagent ./cmd/initagent
 
 test:
 	go vet ./...
@@ -33,9 +33,9 @@ cross: ui
 		os=$${p%/*}; arch=$${p#*/}; \
 		echo "building dist/initagent_$${os}_$${arch}"; \
 		GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 go build -ldflags '$(LDFLAGS)' \
-			-o dist/initagent_$${os}_$${arch} ./cmd/overseer || exit 1; \
+			-o dist/initagent_$${os}_$${arch} ./cmd/initagent || exit 1; \
 	done
 
 clean:
-	rm -rf initagent dist ui/dist cmd/overseer/uidist
-	mkdir -p cmd/overseer/uidist && touch cmd/overseer/uidist/.gitkeep
+	rm -rf initagent dist ui/dist cmd/initagent/uidist
+	mkdir -p cmd/initagent/uidist && touch cmd/initagent/uidist/.gitkeep

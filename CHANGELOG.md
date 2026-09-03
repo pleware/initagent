@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Rename the entry point directory to cmd/initagent
 - 2026-09-03 — Give the hub UI Docker stage the theme tokens it imports
 - 2026-09-03 — Split cockpit colours into theme families behind a resolver
 - 2026-09-03 — Bump CI/release actions to Node 24 runtimes

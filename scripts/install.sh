@@ -175,10 +175,10 @@ build_from_source() {
   curl -fL "https://github.com/$REPO/archive/$SOURCE_REF.tar.gz" -o "$TMP_DIR/source.tar.gz"
   tar -xzf "$TMP_DIR/source.tar.gz" -C "$SRC" --strip-components=1
   (cd "$SRC/ui" && npm install --no-audit --no-fund && npm run build)
-  rm -rf "$SRC/cmd/overseer/uidist"
-  mkdir -p "$SRC/cmd/overseer/uidist"
-  cp -R "$SRC/ui/dist/." "$SRC/cmd/overseer/uidist/"
-  (cd "$SRC" && go build -ldflags "-s -w -X main.version=$SOURCE_REF" -o "$TMP_DIR/initagent" ./cmd/overseer)
+  rm -rf "$SRC/cmd/initagent/uidist"
+  mkdir -p "$SRC/cmd/initagent/uidist"
+  cp -R "$SRC/ui/dist/." "$SRC/cmd/initagent/uidist/"
+  (cd "$SRC" && go build -ldflags "-s -w -X main.version=$SOURCE_REF" -o "$TMP_DIR/initagent" ./cmd/initagent)
   chmod +x "$TMP_DIR/initagent"
 }
 

@@ -27,10 +27,10 @@ ARG VERSION=dev
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-COPY --from=ui /src/ui/dist ./cmd/overseer/uidist
+COPY --from=ui /src/ui/dist ./cmd/initagent/uidist
 RUN CGO_ENABLED=0 go build -trimpath \
     -ldflags "-s -w -X main.version=${VERSION}" \
-    -o /out/initagent ./cmd/overseer
+    -o /out/initagent ./cmd/initagent
 
 # ── Stage 3: runtime ───────────────────────────────────────────────────
 FROM alpine:3.21

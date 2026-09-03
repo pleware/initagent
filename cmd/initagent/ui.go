@@ -5,7 +5,7 @@ import (
 	"io/fs"
 )
 
-// The UI build (ui/dist) is copied into cmd/overseer/uidist by `make ui`.
+// The UI build (ui/dist) is copied into cmd/initagent/uidist by `make ui`.
 // An empty placeholder keeps `go build` working before the first UI build.
 //
 //go:embed all:uidist

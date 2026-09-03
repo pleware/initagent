@@ -5,9 +5,9 @@ $SourceTree = Join-Path $TempRoot "source\initagent-main"
 $SourceZip = Join-Path $TempRoot "source.zip"
 $FakeBinary = Join-Path $TempRoot "fake-initagent.exe"
 $InstallBase = Join-Path $TempRoot "Install Root With Spaces"
-New-Item -ItemType Directory -Force -Path (Join-Path $SourceTree "ui\dist"), (Join-Path $SourceTree "cmd\overseer\uidist") | Out-Null
+New-Item -ItemType Directory -Force -Path (Join-Path $SourceTree "ui\dist"), (Join-Path $SourceTree "cmd\initagent\uidist") | Out-Null
 Set-Content -Path (Join-Path $SourceTree "ui\dist\index.html") -Value '<!doctype html><title>fixture</title>' -Encoding UTF8
-Set-Content -Path (Join-Path $SourceTree "cmd\overseer\uidist\.gitkeep") -Value 'fixture' -Encoding UTF8
+Set-Content -Path (Join-Path $SourceTree "cmd\initagent\uidist\.gitkeep") -Value 'fixture' -Encoding UTF8
 Compress-Archive -Path (Join-Path $TempRoot "source\initagent-main") -DestinationPath $SourceZip
 if ($IsWindows) {
   $fakeSource = Join-Path $TempRoot "fake-initagent.go"

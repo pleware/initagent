@@ -163,14 +163,14 @@ function Build-FromSource {
   } finally { Pop-Location }
 
   $uiDist = Join-Path $source.FullName "ui\dist"
-  $embedded = Join-Path $source.FullName "cmd\overseer\uidist"
+  $embedded = Join-Path $source.FullName "cmd\initagent\uidist"
   Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $embedded
   New-Item -ItemType Directory -Force -Path $embedded | Out-Null
   Copy-Item -Recurse -Force (Join-Path $uiDist "*") $embedded
 
   Push-Location $source.FullName
   try {
-    & go build -ldflags "-s -w -X main.version=$sourceRef" -o $StagedBin ./cmd/overseer
+    & go build -ldflags "-s -w -X main.version=$sourceRef" -o $StagedBin ./cmd/initagent
     if ($LASTEXITCODE -ne 0) { throw "Go build failed" }
   } finally { Pop-Location }
 }

@@ -302,7 +302,7 @@ over each device's single outbound WebSocket. Design details live in
 
 ```sh
 # Terminal 1: hub API (Go)
-go run ./cmd/overseer serve
+go run ./cmd/initagent serve
 
 # Terminal 2: UI with hot reload (proxies /api to :4200)
 cd ui && npm install && npm run dev
@@ -311,7 +311,7 @@ make test        # go vet + unit + integration tests (some need tmux)
 make cross       # cross-compile darwin/linux/windows × amd64/arm64 into dist/
 ```
 
-Project layout: `cmd/overseer` (entrypoint + subcommands), `internal/protocol`
+Project layout: `cmd/initagent` (entrypoint + subcommands), `internal/protocol`
 (wire format), `internal/hub` (server), `internal/agent` (device side),
 `internal/fleet` (API client), `internal/mcp` (MCP server), `ui` (React app).
 

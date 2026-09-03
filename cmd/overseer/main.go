@@ -33,6 +33,8 @@ const usage = `Overseer — control all your machines from one place.
 Usage:
   overseer serve [--addr :4200] [--data-dir ~/.overseer]   Run the hub (web UI + API)
   overseer serve --tls-domain d.com --tls-email you@d.com   Run the hub with automatic HTTPS (Let's Encrypt)
+  overseer gateway [--addr :4201] [--data-dir ~/.initagent] [--project prj-…]
+                                                             Run the project gateway (health + tasks table)
   overseer agent enroll --hub URL --token TOKEN            Enroll this device with a hub
   overseer agent run                                       Run the device agent (foreground)
   overseer agent install-service                           Install + start the agent as a service
@@ -60,6 +62,8 @@ func main() {
 	switch os.Args[1] {
 	case "serve":
 		err = cmdServe(os.Args[2:])
+	case "gateway":
+		err = cmdGateway(os.Args[2:])
 	case "agent":
 		err = cmdAgent(os.Args[2:])
 	case "fleet":

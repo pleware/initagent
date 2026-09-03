@@ -20,6 +20,7 @@ func TestExportedIdentity(t *testing.T) {
 		{"Binary", brand.Binary, "initagent"},
 		{"ConfigDir", brand.ConfigDir, ".initagent"},
 		{"DBFile", brand.DBFile, "initagent.db"},
+		{"GatewayDBFile", brand.GatewayDBFile, "gateway.db"},
 		{"TokenPrefix", brand.TokenPrefix, "iagt_"},
 		{"SessionCookie", brand.SessionCookie, "initagent_auth"},
 		{"EnvPrefix", brand.EnvPrefix, "INITAGENT_"},

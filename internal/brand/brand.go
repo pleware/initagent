@@ -25,6 +25,10 @@ const (
 	// DBFile is the hub's SQLite database inside ConfigDir.
 	DBFile = "initagent.db"
 
+	// GatewayDBFile is the gateway's SQLite database inside ConfigDir.
+	// A second process, a second file — the hub database stays theirs.
+	GatewayDBFile = "gateway.db"
+
 	// ConnectorConfigFile is the worker connector's config inside ConfigDir.
 	ConnectorConfigFile = "connector.json"
 

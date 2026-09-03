@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Add a gateway process with a SQLite tasks table
 - 2026-09-03 — Watch a per-run done file at high trust
 - 2026-09-03 — Clarify fpr- as a SaaS project reached through MCP
 - 2026-09-03 — Register fpr- for a tool's own project on a worker

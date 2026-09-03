@@ -60,6 +60,6 @@ func (i Installer) ServeBinary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpError(w, http.StatusNotFound, fmt.Sprintf(
-		"no binary for %s/%s — cross-compile with `GOOS=%s GOARCH=%s go build -o %s ./cmd/initagent`, then retry",
-		osName, arch, osName, arch, candidate))
+		"no binary for %s/%s — cross-compile with `GOOS=%s GOARCH=%s go build -o %s ./%s`, then retry",
+		osName, arch, osName, arch, candidate, brand.CommandDir))
 }

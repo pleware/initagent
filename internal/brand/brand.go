@@ -96,6 +96,11 @@ const (
 // back when listing sessions. Must stay a valid tmux option name.
 const TmuxKindOpt = "@initagent_coder_kind"
 
+// CommandDir is the module-relative repository directory of the single-binary
+// entry point. Developer-facing messages (how to build from source) reference
+// it through this constant, so a layout move stays one edit in this file.
+const CommandDir = "cmd/initagent"
+
 // ReleaseSource is where the hub fetches connector binaries for platforms it
 // is not running on. A var, not a const, because it is overridable at build
 // time — continuing what upstream already anticipated for forks:

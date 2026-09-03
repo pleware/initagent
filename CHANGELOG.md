@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-03 — Hold the entry point path in brand.CommandDir
 - 2026-09-03 — Deduplicate the device joiner into internal/join
 - 2026-09-03 — Rename the entry point directory to cmd/initagent
 - 2026-09-03 — Give the hub UI Docker stage the theme tokens it imports

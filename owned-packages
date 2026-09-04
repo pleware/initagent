@@ -12,3 +12,4 @@
 ./internal/join
 ./internal/offering
 ./internal/auth
+./internal/authz

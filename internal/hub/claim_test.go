@@ -3,6 +3,7 @@ package hub
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -28,8 +29,29 @@ func newHub(t *testing.T, dataDir string, kind offering.Kind) *Server {
 
 func postJSON(t *testing.T, ts *httptest.Server, client *http.Client, path string, body any) *http.Response {
 	t.Helper()
-	b, _ := json.Marshal(body)
-	resp, err := client.Post(ts.URL+path, "application/json", bytes.NewReader(b))
+	return requestJSON(t, ts, client, http.MethodPost, path, body)
+}
+
+// requestJSON sends any method with an optional JSON body. A nil body sends
+// no body at all, which is what DELETE wants.
+func requestJSON(t *testing.T, ts *httptest.Server, client *http.Client, method, path string, body any) *http.Response {
+	t.Helper()
+	var reader io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		reader = bytes.NewReader(b)
+	}
+	req, err := http.NewRequest(method, ts.URL+path, reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +77,7 @@ func TestClaimedHubRetiresTheToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := first.store.CreateAdminAccount("ops@example.com", hash); err != nil {
+	if _, _, err := first.store.ClaimHub("ops@example.com", hash, "Ops"); err != nil {
 		t.Fatal(err)
 	}
 	if err := first.store.Close(); err != nil {
@@ -144,7 +166,7 @@ func TestMeReportsOfferingAndClaimState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := srv.store.CreateAdminAccount("ops@example.com", hash); err != nil {
+	if _, _, err := srv.store.ClaimHub("ops@example.com", hash, "Ops"); err != nil {
 		t.Fatal(err)
 	}
 	get()

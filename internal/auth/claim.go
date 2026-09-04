@@ -4,6 +4,8 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/pleware/initagent/internal/offering"
 )
@@ -59,12 +61,53 @@ type ClaimRequest struct {
 	Email    string
 	Password string
 	Token    string
+	// OrgName names the hub's first organization (25). Optional: an operator
+	// claiming a fresh hub is thinking about getting in, not about naming
+	// things, so an empty value is filled in from the email domain rather
+	// than refused.
+	OrgName string
 }
 
 // Credentials is what the hub stores once a claim is accepted.
 type Credentials struct {
 	Email        string
 	PasswordHash string
+	OrgName      string
+}
+
+// orgNameMax bounds the name a first-run form can set. It is a display
+// string, and a megabyte of one is a payload, not a name.
+const orgNameMax = 120
+
+// DefaultOrgName guesses an organization name from an email address.
+//
+// The domain is the best guess available without asking, and it is usually
+// right: the person claiming a hub is claiming it for the company whose
+// address they used. A personal-mail domain produces "gmail.com", which is
+// visibly wrong in the cockpit and therefore gets renamed — better than a
+// plausible-looking name nobody notices is wrong. Draft 26 leaves "personal
+// org versus name a company" open; this is a default, not that answer.
+func DefaultOrgName(email string) string {
+	at := strings.LastIndex(email, "@")
+	if at < 0 || at == len(email)-1 {
+		return "My organization"
+	}
+	return email[at+1:]
+}
+
+// CheckOrgName trims a submitted name and falls back to the default. It does
+// not police the content: an organization is named by its owner, not by us.
+func CheckOrgName(name, email string) string {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return DefaultOrgName(email)
+	}
+	if utf8.RuneCountInString(trimmed) > orgNameMax {
+		// Cut on runes, not bytes, so a long name in a non-Latin script does
+		// not end in half a character.
+		return string([]rune(trimmed)[:orgNameMax])
+	}
+	return trimmed
 }
 
 // Claim decides whether a first-run submission may take ownership, and
@@ -96,5 +139,9 @@ func Claim(st State, req ClaimRequest) (Credentials, error) {
 	if err != nil {
 		return Credentials{}, err
 	}
-	return Credentials{Email: email, PasswordHash: hash}, nil
+	return Credentials{
+		Email:        email,
+		PasswordHash: hash,
+		OrgName:      CheckOrgName(req.OrgName, email),
+	}, nil
 }

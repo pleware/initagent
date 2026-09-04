@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pleware/initagent/internal/auth"
+	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/id"
 	"github.com/pleware/initagent/internal/store"
@@ -72,6 +73,21 @@ CREATE TABLE IF NOT EXISTS accounts (
 	created_at    INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS accounts_single_admin ON accounts(is_admin) WHERE is_admin = 1;
+CREATE TABLE IF NOT EXISTS orgs (
+	id         TEXT PRIMARY KEY,
+	name       TEXT NOT NULL,
+	created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS org_members (
+	org_id     TEXT NOT NULL,
+	account_id TEXT NOT NULL,
+	role       TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	PRIMARY KEY (org_id, account_id),
+	FOREIGN KEY(org_id) REFERENCES orgs(id),
+	FOREIGN KEY(account_id) REFERENCES accounts(id)
+);
+CREATE INDEX IF NOT EXISTS org_members_account ON org_members(account_id);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -129,6 +145,21 @@ CREATE TABLE IF NOT EXISTS accounts (
 	created_at    BIGINT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS accounts_single_admin ON accounts(is_admin) WHERE is_admin = 1;
+CREATE TABLE IF NOT EXISTS orgs (
+	id         TEXT PRIMARY KEY,
+	name       TEXT NOT NULL,
+	created_at BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS org_members (
+	org_id     TEXT NOT NULL,
+	account_id TEXT NOT NULL,
+	role       TEXT NOT NULL,
+	created_at BIGINT NOT NULL,
+	PRIMARY KEY (org_id, account_id),
+	FOREIGN KEY(org_id) REFERENCES orgs(id),
+	FOREIGN KEY(account_id) REFERENCES accounts(id)
+);
+CREATE INDEX IF NOT EXISTS org_members_account ON org_members(account_id);
 `
 
 // OpenStore opens the hub store on a SQLite file (self-host / OSS path).
@@ -230,30 +261,136 @@ func (s *Store) CountAccounts() (int, error) {
 	return n, err
 }
 
-// CreateAdminAccount stores the hub's platform admin (`08`).
+// ClaimHub creates the platform admin, the hub's first organization, and the
+// membership that makes the operator its owner — in one transaction (`08`,
+// `25`, `26`).
 //
-// "At most one" is enforced by the partial unique index on is_admin, not by
-// counting rows here first. That matters: two concurrent claims that both
-// read an empty table would both insert, and wrapping the read and the write
-// in a transaction does not help either — under Postgres READ COMMITTED both
+// The org exists from the first moment rather than being created lazily
+// because every catalogue query is supposed to be scoped by org (`05`: a
+// query without an org is a bug). A claimed hub with an account and no org
+// would be a hub whose own rule does not hold yet.
+//
+// "At most one platform admin" is enforced by the partial unique index on
+// is_admin, not by counting rows here first. That matters: two concurrent
+// claims that both read an empty table would both insert, and the
+// transaction does not help either — under Postgres READ COMMITTED both
 // snapshots still see no rows. A unique index is the only guard that holds at
 // any isolation level, so the second writer gets a constraint violation and
-// the caller reports the hub as already claimed.
+// the caller reports the hub as already claimed. What the transaction buys is
+// the opposite property: none of the three rows lands without the others.
 //
 // One consequence to keep in view: this makes a *second* platform admin
 // impossible until someone deliberately drops the index. Relaxing that later
 // is a migration; recovering from two accidental owners is not.
-func (s *Store) CreateAdminAccount(email, passwordHash string) (*Account, error) {
+func (s *Store) ClaimHub(email, passwordHash, orgName string) (*Account, *Org, error) {
+	accountId, err := id.New(id.Account)
+	if err != nil {
+		return nil, nil, err
+	}
+	orgId, err := id.New(id.Org)
+	if err != nil {
+		return nil, nil, err
+	}
+	now := time.Now().Unix()
+	account := &Account{
+		Id: accountId, Email: email, IsAdmin: true,
+		CreatedAt: now, passwordHash: passwordHash,
+	}
+	org := &Org{Id: orgId, Name: orgName, CreatedAt: now, Members: 1}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, nil, err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO accounts (id, email, password_hash, is_admin, created_at)
+		VALUES (?, ?, ?, 1, ?)`, account.Id, account.Email, account.passwordHash, now); err != nil {
+		return nil, nil, err
+	}
+	if _, err := tx.Exec(`INSERT INTO orgs (id, name, created_at) VALUES (?, ?, ?)`,
+		org.Id, org.Name, now); err != nil {
+		return nil, nil, err
+	}
+	if _, err := tx.Exec(`INSERT INTO org_members (org_id, account_id, role, created_at)
+		VALUES (?, ?, ?, ?)`, org.Id, account.Id, string(authz.RoleOwner), now); err != nil {
+		return nil, nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, nil, err
+	}
+	return account, org, nil
+}
+
+// BackfillOperatorOrg gives an already-claimed hub the organization that
+// claiming would create today, and reports it when it made one.
+//
+// It exists because `v0.2.0` shipped the claim before organizations did, so a
+// hub claimed on that image has an admin account and no org — a state the
+// claim path can no longer produce and no screen can repair, since first-run
+// never runs twice. Running this at start closes it once.
+//
+// The guard is deliberately narrow: no organizations at all, and an admin
+// account to own one. A hub with any org is left alone, so this cannot invent
+// a second org on a working installation, and a hub with no account (the
+// legacy operator password) gets nothing, because an org needs an owner and
+// that credential has no account to be one.
+func (s *Store) BackfillOperatorOrg() (*Org, error) {
+	var orgs int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM orgs`).Scan(&orgs); err != nil {
+		return nil, err
+	}
+	if orgs > 0 {
+		return nil, nil
+	}
+	admin, err := s.account(`WHERE is_admin = 1`)
+	if err != nil || admin == nil {
+		return nil, err
+	}
+
+	orgId, err := id.New(id.Org)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().Unix()
+	org := &Org{
+		Id: orgId, Name: auth.DefaultOrgName(admin.Email),
+		CreatedAt: now, Members: 1,
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO orgs (id, name, created_at) VALUES (?, ?, ?)`,
+		org.Id, org.Name, now); err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(`INSERT INTO org_members (org_id, account_id, role, created_at)
+		VALUES (?, ?, ?, ?)`, org.Id, admin.Id, string(authz.RoleOwner), now); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return org, nil
+}
+
+// CreateAccount stores a person who is not the platform admin.
+//
+// Every account after the first is one of these: the single is_admin row
+// belongs to whoever claimed the hub, and org roles (`25`) are what give
+// anyone else authority.
+func (s *Store) CreateAccount(email, passwordHash string) (*Account, error) {
 	accountId, err := id.New(id.Account)
 	if err != nil {
 		return nil, err
 	}
 	a := &Account{
-		Id: accountId, Email: email, IsAdmin: true,
+		Id: accountId, Email: email, IsAdmin: false,
 		CreatedAt: time.Now().Unix(), passwordHash: passwordHash,
 	}
 	_, err = s.db.Exec(`INSERT INTO accounts (id, email, password_hash, is_admin, created_at)
-		VALUES (?, ?, ?, 1, ?)`, a.Id, a.Email, a.passwordHash, a.CreatedAt)
+		VALUES (?, ?, ?, 0, ?)`, a.Id, a.Email, a.passwordHash, a.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -264,10 +401,20 @@ func (s *Store) CreateAdminAccount(email, passwordHash string) (*Account, error)
 // (nil, nil): callers answer the same way for a wrong address and a wrong
 // password, so the form cannot be used to enumerate who has an account.
 func (s *Store) AccountByEmail(email string) (*Account, error) {
+	return s.account(`WHERE email = ?`, email)
+}
+
+// AccountById is the lookup behind a session: the cookie carries an `acc-`
+// and every request resolves it to the person acting.
+func (s *Store) AccountById(accountId string) (*Account, error) {
+	return s.account(`WHERE id = ?`, accountId)
+}
+
+func (s *Store) account(where string, args ...any) (*Account, error) {
 	var a Account
 	var isAdmin int
 	err := s.db.QueryRow(`SELECT id, email, password_hash, is_admin, created_at
-		FROM accounts WHERE email = ?`, email).
+		FROM accounts `+where, args...).
 		Scan(&a.Id, &a.Email, &a.passwordHash, &isAdmin, &a.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -277,6 +424,225 @@ func (s *Store) AccountByEmail(email string) (*Account, error) {
 	}
 	a.IsAdmin = isAdmin == 1
 	return &a, nil
+}
+
+// ListAccounts returns every account on this installation, oldest first.
+// This is the platform operator's view (`admin:hub.account`), which is why it
+// is not scoped by org.
+func (s *Store) ListAccounts() ([]Account, error) {
+	rows, err := s.db.Query(`SELECT id, email, is_admin, created_at
+		FROM accounts ORDER BY created_at, id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Account{}
+	for rows.Next() {
+		var a Account
+		var isAdmin int
+		if err := rows.Scan(&a.Id, &a.Email, &isAdmin, &a.CreatedAt); err != nil {
+			return nil, err
+		}
+		a.IsAdmin = isAdmin == 1
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+// --- organizations ---
+
+// Org is a customer organization (`org-`, draft 25). On a self-hosted hub
+// there is exactly one, created when the hub is claimed; the hosted hub has
+// many.
+type Org struct {
+	Id        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt int64  `json:"createdAt"`
+	// Members is the roster size. The platform operator's list of orgs shows
+	// it, which is deliberately as far as that surface goes: enumerating
+	// organizations is a hub capability, reading who is inside one is not
+	// (`authz`, and `09`'s open question about a hub admin's reach).
+	Members int `json:"members"`
+}
+
+// OrgMember is one person's place in an organization. Email travels with the
+// row because every screen that lists members needs it, and the alternative
+// is the caller joining accounts by hand each time.
+type OrgMember struct {
+	AccountId string `json:"accountId"`
+	Email     string `json:"email"`
+	Role      string `json:"role"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+// Membership is the other direction: one account's place in an organization,
+// which is what a signed-in person needs to know about themselves.
+type Membership struct {
+	OrgId string `json:"orgId"`
+	Name  string `json:"name"`
+	Role  string `json:"role"`
+}
+
+// CreateOrg mints an organization with no members. Callers that need an owner
+// add one; ClaimHub does both at once for the hub's first org.
+func (s *Store) CreateOrg(name string) (*Org, error) {
+	orgId, err := id.New(id.Org)
+	if err != nil {
+		return nil, err
+	}
+	o := &Org{Id: orgId, Name: name, CreatedAt: time.Now().Unix()}
+	if _, err := s.db.Exec(`INSERT INTO orgs (id, name, created_at) VALUES (?, ?, ?)`,
+		o.Id, o.Name, o.CreatedAt); err != nil {
+		return nil, err
+	}
+	return o, nil
+}
+
+// ListOrgs returns every organization with its roster size, oldest first.
+func (s *Store) ListOrgs() ([]Org, error) {
+	rows, err := s.db.Query(`SELECT o.id, o.name, o.created_at, COUNT(m.account_id)
+		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
+		GROUP BY o.id, o.name, o.created_at
+		ORDER BY o.created_at, o.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Org{}
+	for rows.Next() {
+		var o Org
+		if err := rows.Scan(&o.Id, &o.Name, &o.CreatedAt, &o.Members); err != nil {
+			return nil, err
+		}
+		out = append(out, o)
+	}
+	return out, rows.Err()
+}
+
+// OrgById returns one organization, or (nil, nil) when it does not exist.
+func (s *Store) OrgById(orgId string) (*Org, error) {
+	var o Org
+	err := s.db.QueryRow(`SELECT o.id, o.name, o.created_at, COUNT(m.account_id)
+		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
+		WHERE o.id = ?
+		GROUP BY o.id, o.name, o.created_at`, orgId).
+		Scan(&o.Id, &o.Name, &o.CreatedAt, &o.Members)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &o, nil
+}
+
+// RenameOrg changes an organization's display name.
+func (s *Store) RenameOrg(orgId, name string) error {
+	_, err := s.db.Exec(`UPDATE orgs SET name = ? WHERE id = ?`, name, orgId)
+	return err
+}
+
+// ListAccountOrgs returns the organizations an account belongs to, with the
+// role it holds in each. This is what the cockpit reads at sign-in to know
+// which people it may manage.
+func (s *Store) ListAccountOrgs(accountId string) ([]Membership, error) {
+	rows, err := s.db.Query(`SELECT o.id, o.name, m.role
+		FROM org_members m JOIN orgs o ON o.id = m.org_id
+		WHERE m.account_id = ? ORDER BY o.created_at, o.id`, accountId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Membership{}
+	for rows.Next() {
+		var m Membership
+		if err := rows.Scan(&m.OrgId, &m.Name, &m.Role); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// ListOrgMembers returns an organization's roster with each person's email.
+func (s *Store) ListOrgMembers(orgId string) ([]OrgMember, error) {
+	rows, err := s.db.Query(`SELECT m.account_id, a.email, m.role, m.created_at
+		FROM org_members m JOIN accounts a ON a.id = m.account_id
+		WHERE m.org_id = ? ORDER BY m.created_at, m.account_id`, orgId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []OrgMember{}
+	for rows.Next() {
+		var m OrgMember
+		if err := rows.Scan(&m.AccountId, &m.Email, &m.Role, &m.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// OrgRoster reads the roster in the shape the authorization rules need. Those
+// rules are decisions about what an org looks like afterwards — the last
+// owner cannot be demoted — so they need the whole roster, not one row.
+func (s *Store) OrgRoster(orgId string) (authz.OrgState, error) {
+	members, err := s.ListOrgMembers(orgId)
+	if err != nil {
+		return authz.OrgState{}, err
+	}
+	state := authz.OrgState{ID: orgId, Members: make(map[string]authz.Role, len(members))}
+	for _, m := range members {
+		state.Members[m.AccountId] = authz.Role(m.Role)
+	}
+	return state, nil
+}
+
+// AccountOrgRoles returns every organization this account belongs to and the
+// role it holds there. An account may belong to many (`25`), so the request
+// carries the boundary rather than the hub remembering a "current" org.
+func (s *Store) AccountOrgRoles(accountId string) (map[string]authz.Role, error) {
+	rows, err := s.db.Query(`SELECT org_id, role FROM org_members WHERE account_id = ?`, accountId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]authz.Role{}
+	for rows.Next() {
+		var orgId, role string
+		if err := rows.Scan(&orgId, &role); err != nil {
+			return nil, err
+		}
+		out[orgId] = authz.Role(role)
+	}
+	return out, rows.Err()
+}
+
+// AddOrgMember joins an account to an organization. The composite primary key
+// refuses a second membership for the same pair, so re-adding somebody is a
+// constraint violation rather than a silent duplicate row.
+func (s *Store) AddOrgMember(orgId, accountId string, role authz.Role) error {
+	_, err := s.db.Exec(`INSERT INTO org_members (org_id, account_id, role, created_at)
+		VALUES (?, ?, ?, ?)`, orgId, accountId, string(role), time.Now().Unix())
+	return err
+}
+
+// SetOrgMemberRole changes a role. Whether the change is allowed is decided
+// by authz before this is called; this is the write.
+func (s *Store) SetOrgMemberRole(orgId, accountId string, role authz.Role) error {
+	_, err := s.db.Exec(`UPDATE org_members SET role = ? WHERE org_id = ? AND account_id = ?`,
+		string(role), orgId, accountId)
+	return err
+}
+
+// RemoveOrgMember drops a membership. The account itself survives: a person
+// who leaves one org may still belong to another, and deleting the account
+// here would silently take those with it.
+func (s *Store) RemoveOrgMember(orgId, accountId string) error {
+	_, err := s.db.Exec(`DELETE FROM org_members WHERE org_id = ? AND account_id = ?`,
+		orgId, accountId)
+	return err
 }
 
 // --- devices ---

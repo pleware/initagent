@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pleware/initagent/internal/auth"
+	"github.com/pleware/initagent/internal/authz"
 )
 
 // TestStorePostgresSmoke exercises the hub store against a real Postgres so
@@ -94,6 +95,12 @@ func TestStorePostgresSmoke(t *testing.T) {
 	// the SQLite run: the hosted hub is the Postgres one, so the partial
 	// unique index that keeps a hub to one owner has to hold *here*. A
 	// syntax difference would not fail a test, it would fail a deploy.
+	if _, err := s.db.Exec(`DELETE FROM org_members`); err != nil {
+		t.Fatalf("clearing org members: %v", err)
+	}
+	if _, err := s.db.Exec(`DELETE FROM orgs`); err != nil {
+		t.Fatalf("clearing orgs: %v", err)
+	}
 	if _, err := s.db.Exec(`DELETE FROM accounts`); err != nil {
 		t.Fatalf("clearing accounts: %v", err)
 	}
@@ -102,17 +109,34 @@ func TestStorePostgresSmoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	first := "ops-" + strconv.FormatInt(uniq, 10) + "@example.com"
-	if _, err := s.CreateAdminAccount(first, hash); err != nil {
-		t.Fatalf("CreateAdminAccount: %v", err)
+	account, org, err := s.ClaimHub(first, hash, "Postgres Ops")
+	if err != nil {
+		t.Fatalf("ClaimHub: %v", err)
 	}
-	if _, err := s.CreateAdminAccount("second-"+first, hash); err == nil {
+	if _, _, err := s.ClaimHub("second-"+first, hash, "Second"); err == nil {
 		t.Fatal("Postgres accepted a second admin account; the hub would have two owners")
 	}
-	account, err := s.AccountByEmail(first)
-	if err != nil || account == nil {
-		t.Fatalf("AccountByEmail = (%v, %v), want the account", account, err)
+	// The refused claim ran three inserts inside a transaction and must have
+	// rolled all of them back. On Postgres a failed statement poisons the
+	// whole transaction, so a leftover org here would mean the rollback is
+	// not happening at all.
+	orgs, err := s.ListOrgs()
+	if err != nil || len(orgs) != 1 || orgs[0].Id != org.Id {
+		t.Fatalf("ListOrgs after a refused claim = (%v, %v), want only the first org", orgs, err)
 	}
-	if !account.VerifyPassword("correct-horse-battery") {
+	if orgs[0].Members != 1 {
+		t.Errorf("org member count = %d, want 1 (the aggregate join differs per dialect)", orgs[0].Members)
+	}
+	roster, err := s.OrgRoster(org.Id)
+	if err != nil || roster.Members[account.Id] != authz.RoleOwner {
+		t.Errorf("OrgRoster = (%v, %v), want the claiming account as owner", roster.Members, err)
+	}
+
+	found, err := s.AccountByEmail(first)
+	if err != nil || found == nil {
+		t.Fatalf("AccountByEmail = (%v, %v), want the account", found, err)
+	}
+	if !found.VerifyPassword("correct-horse-battery") {
 		t.Error("password did not verify against the row read back from Postgres")
 	}
 	if n, err := s.CountAccounts(); err != nil || n != 1 {

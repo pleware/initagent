@@ -2,7 +2,9 @@ package auth
 
 import (
 	"errors"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/pleware/initagent/internal/offering"
 )
@@ -72,6 +74,67 @@ func TestClaimAcceptsFirstOperator(t *testing.T) {
 	}
 	if !VerifyPassword(got.PasswordHash, req.Password) {
 		t.Error("the returned hash does not verify the submitted password")
+	}
+	// A claim with no organization name still has to produce one: the hub
+	// creates its first org in the same breath, and an org with an empty name
+	// is a blank row in every list that shows it.
+	if got.OrgName != "example.com" {
+		t.Errorf("org name is %q, want the email domain as the default", got.OrgName)
+	}
+}
+
+func TestClaimKeepsASubmittedOrgName(t *testing.T) {
+	st := State{Offering: offering.Selfhost, ExpectedToken: "a-minted-token"}
+	got, err := Claim(st, ClaimRequest{
+		Email:    "ops@example.com",
+		Password: "correct-horse-battery",
+		Token:    "a-minted-token",
+		OrgName:  "  Example Ops  ",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.OrgName != "Example Ops" {
+		t.Errorf("org name is %q, want the trimmed submission", got.OrgName)
+	}
+}
+
+func TestDefaultOrgName(t *testing.T) {
+	tests := []struct {
+		email string
+		want  string
+	}{
+		{"ops@example.com", "example.com"},
+		{"ops@sub.example.co.uk", "sub.example.co.uk"},
+		// Claim only ever passes a normalised address, but this is exported
+		// and must not produce an empty name from a shape it did not expect.
+		{"no-at-sign", "My organization"},
+		{"trailing@", "My organization"},
+		{"", "My organization"},
+	}
+	for _, c := range tests {
+		if got := DefaultOrgName(c.email); got != c.want {
+			t.Errorf("DefaultOrgName(%q) = %q, want %q", c.email, got, c.want)
+		}
+	}
+}
+
+func TestCheckOrgName(t *testing.T) {
+	if got := CheckOrgName("   ", "ops@example.com"); got != "example.com" {
+		t.Errorf("a whitespace-only name = %q, want the default", got)
+	}
+	if got := CheckOrgName("Acme", "ops@example.com"); got != "Acme" {
+		t.Errorf("CheckOrgName(%q) = %q, want it unchanged", "Acme", got)
+	}
+	// Truncation counts runes, so a long name in a non-Latin script cannot
+	// end in half a character.
+	long := strings.Repeat("ż", orgNameMax+40)
+	got := CheckOrgName(long, "ops@example.com")
+	if utf8.RuneCountInString(got) != orgNameMax {
+		t.Errorf("truncated to %d runes, want %d", utf8.RuneCountInString(got), orgNameMax)
+	}
+	if !utf8.ValidString(got) {
+		t.Error("truncation split a character")
 	}
 }
 

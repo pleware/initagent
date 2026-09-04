@@ -10,14 +10,9 @@ import SettingsPage from './pages/SettingsPage'
 import SetupPage from './pages/SetupPage'
 import CodingPage from './pages/CodingPage'
 import TasksPage from './pages/TasksPage'
-
-interface Me {
-  claimed: boolean
-  offering: string
-  passwordMinLength: number
-  authenticated: boolean
-  version: string
-}
+import AdminPage from './pages/AdminPage'
+import PeoplePage from './pages/PeoplePage'
+import type { Me } from './types'
 
 export default function App() {
   const [me, setMe] = useState<Me | null>(null)
@@ -79,7 +74,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route element={<Layout version={me.version} />}>
+      <Route element={<Layout me={me} />}>
         <Route path="/" element={<Navigate to="/code" replace />} />
         <Route path="/code" element={<CodingPage />} />
         <Route path="/code/:projectId" element={<CodingPage />} />
@@ -89,6 +84,11 @@ export default function App() {
         <Route path="/agents" element={<AgentsPage />} />
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/people" element={<PeoplePage me={me} onChanged={refresh} />} />
+        {/* The administration surface exists for the operator of this hub.
+            The route is absent for everyone else rather than rendering a
+            refusal, and the endpoints behind it check the same thing. */}
+        {me.platformAdmin && <Route path="/admin" element={<AdminPage />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

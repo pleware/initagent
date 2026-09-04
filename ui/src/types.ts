@@ -16,6 +16,65 @@ export interface Stats {
   uptimeSec: number
 }
 
+// --- accounts and organizations ---
+
+// Me is what /api/me answers: the hub's state before sign-in, and the
+// identity behind the session after it.
+//
+// `platformAdmin` and `orgs` are what decide which surfaces the cockpit
+// offers. Hiding a section is convenience only — every endpoint behind it
+// checks the same capability on the hub.
+export interface Me {
+  claimed: boolean
+  offering: string
+  passwordMinLength: number
+  authenticated: boolean
+  version: string
+  platformAdmin?: boolean
+  accountId?: string
+  email?: string
+  orgs?: Membership[]
+  // The assignable org roles, weakest first. It arrives from the hub rather
+  // than being a second list here, because a role name that exists in only
+  // one of the two places is a permission bug waiting for a typo.
+  orgRoles?: string[]
+}
+
+// Account is a person who can sign in. Only one account per installation
+// carries isAdmin: the operator who claimed the hub.
+export interface Account {
+  id: string
+  email: string
+  isAdmin: boolean
+  createdAt: number
+}
+
+// Org is a customer organization. `members` is the roster size, which is as
+// far as the platform surface sees into an org it is not a member of.
+export interface Org {
+  id: string
+  name: string
+  createdAt: number
+  members: number
+}
+
+// OrgMember is one person's place in an organization, as its own people see
+// it.
+export interface OrgMember {
+  accountId: string
+  email: string
+  role: string
+  createdAt: number
+}
+
+// Membership is the same relation from the signed-in person's side: which
+// organizations are mine, and what am I in them.
+export interface Membership {
+  orgId: string
+  name: string
+  role: string
+}
+
 export interface Device {
   id: string
   name: string

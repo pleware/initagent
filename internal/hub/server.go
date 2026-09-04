@@ -125,6 +125,17 @@ func NewServer(opts Options) (*Server, error) {
 		store.Close()
 		return nil, err
 	}
+	// A hub claimed before organizations existed has an owner and nothing to
+	// own. First-run never runs twice, so this is the only moment left to
+	// give it the org that claiming creates today.
+	org, err := store.BackfillOperatorOrg()
+	if err != nil {
+		store.Close()
+		return nil, err
+	}
+	if org != nil {
+		log.Printf("created organization %q (%s) for this hub's existing admin account", org.Name, org.Id)
+	}
 	s.routes()
 	s.updates = newUpdateManager(store, opts.Version, opts.GithubRepo)
 	return s, nil
@@ -329,6 +340,17 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/updates/rollback", s.requireAuth(s.handleUpdateRollback))
 	m.HandleFunc("GET /api/ws/term", s.requireAuth(s.handleTermWS))
 	m.HandleFunc("GET /api/ws/events", s.requireAuth(s.handleEventsWS))
+
+	// Hub surfaces: the installation's operator, and an organization's own
+	// people (17, 25). These take requireActor rather than requireAuth
+	// because they need to know who is asking, and because an unscoped API
+	// token must not be a way in (see requireActor).
+	m.HandleFunc("GET /api/admin/accounts", s.requireActor(s.handleListAccounts))
+	m.HandleFunc("GET /api/admin/orgs", s.requireActor(s.handleListAllOrgs))
+	m.HandleFunc("PATCH /api/orgs/{id}", s.requireActor(s.handleRenameOrg))
+	m.HandleFunc("GET /api/orgs/{id}/members", s.requireActor(s.handleListOrgMembers))
+	m.HandleFunc("PATCH /api/orgs/{id}/members/{accountId}", s.requireActor(s.handleSetOrgMemberRole))
+	m.HandleFunc("DELETE /api/orgs/{id}/members/{accountId}", s.requireActor(s.handleRemoveOrgMember))
 
 	// Web UI (embedded SPA) at everything else.
 	if s.opts.UI != nil {

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pleware/initagent/internal/auth"
+	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/protocol"
 	"github.com/pleware/initagent/internal/updater"
@@ -32,6 +33,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 		Token    string `json:"token"`
+		OrgName  string `json:"orgName"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		httpError(w, http.StatusBadRequest, "bad request")
@@ -46,12 +48,18 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		Offering:      s.opts.Offering,
 		Claimed:       claimed,
 		ExpectedToken: s.claim.expected(),
-	}, auth.ClaimRequest{Email: req.Email, Password: req.Password, Token: req.Token})
+	}, auth.ClaimRequest{
+		Email:    req.Email,
+		Password: req.Password,
+		Token:    req.Token,
+		OrgName:  req.OrgName,
+	})
 	if err != nil {
 		httpError(w, claimStatus(err), err.Error())
 		return
 	}
-	if _, err := s.store.CreateAdminAccount(creds.Email, creds.PasswordHash); err != nil {
+	account, _, err := s.store.ClaimHub(creds.Email, creds.PasswordHash, creds.OrgName)
+	if err != nil {
 		// The partial unique index on is_admin is the arbiter, so a second
 		// concurrent claim lands here rather than creating a second owner.
 		if nowClaimed, checkErr := s.claimed(); checkErr == nil && nowClaimed {
@@ -62,7 +70,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.claim.consume()
-	s.issueSession(w, r)
+	s.issueSession(w, r, account.Id)
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
@@ -127,7 +135,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusUnauthorized, "wrong email or password")
 		return
 	}
-	s.issueSession(w, r)
+	s.issueSession(w, r, account.Id)
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
@@ -141,12 +149,14 @@ func (s *Server) loginLegacy(w http.ResponseWriter, r *http.Request, password st
 		httpError(w, http.StatusUnauthorized, "wrong email or password")
 		return
 	}
-	s.issueSession(w, r)
+	// No account id: this credential predates accounts, and inventing one
+	// here would attribute future actions to a person who does not exist.
+	s.issueSession(w, r, "")
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
-func (s *Server) issueSession(w http.ResponseWriter, r *http.Request) {
-	token := s.sessions.create()
+func (s *Server) issueSession(w http.ResponseWriter, r *http.Request, account string) {
+	token := s.sessions.create(account)
 	http.SetCookie(w, &http.Cookie{
 		Name: sessionCookie, Value: token, Path: "/",
 		HttpOnly: true, SameSite: http.SameSiteLaxMode,
@@ -175,20 +185,60 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	authed := false
-	if c, err := r.Cookie(sessionCookie); err == nil && s.sessions.valid(c.Value) {
-		authed = true
-	}
 	// The password floor travels with the state instead of being repeated in
 	// the cockpit: a form that says eight while the hub demands twelve is a
 	// rejection the person cannot act on.
-	writeJSON(w, map[string]any{
+	resp := map[string]any{
 		"claimed":           claimed,
 		"offering":          string(s.opts.Offering),
 		"passwordMinLength": auth.MinPassword(s.opts.Offering),
-		"authenticated":     authed,
+		"authenticated":     false,
 		"version":           s.opts.Version,
-	})
+	}
+	c, err := r.Cookie(sessionCookie)
+	if err != nil {
+		writeJSON(w, resp)
+		return
+	}
+	account, ok := s.sessions.lookup(c.Value)
+	if !ok {
+		writeJSON(w, resp)
+		return
+	}
+	resp["authenticated"] = true
+
+	// Identity, so the cockpit knows which surfaces exist for this person:
+	// the platform flag decides whether there is an administration section at
+	// all, and the memberships decide whose people they may manage. The
+	// cockpit hiding a section is convenience — every endpoint behind it
+	// checks the same capability itself.
+	actor, err := s.resolveActor(account)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	resp["platformAdmin"] = actor.Platform
+	resp["accountId"] = actor.Account
+	// The assignable roles come from here so the cockpit's dropdown cannot
+	// offer a name this hub would refuse.
+	roles := make([]string, 0, len(authz.Roles()))
+	for _, role := range authz.Roles() {
+		roles = append(roles, string(role))
+	}
+	resp["orgRoles"] = roles
+	orgs := []Membership{}
+	if actor.Account != "" {
+		if a, err := s.store.AccountById(actor.Account); err == nil && a != nil {
+			resp["email"] = a.Email
+		}
+		orgs, err = s.store.ListAccountOrgs(actor.Account)
+		if err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	resp["orgs"] = orgs
+	writeJSON(w, resp)
 }
 
 // --- enrollment ---

@@ -130,3 +130,98 @@ func TestDBContextVariantsAndRaw(t *testing.T) {
 		t.Fatalf("Raw().Ping: %v", err)
 	}
 }
+
+func TestTxCommit(t *testing.T) {
+	t.Parallel()
+	db := kvDB(t)
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx.Exec(`INSERT INTO kv (k, v) VALUES (?, ?)`, "a", "1"); err != nil {
+		t.Fatalf("Exec in tx: %v", err)
+	}
+	var inside string
+	if err := tx.QueryRow(`SELECT v FROM kv WHERE k = ?`, "a").Scan(&inside); err != nil {
+		t.Fatalf("QueryRow in tx: %v", err)
+	}
+	if inside != "1" {
+		t.Fatalf("read back %q inside the transaction, want %q", inside, "1")
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	// Rollback after Commit is what makes `defer tx.Rollback()` correct at
+	// every call site, so it has to be a no-op rather than an error.
+	if err := tx.Rollback(); err != nil {
+		t.Errorf("Rollback after Commit = %v, want nil", err)
+	}
+	if got := countKV(t, db); got != 1 {
+		t.Errorf("committed rows = %d, want 1", got)
+	}
+}
+
+// The reason this type exists: a claim writes an account, an org and a
+// membership, and a hub holding two of the three is unrepairable.
+func TestTxRollbackDiscardsEveryWrite(t *testing.T) {
+	t.Parallel()
+	db := kvDB(t)
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	for _, k := range []string{"a", "b", "c"} {
+		if _, err := tx.Exec(`INSERT INTO kv (k, v) VALUES (?, ?)`, k, "1"); err != nil {
+			t.Fatalf("Exec %q: %v", k, err)
+		}
+	}
+	// The third insert fails the way a duplicate claim does: a constraint,
+	// mid-transaction, after earlier statements already succeeded.
+	if _, err := tx.Exec(`INSERT INTO kv (k, v) VALUES (?, ?)`, "a", "2"); err == nil {
+		t.Fatal("the primary key accepted a duplicate")
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatalf("Rollback: %v", err)
+	}
+	if got := countKV(t, db); got != 0 {
+		t.Errorf("rows after rollback = %d, want 0", got)
+	}
+}
+
+func TestBeginOnAClosedDatabase(t *testing.T) {
+	t.Parallel()
+	db, err := OpenDB(SQLite, filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("OpenDB: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if _, err := db.Begin(); err == nil {
+		t.Error("Begin succeeded on a closed database")
+	}
+}
+
+func kvDB(t *testing.T) *DB {
+	t.Helper()
+	db, err := OpenDB(SQLite, filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("OpenDB: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(`CREATE TABLE kv (k TEXT PRIMARY KEY, v TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+	return db
+}
+
+func countKV(t *testing.T, db *DB) int {
+	t.Helper()
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM kv`).Scan(&n); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	return n
+}

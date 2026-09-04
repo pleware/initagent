@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 
 // The hub reports which offering it is running as, and the screen says so.
@@ -31,8 +32,10 @@ export default function Login({
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [token, setToken] = useState('')
+  const [orgName, setOrgName] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const { t } = useTranslation()
 
   const mode = offeringLabel[offering]
 
@@ -50,7 +53,7 @@ export default function Login({
       if (claimed) {
         await api.post('/api/login', { email, password })
       } else {
-        await api.post('/api/setup', { email, password, token })
+        await api.post('/api/setup', { email, password, token, orgName })
       }
       onSuccess()
     } catch (err) {
@@ -141,6 +144,27 @@ export default function Login({
             />
             <p className="mb-4 text-xs text-zinc-500">
               At least {passwordMinLength} characters.
+            </p>
+
+            <label
+              htmlFor="login-org"
+              className="mb-1 block text-sm font-medium text-zinc-300"
+            >
+              {t('claim.organization')}
+            </label>
+            <input
+              id="login-org"
+              type="text"
+              autoComplete="organization"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder={
+                email.split('@')[1] || t('claim.organizationPlaceholder')
+              }
+              className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100 outline-none focus:border-lime-500"
+            />
+            <p className="mb-4 text-xs text-zinc-500">
+              {t('claim.organizationHint')}
             </p>
 
             <label

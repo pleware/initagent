@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
-import type { Project } from '../types'
+import type { Me, Project } from '../types'
 import LanguageSwitcher from './LanguageSwitcher'
 
 const links = [
@@ -13,9 +14,23 @@ const links = [
   { to: '/settings', label: 'Settings', icon: 'sliders' },
 ]
 
-export default function Layout({ version }: { version: string }) {
+export default function Layout({ me }: { me: Me }) {
+  const { t } = useTranslation()
   const [projects, setProjects] = useState<Project[]>([])
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Two hub surfaces, deliberately separate (draft 17): People is an
+  // organization's own roster, Administration is this installation. The
+  // second appears only for the operator — a hidden link is not the
+  // permission, the endpoint behind it is.
+  const hubLinks = [
+    ...(me.orgs && me.orgs.length > 0
+      ? [{ to: '/people', label: t('nav.people'), icon: 'people' }]
+      : []),
+    ...(me.platformAdmin
+      ? [{ to: '/admin', label: t('nav.administration'), icon: 'shield' }]
+      : []),
+  ]
 
   const loadProjects = useCallback(async () => {
     try {
@@ -74,6 +89,22 @@ export default function Layout({ version }: { version: string }) {
           ))}
         </nav>
 
+        {hubLinks.length > 0 && (
+          <nav className="sidebar-nav" aria-label="Hub navigation">
+            {hubLinks.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) => `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`}
+              >
+                <NavIcon name={link.icon} />
+                <span>{link.label}</span>
+              </NavLink>
+            ))}
+          </nav>
+        )}
+
         <section className="sidebar-projects">
           <div className="sidebar-section-title">
             <span>Projects</span>
@@ -98,8 +129,10 @@ export default function Layout({ version }: { version: string }) {
         <footer className="sidebar-footer">
           <div className="operator-avatar">LA</div>
           <div className="min-w-0">
-            <p className="truncate text-xs font-medium text-zinc-300">Personal fleet</p>
-            <p className="font-mono text-[9px] text-zinc-700">{version || 'development'}</p>
+            <p className="truncate text-xs font-medium text-zinc-300">
+              {me.orgs?.[0]?.name ?? me.email ?? 'Personal fleet'}
+            </p>
+            <p className="font-mono text-[9px] text-zinc-700">{me.version || 'development'}</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <LanguageSwitcher />
@@ -137,5 +170,7 @@ function NavIcon({ name }: { name: string }) {
   if (name === 'pulse') return <svg {...common} aria-hidden><path d="M3 12h4l2.2-6 4.2 12 2.3-6H21" /></svg>
   if (name === 'spark') return <svg {...common} aria-hidden><path d="m12 3 1.2 4.1L17 9l-3.8 1.9L12 15l-1.2-4.1L7 9l3.8-1.9L12 3ZM5 16l.7 2.3L8 19.5l-2.3 1.2L5 23l-.7-2.3L2 19.5l2.3-1.2L5 16Z" /></svg>
   if (name === 'sliders') return <svg {...common} aria-hidden><path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h7M15 18h5" /><circle cx="16" cy="6" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="13" cy="18" r="2" /></svg>
+  if (name === 'people') return <svg {...common} aria-hidden><path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M20 19v-1.5a3.5 3.5 0 0 0-2.6-3.4M14.5 5.6a3 3 0 0 1 0 5.8" /><circle cx="10" cy="8" r="3" /></svg>
+  if (name === 'shield') return <svg {...common} aria-hidden><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9.5-4.1-1.9-7-5.3-7-9.5V6l7-3Z" /><path d="m9 12 2 2 4-4" /></svg>
   return <svg {...common} aria-hidden><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
 }

@@ -10,6 +10,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -134,4 +135,50 @@ func (db *DB) QueryRow(query string, args ...any) *sql.Row {
 // QueryRowContext is QueryRow with a context.
 func (db *DB) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
 	return db.sql.QueryRowContext(ctx, db.d.Rebind(query), args...)
+}
+
+// Begin starts a transaction that rebinds placeholders like the handle it
+// came from.
+//
+// This is for writes that are only meaningful together — claiming a hub mints
+// an account, its first organization, and the membership joining them, and a
+// hub left holding two of those three is one nobody can administer. It is not
+// a uniqueness guard: "count the rows, then insert" stays wrong inside a
+// transaction, because under Postgres READ COMMITTED both snapshots still see
+// an empty table. Uniqueness is a unique index (draft 26).
+func (db *DB) Begin() (*Tx, error) {
+	tx, err := db.sql.Begin()
+	if err != nil {
+		return nil, err
+	}
+	return &Tx{sql: tx, d: db.d}, nil
+}
+
+// Tx is a transaction with the same placeholder rebinding as DB.
+type Tx struct {
+	sql *sql.Tx
+	d   Dialect
+}
+
+// Exec runs a query inside the transaction.
+func (tx *Tx) Exec(query string, args ...any) (sql.Result, error) {
+	return tx.sql.Exec(tx.d.Rebind(query), args...)
+}
+
+// QueryRow runs a single-row query inside the transaction.
+func (tx *Tx) QueryRow(query string, args ...any) *sql.Row {
+	return tx.sql.QueryRow(tx.d.Rebind(query), args...)
+}
+
+// Commit makes the transaction's writes durable.
+func (tx *Tx) Commit() error { return tx.sql.Commit() }
+
+// Rollback abandons the transaction. It is safe to call after Commit, which
+// is what makes `defer tx.Rollback()` the correct shape at every call site.
+func (tx *Tx) Rollback() error {
+	err := tx.sql.Rollback()
+	if errors.Is(err, sql.ErrTxDone) {
+		return nil
+	}
+	return err
 }

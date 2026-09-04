@@ -17,7 +17,9 @@ a change made in one place reaches both the installer tests in CI and this
 origin.
 
 That is also why the container image takes the repository root as its build
-context rather than this directory. From the root:
+context rather than this directory: installers live in `scripts/`, theme
+code in `ui/src/theme`, and palettes in `internal/brand/themes`. From the
+root:
 
 ```sh
 docker build -f site/Dockerfile -t initagent-site .

@@ -2,9 +2,14 @@
 
 ## Unreleased — product
 
-- 2026-09-04 — Copy the shared theme into the site image so the page can build
-- 2026-09-04 — Cut v0.3.5 so the hosted site and hub can switch themes
+- 2026-09-04 — Cut v0.3.6 so the hosted site image includes the theme switcher
+- 2026-09-05 — Cut v0.3.6 so the hosted site image includes the theme switcher
+
+## v0.3.6 — 2026-09-05
+
+- 2026-09-05 — Copy the shared theme into the site image so the page can build
 - 2026-09-05 — Cut v0.3.5 so the hosted site and hub can switch themes
+
 ## v0.3.5 — 2026-09-05
 
 - 2026-09-04 — Put a theme switcher on the cockpit and the marketing site

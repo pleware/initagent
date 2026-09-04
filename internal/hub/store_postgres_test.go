@@ -142,4 +142,30 @@ func TestStorePostgresSmoke(t *testing.T) {
 	if n, err := s.CountAccounts(); err != nil || n != 1 {
 		t.Fatalf("CountAccounts = (%d, %v), want (1, nil)", n, err)
 	}
+
+	// The live hosted hub was claimed on `v0.2.0`, which shipped the claim
+	// before organizations, so its first start on a newer image runs
+	// BackfillOperatorOrg against Postgres — an admin account, no orgs. That
+	// is the one code path production takes and the SQLite test cannot prove:
+	// dropping the orgs while keeping the account reproduces it exactly.
+	if _, err := s.db.Exec(`DELETE FROM org_members`); err != nil {
+		t.Fatalf("clearing org members: %v", err)
+	}
+	if _, err := s.db.Exec(`DELETE FROM orgs`); err != nil {
+		t.Fatalf("clearing orgs: %v", err)
+	}
+	filled, err := s.BackfillOperatorOrg()
+	if err != nil || filled == nil {
+		t.Fatalf("BackfillOperatorOrg on Postgres = (%v, %v), want an org", filled, err)
+	}
+	if filled.Name != "example.com" {
+		t.Errorf("backfilled org name = %q, want the admin's email domain", filled.Name)
+	}
+	backRoster, err := s.OrgRoster(filled.Id)
+	if err != nil || backRoster.Members[account.Id] != authz.RoleOwner {
+		t.Fatalf("backfilled roster = (%v, %v), want the admin as owner", backRoster.Members, err)
+	}
+	if again, err := s.BackfillOperatorOrg(); err != nil || again != nil {
+		t.Fatalf("second BackfillOperatorOrg = (%v, %v), want (nil, nil) — every restart calls it", again, err)
+	}
 }

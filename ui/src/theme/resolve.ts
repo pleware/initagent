@@ -11,7 +11,15 @@
  * `internal/brand/themes`, and this module only ever names them.
  */
 
-export type ThemeFamily = 'legacy' | 'default' | 'enterprise'
+export type ThemeFamily =
+  | 'legacy'
+  | 'corporate'
+  | 'night'
+  | 'dim'
+  | 'nord'
+  | 'sunset'
+  | 'default'
+  | 'enterprise'
 
 /** A mode a stylesheet can actually be in. */
 export type ThemeMode = 'light' | 'dark'
@@ -39,14 +47,30 @@ type FamilySpec = {
    * A picker should not offer it as a real choice yet.
    */
   designed: boolean
+  /** Short label for the theme switcher. */
+  label: string
 }
 
 export const themeFamilies: Readonly<Record<ThemeFamily, FamilySpec>> = {
   // Dark only, and staying that way: it describes a surface that never had a
   // light variant.
-  legacy: { modes: ['dark'], designed: true },
-  default: { modes: ['dark', 'light'], designed: false },
-  enterprise: { modes: ['dark', 'light'], designed: false },
+  legacy: { modes: ['dark'], designed: true, label: 'Classic' },
+  // Five daisyUI 5.7.22 palettes remapped onto --ia-*. Each source theme is
+  // one color-scheme, so both ids share the same values (same as legacy).
+  corporate: { modes: ['light'], designed: true, label: 'Corporate' },
+  night: { modes: ['dark'], designed: true, label: 'Night' },
+  dim: { modes: ['dark'], designed: true, label: 'Dim' },
+  nord: { modes: ['light'], designed: true, label: 'Nord' },
+  sunset: { modes: ['dark'], designed: true, label: 'Sunset' },
+  default: { modes: ['dark', 'light'], designed: false, label: 'Default' },
+  enterprise: { modes: ['dark', 'light'], designed: false, label: 'Enterprise' },
+}
+
+/** Families the switcher may offer — designed palettes only, registry order. */
+export function pickerFamilies(): ThemeFamily[] {
+  return (Object.keys(themeFamilies) as ThemeFamily[]).filter(
+    (family) => themeFamilies[family].designed,
+  )
 }
 
 export const defaultPreference: ThemePreference = {

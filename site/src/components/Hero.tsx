@@ -39,7 +39,7 @@ export function Hero() {
           >
             <a
               href={HUB}
-              className="group flex items-center gap-2 rounded-control bg-beacon px-5 py-3 text-[14.5px] font-semibold whitespace-nowrap text-ink-950 transition-all duration-150 hover:bg-[#ffc04d] active:scale-[0.98]"
+              className="group flex items-center gap-2 rounded-control bg-beacon px-5 py-3 text-[14.5px] font-semibold whitespace-nowrap text-accent-on transition-all duration-150 hover:bg-beacon-deep active:scale-[0.98]"
             >
               Start free
               <ArrowRight

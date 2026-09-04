@@ -13,8 +13,13 @@
  *               and it will not get a light variant. Also serves as the
  *               `:root` fallback, so an unset or half-built family still
  *               renders a complete surface instead of unstyled boxes.
- *   default     Not designed yet. Stub.
- *   enterprise  Not designed yet. Stub.
+ *   corporate   daisyUI 5.7.22, remapped. Light, restrained blue.
+ *   night       daisyUI 5.7.22, remapped. Dark control-room blue.
+ *   dim         daisyUI 5.7.22, remapped. Muted dark, lime primary.
+ *   nord        daisyUI 5.7.22, remapped. Cool light grey-blue.
+ *   sunset      daisyUI 5.7.22, remapped. Warm dark amber.
+ *   default     Not designed yet. Stub. Not in the picker.
+ *   enterprise  Not designed yet. Stub. Not in the picker.
  *
  * Every family exposes both `<family>-light` and `<family>-dark` as
  * `data-theme` ids, so the resolver never special-cases a family. A family
@@ -61,5 +66,10 @@
  */
 
 @import './legacy.css';
+@import './corporate.css';
+@import './night.css';
+@import './dim.css';
+@import './nord.css';
+@import './sunset.css';
 @import './default.css';
 @import './enterprise.css';

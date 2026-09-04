@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { GithubLogo, List, X, Eye } from "@phosphor-icons/react";
 import { HUB, REPO } from "../lib/site";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
 const LINKS = [
   { label: "How it works", href: "#how" },
@@ -56,6 +57,7 @@ export function Nav() {
           </div>
 
           <div className="ml-auto hidden items-center gap-3 md:flex">
+            <ThemeSwitcher />
             <a
               href={REPO}
               target="_blank"
@@ -73,7 +75,7 @@ export function Nav() {
             </a>
             <a
               href={HUB}
-              className="rounded-control bg-beacon px-4 py-2 text-[13.5px] font-semibold text-ink-950 transition-transform duration-150 hover:bg-[#ffc04d] active:scale-[0.98]"
+              className="rounded-control bg-beacon px-4 py-2 text-[13.5px] font-semibold text-accent-on transition-transform duration-150 hover:bg-beacon-deep active:scale-[0.98]"
             >
               Start free
             </a>
@@ -103,6 +105,7 @@ export function Nav() {
                   {l.label}
                 </a>
               ))}
+              <ThemeSwitcher className="px-2 py-2" />
               <a
                 href={REPO}
                 target="_blank"
@@ -120,7 +123,7 @@ export function Nav() {
               </a>
               <a
                 href={HUB}
-                className="mt-2 rounded-control bg-beacon px-4 py-2.5 text-center text-[15px] font-semibold text-ink-950"
+                className="mt-2 rounded-control bg-beacon px-4 py-2.5 text-center text-[15px] font-semibold text-accent-on"
               >
                 Start free
               </a>

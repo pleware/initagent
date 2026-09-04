@@ -1,0 +1,63 @@
+/* dim — daisyUI 5.7.22 (MIT), remapped onto --ia-*.
+ *
+ * Muted dark, lime primary. Source is dark-only; both ids share these values.
+ */
+
+[data-theme='dim-light'],
+[data-theme='dim-dark'] {
+  color-scheme: dark;
+
+  --ia-bg: oklch(30.857% 0.023 264.149);
+  --ia-bg-deep: oklch(28.036% 0.019 264.182);
+  --ia-bg-sunken: oklch(26.346% 0.018 262.177);
+  --ia-bg-glow: oklch(86.133% 0.141 139.549 / 0.07);
+  --ia-sidebar: oklch(28.036% 0.019 264.182);
+  --ia-shell: oklch(30.857% 0.023 264.149);
+  --ia-statusbar: oklch(26.346% 0.018 262.177);
+
+  --ia-line-0: rgba(255, 255, 255, 0.035);
+  --ia-line-1: rgba(255, 255, 255, 0.06);
+  --ia-line-2: rgba(255, 255, 255, 0.075);
+  --ia-line-3: rgba(255, 255, 255, 0.1);
+  --ia-line-4: rgba(255, 255, 255, 0.2);
+  --ia-fill-1: rgba(255, 255, 255, 0.025);
+  --ia-fill-2: rgba(255, 255, 255, 0.035);
+  --ia-fill-3: rgba(255, 255, 255, 0.045);
+  --ia-fill-4: rgba(255, 255, 255, 0.06);
+  --ia-fill-5: rgba(255, 255, 255, 0.075);
+  --ia-fill-sunken: rgba(0, 0, 0, 0.2);
+  --ia-scrim: rgba(0, 0, 0, 0.65);
+
+  --ia-fg-strong: oklch(94% 0.02 223);
+  --ia-fg: oklch(82.901% 0.031 222.959);
+  --ia-fg-soft: oklch(72% 0.03 223);
+  --ia-fg-muted: oklch(60% 0.028 223);
+  --ia-fg-subtle: oklch(50% 0.024 223);
+  --ia-fg-faint: oklch(42% 0.02 223);
+  --ia-fg-ghost: oklch(36% 0.018 223);
+
+  --ia-accent: oklch(86.133% 0.141 139.549);
+  --ia-accent-hover: oklch(90% 0.13 139.549);
+  --ia-accent-on: oklch(17.226% 0.028 139.549);
+  --ia-accent-fg: oklch(86.133% 0.141 139.549);
+
+  --ia-info: oklch(86.078% 0.142 206.182);
+  --ia-info-fg: oklch(90% 0.12 206);
+  --ia-info-fg-strong: oklch(94% 0.1 206);
+
+  --ia-ok: oklch(86.171% 0.142 166.534);
+  --ia-ok-on: oklch(17.234% 0.028 166.534);
+  --ia-fail: oklch(82.418% 0.099 33.756);
+  --ia-fail-fg: oklch(88% 0.09 33);
+  --ia-code: oklch(86.163% 0.142 94.818);
+
+  --ia-focus: oklch(86.133% 0.141 139.549);
+  --ia-signal: oklch(86.133% 0.141 139.549);
+
+  --ia-shadow-surface: 0 18px 60px rgba(0, 0, 0, 0.24);
+  --ia-glow-ok: 0 0 9px oklch(86.171% 0.142 166.534 / 0.4);
+  --ia-glow-info: 0 20px 70px oklch(86.078% 0.142 206.182 / 0.14);
+
+  --ia-scrollbar-thumb: oklch(24.731% 0.02 264.094);
+  --ia-term-scrollbar: oklch(36% 0.02 264);
+}

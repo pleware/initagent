@@ -31,4 +31,8 @@ function installers(): Plugin {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), installers()],
+  server: {
+    // index.css imports theme tokens from ../internal/brand/themes.
+    fs: { allow: [".."] },
+  },
 });

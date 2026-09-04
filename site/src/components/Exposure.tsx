@@ -24,7 +24,7 @@ export function Exposure() {
     <section className="border-t border-line-soft py-24 lg:py-32">
       <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
         <Reveal>
-          <div className="rounded-panel border border-beacon/30 bg-[linear-gradient(140deg,rgba(255,178,36,0.08),transparent_60%)] p-6 lg:p-8">
+          <div className="rounded-panel border border-beacon/30 bg-beacon/10 p-6 lg:p-8">
             <div className="flex items-start gap-3.5">
               <Warning
                 size={22}

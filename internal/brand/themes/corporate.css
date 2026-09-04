@@ -1,0 +1,63 @@
+/* corporate — daisyUI 5.7.22 (MIT), remapped onto --ia-*.
+ *
+ * Light, restrained blue. Source is light-only; both ids share these values.
+ */
+
+[data-theme='corporate-light'],
+[data-theme='corporate-dark'] {
+  color-scheme: light;
+
+  --ia-bg: oklch(100% 0 0);
+  --ia-bg-deep: oklch(93% 0 0);
+  --ia-bg-sunken: oklch(86% 0 0);
+  --ia-bg-glow: oklch(58% 0.158 241.966 / 0.08);
+  --ia-sidebar: oklch(93% 0 0);
+  --ia-shell: oklch(96% 0 0);
+  --ia-statusbar: oklch(86% 0 0);
+
+  --ia-line-0: rgba(0, 0, 0, 0.04);
+  --ia-line-1: rgba(0, 0, 0, 0.07);
+  --ia-line-2: rgba(0, 0, 0, 0.1);
+  --ia-line-3: rgba(0, 0, 0, 0.14);
+  --ia-line-4: rgba(0, 0, 0, 0.22);
+  --ia-fill-1: rgba(0, 0, 0, 0.03);
+  --ia-fill-2: rgba(0, 0, 0, 0.045);
+  --ia-fill-3: rgba(0, 0, 0, 0.06);
+  --ia-fill-4: rgba(0, 0, 0, 0.08);
+  --ia-fill-5: rgba(0, 0, 0, 0.1);
+  --ia-fill-sunken: rgba(0, 0, 0, 0.06);
+  --ia-scrim: rgba(0, 0, 0, 0.45);
+
+  --ia-fg-strong: oklch(12% 0.03 278);
+  --ia-fg: oklch(22.389% 0.031 278.072);
+  --ia-fg-soft: oklch(32% 0.028 278);
+  --ia-fg-muted: oklch(45% 0.02 278);
+  --ia-fg-subtle: oklch(55% 0.015 278);
+  --ia-fg-faint: oklch(68% 0.01 278);
+  --ia-fg-ghost: oklch(78% 0.008 278);
+
+  --ia-accent: oklch(58% 0.158 241.966);
+  --ia-accent-hover: oklch(52% 0.158 241.966);
+  --ia-accent-on: oklch(100% 0 0);
+  --ia-accent-fg: oklch(50% 0.158 241.966);
+
+  --ia-info: oklch(60% 0.126 221.723);
+  --ia-info-fg: oklch(50% 0.126 221.723);
+  --ia-info-fg-strong: oklch(42% 0.126 221.723);
+
+  --ia-ok: oklch(62% 0.194 149.214);
+  --ia-ok-on: oklch(100% 0 0);
+  --ia-fail: oklch(70% 0.191 22.216);
+  --ia-fail-fg: oklch(55% 0.191 22.216);
+  --ia-code: oklch(70% 0.16 91.936);
+
+  --ia-focus: oklch(58% 0.158 241.966);
+  --ia-signal: oklch(58% 0.158 241.966);
+
+  --ia-shadow-surface: 0 18px 60px rgba(0, 0, 0, 0.08);
+  --ia-glow-ok: 0 0 9px oklch(62% 0.194 149.214 / 0.35);
+  --ia-glow-info: 0 20px 70px oklch(58% 0.158 241.966 / 0.12);
+
+  --ia-scrollbar-thumb: oklch(55% 0.046 257.417);
+  --ia-term-scrollbar: oklch(70% 0 0);
+}

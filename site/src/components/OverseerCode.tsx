@@ -77,7 +77,7 @@ function Waitlist() {
         <button
           type="submit"
           disabled={state === "sending"}
-          className="flex items-center justify-center gap-2 rounded-control bg-beacon px-5 py-2.5 text-[14.5px] font-semibold whitespace-nowrap text-ink-950 transition-all duration-150 hover:bg-[#ffc04d] active:scale-[0.98] disabled:opacity-70"
+          className="flex items-center justify-center gap-2 rounded-control bg-beacon px-5 py-2.5 text-[14.5px] font-semibold whitespace-nowrap text-accent-on transition-all duration-150 hover:bg-beacon-deep active:scale-[0.98] disabled:opacity-70"
         >
           {state === "sending" ? (
             <>
@@ -115,7 +115,7 @@ export function OverseerCode() {
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[420px] bg-[radial-gradient(ellipse_60%_100%_at_50%_100%,rgba(255,178,36,0.12),transparent)]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[420px] bg-[radial-gradient(ellipse_60%_100%_at_50%_100%,color-mix(in_oklch,var(--ia-accent)_12%,transparent),transparent)]"
       />
 
       <div className="relative mx-auto max-w-[1240px] px-5 lg:px-8">
@@ -161,7 +161,7 @@ export function OverseerCode() {
                   href={RELEASES}
                   target="_blank"
                   rel="noreferrer"
-                  className="group flex items-center gap-2 rounded-control bg-beacon px-5 py-3 text-[14.5px] font-semibold whitespace-nowrap text-ink-950 transition-all duration-150 hover:bg-[#ffc04d] active:scale-[0.98]"
+                  className="group flex items-center gap-2 rounded-control bg-beacon px-5 py-3 text-[14.5px] font-semibold whitespace-nowrap text-accent-on transition-all duration-150 hover:bg-beacon-deep active:scale-[0.98]"
                 >
                   <BellRinging size={17} weight="regular" />
                   Watch releases

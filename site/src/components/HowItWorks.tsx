@@ -16,7 +16,7 @@ function Node({
     <div
       className={`rounded-panel border px-5 py-4 text-center ${
         accent
-          ? "border-beacon/35 bg-[linear-gradient(180deg,rgba(255,178,36,0.10),transparent)]"
+          ? "border-beacon/35 bg-beacon/10"
           : "border-line bg-ink-900"
       }`}
     >

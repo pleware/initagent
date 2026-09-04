@@ -1,10 +1,12 @@
 @import "tailwindcss";
+@import "../../internal/brand/themes/themes.css";
 
 /*
   initagent marketing site.
-  Theme is locked dark on purpose: this is a control-room tool for machines,
-  and every screenshot on the page is a dark product surface. There is no
-  light variant, so nothing here reads as a half-built dark mode.
+
+  Colour values come from `internal/brand/themes`. The ink-* / beacon names
+  stay so existing components do not need a class rename; `inline` keeps
+  them pointing at `--ia-*` so a data-theme swap retints the page.
 
   Radius rule for the whole page:
     surfaces (cards, screenshots, code blocks) -> 10px  (rounded-panel)
@@ -12,23 +14,22 @@
   Nothing is a pill. Nothing is square.
 */
 
+@theme inline {
+  --color-ink-950: var(--ia-bg);
+  --color-ink-900: var(--ia-sidebar);
+  --color-ink-850: var(--ia-shell);
+  --color-ink-800: var(--ia-statusbar);
+  --color-line: var(--ia-line-2);
+  --color-line-soft: var(--ia-line-1);
+  --color-fg: var(--ia-fg);
+  --color-fg-muted: var(--ia-fg-muted);
+  --color-fg-dim: var(--ia-fg-subtle);
+  --color-beacon: var(--ia-accent);
+  --color-beacon-deep: var(--ia-accent-hover);
+  --color-accent-on: var(--ia-accent-on);
+}
+
 @theme {
-  --color-ink-950: #08090b;
-  --color-ink-900: #0c0e11;
-  --color-ink-850: #111419;
-  --color-ink-800: #171a20;
-  --color-line: #23272e;
-  --color-line-soft: #191c22;
-
-  --color-fg: #e9ecef;
-  --color-fg-muted: #949aa4;
-  --color-fg-dim: #7c828b;
-
-  /* Single accent for the entire page. Amber reads as a watch light,
-     which is what a fleet console actually is. */
-  --color-beacon: #ffb224;
-  --color-beacon-deep: #c8850f;
-
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
 
@@ -41,7 +42,6 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    color-scheme: dark;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -56,20 +56,20 @@
   }
 
   body {
-    background-color: var(--color-ink-950);
-    color: var(--color-fg);
+    background-color: var(--ia-bg);
+    color: var(--ia-fg);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
   ::selection {
-    background-color: var(--color-beacon);
-    color: var(--color-ink-950);
+    background-color: var(--ia-accent);
+    color: var(--ia-accent-on);
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-beacon);
+    outline: 2px solid var(--ia-focus);
     outline-offset: 2px;
     border-radius: 2px;
   }

@@ -113,7 +113,7 @@ export function Capabilities() {
             <Cell className="relative overflow-hidden lg:col-span-6">
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_120%_at_88%_50%,rgba(255,178,36,0.14),transparent)]"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_120%_at_88%_50%,color-mix(in_oklch,var(--ia-accent)_14%,transparent),transparent)]"
               />
               <div className="relative grid grid-cols-1 items-center gap-8 p-6 lg:grid-cols-2 lg:p-8">
                 <div>

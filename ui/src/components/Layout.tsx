@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import type { Me, Project } from '../types'
 import LanguageSwitcher from './LanguageSwitcher'
+import ThemeSwitcher from './ThemeSwitcher'
 
 const links = [
   { to: '/code', label: 'Code', icon: 'compose' },
@@ -135,6 +136,7 @@ export default function Layout({ me }: { me: Me }) {
             <p className="font-mono text-[9px] text-zinc-700">{me.version || 'development'}</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <ThemeSwitcher />
             <LanguageSwitcher />
             <button onClick={logout} className="text-[11px] text-zinc-600 hover:text-zinc-200">Log out</button>
           </div>

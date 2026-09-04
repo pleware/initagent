@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Put a theme switcher on the cockpit and the marketing site
 - 2026-09-04 — Cut v0.3.4 so a claimed hosted hub can mint a customer account
 ## v0.3.4 — 2026-09-04
 

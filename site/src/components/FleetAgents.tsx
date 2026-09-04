@@ -97,7 +97,7 @@ export function FleetAgents() {
                 </div>
               ))}
 
-              <div className="rounded-panel border border-beacon/25 bg-[linear-gradient(160deg,rgba(255,178,36,0.10),transparent_65%)] p-5 sm:col-span-2">
+              <div className="rounded-panel border border-beacon/25 bg-beacon/10 p-5 sm:col-span-2">
                 <h3 className="text-[14.5px] font-semibold tracking-tight">
                   Same tools from the CLI
                 </h3>

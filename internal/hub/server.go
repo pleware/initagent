@@ -65,6 +65,7 @@ type Server struct {
 	claim         *bootstrapClaim
 	sessions      *sessionManager
 	loginRL       *rateLimiter
+	registerRL    *rateLimiter
 	events        *eventBus
 	registry      *registry
 	mux           *http.ServeMux
@@ -109,12 +110,13 @@ func NewServer(opts Options) (*Server, error) {
 			GithubRepo: opts.GithubRepo,
 			Version:    opts.Version,
 		},
-		store:    store,
-		sessions: newSessionManager(),
-		loginRL:  newRateLimiter(),
-		events:   events,
-		registry: newRegistry(events),
-		mux:      http.NewServeMux(),
+		store:      store,
+		sessions:   newSessionManager(),
+		loginRL:    newRateLimiter(),
+		registerRL: newRateLimiter(),
+		events:     events,
+		registry:   newRegistry(events),
+		mux:        http.NewServeMux(),
 	}
 	claimed, err := s.claimed()
 	if err != nil {
@@ -294,6 +296,7 @@ func (s *Server) routes() {
 	// Public (pre-auth) endpoints.
 	m.HandleFunc("POST /api/setup", s.handleSetup)
 	m.HandleFunc("POST /api/login", s.handleLogin)
+	m.HandleFunc("POST /api/register", s.handleRegister)
 	m.HandleFunc("POST /api/logout", s.handleLogout)
 	m.HandleFunc("GET /api/me", s.handleMe)
 	m.HandleFunc("POST /api/enroll", s.handleEnroll)

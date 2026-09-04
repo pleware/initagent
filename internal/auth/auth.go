@@ -1,7 +1,7 @@
 // Package auth owns the hub's credential decisions: how an email address is
-// normalised, what a password has to satisfy, how it is hashed, and what
-// proves the operator when a fresh hub is claimed for the first time
-// (drafts 08, 09, 26).
+// normalised, what a password has to satisfy, how it is hashed, what
+// proves the operator when a fresh hub is claimed for the first time, and
+// whether a claimed hosted hub may mint a customer account (drafts 08, 09, 26).
 //
 // Every function here is a decision over explicit inputs. Reading a token
 // file, inserting an account row and issuing a session cookie are edges and
@@ -39,6 +39,9 @@ var (
 	ErrPasswordWeak   = errors.New("password does not meet the minimum")
 	ErrAlreadyClaimed = errors.New("hub already has an owner")
 	ErrClaimToken     = errors.New("bootstrap token does not match")
+	ErrNotHosted      = errors.New("registration is not available on this hub")
+	ErrNotClaimed     = errors.New("hub has no owner yet")
+	ErrEmailTaken     = errors.New("email already registered")
 )
 
 // MinPassword is the shortest password an offering accepts. An unknown

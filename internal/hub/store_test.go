@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -146,6 +147,73 @@ func TestOnlyOneAdminAccount(t *testing.T) {
 	}
 	if orgs[0].Name != "First" {
 		t.Errorf("surviving org is %q; want the one from the successful claim", orgs[0].Name)
+	}
+}
+
+func TestRegisterCustomerMintsAccountAndOrg(t *testing.T) {
+	s := testStore(t)
+	hash, err := auth.HashPassword("correct-horse-battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.ClaimHub("ops@example.com", hash, "Ops"); err != nil {
+		t.Fatal(err)
+	}
+
+	account, org, err := s.RegisterCustomer("ada@example.com", hash, auth.DefaultOrgName)
+	if err != nil {
+		t.Fatalf("RegisterCustomer: %v", err)
+	}
+	if account.IsAdmin {
+		t.Error("a customer account must not be the platform admin")
+	}
+	if !strings.HasPrefix(account.Id, string(id.Account)+id.Separator) {
+		t.Errorf("account id %q does not carry the acc- prefix", account.Id)
+	}
+	if org.Name != auth.DefaultOrgName || org.Members != 1 {
+		t.Errorf("org = %+v, want name %q and one member", org, auth.DefaultOrgName)
+	}
+
+	found, err := s.AccountByEmail("ada@example.com")
+	if err != nil || found == nil || found.IsAdmin {
+		t.Fatalf("AccountByEmail = (%v, %v), want a non-admin account", found, err)
+	}
+	if !found.VerifyPassword("correct-horse-battery") {
+		t.Error("stored hash does not verify the password it was built from")
+	}
+
+	mine, err := s.ListAccountOrgs(account.Id)
+	if err != nil || len(mine) != 1 || mine[0].Role != string(authz.RoleOwner) {
+		t.Errorf("ListAccountOrgs = (%v, %v), want owner of the new org", mine, err)
+	}
+
+	// The operator's org is still theirs; register must not attach the
+	// customer to it or invent a second admin.
+	orgs, err := s.ListOrgs()
+	if err != nil || len(orgs) != 2 {
+		t.Fatalf("ListOrgs = (%v, %v), want the claim org and the customer org", orgs, err)
+	}
+	n, err := s.CountAccounts()
+	if err != nil || n != 2 {
+		t.Fatalf("CountAccounts = (%d, %v), want 2", n, err)
+	}
+}
+
+func TestRegisterCustomerEmailIsUnique(t *testing.T) {
+	s := testStore(t)
+	hash, err := auth.HashPassword("correct-horse-battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.ClaimHub("ops@example.com", hash, "Ops"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.RegisterCustomer("ops@example.com", hash, auth.DefaultOrgName); !errors.Is(err, auth.ErrEmailTaken) {
+		t.Fatalf("RegisterCustomer duplicate email = %v, want ErrEmailTaken", err)
+	}
+	orgs, err := s.ListOrgs()
+	if err != nil || len(orgs) != 1 {
+		t.Fatalf("ListOrgs after a refused register = (%v, %v), want the claim org only", orgs, err)
 	}
 }
 

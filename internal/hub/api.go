@@ -139,6 +139,63 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
+// handleRegister creates a customer account on a claimed hosted hub.
+//
+// Self-host answers 404: the door is not there. An unclaimed hosted hub
+// answers 409 so this cannot replace setup. A session cookie is issued the
+// same way login does; a bearer token is ignored on purpose (`09`, `26`).
+func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
+	if !s.registerRL.allow(r.RemoteAddr) {
+		httpError(w, http.StatusTooManyRequests, "too many attempts, try again in a minute")
+		return
+	}
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		httpError(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	claimed, err := s.claimed()
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	creds, err := auth.Register(auth.State{
+		Offering: s.opts.Offering,
+		Claimed:  claimed,
+	}, auth.RegisterRequest{Email: req.Email, Password: req.Password})
+	if err != nil {
+		httpError(w, registerStatus(err), err.Error())
+		return
+	}
+	account, _, err := s.store.RegisterCustomer(creds.Email, creds.PasswordHash, creds.OrgName)
+	if err != nil {
+		if errors.Is(err, auth.ErrEmailTaken) {
+			httpError(w, http.StatusConflict, err.Error())
+			return
+		}
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.issueSession(w, r, account.Id)
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
+func registerStatus(err error) int {
+	switch {
+	case errors.Is(err, auth.ErrNotHosted):
+		return http.StatusNotFound
+	case errors.Is(err, auth.ErrNotClaimed), errors.Is(err, auth.ErrEmailTaken):
+		return http.StatusConflict
+	case errors.Is(err, auth.ErrEmailInvalid), errors.Is(err, auth.ErrPasswordWeak):
+		return http.StatusBadRequest
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
 func (s *Server) loginLegacy(w http.ResponseWriter, r *http.Request, password string) {
 	stored, err := s.store.Setting(legacyPasswordSetting)
 	if err != nil {
@@ -178,7 +235,8 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 // `offering` is here because the login screen has to say which kind of hub
 // this is (`26`): an operator should see what they are about to type a
 // credential into, and a hosted hub that fell back to selfhost is otherwise
-// invisible outside the host's own health check.
+// invisible outside the host's own health check. `signup` is the same
+// decision as the register door: claimed and hosted, nowhere else.
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	claimed, err := s.claimed()
 	if err != nil {
@@ -192,6 +250,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"claimed":           claimed,
 		"offering":          string(s.opts.Offering),
 		"passwordMinLength": auth.MinPassword(s.opts.Offering),
+		"signup":            auth.SignupOpen(s.opts.Offering, claimed),
 		"authenticated":     false,
 		"version":           s.opts.Version,
 	}

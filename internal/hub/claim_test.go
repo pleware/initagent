@@ -140,6 +140,7 @@ func TestMeReportsOfferingAndClaimState(t *testing.T) {
 	var me struct {
 		Claimed       bool   `json:"claimed"`
 		Offering      string `json:"offering"`
+		Signup        bool   `json:"signup"`
 		Authenticated bool   `json:"authenticated"`
 	}
 	get := func() {
@@ -158,8 +159,8 @@ func TestMeReportsOfferingAndClaimState(t *testing.T) {
 	if me.Offering != string(offering.Hosted) {
 		t.Errorf("offering = %q, want %q", me.Offering, offering.Hosted)
 	}
-	if me.Claimed || me.Authenticated {
-		t.Errorf("fresh hub reports claimed=%v authenticated=%v, want both false", me.Claimed, me.Authenticated)
+	if me.Claimed || me.Authenticated || me.Signup {
+		t.Errorf("fresh hub reports claimed=%v authenticated=%v signup=%v, want all false", me.Claimed, me.Authenticated, me.Signup)
 	}
 
 	hash, err := auth.HashPassword("correct-horse-battery")
@@ -172,6 +173,9 @@ func TestMeReportsOfferingAndClaimState(t *testing.T) {
 	get()
 	if !me.Claimed {
 		t.Error("hub with an admin account still reports itself unclaimed")
+	}
+	if !me.Signup {
+		t.Error("claimed hosted hub did not offer signup")
 	}
 }
 

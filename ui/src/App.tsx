@@ -29,6 +29,7 @@ export default function App() {
         claimed: true,
         offering: '',
         passwordMinLength: 12,
+        signup: false,
         authenticated: false,
         version: '',
       })
@@ -64,6 +65,7 @@ export default function App() {
               claimed={me.claimed}
               offering={me.offering}
               passwordMinLength={me.passwordMinLength}
+              signup={me.signup === true}
               onSuccess={refresh}
             />
           }

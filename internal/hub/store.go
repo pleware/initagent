@@ -363,6 +363,27 @@ func (s *Store) CountAccounts() (int, error) {
 // impossible until someone deliberately drops the index. Relaxing that later
 // is a migration; recovering from two accidental owners is not.
 func (s *Store) ClaimHub(email, passwordHash, orgName string) (*Account, *Org, error) {
+	return s.insertAccountWithOwnedOrg(email, passwordHash, orgName, true)
+}
+
+// RegisterCustomer stores a hosted customer: a non-admin account, a new
+// organization, and the owner membership that makes the org theirs — in one
+// transaction (`08`, `26`).
+//
+// It is the claim shape without the platform flag. Reusing ClaimHub would
+// either mint a second admin (the unique index refuses it) or force the
+// caller to remember to clear is_admin after the fact. The unique email
+// index is the arbiter for a duplicate address; a race that both pass the
+// in-memory checks still lands here as ErrEmailTaken.
+func (s *Store) RegisterCustomer(email, passwordHash, orgName string) (*Account, *Org, error) {
+	account, org, err := s.insertAccountWithOwnedOrg(email, passwordHash, orgName, false)
+	if uniqueConstraint(err) {
+		return nil, nil, auth.ErrEmailTaken
+	}
+	return account, org, err
+}
+
+func (s *Store) insertAccountWithOwnedOrg(email, passwordHash, orgName string, admin bool) (*Account, *Org, error) {
 	accountId, err := id.New(id.Account)
 	if err != nil {
 		return nil, nil, err
@@ -372,8 +393,12 @@ func (s *Store) ClaimHub(email, passwordHash, orgName string) (*Account, *Org, e
 		return nil, nil, err
 	}
 	now := time.Now().Unix()
+	isAdmin := 0
+	if admin {
+		isAdmin = 1
+	}
 	account := &Account{
-		Id: accountId, Email: email, IsAdmin: true,
+		Id: accountId, Email: email, IsAdmin: admin,
 		CreatedAt: now, passwordHash: passwordHash,
 	}
 	org := &Org{Id: orgId, Name: orgName, CreatedAt: now, Members: 1}
@@ -384,7 +409,7 @@ func (s *Store) ClaimHub(email, passwordHash, orgName string) (*Account, *Org, e
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec(`INSERT INTO accounts (id, email, password_hash, is_admin, created_at)
-		VALUES (?, ?, ?, 1, ?)`, account.Id, account.Email, account.passwordHash, now); err != nil {
+		VALUES (?, ?, ?, ?, ?)`, account.Id, account.Email, account.passwordHash, isAdmin, now); err != nil {
 		return nil, nil, err
 	}
 	if _, err := tx.Exec(`INSERT INTO orgs (id, name, created_at) VALUES (?, ?, ?)`,
@@ -399,6 +424,16 @@ func (s *Store) ClaimHub(email, passwordHash, orgName string) (*Account, *Org, e
 		return nil, nil, err
 	}
 	return account, org, nil
+}
+
+// uniqueConstraint reports a unique-index refusal from either dialect.
+// SQLite says "UNIQUE constraint failed"; Postgres says "duplicate key".
+func uniqueConstraint(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique constraint") || strings.Contains(msg, "duplicate key")
 }
 
 // BackfillOperatorOrg gives an already-claimed hub the organization that

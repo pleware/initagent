@@ -28,6 +28,9 @@ export interface Me {
   claimed: boolean
   offering: string
   passwordMinLength: number
+  // Hosted claimed hubs offer customer register next to login. Self-host
+  // never does; the flag travels from the hub so the form cannot invent it.
+  signup?: boolean
   authenticated: boolean
   version: string
   platformAdmin?: boolean

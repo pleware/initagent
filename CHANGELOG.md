@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Let a stranger open a customer account on a claimed hosted hub
 - 2026-09-04 — Cut v0.3.3 so a live projects table can gain org_id
 ## v0.3.3 — 2026-09-04
 

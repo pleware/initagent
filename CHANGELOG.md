@@ -2,8 +2,13 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Cut v0.3.5 so the hosted site and hub can switch themes
+- 2026-09-05 — Cut v0.3.5 so the hosted site and hub can switch themes
+## v0.3.5 — 2026-09-05
+
 - 2026-09-04 — Put a theme switcher on the cockpit and the marketing site
 - 2026-09-04 — Cut v0.3.4 so a claimed hosted hub can mint a customer account
+
 ## v0.3.4 — 2026-09-04
 
 - 2026-09-04 — Let a stranger open a customer account on a claimed hosted hub

@@ -96,6 +96,8 @@ export interface Device {
 export interface Project {
   id: string
   name: string
+  orgId: string
+  gatewayUrl: string
   deviceId: string
   path: string
   createdAt: number

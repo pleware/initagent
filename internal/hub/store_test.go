@@ -410,16 +410,23 @@ func TestProjectLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := s.CreateProject("Storefront", deviceId, "/Users/dev/storefront")
+	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.CreateProject(org.Id, "Storefront", deviceId, "/Users/dev/storefront", "http://gateway")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if p.Name != "Storefront" || p.DeviceId != deviceId {
 		t.Fatalf("unexpected project: %+v", p)
 	}
-	projects, err := s.ListProjects()
+	projects, err := s.ListProjectsByOrg(org.Id)
 	if err != nil || len(projects) != 1 {
-		t.Fatalf("ListProjects: %+v, %v", projects, err)
+		t.Fatalf("ListProjectsByOrg: %+v, %v", projects, err)
+	}
+	if projects[0].OrgId != org.Id || projects[0].GatewayURL != "http://gateway" {
+		t.Fatalf("project missing org or gateway: %+v", projects[0])
 	}
 	updated, err := s.UpdateProject(p.Id, "Web store", deviceId, "/Users/dev/web-store")
 	if err != nil || updated == nil || updated.Path != "/Users/dev/web-store" {
@@ -436,14 +443,90 @@ func TestProjectLifecycle(t *testing.T) {
 func TestDeletingDeviceDeletesItsProjects(t *testing.T) {
 	s := testStore(t)
 	deviceId, _, _ := s.CreateDevice("runner", "runner", "linux", "amd64", false)
-	if _, err := s.CreateProject("API", deviceId, "/srv/api"); err != nil {
+	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateProject(org.Id, "API", deviceId, "/srv/api", ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.DeleteDevice(deviceId); err != nil {
 		t.Fatal(err)
 	}
-	projects, err := s.ListProjects()
+	projects, err := s.ListProjectsByOrg(org.Id)
 	if err != nil || len(projects) != 0 {
 		t.Fatalf("projects left after deleting device: %+v, %v", projects, err)
+	}
+}
+
+func TestCreateProjectRequiresAnOrg(t *testing.T) {
+	s := testStore(t)
+	deviceId, _, err := s.CreateDevice("box", "box", "linux", "amd64", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateProject("", "NoOrg", deviceId, "/tmp", ""); err == nil {
+		t.Fatal("CreateProject with empty org_id succeeded")
+	}
+	if _, err := s.CreateProject("org-missing", "NoOrg", deviceId, "/tmp", ""); err == nil {
+		t.Fatal("CreateProject with an unknown org succeeded")
+	}
+}
+
+func TestProjectsDoNotCrossOrgs(t *testing.T) {
+	s := testStore(t)
+	_, first, err := s.ClaimHub("ops@example.com", "hash", "First")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.CreateOrg("Second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	deviceId, _, err := s.CreateDevice("box", "box", "linux", "amd64", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateProject(first.Id, "A", deviceId, "/a", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateProject(second.Id, "B", deviceId, "/b", ""); err != nil {
+		t.Fatal(err)
+	}
+	onlyFirst, err := s.ListProjectsByOrg(first.Id)
+	if err != nil || len(onlyFirst) != 1 || onlyFirst[0].Name != "A" {
+		t.Fatalf("first org = %+v, %v", onlyFirst, err)
+	}
+	both, err := s.ListProjectsForOrgs([]string{first.Id, second.Id})
+	if err != nil || len(both) != 2 {
+		t.Fatalf("both orgs = %+v, %v", both, err)
+	}
+	none, err := s.ListProjectsForOrgs(nil)
+	if err != nil || len(none) != 0 {
+		t.Fatalf("no orgs = %+v, %v", none, err)
+	}
+}
+
+func TestBackfillProjectOrgsAttachesOrphansToTheOnlyOrg(t *testing.T) {
+	s := testStore(t)
+	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	deviceId, _, err := s.CreateDevice("box", "box", "linux", "amd64", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Reproduce a row written before org_id existed.
+	if _, err := s.db.Exec(`INSERT INTO projects (id, name, org_id, gateway_url, device_id, path, created_at, updated_at)
+		VALUES ('prj-orphan', 'Legacy', '', '', ?, '/old', 1, 1)`, deviceId); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.backfillProjectOrgs(); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ProjectById("prj-orphan")
+	if err != nil || got == nil || got.OrgId != org.Id {
+		t.Fatalf("orphan after backfill = %+v, %v", got, err)
 	}
 }

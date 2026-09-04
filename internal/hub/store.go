@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pleware/initagent/internal/auth"
@@ -56,15 +57,18 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 	created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS projects (
-	id         TEXT PRIMARY KEY,
-	name       TEXT NOT NULL,
-	device_id  TEXT NOT NULL,
-	path       TEXT NOT NULL,
-	created_at INTEGER NOT NULL,
-	updated_at INTEGER NOT NULL,
+	id          TEXT PRIMARY KEY,
+	name        TEXT NOT NULL,
+	org_id      TEXT NOT NULL DEFAULT '',
+	gateway_url TEXT NOT NULL DEFAULT '',
+	device_id   TEXT NOT NULL,
+	path        TEXT NOT NULL,
+	created_at  INTEGER NOT NULL,
+	updated_at  INTEGER NOT NULL,
 	FOREIGN KEY(device_id) REFERENCES devices(id)
 );
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
+CREATE INDEX IF NOT EXISTS projects_org_id ON projects(org_id);
 CREATE TABLE IF NOT EXISTS accounts (
 	id            TEXT PRIMARY KEY,
 	email         TEXT NOT NULL UNIQUE,
@@ -128,15 +132,18 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 	created_at BIGINT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS projects (
-	id         TEXT PRIMARY KEY,
-	name       TEXT NOT NULL,
-	device_id  TEXT NOT NULL,
-	path       TEXT NOT NULL,
-	created_at BIGINT NOT NULL,
-	updated_at BIGINT NOT NULL,
+	id          TEXT PRIMARY KEY,
+	name        TEXT NOT NULL,
+	org_id      TEXT NOT NULL DEFAULT '',
+	gateway_url TEXT NOT NULL DEFAULT '',
+	device_id   TEXT NOT NULL,
+	path        TEXT NOT NULL,
+	created_at  BIGINT NOT NULL,
+	updated_at  BIGINT NOT NULL,
 	FOREIGN KEY(device_id) REFERENCES devices(id)
 );
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
+CREATE INDEX IF NOT EXISTS projects_org_id ON projects(org_id);
 CREATE TABLE IF NOT EXISTS accounts (
 	id            TEXT PRIMARY KEY,
 	email         TEXT NOT NULL UNIQUE,
@@ -183,6 +190,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		return nil, fmt.Errorf("applying schema: %w", err)
 	}
 	s := &Store{db: db}
+	if err := s.ensureProjectOrgColumns(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring project org columns: %w", err)
+	}
 	if err := s.seedPresets(); err != nil {
 		db.Close()
 		return nil, err
@@ -211,6 +222,72 @@ func (s *Store) seedPresets() error {
 		}
 	}
 	return nil
+}
+
+// ensureProjectOrgColumns adds org_id and gateway_url to a projects table
+// that was created before organizations existed. CREATE TABLE IF NOT EXISTS
+// will not add columns to a live table, and the hosted hub is exactly that
+// table: claimed, upgraded, zero projects, no org_id.
+//
+// Orphan rows (empty org_id) attach to the hub's only organization, which
+// is the state this host is in. A hub with more than one org and a project
+// that has no org is left alone — guessing would put a customer project in
+// the wrong company, and no screen can repair that quietly.
+func (s *Store) ensureProjectOrgColumns() error {
+	for _, col := range []string{"org_id", "gateway_url"} {
+		if err := s.ensureColumn("projects", col, "TEXT NOT NULL DEFAULT ''"); err != nil {
+			return err
+		}
+	}
+	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS projects_org_id ON projects(org_id)`); err != nil {
+		return err
+	}
+	return s.backfillProjectOrgs()
+}
+
+func (s *Store) ensureColumn(table, column, decl string) error {
+	ok, err := s.hasColumn(table, column)
+	if err != nil || ok {
+		return err
+	}
+	_, err = s.db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + column + ` ` + decl)
+	return err
+}
+
+func (s *Store) hasColumn(table, column string) (bool, error) {
+	var n int
+	var err error
+	switch s.db.Dialect() {
+	case store.Postgres:
+		err = s.db.QueryRow(`SELECT 1 FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = ? AND column_name = ?`,
+			table, column).Scan(&n)
+	default:
+		// pragma_table_info does not take a bound table name on SQLite.
+		// Callers pass a constant from this file, never request input.
+		err = s.db.QueryRow(`SELECT 1 FROM pragma_table_info('`+table+`') WHERE name = ?`,
+			column).Scan(&n)
+	}
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+func (s *Store) backfillProjectOrgs() error {
+	var orgs int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM orgs`).Scan(&orgs); err != nil {
+		return err
+	}
+	if orgs != 1 {
+		return nil
+	}
+	var orgId string
+	if err := s.db.QueryRow(`SELECT id FROM orgs`).Scan(&orgId); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`UPDATE projects SET org_id = ? WHERE org_id = ''`, orgId)
+	return err
 }
 
 // --- settings ---
@@ -756,34 +833,53 @@ func (s *Store) DeleteDevice(id string) error {
 
 // Project binds a named coding workspace to one directory on one device.
 // The browser-hosted fx runtime uses this pair as its remote workspace.
+//
+// OrgId is required: a query without an organization is a bug (`05`).
+// GatewayURL is the hub's existing gateway, copied at create so the row
+// answers "where does this project run" without provisioning a second
+// process (`02`).
 type Project struct {
-	Id        string `json:"id"`
-	Name      string `json:"name"`
-	DeviceId  string `json:"deviceId"`
-	Path      string `json:"path"`
-	CreatedAt int64  `json:"createdAt"`
-	UpdatedAt int64  `json:"updatedAt"`
+	Id         string `json:"id"`
+	Name       string `json:"name"`
+	OrgId      string `json:"orgId"`
+	GatewayURL string `json:"gatewayUrl"`
+	DeviceId   string `json:"deviceId"`
+	Path       string `json:"path"`
+	CreatedAt  int64  `json:"createdAt"`
+	UpdatedAt  int64  `json:"updatedAt"`
 }
 
-func (s *Store) CreateProject(name, deviceId, path string) (*Project, error) {
+func (s *Store) CreateProject(orgId, name, deviceId, path, gatewayURL string) (*Project, error) {
+	if orgId == "" {
+		return nil, fmt.Errorf("create project: org_id is required")
+	}
+	org, err := s.OrgById(orgId)
+	if err != nil {
+		return nil, err
+	}
+	if org == nil {
+		return nil, fmt.Errorf("create project: organization %q does not exist", orgId)
+	}
 	projectId, err := id.New(id.Project)
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now().Unix()
 	p := &Project{
-		Id: projectId, Name: name, DeviceId: deviceId, Path: path,
-		CreatedAt: now, UpdatedAt: now,
+		Id: projectId, Name: name, OrgId: orgId, GatewayURL: gatewayURL,
+		DeviceId: deviceId, Path: path, CreatedAt: now, UpdatedAt: now,
 	}
-	_, err = s.db.Exec(`INSERT INTO projects (id, name, device_id, path, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?)`, p.Id, p.Name, p.DeviceId, p.Path, p.CreatedAt, p.UpdatedAt)
+	_, err = s.db.Exec(`INSERT INTO projects (id, name, org_id, gateway_url, device_id, path, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.Id, p.Name, p.OrgId, p.GatewayURL, p.DeviceId, p.Path, p.CreatedAt, p.UpdatedAt)
 	return p, err
 }
 
 func (s *Store) ProjectById(id string) (*Project, error) {
 	var p Project
-	err := s.db.QueryRow(`SELECT id, name, device_id, path, created_at, updated_at FROM projects WHERE id = ?`, id).
-		Scan(&p.Id, &p.Name, &p.DeviceId, &p.Path, &p.CreatedAt, &p.UpdatedAt)
+	err := s.db.QueryRow(`SELECT id, name, org_id, gateway_url, device_id, path, created_at, updated_at
+		FROM projects WHERE id = ?`, id).
+		Scan(&p.Id, &p.Name, &p.OrgId, &p.GatewayURL, &p.DeviceId, &p.Path, &p.CreatedAt, &p.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -793,9 +889,29 @@ func (s *Store) ProjectById(id string) (*Project, error) {
 	return &p, nil
 }
 
-func (s *Store) ListProjects() ([]Project, error) {
-	rows, err := s.db.Query(`SELECT id, name, device_id, path, created_at, updated_at
-		FROM projects ORDER BY updated_at DESC, name ASC`)
+func (s *Store) ListProjectsByOrg(orgId string) ([]Project, error) {
+	if orgId == "" {
+		return []Project{}, nil
+	}
+	return s.listProjects(`WHERE org_id = ?`, orgId)
+}
+
+func (s *Store) ListProjectsForOrgs(orgIds []string) ([]Project, error) {
+	if len(orgIds) == 0 {
+		return []Project{}, nil
+	}
+	placeholders := make([]string, len(orgIds))
+	args := make([]any, len(orgIds))
+	for i, id := range orgIds {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	return s.listProjects(`WHERE org_id IN (`+strings.Join(placeholders, ", ")+`)`, args...)
+}
+
+func (s *Store) listProjects(where string, args ...any) ([]Project, error) {
+	rows, err := s.db.Query(`SELECT id, name, org_id, gateway_url, device_id, path, created_at, updated_at
+		FROM projects `+where+` ORDER BY updated_at DESC, name ASC`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -803,7 +919,7 @@ func (s *Store) ListProjects() ([]Project, error) {
 	projects := []Project{}
 	for rows.Next() {
 		var p Project
-		if err := rows.Scan(&p.Id, &p.Name, &p.DeviceId, &p.Path, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.Id, &p.Name, &p.OrgId, &p.GatewayURL, &p.DeviceId, &p.Path, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, err
 		}
 		projects = append(projects, p)

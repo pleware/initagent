@@ -75,6 +75,21 @@ const (
 
 	// DeleteOrg is the owner's alone (25).
 	DeleteOrg Capability = "delete:hub.org"
+
+	// ReadProject is seeing the projects that belong to an organization.
+	// Members have it: they can see the catalogue even if they cannot
+	// create one (25).
+	ReadProject Capability = "read:hub.project"
+
+	// CreateProject is minting a project under an organization. 25 gives
+	// this to admin and above. The project uses the hub's existing gateway
+	// rather than provisioning a new one — that question is still open
+	// for a second project on a second machine (02, 18).
+	CreateProject Capability = "create:hub.project"
+
+	// DeleteProject is removing a project from an organization. Same floor
+	// as create: an admin who can add one can take it away.
+	DeleteProject Capability = "delete:hub.project"
 )
 
 // installation lists the capabilities that exist at the hub boundary. A
@@ -87,9 +102,12 @@ var installation = map[Capability]bool{
 
 // orgMinimum is the weakest role that carries each capability inside an org.
 var orgMinimum = map[Capability]Role{
-	ReadOrg:   RoleMember,
-	AdminOrg:  RoleAdmin,
-	DeleteOrg: RoleOwner,
+	ReadOrg:       RoleMember,
+	AdminOrg:      RoleAdmin,
+	DeleteOrg:     RoleOwner,
+	ReadProject:   RoleMember,
+	CreateProject: RoleAdmin,
+	DeleteProject: RoleAdmin,
 }
 
 // Actor is the resolved identity behind a request. The hub builds it at the
@@ -135,6 +153,21 @@ func (a Actor) Can(c Capability, org string) bool {
 
 // Role returns this actor's role in org, or "" when they are not a member.
 func (a Actor) Role(org string) Role { return a.Orgs[org] }
+
+// SoleOrg is the only organization this actor belongs to, or empty when they
+// belong to none or to more than one. A request that omitted org_id can
+// use this on a hub that still has one organization — the self-host case
+// and the first hosted claim — without inventing a "current org" on the
+// actor.
+func (a Actor) SoleOrg() string {
+	if len(a.Orgs) != 1 {
+		return ""
+	}
+	var id string
+	for id = range a.Orgs {
+	}
+	return id
+}
 
 // Errors the HTTP edge maps onto status codes. Sentinels rather than strings,
 // so a handler cannot drift from the rule it is reporting.

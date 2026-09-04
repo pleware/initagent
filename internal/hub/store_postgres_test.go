@@ -67,7 +67,11 @@ func TestStorePostgresSmoke(t *testing.T) {
 		t.Fatalf("DeviceByToken: got %+v", d)
 	}
 
-	proj, err := s.CreateProject("smoke-proj", deviceID, "/srv/smoke")
+	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
+	if err != nil {
+		t.Fatalf("ClaimHub: %v", err)
+	}
+	proj, err := s.CreateProject(org.Id, "smoke-proj", deviceID, "/srv/smoke", "http://gateway")
 	if err != nil {
 		t.Fatalf("CreateProject: %v", err)
 	}

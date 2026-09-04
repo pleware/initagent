@@ -129,6 +129,11 @@ who belongs to it and with which role. **Administration**, next to it, lists
 every account and organization on the installation and is visible only to
 the operator who claimed the hub.
 
+A project belongs to that organization and uses the hub's existing gateway
+rather than starting a new one. The inherited create form does not ask
+which organization when you only have one — which is the self-host case
+and the first hosted claim.
+
 The Vercel deployment is the public static product site. The authenticated hub
 remains a durable install on Linux, macOS, or Windows because it owns the local
 SQLite database and the persistent device/terminal connections.

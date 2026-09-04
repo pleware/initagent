@@ -47,6 +47,7 @@ func TestCanAtInstallationBoundary(t *testing.T) {
 		// boundary is empty: the installation is not "every org at once".
 		{"operator cannot administer an org hub-wide", operator, AdminOrg, false},
 		{"operator cannot delete an org hub-wide", operator, DeleteOrg, false},
+		{"operator cannot create a project hub-wide", operator, CreateProject, false},
 		{"an org owner is not a platform admin", customer, AdminAccounts, false},
 		{"an org owner cannot enumerate the hub", customer, ReadOrg, false},
 	}
@@ -64,12 +65,13 @@ func TestCanInsideOrg(t *testing.T) {
 	}
 
 	cases := []struct {
-		role             Role
-		read, admin, del bool
+		role                             Role
+		read, admin, del                 bool
+		readProj, createProj, deleteProj bool
 	}{
-		{RoleMember, true, false, false},
-		{RoleAdmin, true, true, false},
-		{RoleOwner, true, true, true},
+		{RoleMember, true, false, false, true, false, false},
+		{RoleAdmin, true, true, false, true, true, true},
+		{RoleOwner, true, true, true, true, true, true},
 	}
 	for _, c := range cases {
 		a := actor(c.role)
@@ -81,6 +83,15 @@ func TestCanInsideOrg(t *testing.T) {
 		}
 		if got := a.Can(DeleteOrg, org); got != c.del {
 			t.Errorf("%s Can(DeleteOrg) = %v; want %v", c.role, got, c.del)
+		}
+		if got := a.Can(ReadProject, org); got != c.readProj {
+			t.Errorf("%s Can(ReadProject) = %v; want %v", c.role, got, c.readProj)
+		}
+		if got := a.Can(CreateProject, org); got != c.createProj {
+			t.Errorf("%s Can(CreateProject) = %v; want %v", c.role, got, c.createProj)
+		}
+		if got := a.Can(DeleteProject, org); got != c.deleteProj {
+			t.Errorf("%s Can(DeleteProject) = %v; want %v", c.role, got, c.deleteProj)
 		}
 	}
 
@@ -106,7 +117,7 @@ func TestCanInsideOrg(t *testing.T) {
 // it should.
 func TestPlatformAdminIsNotAnOrgMember(t *testing.T) {
 	operator := Actor{Account: "acc-1", Platform: true}
-	for _, c := range []Capability{ReadOrg, AdminOrg, DeleteOrg} {
+	for _, c := range []Capability{ReadOrg, AdminOrg, DeleteOrg, ReadProject, CreateProject, DeleteProject} {
 		if operator.Can(c, "org-customer") {
 			t.Errorf("platform admin was granted %q inside a customer org", c)
 		}
@@ -122,6 +133,20 @@ func TestPlatformAdminIsNotAnOrgMember(t *testing.T) {
 
 // A hub claimed before accounts existed has no `acc-` behind its session. It
 // is still the operator, and it is still nobody's org member.
+func TestSoleOrg(t *testing.T) {
+	if got := (Actor{}).SoleOrg(); got != "" {
+		t.Errorf("empty actor SoleOrg = %q; want empty", got)
+	}
+	one := Actor{Orgs: map[string]Role{"org-1": RoleOwner}}
+	if got := one.SoleOrg(); got != "org-1" {
+		t.Errorf("one org SoleOrg = %q; want org-1", got)
+	}
+	two := Actor{Orgs: map[string]Role{"org-1": RoleOwner, "org-2": RoleMember}}
+	if got := two.SoleOrg(); got != "" {
+		t.Errorf("two orgs SoleOrg = %q; want empty — that is not a current-org", got)
+	}
+}
+
 func TestLegacyOperatorActor(t *testing.T) {
 	legacy := Actor{Platform: true}
 	if !legacy.Can(AdminAccounts, "") {

@@ -2,8 +2,12 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Cut v0.3.2 with projects belonging to an organization
+## v0.3.2 — 2026-09-04
+
 - 2026-09-04 — Hang every project on an organization and the hub's existing gateway
 - 2026-09-04 — Cut v0.3.1 with the default organization name
+
 ## v0.3.1 — 2026-09-04
 
 - 2026-09-04 — Call an unnamed first organization default

@@ -2,8 +2,12 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Cut v0.3.1 with the default organization name
+## v0.3.1 — 2026-09-04
+
 - 2026-09-04 — Call an unnamed first organization default
 - 2026-09-04 — Prove the organization backfill on Postgres before shipping it
+
 ## v0.3.0 — 2026-09-04
 
 - 2026-09-04 — Stop advertising self-host as single-user in the README

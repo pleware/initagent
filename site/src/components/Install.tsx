@@ -108,12 +108,16 @@ export function Install() {
     <section id="install" className="border-t border-line-soft py-24 lg:py-32">
       <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
         <Reveal className="max-w-[46ch]">
-          <h2 className="text-[2rem] leading-[1.1] font-semibold tracking-tight text-balance sm:text-[2.4rem]">
-            One paste per device. No SSH keys, no port forwarding.
+          <p className="font-mono text-[12px] tracking-wide text-beacon">
+            Self-host
+          </p>
+          <h2 className="mt-3 text-[2rem] leading-[1.1] font-semibold tracking-tight text-balance sm:text-[2.4rem]">
+            Run the hub on your machine. $0, single user.
           </h2>
           <p className="mt-5 text-[16px] leading-relaxed text-fg-muted">
-            Devices dial out to the hub over a single WebSocket, so NAT and
-            firewalls stay exactly as they are.
+            Same binary as the hosted hub. One paste per device — no SSH keys,
+            no port forwarding. Devices dial out over a single WebSocket, so
+            NAT and firewalls stay as they are. We never see your fleet.
           </p>
         </Reveal>
 

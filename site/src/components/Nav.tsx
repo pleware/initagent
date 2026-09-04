@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { GithubLogo, List, X, Eye } from "@phosphor-icons/react";
-import { REPO } from "../lib/site";
+import { HUB, REPO } from "../lib/site";
 
 const LINKS = [
   { label: "How it works", href: "#how" },
@@ -67,9 +67,15 @@ export function Nav() {
             </a>
             <a
               href="#install"
+              className="rounded-control px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-ink-850 hover:text-fg"
+            >
+              Self-host
+            </a>
+            <a
+              href={HUB}
               className="rounded-control bg-beacon px-4 py-2 text-[13.5px] font-semibold text-ink-950 transition-transform duration-150 hover:bg-[#ffc04d] active:scale-[0.98]"
             >
-              Install the hub
+              Start free
             </a>
           </div>
 
@@ -108,9 +114,15 @@ export function Nav() {
               <a
                 href="#install"
                 onClick={() => setOpen(false)}
+                className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-ink-850 hover:text-fg"
+              >
+                Self-host
+              </a>
+              <a
+                href={HUB}
                 className="mt-2 rounded-control bg-beacon px-4 py-2.5 text-center text-[15px] font-semibold text-ink-950"
               >
-                Install the hub
+                Start free
               </a>
             </div>
           </div>

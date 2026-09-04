@@ -3,9 +3,11 @@ export const RELEASES = `${REPO}/releases`;
 export const DOCS = `${REPO}#readme`;
 
 /** Public marketing site and hub-installer origin. Same host serves
- *  `/install.sh`, `/install.ps1`, and `/install-macos.sh`.
- *  The hosted hub is a different origin: `https://app.initagent.dev`. */
+ *  `/install.sh`, `/install.ps1`, and `/install-macos.sh`. */
 export const SITE = "https://initagent.dev";
+
+/** Hosted control-plane hub. Primary Software CTA. */
+export const HUB = "https://app.initagent.dev";
 
 /**
  * Where the initagent Code waitlist form posts. Left unset by default so the

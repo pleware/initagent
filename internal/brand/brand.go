@@ -42,6 +42,10 @@ const (
 	// FleetConfigFile is the fleet CLI config inside ConfigDir.
 	FleetConfigFile = "fleet.json"
 
+	// OfferingFile names the hub offering token inside ConfigDir.
+	// Missing means selfhost. Values: hosted | selfhost. No secrets.
+	OfferingFile = "offering"
+
 	// TokenPrefix marks an API token so it is recognisable in a log line
 	// without being resolvable. The token value itself stays CSPRNG.
 	TokenPrefix = "iagt_"
@@ -73,6 +77,10 @@ const (
 
 	// EnvDatabaseURL switches the hub store from SQLite to Postgres.
 	EnvDatabaseURL = EnvPrefix + "DATABASE_URL"
+
+	// EnvOffering is the one-shot override for the hub offering file
+	// (<data-dir>/offering). Same tokens: hosted or selfhost.
+	EnvOffering = EnvPrefix + "OFFERING"
 )
 
 // Service identities. Renaming these breaks upgrades of an already-installed

@@ -19,6 +19,7 @@ import (
 	"github.com/pleware/initagent/internal/fleet"
 	"github.com/pleware/initagent/internal/hub"
 	"github.com/pleware/initagent/internal/mcp"
+	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/updater"
 )
 
@@ -33,7 +34,7 @@ func usageText() string {
 	).Replace(`{{name}} — control all your machines from one place.
 
 Usage:
-  {{bin}} serve [--addr :4200] [--data-dir ~/{{cfg}}] [--gateway-url URL]
+  {{bin}} serve [--addr :4200] [--data-dir ~/{{cfg}}] [--gateway-url URL] [--offering selfhost|hosted]
                                                              Run the hub (web UI + API)
   {{bin}} serve --tls-domain d.com --tls-email you@d.com   Run the hub with automatic HTTPS (Let's Encrypt)
   {{bin}} gateway [--addr :4201] [--data-dir ~/{{cfg}}] [--project prj-…] [--public-url URL]
@@ -142,6 +143,7 @@ func cmdServe(args []string) error {
 	dataDir := fs.String("data-dir", "", "data directory (default ~/"+brand.ConfigDir+")")
 	gatewayURL := fs.String("gateway-url", "", "project gateway URL for enroll (required to add workers)")
 	databaseURL := fs.String("database-url", os.Getenv(brand.EnvDatabaseURL), "Postgres connection string; empty = SQLite under --data-dir")
+	offeringFlag := fs.String("offering", "", "hub offering: selfhost or hosted (default: "+brand.OfferingFile+" in --data-dir, else selfhost)")
 	tlsDomain := fs.String("tls-domain", "", "enable automatic HTTPS (Let's Encrypt) for this domain; serves :443 + :80")
 	tlsEmail := fs.String("tls-email", "", "contact email for Let's Encrypt (expiry notices)")
 	fs.Parse(args)
@@ -150,9 +152,26 @@ func cmdServe(args []string) error {
 		return fmt.Errorf("--tls-email is required with --tls-domain (Let's Encrypt needs a contact address)")
 	}
 
+	resolvedDir, err := offering.Dir(*dataDir)
+	if err != nil {
+		return err
+	}
+	fileBody, filePresent, err := offering.ReadFile(resolvedDir)
+	if err != nil {
+		return err
+	}
+	kind, err := offering.Resolve(*offeringFlag, os.Getenv(brand.EnvOffering), fileBody, filePresent)
+	if err != nil {
+		return err
+	}
+	if err := offering.RequireStart(kind, *databaseURL); err != nil {
+		return err
+	}
+	log.Printf("offering %s", kind)
+
 	srv, err := hub.NewServer(hub.Options{
 		Addr:        *addr,
-		DataDir:     *dataDir,
+		DataDir:     resolvedDir,
 		Version:     version,
 		GithubRepo:  brand.ReleaseSource,
 		TLSDomain:   *tlsDomain,

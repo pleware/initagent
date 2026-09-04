@@ -10,3 +10,4 @@
 ./internal/fakecoder
 ./internal/gateway
 ./internal/join
+./internal/offering

@@ -2,6 +2,9 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Lead the site with hosted CTAs and read hub offering at serve start.
+- 2026-09-04 — Read hub offering from the data-dir file at serve start
+- 2026-09-04 — Point the marketing Software CTAs at hosted first, self-host second
 - 2026-09-03 — Hold the entry point path in brand.CommandDir
 - 2026-09-03 — Deduplicate the device joiner into internal/join
 - 2026-09-03 — Rename the entry point directory to cmd/initagent

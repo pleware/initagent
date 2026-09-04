@@ -1,5 +1,5 @@
-import { ArrowRight, GithubLogo } from "@phosphor-icons/react";
-import { REPO } from "../lib/site";
+import { ArrowRight } from "@phosphor-icons/react";
+import { HUB } from "../lib/site";
 import { Screenshot } from "./Screenshot";
 
 export function Hero() {
@@ -28,8 +28,9 @@ export function Hero() {
             className="hero-rise mt-6 max-w-[46ch] text-[16.5px] leading-relaxed text-fg-muted"
             style={{ animationDelay: "0.09s" }}
           >
-            Install the hub once, paste one command per device. Live terminals
-            and coding agents across your whole fleet.
+            Start free on our hosted hub, or run the same binary on your
+            machine. Live terminals and coding agents across your fleet. We
+            never host your workers.
           </p>
 
           <div
@@ -37,10 +38,10 @@ export function Hero() {
             style={{ animationDelay: "0.18s" }}
           >
             <a
-              href="#install"
+              href={HUB}
               className="group flex items-center gap-2 rounded-control bg-beacon px-5 py-3 text-[14.5px] font-semibold whitespace-nowrap text-ink-950 transition-all duration-150 hover:bg-[#ffc04d] active:scale-[0.98]"
             >
-              Install the hub
+              Start free
               <ArrowRight
                 size={17}
                 weight="bold"
@@ -48,15 +49,19 @@ export function Hero() {
               />
             </a>
             <a
-              href={REPO}
-              target="_blank"
-              rel="noreferrer"
+              href="#install"
               className="flex items-center gap-2 rounded-control border border-line bg-ink-900 px-5 py-3 text-[14.5px] font-medium whitespace-nowrap text-fg transition-colors duration-150 hover:border-fg-dim hover:bg-ink-850 active:scale-[0.98]"
             >
-              <GithubLogo size={17} weight="regular" />
-              Source
+              Self-host
             </a>
           </div>
+          <p
+            className="hero-rise mt-3 text-[13px] text-fg-dim"
+            style={{ animationDelay: "0.22s" }}
+          >
+            One free project on our hub. Self-host is $0 for a single user.
+            Workers stay yours.
+          </p>
         </div>
 
         <div

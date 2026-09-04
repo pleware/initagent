@@ -2,8 +2,12 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Cut v0.3.3 so a live projects table can gain org_id
+## v0.3.3 — 2026-09-04
+
 - 2026-09-04 — Add project org columns before indexing them
 - 2026-09-04 — Cut v0.3.2 with projects belonging to an organization
+
 ## v0.3.2 — 2026-09-04
 
 - 2026-09-04 — Hang every project on an organization and the hub's existing gateway

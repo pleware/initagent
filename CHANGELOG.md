@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Add project org columns before indexing them
 - 2026-09-04 — Cut v0.3.2 with projects belonging to an organization
 ## v0.3.2 — 2026-09-04
 

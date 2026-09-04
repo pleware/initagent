@@ -68,7 +68,6 @@ CREATE TABLE IF NOT EXISTS projects (
 	FOREIGN KEY(device_id) REFERENCES devices(id)
 );
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
-CREATE INDEX IF NOT EXISTS projects_org_id ON projects(org_id);
 CREATE TABLE IF NOT EXISTS accounts (
 	id            TEXT PRIMARY KEY,
 	email         TEXT NOT NULL UNIQUE,
@@ -143,7 +142,6 @@ CREATE TABLE IF NOT EXISTS projects (
 	FOREIGN KEY(device_id) REFERENCES devices(id)
 );
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
-CREATE INDEX IF NOT EXISTS projects_org_id ON projects(org_id);
 CREATE TABLE IF NOT EXISTS accounts (
 	id            TEXT PRIMARY KEY,
 	email         TEXT NOT NULL UNIQUE,
@@ -228,6 +226,11 @@ func (s *Store) seedPresets() error {
 // that was created before organizations existed. CREATE TABLE IF NOT EXISTS
 // will not add columns to a live table, and the hosted hub is exactly that
 // table: claimed, upgraded, zero projects, no org_id.
+//
+// The org_id index lives here, after the ALTER, not in the CREATE TABLE
+// batch. Putting it in the batch crashes a live upgrade: IF NOT EXISTS
+// leaves the old table alone, then CREATE INDEX ON org_id fails because
+// the column is not there yet, and this function never runs.
 //
 // Orphan rows (empty org_id) attach to the hub's only organization, which
 // is the state this host is in. A hub with more than one org and a project

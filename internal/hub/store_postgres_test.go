@@ -173,3 +173,42 @@ func TestStorePostgresSmoke(t *testing.T) {
 		t.Fatalf("second BackfillOperatorOrg = (%v, %v), want (nil, nil) — every restart calls it", again, err)
 	}
 }
+
+func TestOpenStorePostgresMigratesLegacyProjectsTable(t *testing.T) {
+	dsn := os.Getenv("INITAGENT_TEST_POSTGRES_URL")
+	if dsn == "" {
+		t.Skip("INITAGENT_TEST_POSTGRES_URL not set; skipping Postgres integration test")
+	}
+
+	s, err := OpenStorePostgres(dsn)
+	if err != nil {
+		t.Fatalf("OpenStorePostgres: %v", err)
+	}
+	// Recreate the live v0.3.1 shape: projects without org_id / gateway_url.
+	// v0.3.2 put CREATE INDEX ON org_id in the CREATE TABLE batch, so open
+	// died before the ALTER and the hosted hub crash-looped.
+	if _, err := s.db.Exec(`DROP INDEX IF EXISTS projects_org_id`); err != nil {
+		t.Fatalf("dropping projects_org_id: %v", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE projects DROP COLUMN IF EXISTS org_id`); err != nil {
+		t.Fatalf("dropping org_id: %v", err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE projects DROP COLUMN IF EXISTS gateway_url`); err != nil {
+		t.Fatalf("dropping gateway_url: %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err = OpenStorePostgres(dsn)
+	if err != nil {
+		t.Fatalf("OpenStorePostgres on a pre-org projects table: %v", err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	for _, col := range []string{"org_id", "gateway_url"} {
+		ok, err := s.hasColumn("projects", col)
+		if err != nil || !ok {
+			t.Fatalf("column %s after reopen: ok=%v err=%v", col, ok, err)
+		}
+	}
+}

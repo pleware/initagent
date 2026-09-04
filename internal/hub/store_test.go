@@ -9,6 +9,7 @@ import (
 	"github.com/pleware/initagent/internal/auth"
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/store"
 )
 
 func testStore(t *testing.T) *Store {
@@ -504,6 +505,39 @@ func TestProjectsDoNotCrossOrgs(t *testing.T) {
 	none, err := s.ListProjectsForOrgs(nil)
 	if err != nil || len(none) != 0 {
 		t.Fatalf("no orgs = %+v, %v", none, err)
+	}
+}
+
+func TestOpenStoreMigratesLegacyProjectsTable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy.db")
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE projects (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		device_id TEXT NOT NULL,
+		path TEXT NOT NULL,
+		created_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL
+	)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("OpenStore on a pre-org projects table: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+	for _, col := range []string{"org_id", "gateway_url"} {
+		ok, err := s.hasColumn("projects", col)
+		if err != nil || !ok {
+			t.Fatalf("column %s after open: ok=%v err=%v", col, ok, err)
+		}
 	}
 }
 

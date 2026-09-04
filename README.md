@@ -10,7 +10,7 @@
 Public site: **[initagent.dev](https://initagent.dev)** (marketing and
 installers). Hosted hub: **[app.initagent.dev](https://app.initagent.dev)**
 (cloud control plane on PostgreSQL). The site leads with Start free →
-`app`; Self-host is the $0 single-user door.
+`app`; Self-host is the $0, unmetered door.
 
 Install one hub, paste one command on every other device, and run terminals and
 coding agents across your whole fleet — from your desk or your phone.

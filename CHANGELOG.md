@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Stop advertising self-host as single-user in the README
 - 2026-09-04 — Give a hub organizations and two separate people surfaces
 - 2026-09-04 — Claim a fresh hub with an account and a one-time token
 - 2026-09-04 — Lead the site with hosted CTAs and read hub offering at serve start.

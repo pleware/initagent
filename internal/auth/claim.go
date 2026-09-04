@@ -61,10 +61,9 @@ type ClaimRequest struct {
 	Email    string
 	Password string
 	Token    string
-	// OrgName names the hub's first organization (25). Optional: an operator
-	// claiming a fresh hub is thinking about getting in, not about naming
-	// things, so an empty value is filled in from the email domain rather
-	// than refused.
+	// OrgName names the hub's first organization (25). Optional: blank
+	// becomes DefaultOrgName rather than a refusal. Hosted first-run asks
+	// for it; self-host does not, and gets the same default.
 	OrgName string
 }
 
@@ -79,33 +78,26 @@ type Credentials struct {
 // string, and a megabyte of one is a payload, not a name.
 const orgNameMax = 120
 
-// DefaultOrgName guesses an organization name from an email address.
-//
-// The domain is the best guess available without asking, and it is usually
-// right: the person claiming a hub is claiming it for the company whose
-// address they used. A personal-mail domain produces "gmail.com", which is
-// visibly wrong in the cockpit and therefore gets renamed — better than a
-// plausible-looking name nobody notices is wrong. Draft 26 leaves "personal
-// org versus name a company" open; this is a default, not that answer.
-func DefaultOrgName(email string) string {
-	at := strings.LastIndex(email, "@")
-	if at < 0 || at == len(email)-1 {
-		return "My organization"
-	}
-	return email[at+1:]
-}
+// DefaultOrgName is what a first organization is called when nobody names
+// it. It is a display string, not an identifier: the row is still `org-`
+// plus random bits (`06`). Taking the email domain instead produced
+// "gmail.com" on the first live claim, which then sat on every screen
+// until someone renamed it. A fixed, obviously generic name is the thing
+// you notice and change — or leave, if one org is all you need.
+const DefaultOrgName = "default"
 
-// CheckOrgName trims a submitted name and falls back to the default. It does
-// not police the content: an organization is named by its owner, not by us.
-func CheckOrgName(name, email string) string {
+// CheckOrgName trims a submitted name and falls back to DefaultOrgName. It
+// does not police the content: an organization is named by its owner, not
+// by us.
+func CheckOrgName(name string) string {
 	trimmed := strings.TrimSpace(name)
-	if trimmed == "" {
-		return DefaultOrgName(email)
-	}
 	if utf8.RuneCountInString(trimmed) > orgNameMax {
 		// Cut on runes, not bytes, so a long name in a non-Latin script does
 		// not end in half a character.
 		return string([]rune(trimmed)[:orgNameMax])
+	}
+	if trimmed == "" {
+		return DefaultOrgName
 	}
 	return trimmed
 }
@@ -142,6 +134,6 @@ func Claim(st State, req ClaimRequest) (Credentials, error) {
 	return Credentials{
 		Email:        email,
 		PasswordHash: hash,
-		OrgName:      CheckOrgName(req.OrgName, email),
+		OrgName:      CheckOrgName(req.OrgName),
 	}, nil
 }

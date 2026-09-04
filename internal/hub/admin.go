@@ -102,7 +102,7 @@ func (s *Server) handleRenameOrg(w http.ResponseWriter, r *http.Request, actor a
 	}
 	// The email argument is unused for a non-empty name; this is the same
 	// trimming and length rule first-run applies, in one place.
-	if err := s.store.RenameOrg(orgId, auth.CheckOrgName(req.Name, "")); err != nil {
+	if err := s.store.RenameOrg(orgId, auth.CheckOrgName(req.Name)); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

@@ -122,11 +122,12 @@ the hub is claimed, and a restart mints a new one if you lose it. The hub
 machine shows up as your first device automatically.
 
 Claiming also creates the hub's first organization and makes you its owner.
-The form takes a name for it; blank falls back to the domain in your email,
-and an owner or admin can rename it later under **People**. That screen is
-where an organization's own roster lives — who belongs to it and with which
-role. **Administration**, next to it, lists every account and organization on
-the installation and is visible only to the operator who claimed the hub.
+On a hosted hub the form asks for a name; left blank — and always on
+self-host — it is called `default`. An owner or admin can rename it later
+under **People**. That screen is where an organization's own roster lives —
+who belongs to it and with which role. **Administration**, next to it, lists
+every account and organization on the installation and is visible only to
+the operator who claimed the hub.
 
 The Vercel deployment is the public static product site. The authenticated hub
 remains a durable install on Linux, macOS, or Windows because it owns the local

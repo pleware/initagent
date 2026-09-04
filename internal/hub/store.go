@@ -353,7 +353,7 @@ func (s *Store) BackfillOperatorOrg() (*Org, error) {
 	}
 	now := time.Now().Unix()
 	org := &Org{
-		Id: orgId, Name: auth.DefaultOrgName(admin.Email),
+		Id: orgId, Name: auth.DefaultOrgName,
 		CreatedAt: now, Members: 1,
 	}
 	tx, err := s.db.Begin()

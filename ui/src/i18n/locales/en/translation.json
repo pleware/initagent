@@ -124,9 +124,9 @@
     "renameFailed": "Could not rename"
   },
   "claim": {
-    "organization": "Organization",
-    "organizationPlaceholder": "Your company",
-    "organizationHint": "Claiming a hub also creates its first organization, which is what people and projects belong to. Left blank, it takes the domain from your address; you can rename it later."
+    "organization": "Organization name",
+    "organizationPlaceholder": "default",
+    "organizationHint": "People and projects belong to an organization. Left blank, it is called default; you can rename it later."
   },
   "tasks": {
     "eyebrow": "Task queue",

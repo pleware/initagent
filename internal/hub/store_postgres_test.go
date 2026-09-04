@@ -158,8 +158,8 @@ func TestStorePostgresSmoke(t *testing.T) {
 	if err != nil || filled == nil {
 		t.Fatalf("BackfillOperatorOrg on Postgres = (%v, %v), want an org", filled, err)
 	}
-	if filled.Name != "example.com" {
-		t.Errorf("backfilled org name = %q, want the admin's email domain", filled.Name)
+	if filled.Name != auth.DefaultOrgName {
+		t.Errorf("backfilled org name = %q, want %q", filled.Name, auth.DefaultOrgName)
 	}
 	backRoster, err := s.OrgRoster(filled.Id)
 	if err != nil || backRoster.Members[account.Id] != authz.RoleOwner {

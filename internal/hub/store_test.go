@@ -348,8 +348,8 @@ func TestBackfillOperatorOrg(t *testing.T) {
 	if err != nil || org == nil {
 		t.Fatalf("BackfillOperatorOrg = (%v, %v), want an org", org, err)
 	}
-	if org.Name != "example.com" {
-		t.Errorf("org name = %q, want the admin's email domain", org.Name)
+	if org.Name != auth.DefaultOrgName {
+		t.Errorf("org name = %q, want %q", org.Name, auth.DefaultOrgName)
 	}
 	roster, err := s.OrgRoster(org.Id)
 	if err != nil || roster.Members[admin.Id] != authz.RoleOwner {

@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Call an unnamed first organization default
 - 2026-09-04 — Prove the organization backfill on Postgres before shipping it
 ## v0.3.0 — 2026-09-04
 

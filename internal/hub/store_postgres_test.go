@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/pleware/initagent/internal/auth"
 )
 
 // TestStorePostgresSmoke exercises the hub store against a real Postgres so
@@ -86,5 +88,34 @@ func TestStorePostgresSmoke(t *testing.T) {
 	}
 	if ok, _ := s.ValidApiToken(apiTok); !ok {
 		t.Fatal("fresh api token should validate")
+	}
+
+	// Accounts are the reason to care about this test rather than trusting
+	// the SQLite run: the hosted hub is the Postgres one, so the partial
+	// unique index that keeps a hub to one owner has to hold *here*. A
+	// syntax difference would not fail a test, it would fail a deploy.
+	if _, err := s.db.Exec(`DELETE FROM accounts`); err != nil {
+		t.Fatalf("clearing accounts: %v", err)
+	}
+	hash, err := auth.HashPassword("correct-horse-battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := "ops-" + strconv.FormatInt(uniq, 10) + "@example.com"
+	if _, err := s.CreateAdminAccount(first, hash); err != nil {
+		t.Fatalf("CreateAdminAccount: %v", err)
+	}
+	if _, err := s.CreateAdminAccount("second-"+first, hash); err == nil {
+		t.Fatal("Postgres accepted a second admin account; the hub would have two owners")
+	}
+	account, err := s.AccountByEmail(first)
+	if err != nil || account == nil {
+		t.Fatalf("AccountByEmail = (%v, %v), want the account", account, err)
+	}
+	if !account.VerifyPassword("correct-horse-battery") {
+		t.Error("password did not verify against the row read back from Postgres")
+	}
+	if n, err := s.CountAccounts(); err != nil || n != 1 {
+		t.Fatalf("CountAccounts = (%d, %v), want (1, nil)", n, err)
 	}
 }

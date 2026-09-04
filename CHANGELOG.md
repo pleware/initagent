@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-04 — Claim a fresh hub with an account and a one-time token
 - 2026-09-04 — Lead the site with hosted CTAs and read hub offering at serve start.
 - 2026-09-04 — Read hub offering from the data-dir file at serve start
 - 2026-09-04 — Point the marketing Software CTAs at hosted first, self-host second

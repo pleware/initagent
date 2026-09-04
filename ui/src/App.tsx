@@ -12,7 +12,9 @@ import CodingPage from './pages/CodingPage'
 import TasksPage from './pages/TasksPage'
 
 interface Me {
-  setupDone: boolean
+  claimed: boolean
+  offering: string
+  passwordMinLength: number
   authenticated: boolean
   version: string
 }
@@ -25,8 +27,16 @@ export default function App() {
     try {
       setMe(await api.get<Me>('/api/me'))
     } catch {
-      // Hub unreachable; show login screen which will surface errors.
-      setMe({ setupDone: true, authenticated: false, version: '' })
+      // Hub unreachable; show the login screen, which will surface errors.
+      // Claimed is the safe assumption: offering the first-run form to
+      // someone we could not ask would invite a claim that cannot succeed.
+      setMe({
+        claimed: true,
+        offering: '',
+        passwordMinLength: 12,
+        authenticated: false,
+        version: '',
+      })
     }
   }, [])
 
@@ -54,7 +64,14 @@ export default function App() {
       <Routes>
         <Route
           path="*"
-          element={<Login setupDone={me.setupDone} onSuccess={refresh} />}
+          element={
+            <Login
+              claimed={me.claimed}
+              offering={me.offering}
+              passwordMinLength={me.passwordMinLength}
+              onSuccess={refresh}
+            />
+          }
         />
       </Routes>
     )

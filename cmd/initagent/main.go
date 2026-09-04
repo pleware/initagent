@@ -179,6 +179,7 @@ func cmdServe(args []string) error {
 		UI:          uiFS(),
 		GatewayURL:  *gatewayURL,
 		DatabaseURL: *databaseURL,
+		Offering:    kind,
 	})
 	if err != nil {
 		return err

@@ -46,6 +46,12 @@ const (
 	// Missing means selfhost. Values: hosted | selfhost. No secrets.
 	OfferingFile = "offering"
 
+	// ClaimTokenFile holds the one-time bootstrap token an unclaimed hub
+	// mints at start, so an operator who cannot read the log can read the
+	// file instead. Unlike OfferingFile this *is* a secret: mode 0600, and
+	// it is removed the moment the hub is claimed.
+	ClaimTokenFile = "bootstrap-token"
+
 	// TokenPrefix marks an API token so it is recognisable in a log line
 	// without being resolvable. The token value itself stays CSPRNG.
 	TokenPrefix = "iagt_"

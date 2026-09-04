@@ -25,6 +25,7 @@ func TestExportedIdentity(t *testing.T) {
 		{"ConnectorConfigFile", brand.ConnectorConfigFile, "connector.json"},
 		{"FleetConfigFile", brand.FleetConfigFile, "fleet.json"},
 		{"OfferingFile", brand.OfferingFile, "offering"},
+		{"ClaimTokenFile", brand.ClaimTokenFile, "bootstrap-token"},
 		{"EnvOffering", brand.EnvOffering, "INITAGENT_OFFERING"},
 		{"TokenPrefix", brand.TokenPrefix, "iagt_"},
 		{"SessionCookie", brand.SessionCookie, "initagent_auth"},

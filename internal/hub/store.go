@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pleware/initagent/internal/auth"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/id"
 	"github.com/pleware/initagent/internal/store"
@@ -63,6 +64,14 @@ CREATE TABLE IF NOT EXISTS projects (
 	FOREIGN KEY(device_id) REFERENCES devices(id)
 );
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
+CREATE TABLE IF NOT EXISTS accounts (
+	id            TEXT PRIMARY KEY,
+	email         TEXT NOT NULL UNIQUE,
+	password_hash TEXT NOT NULL,
+	is_admin      INTEGER NOT NULL DEFAULT 0,
+	created_at    INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS accounts_single_admin ON accounts(is_admin) WHERE is_admin = 1;
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -112,6 +121,14 @@ CREATE TABLE IF NOT EXISTS projects (
 	FOREIGN KEY(device_id) REFERENCES devices(id)
 );
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
+CREATE TABLE IF NOT EXISTS accounts (
+	id            TEXT PRIMARY KEY,
+	email         TEXT NOT NULL UNIQUE,
+	password_hash TEXT NOT NULL,
+	is_admin      INTEGER NOT NULL DEFAULT 0,
+	created_at    BIGINT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS accounts_single_admin ON accounts(is_admin) WHERE is_admin = 1;
 `
 
 // OpenStore opens the hub store on a SQLite file (self-host / OSS path).
@@ -180,6 +197,86 @@ func (s *Store) SetSetting(key, value string) error {
 	_, err := s.db.Exec(`INSERT INTO settings (key, value) VALUES (?, ?)
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
 	return err
+}
+
+// --- accounts ---
+
+// Account is a person who can sign in to the hub (`acc-`, draft 08). It
+// replaces upstream's anonymous password setting, where "logged in" meant
+// "knew a secret" with no identity to attribute anything to.
+//
+// The stored hash is an unexported field on purpose: this struct is written
+// straight to JSON by the API, so a credential cannot leak by someone adding
+// a handler that returns the whole row.
+type Account struct {
+	Id        string `json:"id"`
+	Email     string `json:"email"`
+	IsAdmin   bool   `json:"isAdmin"`
+	CreatedAt int64  `json:"createdAt"`
+
+	passwordHash string
+}
+
+// VerifyPassword reports whether password matches this account.
+func (a *Account) VerifyPassword(password string) bool {
+	return auth.VerifyPassword(a.passwordHash, password)
+}
+
+// CountAccounts reports how many accounts exist. Zero plus no legacy
+// password setting is an unclaimed hub (`auth.Claimed`).
+func (s *Store) CountAccounts() (int, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM accounts`).Scan(&n)
+	return n, err
+}
+
+// CreateAdminAccount stores the hub's platform admin (`08`).
+//
+// "At most one" is enforced by the partial unique index on is_admin, not by
+// counting rows here first. That matters: two concurrent claims that both
+// read an empty table would both insert, and wrapping the read and the write
+// in a transaction does not help either — under Postgres READ COMMITTED both
+// snapshots still see no rows. A unique index is the only guard that holds at
+// any isolation level, so the second writer gets a constraint violation and
+// the caller reports the hub as already claimed.
+//
+// One consequence to keep in view: this makes a *second* platform admin
+// impossible until someone deliberately drops the index. Relaxing that later
+// is a migration; recovering from two accidental owners is not.
+func (s *Store) CreateAdminAccount(email, passwordHash string) (*Account, error) {
+	accountId, err := id.New(id.Account)
+	if err != nil {
+		return nil, err
+	}
+	a := &Account{
+		Id: accountId, Email: email, IsAdmin: true,
+		CreatedAt: time.Now().Unix(), passwordHash: passwordHash,
+	}
+	_, err = s.db.Exec(`INSERT INTO accounts (id, email, password_hash, is_admin, created_at)
+		VALUES (?, ?, ?, 1, ?)`, a.Id, a.Email, a.passwordHash, a.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+// AccountByEmail looks up sign-in credentials. A missing account is
+// (nil, nil): callers answer the same way for a wrong address and a wrong
+// password, so the form cannot be used to enumerate who has an account.
+func (s *Store) AccountByEmail(email string) (*Account, error) {
+	var a Account
+	var isAdmin int
+	err := s.db.QueryRow(`SELECT id, email, password_hash, is_admin, created_at
+		FROM accounts WHERE email = ?`, email).
+		Scan(&a.Id, &a.Email, &a.passwordHash, &isAdmin, &a.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	a.IsAdmin = isAdmin == 1
+	return &a, nil
 }
 
 // --- devices ---

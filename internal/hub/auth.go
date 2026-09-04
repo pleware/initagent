@@ -2,46 +2,20 @@ package hub
 
 import (
 	"crypto/rand"
-	"crypto/subtle"
-	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"golang.org/x/crypto/argon2"
 	"github.com/pleware/initagent/internal/brand"
 )
 
 const sessionCookie = brand.SessionCookie
 
-// --- password hashing (argon2id) ---
-
-func hashPassword(password string) string {
-	salt := make([]byte, 16)
-	rand.Read(salt)
-	key := argon2.IDKey([]byte(password), salt, 3, 64*1024, 2, 32)
-	return fmt.Sprintf("argon2id$%s$%s",
-		base64.RawStdEncoding.EncodeToString(salt),
-		base64.RawStdEncoding.EncodeToString(key))
-}
-
-func verifyPassword(stored, password string) bool {
-	parts := strings.Split(stored, "$")
-	if len(parts) != 3 || parts[0] != "argon2id" {
-		return false
-	}
-	salt, err1 := base64.RawStdEncoding.DecodeString(parts[1])
-	want, err2 := base64.RawStdEncoding.DecodeString(parts[2])
-	if err1 != nil || err2 != nil {
-		return false
-	}
-	got := argon2.IDKey([]byte(password), salt, 3, 64*1024, 2, 32)
-	return subtle.ConstantTimeCompare(got, want) == 1
-}
+// Password hashing lives in internal/auth, which owns the credential
+// decisions for both planes and is under the coverage gate.
 
 // --- browser sessions (in-memory; hub restart = re-login) ---
 

@@ -21,6 +21,7 @@ import (
 	"github.com/pleware/initagent/internal/agent"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/join"
+	"github.com/pleware/initagent/internal/offering"
 )
 
 // Options configures a hub server.
@@ -39,6 +40,12 @@ type Options struct {
 	// default SQLite file under DataDir. Empty = SQLite (self-host / OSS).
 	DatabaseURL string
 
+	// Offering is how this installation was started (draft 18), resolved by
+	// internal/offering before the server is built. It sets the password
+	// floor at first-run and is reported to the login screen. The zero value
+	// is treated as the stricter (hosted) case rather than the laxer one.
+	Offering offering.Kind
+
 	// TLSDomain enables automatic HTTPS via Let's Encrypt for this exact
 	// domain. When set, the hub serves HTTPS on :443 and runs an HTTP server on
 	// :80 for the ACME challenge + a redirect to HTTPS. TLSEmail is sent to the
@@ -55,6 +62,7 @@ type Server struct {
 	// it shares the gateway's implementation rather than carrying a copy.
 	installer     join.Installer
 	store         *Store
+	claim         *bootstrapClaim
 	sessions      *sessionManager
 	loginRL       *rateLimiter
 	events        *eventBus
@@ -107,6 +115,15 @@ func NewServer(opts Options) (*Server, error) {
 		events:   events,
 		registry: newRegistry(events),
 		mux:      http.NewServeMux(),
+	}
+	claimed, err := s.claimed()
+	if err != nil {
+		store.Close()
+		return nil, err
+	}
+	if s.claim, err = newBootstrapClaim(opts.DataDir, claimed); err != nil {
+		store.Close()
+		return nil, err
 	}
 	s.routes()
 	s.updates = newUpdateManager(store, opts.Version, opts.GithubRepo)

@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pleware/initagent/internal/auth"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/protocol"
 	"github.com/pleware/initagent/internal/updater"
@@ -18,46 +20,125 @@ import (
 
 // --- setup & auth ---
 
+// handleSetup claims an unclaimed hub: the first account, in both offerings.
+// The bootstrap token is what separates the operator from whoever else found
+// the URL, so this endpoint is worthless without it (`26`).
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
-	existing, err := s.store.Setting("password_hash")
+	if !s.loginRL.allow(r.RemoteAddr) {
+		httpError(w, http.StatusTooManyRequests, "too many attempts, try again in a minute")
+		return
+	}
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Token    string `json:"token"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		httpError(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	claimed, err := s.claimed()
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if existing != "" {
-		httpError(w, http.StatusConflict, "already set up")
+	creds, err := auth.Claim(auth.State{
+		Offering:      s.opts.Offering,
+		Claimed:       claimed,
+		ExpectedToken: s.claim.expected(),
+	}, auth.ClaimRequest{Email: req.Email, Password: req.Password, Token: req.Token})
+	if err != nil {
+		httpError(w, claimStatus(err), err.Error())
 		return
 	}
-	var req struct {
-		Password string `json:"password"`
-	}
-	if err := readJSON(r, &req); err != nil || len(req.Password) < 8 {
-		httpError(w, http.StatusBadRequest, "password must be at least 8 characters")
-		return
-	}
-	if err := s.store.SetSetting("password_hash", hashPassword(req.Password)); err != nil {
+	if _, err := s.store.CreateAdminAccount(creds.Email, creds.PasswordHash); err != nil {
+		// The partial unique index on is_admin is the arbiter, so a second
+		// concurrent claim lands here rather than creating a second owner.
+		if nowClaimed, checkErr := s.claimed(); checkErr == nil && nowClaimed {
+			httpError(w, http.StatusConflict, auth.ErrAlreadyClaimed.Error())
+			return
+		}
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	s.claim.consume()
 	s.issueSession(w, r)
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
+// claimStatus maps a claim refusal onto a status code. A claimed hub answers
+// 409 whatever token arrived, which is what stops this endpoint from being an
+// oracle for guessing the token.
+func claimStatus(err error) int {
+	switch {
+	case errors.Is(err, auth.ErrAlreadyClaimed):
+		return http.StatusConflict
+	case errors.Is(err, auth.ErrClaimToken):
+		return http.StatusForbidden
+	case errors.Is(err, auth.ErrEmailInvalid), errors.Is(err, auth.ErrPasswordWeak):
+		return http.StatusBadRequest
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+// handleLogin authenticates an account by email and password.
+//
+// A hub that was set up before accounts existed still carries upstream's
+// anonymous password setting, and a request with no email is matched against
+// it so an existing self-host install keeps working. Nothing writes that
+// setting any more.
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if !s.loginRL.allow(r.RemoteAddr) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again in a minute")
 		return
 	}
 	var req struct {
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		httpError(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	stored, err := s.store.Setting("password_hash")
-	if err != nil || stored == "" || !verifyPassword(stored, req.Password) {
-		httpError(w, http.StatusUnauthorized, "wrong password")
+	if strings.TrimSpace(req.Email) == "" {
+		s.loginLegacy(w, r, req.Password)
+		return
+	}
+	// One message for a wrong address and a wrong password, and the same work
+	// spent either way: the form must not report who has an account here.
+	email, err := auth.NormalizeEmail(req.Email)
+	if err != nil {
+		auth.BurnVerify(req.Password)
+		httpError(w, http.StatusUnauthorized, "wrong email or password")
+		return
+	}
+	account, err := s.store.AccountByEmail(email)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if account == nil {
+		auth.BurnVerify(req.Password)
+		httpError(w, http.StatusUnauthorized, "wrong email or password")
+		return
+	}
+	if !account.VerifyPassword(req.Password) {
+		httpError(w, http.StatusUnauthorized, "wrong email or password")
+		return
+	}
+	s.issueSession(w, r)
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
+func (s *Server) loginLegacy(w http.ResponseWriter, r *http.Request, password string) {
+	stored, err := s.store.Setting(legacyPasswordSetting)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if stored == "" || !auth.VerifyPassword(stored, password) {
+		httpError(w, http.StatusUnauthorized, "wrong email or password")
 		return
 	}
 	s.issueSession(w, r)
@@ -82,17 +163,31 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
-// handleMe reports auth/setup state so the UI knows which screen to show.
+// handleMe reports auth state so the UI knows which screen to show.
+//
+// `offering` is here because the login screen has to say which kind of hub
+// this is (`26`): an operator should see what they are about to type a
+// credential into, and a hosted hub that fell back to selfhost is otherwise
+// invisible outside the host's own health check.
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
-	stored, _ := s.store.Setting("password_hash")
+	claimed, err := s.claimed()
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	authed := false
 	if c, err := r.Cookie(sessionCookie); err == nil && s.sessions.valid(c.Value) {
 		authed = true
 	}
+	// The password floor travels with the state instead of being repeated in
+	// the cockpit: a form that says eight while the hub demands twelve is a
+	// rejection the person cannot act on.
 	writeJSON(w, map[string]any{
-		"setupDone":     stored != "",
-		"authenticated": authed,
-		"version":       s.opts.Version,
+		"claimed":           claimed,
+		"offering":          string(s.opts.Offering),
+		"passwordMinLength": auth.MinPassword(s.opts.Offering),
+		"authenticated":     authed,
+		"version":           s.opts.Version,
 	})
 }
 

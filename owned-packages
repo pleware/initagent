@@ -11,3 +11,4 @@
 ./internal/gateway
 ./internal/join
 ./internal/offering
+./internal/auth

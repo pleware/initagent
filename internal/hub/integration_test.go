@@ -9,12 +9,15 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/pleware/initagent/internal/agent"
+	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/protocol"
 )
 
@@ -195,39 +198,73 @@ func TestAuthFlow(t *testing.T) {
 		return resp
 	}
 
+	const email = "ops@example.com"
+	const password = "correct-horse-battery"
+	token := srv.claim.expected()
+	if token == "" {
+		t.Fatal("a fresh hub minted no bootstrap token, so it cannot be claimed")
+	}
+
 	// Protected route without auth.
 	if resp, _ := client.Get(ts.URL + "/api/devices"); resp.StatusCode != 401 {
 		t.Fatalf("unauthenticated devices: %d, want 401", resp.StatusCode)
 	}
-	// Short password rejected.
-	if resp := post("/api/setup", map[string]string{"password": "short"}); resp.StatusCode != 400 {
+	// Without the bootstrap token the hub is not claimable, which is the
+	// whole point: on a public name the form is otherwise a land grab.
+	if resp := post("/api/setup", map[string]string{"email": email, "password": password}); resp.StatusCode != 403 {
+		t.Fatalf("claim with no token: %d, want 403", resp.StatusCode)
+	}
+	if resp := post("/api/setup", map[string]string{"email": email, "password": password, "token": "guessed"}); resp.StatusCode != 403 {
+		t.Fatalf("claim with a wrong token: %d, want 403", resp.StatusCode)
+	}
+	// A valid token still does not buy a weak password or a bad address.
+	if resp := post("/api/setup", map[string]string{"email": email, "password": "short", "token": token}); resp.StatusCode != 400 {
 		t.Fatalf("short password: %d, want 400", resp.StatusCode)
 	}
-	// Proper setup logs us in.
-	if resp := post("/api/setup", map[string]string{"password": "a-strong-password"}); resp.StatusCode != 200 {
-		t.Fatalf("setup: %d", resp.StatusCode)
+	if resp := post("/api/setup", map[string]string{"email": "root@localhost", "password": password, "token": token}); resp.StatusCode != 400 {
+		t.Fatalf("address with no domain dot: %d, want 400", resp.StatusCode)
+	}
+	// Proper claim logs us in.
+	if resp := post("/api/setup", map[string]string{"email": email, "password": password, "token": token}); resp.StatusCode != 200 {
+		t.Fatalf("claim: %d", resp.StatusCode)
 	}
 	if resp, _ := client.Get(ts.URL + "/api/devices"); resp.StatusCode != 200 {
 		t.Fatalf("authed devices: %d, want 200", resp.StatusCode)
 	}
-	// Second setup attempt is blocked.
-	if resp := post("/api/setup", map[string]string{"password": "another-password"}); resp.StatusCode != 409 {
-		t.Fatalf("re-setup: %d, want 409", resp.StatusCode)
+	// The token is spent, and a claimed hub answers 409 whatever arrives, so
+	// the endpoint cannot be used to test tokens.
+	if got := srv.claim.expected(); got != "" {
+		t.Errorf("bootstrap token is still live after the claim: %q", got)
 	}
-	// Fresh client: wrong then right password.
+	if _, err := os.Stat(filepath.Join(srv.opts.DataDir, brand.ClaimTokenFile)); !os.IsNotExist(err) {
+		t.Errorf("token file survived the claim: %v", err)
+	}
+	if resp := post("/api/setup", map[string]string{"email": "other@example.com", "password": password, "token": token}); resp.StatusCode != 409 {
+		t.Fatalf("re-claim with the old token: %d, want 409", resp.StatusCode)
+	}
+
+	// Fresh client: wrong password, unknown address, then the real pair.
 	jar2, _ := cookiejar.New(nil)
 	client2 := &http.Client{Jar: jar2}
-	b, _ := json.Marshal(map[string]string{"password": "wrong-password"})
-	resp, _ := client2.Post(ts.URL+"/api/login", "application/json", bytes.NewReader(b))
-	if resp.StatusCode != 401 {
-		t.Fatalf("wrong login: %d, want 401", resp.StatusCode)
+	login := func(body any) *http.Response {
+		b, _ := json.Marshal(body)
+		resp, err := client2.Post(ts.URL+"/api/login", "application/json", bytes.NewReader(b))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return resp
 	}
-	b, _ = json.Marshal(map[string]string{"password": "a-strong-password"})
-	resp, _ = client2.Post(ts.URL+"/api/login", "application/json", bytes.NewReader(b))
-	if resp.StatusCode != 200 {
+	if resp := login(map[string]string{"email": email, "password": "wrong-password"}); resp.StatusCode != 401 {
+		t.Fatalf("wrong password: %d, want 401", resp.StatusCode)
+	}
+	if resp := login(map[string]string{"email": "nobody@example.com", "password": password}); resp.StatusCode != 401 {
+		t.Fatalf("unknown address: %d, want 401", resp.StatusCode)
+	}
+	if resp := login(map[string]string{"email": email, "password": password}); resp.StatusCode != 200 {
 		t.Fatalf("login: %d, want 200", resp.StatusCode)
 	}
 	// API token auth.
+	var resp *http.Response
 	apiToken, _ := srv.store.CreateApiToken("test")
 	req, _ := http.NewRequest("GET", ts.URL+"/api/devices", nil)
 	req.Header.Set("Authorization", "Bearer "+apiToken)

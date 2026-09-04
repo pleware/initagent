@@ -2,6 +2,9 @@
 
 # 👁️ initagent
 
+[![CI](https://github.com/pleware/initagent/actions/workflows/ci.yml/badge.svg)](https://github.com/pleware/initagent/actions/workflows/ci.yml)
+[![Go](https://img.shields.io/github/go-mod/go-version/pleware/initagent)](https://github.com/pleware/initagent/blob/main/go.mod)
+
 **Control all your machines from one browser tab.**
 
 Public site: **[initagent.dev](https://initagent.dev)** (marketing and
@@ -110,7 +113,12 @@ make            # builds the UI + the ./initagent binary (needs Go 1.25 + Node 2
 ./initagent serve
 ```
 
-Open `http://localhost:4200`, set an admin password, and you're in. The hub
+A hub with no owner prints a one-time bootstrap token when it starts, and
+writes the same value to `bootstrap-token` in its data directory. Open
+`http://localhost:4200` and claim the hub with your email, a password, and
+that token. The token is what stops a hub that is reachable from anywhere
+being claimed by whoever finds the address first; it stops working the moment
+the hub is claimed, and a restart mints a new one if you lose it. The hub
 machine shows up as your first device automatically.
 
 The Vercel deployment is the public static product site. The authenticated hub

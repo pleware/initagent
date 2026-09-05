@@ -2,6 +2,10 @@
 
 ## Unreleased — product
 
+- 2026-09-05 — Cut v0.3.8 so hosted boarding and the Plans pages go live
+
+## v0.3.8 — 2026-09-05
+
 - 2026-09-05 — Finish hosted boarding and put plans on their own site pages.
 - 2026-09-05 — Site pages for Plans, For Developers, and Hardware
 - 2026-09-05 — Hosted plans: $5 per person; site Plans section

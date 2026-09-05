@@ -227,7 +227,7 @@ func TestRunQueuedEmptyCommandFails(t *testing.T) {
 	if _, err := g.Store().Enqueue(context.Background(), scheduler.Task{ProjectID: g.Project().ID}); err != nil {
 		t.Fatal(err)
 	}
-	view, err := g.RunQueued(context.Background(), deviceID)
+	view, err := g.RunQueued(context.Background(), g.Project().ID, deviceID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +247,7 @@ func TestRunQueuedTimeoutFails(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	view, err := g.RunQueued(ctx, deviceID)
+	view, err := g.RunQueued(ctx, g.Project().ID, deviceID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +269,7 @@ func TestRunQueuedDisconnectFails(t *testing.T) {
 	var view TaskView
 	go func() {
 		var err error
-		view, err = g.RunQueued(context.Background(), deviceID)
+		view, err = g.RunQueued(context.Background(), g.Project().ID, deviceID)
 		errc <- err
 	}()
 	deadline := time.Now().Add(2 * time.Second)
@@ -296,7 +296,7 @@ func TestRunQueuedDisconnectFails(t *testing.T) {
 
 func TestRunQueuedOffline(t *testing.T) {
 	g := openTest(t, "")
-	_, err := g.RunQueued(context.Background(), mustDevice(t))
+	_, err := g.RunQueued(context.Background(), g.Project().ID, mustDevice(t))
 	if err != ErrDeviceOffline {
 		t.Fatalf("err = %v", err)
 	}
@@ -312,7 +312,7 @@ func TestCreateTaskNoSlot(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := g.Claim(context.Background(), deviceID); err != nil {
+	if _, _, err := g.Claim(context.Background(), g.Project().ID, deviceID); err != nil {
 		t.Fatal(err)
 	}
 	rec := postTask(t, ts, map[string]string{"command": "next", "deviceId": deviceID})
@@ -337,7 +337,7 @@ func TestRunQueuedBadExecJSON(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	view, err := g.RunQueued(context.Background(), deviceID)
+	view, err := g.RunQueued(context.Background(), g.Project().ID, deviceID)
 	if err != nil {
 		t.Fatal(err)
 	}

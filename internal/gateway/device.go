@@ -10,9 +10,12 @@ import (
 	"github.com/pleware/initagent/internal/protocol"
 )
 
-// Device is a worker enrolled into this project.
+// Device is a worker enrolled into one project. ProjectID travels with the
+// row so a credential answers which project it belongs to — a gateway
+// process serves many projects, so the socket cannot inherit one (18).
 type Device struct {
 	ID        string `json:"id"`
+	ProjectID string `json:"projectId"`
 	Name      string `json:"name"`
 	Hostname  string `json:"hostname"`
 	OS        string `json:"os"`
@@ -100,7 +103,7 @@ func (s *Store) UpdateDeviceOnConnect(ctx context.Context, deviceID, hostname, o
 	return err
 }
 
-const deviceSelect = `SELECT id, name, hostname, os, arch, created_at, last_seen FROM devices`
+const deviceSelect = `SELECT id, project_id, name, hostname, os, arch, created_at, last_seen FROM devices`
 
 func (s *Store) scanDevice(row *sql.Row) (*Device, error) {
 	d, err := scanDeviceRow(row)
@@ -120,7 +123,7 @@ type deviceRow interface {
 func scanDeviceRow(row deviceRow) (Device, error) {
 	var d Device
 	var created, lastSeen int64
-	err := row.Scan(&d.ID, &d.Name, &d.Hostname, &d.OS, &d.Arch, &created, &lastSeen)
+	err := row.Scan(&d.ID, &d.ProjectID, &d.Name, &d.Hostname, &d.OS, &d.Arch, &created, &lastSeen)
 	if err != nil {
 		return Device{}, err
 	}

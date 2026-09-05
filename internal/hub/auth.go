@@ -200,6 +200,29 @@ func (s *Server) requireActor(next func(http.ResponseWriter, *http.Request, auth
 	}
 }
 
+// optionalActor resolves who is behind a request when a browser session says
+// so, and reports nothing when the credential is an API token.
+//
+// It exists for the routes that requireAuth already guards, where knowing
+// the person lets us scope a project to their membership. Returning nil for a
+// token keeps that credential's semantics exactly as they are — unscoped
+// (09) — rather than quietly widening or narrowing it here.
+func (s *Server) optionalActor(r *http.Request) (*authz.Actor, error) {
+	c, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return nil, nil
+	}
+	account, ok := s.sessions.lookup(c.Value)
+	if !ok {
+		return nil, nil
+	}
+	actor, err := s.resolveActor(account)
+	if err != nil {
+		return nil, err
+	}
+	return &actor, nil
+}
+
 // resolveActor turns an account id into the identity the rules read.
 //
 // An empty account is a session issued against the legacy operator password

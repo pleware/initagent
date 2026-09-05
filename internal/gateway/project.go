@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -30,6 +31,24 @@ func (s *Store) BindProject(ctx context.Context, projectID, address string) (Pro
 		return Project{}, fmt.Errorf("bind project: %w", err)
 	}
 	return s.Project(ctx, projectID)
+}
+
+// EnsureProject makes sure a project the hub routed here has a row, because
+// tasks, devices and enroll tokens all reference projects(id). Placement is a
+// column on the hub's project row (18), so admitting the second project is
+// this insert rather than a provisioned process, a port and a certificate.
+//
+// It reads before it writes: the common case is a project this process has
+// already served, and that must not cost a write per request.
+func (s *Store) EnsureProject(ctx context.Context, projectID, address string) (Project, error) {
+	p, err := s.Project(ctx, projectID)
+	if err == nil {
+		return p, nil
+	}
+	if !errors.Is(err, ErrProjectNotFound) {
+		return Project{}, err
+	}
+	return s.BindProject(ctx, projectID, address)
 }
 
 // Project loads a bound project by the shared prj-.

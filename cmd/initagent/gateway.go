@@ -4,7 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 
+	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/gateway"
 )
 
@@ -24,6 +26,7 @@ func cmdGateway(args []string) error {
 		ProjectID: *projectID,
 		PublicURL: *publicURL,
 		Version:   version,
+		HubSecret: os.Getenv(brand.EnvGatewaySecret),
 	})
 	if err != nil {
 		return err

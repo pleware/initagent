@@ -33,9 +33,16 @@ type Options struct {
 	GithubRepo string // "owner/name" used to fetch agent binaries for other platforms
 	UI         fs.FS  // embedded web UI (nil = API only)
 
-	// GatewayURL is the project gateway the cockpit enrolls workers into.
-	// Empty means enroll-token minting refuses rather than baking r.Host.
+	// GatewayURL is the gateway new projects are placed on, and the fallback
+	// for project rows written before placement was read. Empty means
+	// enroll-token minting refuses rather than baking r.Host. Where a request
+	// actually goes is the project's own gateway_url column (18).
 	GatewayURL string
+
+	// GatewaySecret is presented to the gateway on its control routes. Empty
+	// means the gateway is trusted unauthenticated, which is the single-box
+	// self-host default. It carries no project scope; scoped tokens are 09.
+	GatewaySecret string
 
 	// DatabaseURL, when set, points the store at Postgres instead of the
 	// default SQLite file under DataDir. Empty = SQLite (self-host / OSS).

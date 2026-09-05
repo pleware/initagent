@@ -59,6 +59,11 @@ const (
 	// SessionCookie names the hub's browser session cookie. Renaming it logs
 	// every open browser out once, which is why it moves with the rest.
 	SessionCookie = "initagent_auth"
+
+	// ProjectHeader carries the hub's placement decision to a gateway: which
+	// prj- this request acts on. One gateway process serves many projects
+	// (18), so the process cannot be the answer.
+	ProjectHeader = "X-Initagent-Project"
 )
 
 // Environment variables. Every one we read is derived from EnvPrefix, so a
@@ -95,6 +100,12 @@ const (
 	// EnvMailFrom is the From address Resend will send as, e.g.
 	// `initAgent <noreply@initagent.dev>`. Required when the key is set.
 	EnvMailFrom = EnvPrefix + "MAIL_FROM"
+
+	// EnvGatewaySecret is the shared secret the hub presents to a gateway on
+	// the control routes. Empty leaves them open, which is the single-box
+	// self-host default; ops sets it wherever the gateway is reachable. It
+	// carries no project scope — scoped tokens are 09.
+	EnvGatewaySecret = EnvPrefix + "GATEWAY_SECRET"
 )
 
 // Service identities. Renaming these breaks upgrades of an already-installed

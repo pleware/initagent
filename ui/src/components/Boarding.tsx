@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api } from '../api'
+import { api, forProject } from '../api'
 import { usePoll } from '../hooks'
 import type { Device, Me, Project, ProjectTemplate, TaskView } from '../types'
 import { HubError } from './PlanWall'
@@ -82,8 +82,10 @@ export default function Boarding({
 
   useEffect(() => {
     if (step !== 'worker') return
+    // The worker joins the project we just created, not whichever project the
+    // hub would have picked: the enrol command bakes in a gateway URL (10).
     api
-      .post<{ command: string; windowsCommand: string }>('/api/enroll-tokens')
+      .post<{ command: string; windowsCommand: string }>(forProject('/api/enroll-tokens', project?.id))
       .then((offer) => {
         setCommand(offer.command)
         setWindowsCommand(offer.windowsCommand)
@@ -91,7 +93,7 @@ export default function Boarding({
       .catch((cause) => {
         setError(cause)
       })
-  }, [step, t])
+  }, [step, project?.id, t])
 
   const online = fleet.filter((device) => device.online)
   const joined = online.length > 0
@@ -170,7 +172,7 @@ export default function Boarding({
     setError(null)
     setTask(null)
     try {
-      setTask(await api.post<TaskView>('/api/tasks', { command: firstTaskCommand }))
+      setTask(await api.post<TaskView>(forProject('/api/tasks', project?.id), { command: firstTaskCommand }))
     } catch (cause) {
       setError(cause)
     } finally {

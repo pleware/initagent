@@ -170,18 +170,19 @@ func cmdServe(args []string) error {
 	log.Printf("offering %s", kind)
 
 	srv, err := hub.NewServer(hub.Options{
-		Addr:         *addr,
-		DataDir:      resolvedDir,
-		Version:      version,
-		GithubRepo:   brand.ReleaseSource,
-		TLSDomain:    *tlsDomain,
-		TLSEmail:     *tlsEmail,
-		UI:           uiFS(),
-		GatewayURL:   *gatewayURL,
-		DatabaseURL:  *databaseURL,
-		Offering:     kind,
-		ResendAPIKey: os.Getenv(brand.EnvResendAPIKey),
-		MailFrom:     os.Getenv(brand.EnvMailFrom),
+		Addr:          *addr,
+		DataDir:       resolvedDir,
+		Version:       version,
+		GithubRepo:    brand.ReleaseSource,
+		TLSDomain:     *tlsDomain,
+		TLSEmail:      *tlsEmail,
+		UI:            uiFS(),
+		GatewayURL:    *gatewayURL,
+		GatewaySecret: os.Getenv(brand.EnvGatewaySecret),
+		DatabaseURL:   *databaseURL,
+		Offering:      kind,
+		ResendAPIKey:  os.Getenv(brand.EnvResendAPIKey),
+		MailFrom:      os.Getenv(brand.EnvMailFrom),
 	})
 	if err != nil {
 		return err

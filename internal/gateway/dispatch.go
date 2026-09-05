@@ -44,11 +44,11 @@ func viewTask(t scheduler.Task, stdout, stderr string) TaskView {
 // over TypeExec on the live agent socket, and Finish-es the row. Completion
 // flows through the completion registry: the exec reply becomes a resolver
 // Outcome whose exit code and reason drive the terminal state.
-func (g *Gateway) RunQueued(ctx context.Context, workerID string) (TaskView, error) {
-	if g.connFor(workerID) == nil {
+func (g *Gateway) RunQueued(ctx context.Context, projectID, workerID string) (TaskView, error) {
+	if g.connForProject(projectID, workerID) == nil {
 		return TaskView{}, ErrDeviceOffline
 	}
-	claimed, _, err := g.Claim(ctx, workerID)
+	claimed, _, err := g.Claim(ctx, projectID, workerID)
 	if err != nil {
 		return TaskView{}, err
 	}

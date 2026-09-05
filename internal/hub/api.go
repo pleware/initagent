@@ -379,11 +379,11 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request) {
-	if s.opts.GatewayURL == "" {
-		httpError(w, http.StatusServiceUnavailable, "gateway URL is required (--gateway-url); enroll must target the project gateway, not the hub")
+	p, ok := s.gatewayFor(w, r)
+	if !ok {
 		return
 	}
-	s.proxyGateway(w, r, http.MethodPost, "/api/enroll-tokens", gatewayProxyTimeout)
+	s.proxyGateway(w, r, p, http.MethodPost, "/api/enroll-tokens", gatewayProxyTimeout)
 }
 
 // --- devices ---
@@ -424,8 +424,14 @@ func (s *Server) deviceViews() ([]deviceView, error) {
 }
 
 func (s *Server) handleListDevices(w http.ResponseWriter, r *http.Request) {
+	// The flag still decides whether this hub has a gateway plane at all;
+	// without one the inherited single-plane path below is the answer.
 	if s.opts.GatewayURL != "" {
-		s.proxyGateway(w, r, http.MethodGet, "/api/devices", gatewayProxyTimeout)
+		p, ok := s.gatewayFor(w, r)
+		if !ok {
+			return
+		}
+		s.proxyGateway(w, r, p, http.MethodGet, "/api/devices", gatewayProxyTimeout)
 		return
 	}
 	views, err := s.deviceViews()

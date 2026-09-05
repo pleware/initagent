@@ -319,9 +319,9 @@ func reapExpired(ctx context.Context, tx *sql.Tx, now time.Time) error {
 	return err
 }
 
-// Claim takes the oldest queued task for this gateway's project onto workerID.
-func (g *Gateway) Claim(ctx context.Context, workerID string) (*scheduler.Task, *scheduler.Lease, error) {
-	return g.store.Claim(ctx, g.project.ID, workerID, g.lease)
+// Claim takes the oldest queued task for projectID onto workerID.
+func (g *Gateway) Claim(ctx context.Context, projectID, workerID string) (*scheduler.Task, *scheduler.Lease, error) {
+	return g.store.Claim(ctx, projectID, workerID, g.lease)
 }
 
 // Heartbeat refreshes the lease using this gateway's lease duration.

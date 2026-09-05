@@ -60,6 +60,10 @@ type Options struct {
 	// Lease is how long a claimed slot lasts without a heartbeat.
 	// Zero means DefaultLease.
 	Lease time.Duration
+	// HubSecret is required on the control routes the hub calls. Empty
+	// leaves them open, which is today's single-box self-host default.
+	// It carries no project scope; scoped tokens are 09.
+	HubSecret string
 }
 
 // DefaultLease is the Milestone 0 claim duration (capacity of one slot).
@@ -68,17 +72,27 @@ const DefaultLease = 5 * time.Minute
 // workerSlots is the Milestone 0 capacity stub: one active task per device.
 const workerSlots = 1
 
+// presence is a live device socket. projectID is copied from the device row
+// at connect so worker selection can be scoped without a query per pick — a
+// task for one project must never land on another project's machine.
 type presence struct {
-	hello protocol.Hello
-	stats *protocol.Stats
-	conn  *agentConn
+	projectID string
+	hello     protocol.Hello
+	stats     *protocol.Stats
+	conn      *agentConn
 }
 
-// Gateway is one process: a store, a bound project, enroll, and health.
+// Gateway is one process serving many projects: a store, the project this
+// process was started with, enroll, and health. The project a request acts on
+// arrives per request (brand.ProjectHeader); the bootstrap project below is
+// what a self-host gateway started by hand answers with when no header is
+// set, which is what keeps OSS a single flag (18).
 type Gateway struct {
 	store   *Store
 	project Project
 	addr    string
+	// hubSecret guards the control routes. Empty means open (self-host).
+	hubSecret string
 	// joiner serves /install/<token> and the agent binary. It is the shared
 	// implementation, not a gateway-local copy — the hub serves the same one.
 	joiner join.Installer
@@ -189,9 +203,10 @@ func Open(opts Options) (*Gateway, error) {
 		lease = DefaultLease
 	}
 	return &Gateway{
-		store:   store,
-		project: project,
-		addr:    addr,
+		store:     store,
+		project:   project,
+		addr:      addr,
+		hubSecret: opts.HubSecret,
 		joiner: join.Installer{
 			DataDir:    dir,
 			GithubRepo: repo,
@@ -234,7 +249,8 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-// Project returns the project bound to this process.
+// Project returns the project this process was started with. It is the
+// fallback for a request that names none, not the only project served.
 func (g *Gateway) Project() Project {
 	return g.project
 }

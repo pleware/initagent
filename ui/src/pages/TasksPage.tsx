@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api } from '../api'
+import { api, forProject } from '../api'
 import type { Device, TaskView } from '../types'
 
 export default function TasksPage() {
   const { t } = useTranslation()
+  // Which project this page acts on travels in the URL, so a link to one
+  // project's console stays a link. Absent means "the hub's only project",
+  // which the hub resolves — the free plan never needs the parameter.
+  const [searchParams] = useSearchParams()
+  const projectId = searchParams.get('project') ?? undefined
   const [devices, setDevices] = useState<Device[]>([])
   const [command, setCommand] = useState('')
   const [deviceId, setDeviceId] = useState('')
@@ -14,11 +20,11 @@ export default function TasksPage() {
 
   const load = useCallback(async () => {
     try {
-      setDevices(await api.get<Device[]>('/api/devices'))
+      setDevices(await api.get<Device[]>(forProject('/api/devices', projectId)))
     } catch {
       /* preserve the last snapshot during a short disconnect */
     }
-  }, [])
+  }, [projectId])
 
   useEffect(() => {
     load()
@@ -35,7 +41,7 @@ export default function TasksPage() {
     try {
       const body: { command: string; deviceId?: string } = { command: command.trim() }
       if (deviceId) body.deviceId = deviceId
-      setResult(await api.post<TaskView>('/api/tasks', body))
+      setResult(await api.post<TaskView>(forProject('/api/tasks', projectId), body))
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {

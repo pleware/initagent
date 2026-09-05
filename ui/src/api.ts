@@ -56,6 +56,17 @@ export const api = {
   del: <T>(path: string) => request<T>('DELETE', path),
 }
 
+// forProject names which project a gateway-bound call acts on. The hub routes
+// to that project's own gateway, so the parameter is placement, not a filter.
+// Omitting it is correct whenever the hub has exactly one project, which is
+// self-host and the free plan; the hub resolves it and refuses to guess when
+// there are two.
+export function forProject(path: string, projectId?: string): string {
+  if (!projectId) return path
+  const separator = path.includes('?') ? '&' : '?'
+  return `${path}${separator}project=${encodeURIComponent(projectId)}`
+}
+
 // Remote execution entry point used by libfx's typed browser-workspace
 // adapter. AbortSignal cancellation stops the browser request immediately;
 // the device-side timeout remains the hard upper bound for a command.

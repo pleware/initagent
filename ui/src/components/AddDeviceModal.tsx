@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api'
+import { api, forProject } from '../api'
 import { useHubEvents } from '../hooks'
 import Modal from './Modal'
 
-export default function AddDeviceModal({ onClose }: { onClose: () => void }) {
+// projectId names which project the new device joins. Omitting it is correct
+// on a hub with one project, which the hub resolves for us.
+export default function AddDeviceModal({ onClose, projectId }: { onClose: () => void; projectId?: string }) {
   const [command, setCommand] = useState('')
   const [windowsCommand, setWindowsCommand] = useState('')
   const [platform, setPlatform] = useState<'unix' | 'windows'>('unix')
@@ -13,13 +15,13 @@ export default function AddDeviceModal({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     api
-      .post<{ command: string; windowsCommand: string }>('/api/enroll-tokens')
+      .post<{ command: string; windowsCommand: string }>(forProject('/api/enroll-tokens', projectId))
       .then((r) => {
         setCommand(r.command)
         setWindowsCommand(r.windowsCommand)
       })
       .catch((e) => setError(e.message))
-  }, [])
+  }, [projectId])
 
   // The modal celebrates live when the new device connects.
   useHubEvents((e) => {

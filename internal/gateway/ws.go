@@ -67,7 +67,7 @@ func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 
 	_ = g.store.UpdateDeviceOnConnect(r.Context(), device.ID, h.Hostname, h.OS, h.Arch)
 	ac := newAgentConn(ws)
-	g.attachConn(device.ID, h, ac)
+	g.attachConn(device.ID, device.ProjectID, h, ac)
 	defer g.markOffline(device.ID)
 
 	welcome, err := protocol.NewMsg(protocol.TypeWelcome, 0, 0, protocol.Welcome{
@@ -171,10 +171,11 @@ func (c *agentConn) call(ctx context.Context, typ string, payload any) (protocol
 	}
 }
 
-func (g *Gateway) attachConn(id string, hello protocol.Hello, c *agentConn) {
+func (g *Gateway) attachConn(id, projectID string, hello protocol.Hello, c *agentConn) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	p := g.online[id]
+	p.projectID = projectID
 	p.hello = hello
 	p.conn = c
 	g.online[id] = p
@@ -196,11 +197,25 @@ func (g *Gateway) connFor(id string) *agentConn {
 	return g.online[id].conn
 }
 
-func (g *Gateway) firstOnlineID() string {
+// connForProject returns the socket only when the device belongs to
+// projectID. Without the check a caller naming another project's dev- would
+// reach that machine, which is the isolation guarantee in 01.
+func (g *Gateway) connForProject(projectID, id string) *agentConn {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	p := g.online[id]
+	if p.projectID != projectID {
+		return nil
+	}
+	return p.conn
+}
+
+// firstOnlineID picks any connected machine belonging to projectID.
+func (g *Gateway) firstOnlineID(projectID string) string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	for id, p := range g.online {
-		if p.conn != nil {
+		if p.conn != nil && p.projectID == projectID {
 			return id
 		}
 	}

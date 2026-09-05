@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-05 — Serve every project from one gateway and route by the project's own gateway URL
 - 2026-09-05 — Stop a fleet update from killing a run the connector is still serving
 - 2026-09-05 — Stop the hosted platform admin from founding a company
 - 2026-09-05 — Let a hosted customer reset a forgotten password in the language they signed up with

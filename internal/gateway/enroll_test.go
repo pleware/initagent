@@ -332,6 +332,38 @@ func TestDeviceByIDAndBadID(t *testing.T) {
 	}
 }
 
+// A device credential has to answer which project it belongs to: one gateway
+// process serves many projects, so the socket cannot inherit one (18).
+func TestDeviceCarriesItsProject(t *testing.T) {
+	g := openTest(t, "")
+	ctx := context.Background()
+	did, token, err := g.Store().CreateDevice(ctx, g.Project().ID, "box", "box", "linux", "amd64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byToken, err := g.Store().DeviceByToken(ctx, token)
+	if err != nil || byToken == nil {
+		t.Fatalf("by token: %+v %v", byToken, err)
+	}
+	if byToken.ProjectID != g.Project().ID {
+		t.Fatalf("token project = %q, want %q", byToken.ProjectID, g.Project().ID)
+	}
+	byID, err := g.Store().DeviceByID(ctx, did)
+	if err != nil || byID == nil {
+		t.Fatalf("by id: %+v %v", byID, err)
+	}
+	if byID.ProjectID != g.Project().ID {
+		t.Fatalf("id project = %q", byID.ProjectID)
+	}
+	listed, err := g.Store().ListDevices(ctx, g.Project().ID)
+	if err != nil || len(listed) != 1 {
+		t.Fatalf("listed = %+v %v", listed, err)
+	}
+	if listed[0].ProjectID != g.Project().ID {
+		t.Fatalf("listed project = %q", listed[0].ProjectID)
+	}
+}
+
 func TestCreateDeviceRejectsBadProject(t *testing.T) {
 	g := openTest(t, "")
 	if _, _, err := g.Store().CreateDevice(context.Background(), "not-prj", "n", "", "", ""); err == nil {

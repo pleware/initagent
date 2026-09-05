@@ -38,7 +38,7 @@ func TestClaimAssignsOldestAndLease(t *testing.T) {
 	first := enqueueQueued(t, g, "true")
 	second := enqueueQueued(t, g, "false")
 
-	claimed, lease, err := g.Claim(ctx, worker)
+	claimed, lease, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
 		t.Fatalf("Claim: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestClaimAssignsOldestAndLease(t *testing.T) {
 
 func TestClaimNoQueued(t *testing.T) {
 	g := openTest(t, "")
-	_, _, err := g.Claim(context.Background(), mustDevice(t))
+	_, _, err := g.Claim(context.Background(), g.Project().ID, mustDevice(t))
 	if err != scheduler.ErrNoFreeSlot {
 		t.Fatalf("err = %v, want ErrNoFreeSlot", err)
 	}
@@ -85,10 +85,10 @@ func TestClaimOneSlotPerWorker(t *testing.T) {
 	enqueueQueued(t, g, "")
 	enqueueQueued(t, g, "")
 
-	if _, _, err := g.Claim(ctx, worker); err != nil {
+	if _, _, err := g.Claim(ctx, g.Project().ID, worker); err != nil {
 		t.Fatal(err)
 	}
-	_, _, err := g.Claim(ctx, worker)
+	_, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != scheduler.ErrNoFreeSlot {
 		t.Fatalf("err = %v, want ErrNoFreeSlot", err)
 	}
@@ -101,11 +101,11 @@ func TestClaimTwoWorkers(t *testing.T) {
 	b := enqueueQueued(t, g, "")
 	w1, w2 := mustDevice(t), mustDevice(t)
 
-	c1, _, err := g.Claim(ctx, w1)
+	c1, _, err := g.Claim(ctx, g.Project().ID, w1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c2, _, err := g.Claim(ctx, w2)
+	c2, _, err := g.Claim(ctx, g.Project().ID, w2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestWalkingSkeletonReachDone(t *testing.T) {
 	first := enqueueQueued(t, g, "echo")
 	second := enqueueQueued(t, g, "")
 
-	claimed, _, err := g.Claim(ctx, worker)
+	claimed, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestWalkingSkeletonReachDone(t *testing.T) {
 		t.Fatalf("done = %+v", got)
 	}
 
-	next, _, err := g.Claim(ctx, worker)
+	next, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
 		t.Fatalf("slot should be free after done: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestHeartbeatExtendsLease(t *testing.T) {
 	ctx := context.Background()
 	worker := mustDevice(t)
 	enqueueQueued(t, g, "")
-	claimed, _, err := g.Claim(ctx, worker)
+	claimed, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestHeartbeatWrongWorkerAndExpired(t *testing.T) {
 	worker := mustDevice(t)
 	other := mustDevice(t)
 	enqueueQueued(t, g, "")
-	claimed, _, err := g.Claim(ctx, worker)
+	claimed, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +240,7 @@ func TestHeartbeatInactiveAfterDone(t *testing.T) {
 	ctx := context.Background()
 	worker := mustDevice(t)
 	enqueueQueued(t, g, "")
-	claimed, _, err := g.Claim(ctx, worker)
+	claimed, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +260,7 @@ func TestClaimReapsExpiredLease(t *testing.T) {
 	ctx := context.Background()
 	worker := mustDevice(t)
 	task := enqueueQueued(t, g, "")
-	claimed, _, err := g.Claim(ctx, worker)
+	claimed, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func TestClaimReapsExpiredLease(t *testing.T) {
 	if _, err := g.Store().db.Exec(`UPDATE tasks SET lease_expiry = 1 WHERE id = ?`, claimed.ID); err != nil {
 		t.Fatal(err)
 	}
-	again, _, err := g.Claim(ctx, worker)
+	again, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
 		t.Fatalf("reap should free the slot: %v", err)
 	}

@@ -47,11 +47,15 @@ export default function CodingPage({
 
   useEffect(() => {
     if (searchParams.get('new') === '1') {
+      if (isHostedOperator(me)) {
+        setSearchParams({}, { replace: true })
+        return
+      }
       setEditing(undefined)
       setShowModal(true)
       setSearchParams({}, { replace: true })
     }
-  }, [searchParams, setSearchParams])
+  }, [me, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!projectId && projects.length > 0) navigate(`/code/${projects[0].id}`, { replace: true })
@@ -70,7 +74,19 @@ export default function CodingPage({
   }
 
   if (loaded && projects.length === 0) {
-    if (!isHostedOperator(me) && (me.orgs?.length ?? 0) > 0) {
+    if (isHostedOperator(me)) {
+      return (
+        <div className="code-empty">
+          <div className="code-empty-mark"><span>fx</span></div>
+          <p className="eyebrow mt-7">{t('code.operatorEmptyEyebrow')}</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-white">{t('code.operatorEmptyTitle')}</h1>
+          <p className="mt-3 max-w-lg text-center text-sm leading-6 text-zinc-500">
+            {t('code.operatorEmptyHint')}
+          </p>
+        </div>
+      )
+    }
+    if ((me.orgs?.length ?? 0) > 0) {
       return (
         <Boarding
           me={me}

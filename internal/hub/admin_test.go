@@ -51,10 +51,50 @@ func claimedHub(t *testing.T, kind offering.Kind) *adminFixture {
 		t.Fatalf("AccountByEmail after claim = (%v, %v)", owner, err)
 	}
 	orgs, err := srv.store.ListOrgs()
-	if err != nil || len(orgs) != 1 {
-		t.Fatalf("ListOrgs after claim = (%v, %v), want one", orgs, err)
+	if err != nil {
+		t.Fatalf("ListOrgs after claim: %v", err)
 	}
-	return &adminFixture{srv: srv, ts: ts, client: client, ownerId: owner.Id, orgId: orgs[0].Id}
+	orgId := ""
+	if kind == offering.Hosted {
+		if len(orgs) != 0 {
+			t.Fatalf("hosted claim founded an org: %+v", orgs)
+		}
+	} else {
+		if len(orgs) != 1 {
+			t.Fatalf("ListOrgs after claim = (%v), want one", orgs)
+		}
+		orgId = orgs[0].Id
+	}
+	return &adminFixture{srv: srv, ts: ts, client: client, ownerId: owner.Id, orgId: orgId}
+}
+
+// hostedCustomer claims a hosted hub then registers a customer. Project
+// create, plan walls, and org membership tests run as that customer: the
+// platform admin is not a founder (`08`).
+func hostedCustomer(t *testing.T) *adminFixture {
+	t.Helper()
+	f := claimedHub(t, offering.Hosted)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Jar: jar}
+	resp := postJSON(t, f.ts, client, "/api/register", map[string]string{
+		"email":    "ada@example.com",
+		"password": "correct-horse-battery",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("register customer: %d, want 200", resp.StatusCode)
+	}
+	account, err := f.srv.store.AccountByEmail("ada@example.com")
+	if err != nil || account == nil {
+		t.Fatalf("customer account = (%v, %v)", account, err)
+	}
+	orgs, err := f.srv.store.ListAccountOrgs(account.Id)
+	if err != nil || len(orgs) != 1 {
+		t.Fatalf("customer orgs = (%v, %v), want one", orgs, err)
+	}
+	return &adminFixture{srv: f.srv, ts: f.ts, client: client, ownerId: account.Id, orgId: orgs[0].OrgId}
 }
 
 func (f *adminFixture) do(t *testing.T, method, path string, body any) *http.Response {
@@ -129,14 +169,8 @@ func TestMeReportsIdentityAndMemberships(t *testing.T) {
 	if me.AccountId != f.ownerId || me.Email != "ops@example.com" {
 		t.Errorf("identity = (%q, %q), want the claiming account", me.AccountId, me.Email)
 	}
-	if len(me.Orgs) != 1 || me.Orgs[0].OrgId != f.orgId || me.Orgs[0].Role != string(authz.RoleOwner) {
-		t.Fatalf("orgs = %+v, want owner of the first org", me.Orgs)
-	}
-	if me.Orgs[0].Name != "Example Ops" {
-		t.Errorf("org name = %q, want the name submitted at claim", me.Orgs[0].Name)
-	}
-	if me.Orgs[0].Plan != string(orgplan.Free) {
-		t.Errorf("org plan = %q, want free", me.Orgs[0].Plan)
+	if len(me.Orgs) != 0 {
+		t.Fatalf("orgs = %+v, want none — hosted claim does not found a company", me.Orgs)
 	}
 }
 
@@ -144,8 +178,12 @@ func TestMeReportsIdentityAndMemberships(t *testing.T) {
 func TestAdminSurfacesRefuseAnonymous(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
 	anon := &http.Client{}
+	org, err := f.srv.store.CreateOrg("Any")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	for _, path := range []string{"/api/admin/accounts", "/api/admin/orgs", "/api/orgs/" + f.orgId + "/members"} {
+	for _, path := range []string{"/api/admin/accounts", "/api/admin/orgs", "/api/orgs/" + org.Id + "/members"} {
 		resp := requestJSON(t, f.ts, anon, http.MethodGet, path, nil)
 		if resp.StatusCode != 401 {
 			t.Errorf("GET %s without a session: %d, want 401", path, resp.StatusCode)
@@ -193,14 +231,24 @@ func TestAdminSurfacesRefuseApiTokens(t *testing.T) {
 
 func TestPlatformSurfaceListsAccountsAndOrgs(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
-	f.addMember(t, "dev@example.com", "another-long-password", authz.RoleMember)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := postJSON(t, f.ts, &http.Client{Jar: jar}, "/api/register", map[string]string{
+		"email":    "ada@example.com",
+		"password": "correct-horse-battery",
+	})
+	if resp.StatusCode != 200 {
+		t.Fatalf("register: %d, want 200", resp.StatusCode)
+	}
 
 	var accounts []struct {
 		Id      string `json:"id"`
 		Email   string `json:"email"`
 		IsAdmin bool   `json:"isAdmin"`
 	}
-	resp := f.do(t, http.MethodGet, "/api/admin/accounts", nil)
+	resp = f.do(t, http.MethodGet, "/api/admin/accounts", nil)
 	if resp.StatusCode != 200 {
 		t.Fatalf("GET /api/admin/accounts: %d, want 200", resp.StatusCode)
 	}
@@ -224,8 +272,8 @@ func TestPlatformSurfaceListsAccountsAndOrgs(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&orgs); err != nil {
 		t.Fatal(err)
 	}
-	if len(orgs) != 1 || orgs[0].Members != 2 {
-		t.Fatalf("orgs = %+v, want one org with two members", orgs)
+	if len(orgs) != 1 || orgs[0].Members != 1 {
+		t.Fatalf("orgs = %+v, want one customer org with one member", orgs)
 	}
 }
 
@@ -238,10 +286,18 @@ func TestPlatformAdminCannotReadAnotherOrgsRoster(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	other := f.addMember(t, "them@customer.example", "another-long-password", authz.RoleMember)
-	if err := f.srv.store.AddOrgMember(customer.Id, other, authz.RoleOwner); err != nil {
+	hash, err := auth.HashPassword("another-long-password")
+	if err != nil {
 		t.Fatal(err)
 	}
+	otherAcc, err := f.srv.store.CreateAccount("them@customer.example", hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.srv.store.AddOrgMember(customer.Id, otherAcc.Id, authz.RoleOwner); err != nil {
+		t.Fatal(err)
+	}
+	other := otherAcc.Id
 
 	// The org is visible in the platform list, with its size.
 	var orgs []struct {
@@ -252,8 +308,8 @@ func TestPlatformAdminCannotReadAnotherOrgsRoster(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&orgs); err != nil {
 		t.Fatal(err)
 	}
-	if len(orgs) != 2 {
-		t.Fatalf("orgs = %+v, want both", orgs)
+	if len(orgs) != 1 {
+		t.Fatalf("orgs = %+v, want the customer org only", orgs)
 	}
 
 	// Its roster is not. 404 rather than 403, so the answer does not confirm
@@ -445,5 +501,43 @@ func TestLegacyOperatorSession(t *testing.T) {
 	resp = requestJSON(t, ts, client, http.MethodGet, "/api/admin/accounts", nil)
 	if resp.StatusCode != 200 {
 		t.Errorf("legacy operator reading accounts: %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestHostedOperatorCannotCreateAProject(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{"name": "Nope"})
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("hosted operator create: %d, want 403", resp.StatusCode)
+	}
+}
+
+func TestSelfHostOperatorCanCreateAProject(t *testing.T) {
+	f := claimedHub(t, offering.Selfhost)
+	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{"name": "Mine"})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("self-host operator create: %d, want 201", resp.StatusCode)
+	}
+}
+
+func TestHostedStartStripsOperatorMembership(t *testing.T) {
+	dataDir := t.TempDir()
+	first := newHub(t, dataDir, offering.Selfhost)
+	hash, err := auth.HashPassword("correct-horse-battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, _, err := first.store.ClaimHub("ops@example.com", hash, "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := first.store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	second := newHub(t, dataDir, offering.Hosted)
+	roles, err := second.store.AccountOrgRoles(account.Id)
+	if err != nil || len(roles) != 0 {
+		t.Fatalf("roles after hosted restart = (%v, %v), want none", roles, err)
 	}
 }

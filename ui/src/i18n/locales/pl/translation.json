@@ -207,6 +207,11 @@
     "done": "Otwórz projekt",
     "unnamedHint": "To ogólna nazwa. Zmień ją w Ludziach, gdy będziesz gotów."
   },
+  "code": {
+    "operatorEmptyEyebrow": "Instalacja",
+    "operatorEmptyTitle": "Projekty zakładają klienci.",
+    "operatorEmptyHint": "Ty obsługujesz ten hub z Administracji. Projekt należy do organizacji klienta, nie do operatora instalacji."
+  },
   "claim": {
     "organization": "Nazwa organizacji",
     "organizationPlaceholder": "default",

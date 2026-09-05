@@ -2,10 +2,12 @@ package hub
 
 import (
 	"cmp"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/pleware/initagent/internal/authz"
+	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/projecttemplate"
 	"github.com/pleware/initagent/internal/repo"
 )
@@ -96,6 +98,9 @@ func resolveProjectOrg(actor authz.Actor, requested string) (string, error) {
 	if only := actor.SoleOrg(); only != "" {
 		return only, nil
 	}
+	if len(actor.Orgs) == 0 {
+		return "", authz.ErrForbidden
+	}
 	return "", errOrgRequired
 }
 
@@ -139,6 +144,10 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request, acto
 }
 
 func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
+	if s.opts.Offering == offering.Hosted && actor.Platform {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
 	var input projectInput
 	if err := readJSON(r, &input); err != nil {
 		httpError(w, http.StatusBadRequest, "invalid project")
@@ -155,6 +164,10 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, act
 	}
 	orgId, err := resolveProjectOrg(actor, input.OrgId)
 	if err != nil {
+		if errors.Is(err, authz.ErrForbidden) {
+			forbid(w, err)
+			return
+		}
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
 	}

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/pleware/initagent/internal/authz"
-	"github.com/pleware/initagent/internal/offering"
 )
 
 func (f *adminFixture) addDevice(t *testing.T) string {
@@ -19,7 +18,7 @@ func (f *adminFixture) addDevice(t *testing.T) string {
 }
 
 func TestCreateProjectLandsInTheSoleOrg(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	f.srv.opts.GatewayURL = "http://gateway.test"
 	device := f.addDevice(t)
 
@@ -34,7 +33,7 @@ func TestCreateProjectLandsInTheSoleOrg(t *testing.T) {
 		t.Fatal(err)
 	}
 	if p.OrgId != f.orgId {
-		t.Errorf("orgId = %q, want the operator's only org", p.OrgId)
+		t.Errorf("orgId = %q, want the customer's only org", p.OrgId)
 	}
 	if p.GatewayURL != "http://gateway.test" {
 		t.Errorf("gatewayUrl = %q, want the hub's existing gateway", p.GatewayURL)
@@ -51,7 +50,7 @@ func TestCreateProjectLandsInTheSoleOrg(t *testing.T) {
 }
 
 func TestMemberCannotCreateAProject(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	f.addMember(t, "dev@example.com", "correct-horse-battery-staple", authz.RoleMember)
 	dev := f.signIn(t, "dev@example.com", "correct-horse-battery-staple")
 	device := f.addDevice(t)
@@ -65,7 +64,7 @@ func TestMemberCannotCreateAProject(t *testing.T) {
 }
 
 func TestProjectInAnotherOrgIsNotFound(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	other, err := f.srv.store.CreateOrg("Other")
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +87,7 @@ func TestProjectInAnotherOrgIsNotFound(t *testing.T) {
 }
 
 func TestProjectsRefuseApiTokens(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	token, err := f.srv.store.CreateApiToken("ci")
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +108,7 @@ func TestProjectsRefuseApiTokens(t *testing.T) {
 }
 
 func TestListTemplates(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	resp := f.do(t, http.MethodGet, "/api/templates", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("templates: %d, want 200", resp.StatusCode)
@@ -137,7 +136,7 @@ func TestListTemplates(t *testing.T) {
 }
 
 func TestCreateProjectWithoutDevice(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	f.srv.opts.GatewayURL = "http://gateway.test"
 
 	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
@@ -169,7 +168,7 @@ func TestCreateProjectWithoutDevice(t *testing.T) {
 }
 
 func TestCreateProjectRejectsComingSoonTemplate(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
 		"name": "Clip", "templateId": "video",
 	})
@@ -179,7 +178,7 @@ func TestCreateProjectRejectsComingSoonTemplate(t *testing.T) {
 }
 
 func TestCreateProjectRequiresAName(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
 		"templateId": "software",
 	})

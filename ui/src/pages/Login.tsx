@@ -37,7 +37,6 @@ export default function Login({
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [token, setToken] = useState('')
-  const [orgName, setOrgName] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [registering, setRegistering] = useState(false)
@@ -65,7 +64,7 @@ export default function Login({
       } else if (claimed) {
         await api.post('/api/login', { email, password })
       } else {
-        await api.post('/api/setup', { email, password, token, orgName, locale })
+        await api.post('/api/setup', { email, password, token, locale })
       }
       onSuccess()
     } catch (err) {
@@ -186,46 +185,24 @@ export default function Login({
           )}
 
           {!claimed && (
-            <>
-              {offering === 'hosted' && (
-                <div>
-                  <label htmlFor="login-org" className="block text-sm/6 font-medium text-fg">
-                    {t('claim.organization')}
-                  </label>
-                  <div className="mt-2">
-                    <input
-                      id="login-org"
-                      type="text"
-                      autoComplete="organization"
-                      value={orgName}
-                      onChange={(e) => setOrgName(e.target.value)}
-                      placeholder={t('claim.organizationPlaceholder')}
-                      className={authFieldClass}
-                    />
-                  </div>
-                  <p className="mt-2 text-xs text-fg-subtle">{t('claim.organizationHint')}</p>
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="login-token" className="block text-sm/6 font-medium text-fg">
-                  {t('auth.bootstrapToken')}
-                </label>
-                <div className="mt-2">
-                  <input
-                    id="login-token"
-                    type="text"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                    required
-                    className={`${authFieldClass} font-mono`}
-                  />
-                </div>
-                <p className="mt-2 text-xs text-fg-subtle">{t('auth.bootstrapHint')}</p>
+            <div>
+              <label htmlFor="login-token" className="block text-sm/6 font-medium text-fg">
+                {t('auth.bootstrapToken')}
+              </label>
+              <div className="mt-2">
+                <input
+                  id="login-token"
+                  type="text"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  required
+                  className={`${authFieldClass} font-mono`}
+                />
               </div>
-            </>
+              <p className="mt-2 text-xs text-fg-subtle">{t('auth.bootstrapHint')}</p>
+            </div>
           )}
 
           {error && <p className="text-sm text-fail-fg">{error}</p>}

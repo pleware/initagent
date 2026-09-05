@@ -15,6 +15,7 @@ import (
 	"github.com/pleware/initagent/internal/auth"
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/protocol"
 	"github.com/pleware/initagent/internal/updater"
 )
@@ -60,7 +61,12 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		httpError(w, claimStatus(err), err.Error())
 		return
 	}
-	account, _, err := s.store.insertAccountWithOwnedOrg(creds.Email, creds.PasswordHash, creds.OrgName, true, creds.Locale)
+	var account *Account
+	if s.opts.Offering == offering.Hosted {
+		account, err = s.store.insertPlatformAdmin(creds.Email, creds.PasswordHash, creds.Locale)
+	} else {
+		account, _, err = s.store.insertAccountWithOwnedOrg(creds.Email, creds.PasswordHash, creds.OrgName, true, creds.Locale)
+	}
 	if err != nil {
 		// The partial unique index on is_admin is the arbiter, so a second
 		// concurrent claim lands here rather than creating a second owner.

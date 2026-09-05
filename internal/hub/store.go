@@ -542,14 +542,18 @@ func (s *Store) CountAccounts() (int, error) {
 	return n, err
 }
 
-// ClaimHub creates the platform admin, the hub's first organization, and the
-// membership that makes the operator its owner — in one transaction (`08`,
-// `25`, `26`).
+// ClaimHub creates the platform admin. On self-host it also mints the first
+// organization and the owner membership that makes the operator the founder
+// (`08`, `25`, `26`). On hosted it does not: founding a company is a customer
+// account, and the leftover membership on `default` is what let the operator
+// add a project through `create:hub.project`.
 //
-// The org exists from the first moment rather than being created lazily
+// Self-host still creates the org in the same transaction as the account,
 // because every catalogue query is supposed to be scoped by org (`05`: a
-// query without an org is a bug). A claimed hub with an account and no org
-// would be a hub whose own rule does not hold yet.
+// query without an org is a bug). A claimed self-host hub with an account and
+// no org would be a hub whose own rule does not hold yet. Hosted is the
+// opposite: customers create orgs through register, and the operator is not
+// in one.
 //
 // "At most one platform admin" is enforced by the partial unique index on
 // is_admin, not by counting rows here first. That matters: two concurrent
@@ -557,13 +561,18 @@ func (s *Store) CountAccounts() (int, error) {
 // transaction does not help either — under Postgres READ COMMITTED both
 // snapshots still see no rows. A unique index is the only guard that holds at
 // any isolation level, so the second writer gets a constraint violation and
-// the caller reports the hub as already claimed. What the transaction buys is
-// the opposite property: none of the three rows lands without the others.
+// the caller reports the hub as already claimed. What the transaction buys on
+// self-host is the opposite property: none of the three rows lands without
+// the others.
 //
 // One consequence to keep in view: this makes a *second* platform admin
 // impossible until someone deliberately drops the index. Relaxing that later
 // is a migration; recovering from two accidental owners is not.
 func (s *Store) ClaimHub(email, passwordHash, orgName string) (*Account, *Org, error) {
+	if s.offering == offering.Hosted {
+		account, err := s.insertPlatformAdmin(email, passwordHash, auth.LocaleEN)
+		return account, nil, err
+	}
 	return s.insertAccountWithOwnedOrg(email, passwordHash, orgName, true, auth.LocaleEN)
 }
 
@@ -582,6 +591,28 @@ func (s *Store) RegisterCustomer(email, passwordHash, orgName, locale string) (*
 		return nil, nil, auth.ErrEmailTaken
 	}
 	return account, org, err
+}
+
+func (s *Store) insertPlatformAdmin(email, passwordHash, locale string) (*Account, error) {
+	accountId, err := id.New(id.Account)
+	if err != nil {
+		return nil, err
+	}
+	loc, err := auth.NormalizeLocale(locale)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().Unix()
+	account := &Account{
+		Id: accountId, Email: email, IsAdmin: true,
+		Locale: loc, CreatedAt: now, passwordHash: passwordHash,
+	}
+	_, err = s.db.Exec(`INSERT INTO accounts (id, email, password_hash, is_admin, locale, created_at)
+		VALUES (?, ?, ?, 1, ?, ?)`, account.Id, account.Email, account.passwordHash, loc, now)
+	if err != nil {
+		return nil, err
+	}
+	return account, nil
 }
 
 func (s *Store) insertAccountWithOwnedOrg(email, passwordHash, orgName string, admin bool, locale string) (*Account, *Org, error) {
@@ -655,6 +686,9 @@ func uniqueConstraint(err error) bool {
 // legacy operator password) gets nothing, because an org needs an owner and
 // that credential has no account to be one.
 func (s *Store) BackfillOperatorOrg() (*Org, error) {
+	if s.offering == offering.Hosted {
+		return nil, nil
+	}
 	var orgs int
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM orgs`).Scan(&orgs); err != nil {
 		return nil, err
@@ -693,6 +727,33 @@ func (s *Store) BackfillOperatorOrg() (*Org, error) {
 		return nil, err
 	}
 	return org, nil
+}
+
+// DetachHostedOperator removes leftover org memberships from the platform
+// admin on a hosted hub (`08`). Claim used to write an owner row on
+// `default`; that row is what made POST /api/projects succeed. Self-host
+// is a no-op: the operator is the founder and keeps the membership.
+//
+// The orgs themselves stay. An empty leftover `default` is visible on
+// Administration; deleting it here would also drop any projects the operator
+// created while the mix was live.
+func (s *Store) DetachHostedOperator() (int, error) {
+	if s.offering != offering.Hosted {
+		return 0, nil
+	}
+	admin, err := s.account(`WHERE is_admin = 1`)
+	if err != nil || admin == nil {
+		return 0, err
+	}
+	res, err := s.db.Exec(`DELETE FROM org_members WHERE account_id = ?`, admin.Id)
+	if err != nil {
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
 }
 
 // CreateAccount stores a person who is not the platform admin.

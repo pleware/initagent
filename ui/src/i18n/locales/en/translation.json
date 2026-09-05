@@ -207,6 +207,11 @@
     "done": "Open the project",
     "unnamedHint": "This is the generic name. Rename it under People when you are ready."
   },
+  "code": {
+    "operatorEmptyEyebrow": "Installation",
+    "operatorEmptyTitle": "Customers create projects here.",
+    "operatorEmptyHint": "You operate this hub from Administration. A project belongs to a customer organization, not to the platform operator."
+  },
   "claim": {
     "organization": "Organization name",
     "organizationPlaceholder": "default",

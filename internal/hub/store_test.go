@@ -10,6 +10,7 @@ import (
 	"github.com/pleware/initagent/internal/auth"
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/store"
 )
 
@@ -268,9 +269,9 @@ func TestAccountEmailIsUnique(t *testing.T) {
 	}
 }
 
-// Claiming a hub has to leave a hub whose own rule holds: an account, an
-// organization, and the membership that makes the operator its owner. Any two
-// of the three is a state no screen can repair.
+// Claiming a self-host hub has to leave a hub whose own rule holds: an
+// account, an organization, and the membership that makes the operator its
+// owner. Any two of the three is a state no screen can repair.
 func TestClaimHubMintsTheFirstOrgAndOwner(t *testing.T) {
 	s := testStore(t)
 	hash, err := auth.HashPassword("correct-horse-battery")
@@ -308,6 +309,82 @@ func TestClaimHubMintsTheFirstOrgAndOwner(t *testing.T) {
 	mine, err := s.ListAccountOrgs(account.Id)
 	if err != nil || len(mine) != 1 || mine[0].Name != "Example Ops" || mine[0].Plan != "free" {
 		t.Errorf("ListAccountOrgs = (%v, %v), want the first org by name on free", mine, err)
+	}
+}
+
+func TestClaimHubOnHostedMintsAdminWithoutOrg(t *testing.T) {
+	s := testStore(t)
+	s.setOffering(offering.Hosted)
+	hash, err := auth.HashPassword("correct-horse-battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, org, err := s.ClaimHub("ops@example.com", hash, "Example Ops")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if org != nil {
+		t.Fatalf("hosted claim returned org %v, want none", org)
+	}
+	if !account.IsAdmin {
+		t.Error("hosted claim did not mint the platform admin")
+	}
+	orgs, err := s.ListOrgs()
+	if err != nil || len(orgs) != 0 {
+		t.Fatalf("ListOrgs = (%v, %v), want none", orgs, err)
+	}
+	roles, err := s.AccountOrgRoles(account.Id)
+	if err != nil || len(roles) != 0 {
+		t.Errorf("AccountOrgRoles = (%v, %v), want no membership", roles, err)
+	}
+}
+
+func TestDetachHostedOperatorStripsLeftoverMembership(t *testing.T) {
+	s := testStore(t)
+	hash, err := auth.HashPassword("correct-horse-battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, _, err := s.ClaimHub("ops@example.com", hash, "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.setOffering(offering.Hosted)
+	n, err := s.DetachHostedOperator()
+	if err != nil || n != 1 {
+		t.Fatalf("DetachHostedOperator = (%d, %v), want 1", n, err)
+	}
+	roles, err := s.AccountOrgRoles(account.Id)
+	if err != nil || len(roles) != 0 {
+		t.Errorf("roles after detach = (%v, %v), want none", roles, err)
+	}
+	orgs, err := s.ListOrgs()
+	if err != nil || len(orgs) != 1 {
+		t.Fatalf("orgs after detach = (%v, %v), want the leftover org kept", orgs, err)
+	}
+	again, err := s.DetachHostedOperator()
+	if err != nil || again != 0 {
+		t.Fatalf("second DetachHostedOperator = (%d, %v), want 0", again, err)
+	}
+}
+
+func TestBackfillOperatorOrgSkippedOnHosted(t *testing.T) {
+	s := testStore(t)
+	s.setOffering(offering.Hosted)
+	hash, err := auth.HashPassword("correct-horse-battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.insertPlatformAdmin("ops@example.com", hash, auth.LocaleEN); err != nil {
+		t.Fatal(err)
+	}
+	org, err := s.BackfillOperatorOrg()
+	if err != nil || org != nil {
+		t.Fatalf("BackfillOperatorOrg on hosted = (%v, %v), want (nil, nil)", org, err)
+	}
+	orgs, err := s.ListOrgs()
+	if err != nil || len(orgs) != 0 {
+		t.Fatalf("hosted backfill founded an org: (%v, %v)", orgs, err)
 	}
 }
 

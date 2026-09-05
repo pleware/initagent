@@ -36,7 +36,7 @@ func TestListPlansIsPublic(t *testing.T) {
 }
 
 func TestHostedFreeRefusesASecondProject(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{"name": "One"})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("first project: %d, want 201", resp.StatusCode)
@@ -73,7 +73,7 @@ func TestSelfHostIgnoresProjectCap(t *testing.T) {
 }
 
 func TestStarterAllowsTwoProjects(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	if err := f.srv.store.SetOrgPlan(f.orgId, orgplan.Starter); err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestStarterAllowsTwoProjects(t *testing.T) {
 }
 
 func TestHostedFreeRefusesASecondPerson(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	hash, err := auth.HashPassword("another-long-password")
 	if err != nil {
 		t.Fatal(err)
@@ -106,7 +106,7 @@ func TestHostedFreeRefusesASecondPerson(t *testing.T) {
 }
 
 func TestEnterpriseAllowsASecondPerson(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	if err := f.srv.store.SetOrgPlan(f.orgId, orgplan.Enterprise); err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestEnterpriseAllowsASecondPerson(t *testing.T) {
 }
 
 func TestHostedFreeAllowsTwoMachinesAndRefusesAThird(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	first := f.addDevice(t)
 	second := f.addDevice(t)
 	third := f.addDevice(t)
@@ -169,7 +169,7 @@ func TestHostedFreeAllowsTwoMachinesAndRefusesAThird(t *testing.T) {
 }
 
 func TestSwitchingTheSelectedMachineIsNotAnotherMachine(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	first := f.addDevice(t)
 	second := f.addDevice(t)
 	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
@@ -215,7 +215,7 @@ func TestSelfHostIgnoresMachineCap(t *testing.T) {
 }
 
 func TestStarterAllowsThreeMachines(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	if err := f.srv.store.SetOrgPlan(f.orgId, orgplan.Starter); err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +241,7 @@ func TestStarterAllowsThreeMachines(t *testing.T) {
 }
 
 func TestDetachFreesAMachineSlot(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
+	f := hostedCustomer(t)
 	first := f.addDevice(t)
 	second := f.addDevice(t)
 	third := f.addDevice(t)

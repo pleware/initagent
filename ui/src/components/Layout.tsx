@@ -5,6 +5,7 @@ import { api } from '../api'
 import type { Me, Project } from '../types'
 import LanguageSwitcher from './LanguageSwitcher'
 import ThemeSwitcher from './ThemeSwitcher'
+import { isHostedOperator } from './Boarding'
 
 const links = [
   { to: '/code', label: 'Code', icon: 'compose' },
@@ -109,7 +110,9 @@ export default function Layout({ me }: { me: Me }) {
         <section className="sidebar-projects">
           <div className="sidebar-section-title">
             <span>Projects</span>
-            <NavLink to="/code?new=1" onClick={() => setMobileOpen(false)} aria-label="Add project" className="sidebar-add">+</NavLink>
+            {!isHostedOperator(me) && (
+              <NavLink to="/code?new=1" onClick={() => setMobileOpen(false)} aria-label="Add project" className="sidebar-add">+</NavLink>
+            )}
           </div>
           <div className="space-y-0.5">
             {projects.map((project) => (

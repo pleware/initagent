@@ -146,7 +146,9 @@ func NewServer(opts Options) (*Server, error) {
 	}
 	// A hub claimed before organizations existed has an owner and nothing to
 	// own. First-run never runs twice, so this is the only moment left to
-	// give it the org that claiming creates today.
+	// give it the org that claiming creates today. Hosted skips this: the
+	// operator is not a founder, and backfill would recreate the leftover
+	// membership this start then has to strip.
 	org, err := store.BackfillOperatorOrg()
 	if err != nil {
 		store.Close()
@@ -154,6 +156,14 @@ func NewServer(opts Options) (*Server, error) {
 	}
 	if org != nil {
 		log.Printf("created organization %q (%s) for this hub's existing admin account", org.Name, org.Id)
+	}
+	n, err := store.DetachHostedOperator()
+	if err != nil {
+		store.Close()
+		return nil, err
+	}
+	if n > 0 {
+		log.Printf("removed %d leftover org membership(s) from the hosted platform admin", n)
 	}
 	s.routes()
 	s.updates = newUpdateManager(store, opts.Version, opts.GithubRepo)

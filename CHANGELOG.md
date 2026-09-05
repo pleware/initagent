@@ -2,6 +2,10 @@
 
 ## Unreleased — product
 
+- 2026-09-05 — Cut v0.3.9 so a project can enroll two machines and the free walls go live
+
+## v0.3.9 — 2026-09-05
+
 - 2026-09-05 — Let a project enroll more than one machine and refuse a third on free
 - 2026-09-05 — Enforce hosted plan caps on create-project and a second person
 - 2026-09-05 — Cut v0.3.8 so hosted boarding and the Plans pages go live

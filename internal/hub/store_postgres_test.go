@@ -172,6 +172,26 @@ func TestStorePostgresSmoke(t *testing.T) {
 	if again, err := s.BackfillOperatorOrg(); err != nil || again != nil {
 		t.Fatalf("second BackfillOperatorOrg = (%v, %v), want (nil, nil) — every restart calls it", again, err)
 	}
+
+	row, err := s.EnqueueMail("password_reset", "smoke@example.com", "Reset", "hello", "")
+	if err != nil {
+		t.Fatalf("EnqueueMail: %v", err)
+	}
+	claimed, err := s.ClaimDueMail(time.Now())
+	if err != nil || claimed == nil || claimed.ID != row.ID {
+		t.Fatalf("ClaimDueMail = (%v, %v)", claimed, err)
+	}
+	if err := s.MarkMailSent(claimed.ID, "re_smoke", time.Now()); err != nil {
+		t.Fatalf("MarkMailSent: %v", err)
+	}
+	old := time.Now().Add(-31 * 24 * time.Hour).Unix()
+	if _, err := s.db.Exec(`UPDATE mail_outbox SET created_at = ? WHERE id = ?`, old, claimed.ID); err != nil {
+		t.Fatalf("backdate mail: %v", err)
+	}
+	n, err := s.PurgeMailOutbox(time.Now())
+	if err != nil || n != 1 {
+		t.Fatalf("PurgeMailOutbox = (%d, %v), want 1", n, err)
+	}
 }
 
 func TestOpenStorePostgresMigratesLegacyProjectsTable(t *testing.T) {

@@ -21,6 +21,7 @@ import (
 	"github.com/pleware/initagent/internal/agent"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/join"
+	"github.com/pleware/initagent/internal/mailer"
 	"github.com/pleware/initagent/internal/offering"
 )
 
@@ -52,6 +53,12 @@ type Options struct {
 	// CA for expiry notices.
 	TLSDomain string
 	TLSEmail  string
+
+	// ResendAPIKey and MailFrom configure hosted transactional mail. Empty
+	// key on hosted leaves the outbox pending; self-host with no key is
+	// silent. Ops supplies both via env, never flags.
+	ResendAPIKey string
+	MailFrom     string
 }
 
 // Server is the hub.
@@ -71,6 +78,8 @@ type Server struct {
 	mux           *http.ServeMux
 	updates       *updateManager
 	updateApplied atomic.Bool
+	mail          mailer.Sender
+	mailWake      chan struct{}
 
 	// internalURL is a loopback-only plain-HTTP address serving the same mux.
 	// The embedded agent and the MCP endpoint use it so they work identically
@@ -103,6 +112,11 @@ func NewServer(opts Options) (*Server, error) {
 		return nil, err
 	}
 	store.setOffering(opts.Offering)
+	sender, err := mailer.New(opts.Offering != offering.Selfhost, opts.ResendAPIKey, opts.MailFrom)
+	if err != nil {
+		store.Close()
+		return nil, err
+	}
 	events := newEventBus()
 	s := &Server{
 		opts: opts,
@@ -118,6 +132,8 @@ func NewServer(opts Options) (*Server, error) {
 		events:     events,
 		registry:   newRegistry(events),
 		mux:        http.NewServeMux(),
+		mail:       sender,
+		mailWake:   make(chan struct{}, 1),
 	}
 	claimed, err := s.claimed()
 	if err != nil {
@@ -183,6 +199,7 @@ func (s *Server) Run(ctx context.Context) error {
 		internalSrv.Shutdown(shutdownCtx)
 	}()
 	go s.runEmbeddedAgent(runCtx)
+	go s.runMailOutbox(runCtx)
 
 	if s.opts.TLSDomain != "" {
 		err := s.runTLS(runCtx)

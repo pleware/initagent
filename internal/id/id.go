@@ -46,6 +46,7 @@ const (
 	Token   Kind = "tok"
 	Command Kind = "cmd"
 	Event   Kind = "evt"
+	Mail    Kind = "eml"
 
 	Member    Kind = "mbr"
 	Persona   Kind = "psn"
@@ -91,6 +92,7 @@ var entities = map[Kind]string{
 	Token:   "initagent.hub.token",
 	Command: "initagent.hub.command",
 	Event:   "initagent.hub.event",
+	Mail:    "initagent.hub.mail",
 
 	Member:         "initagent.project.member",
 	Persona:        "initagent.project.persona",

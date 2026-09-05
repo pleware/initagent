@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-05 — Queue outbound mail on the hub so hosted send can retry without a second process
 - 2026-09-05 — Keep hosted plan numbers in one YAML catalogue for the hub and the site
 
 - 2026-09-05 — Cut v0.3.9 so a project can enroll two machines and the free walls go live

@@ -59,7 +59,7 @@ the same 90%.
 
 | Metric | Today | Direction |
 | --- | --- | --- |
-| Owned packages in list | `internal/brand`, `internal/id`, `internal/registry/ai/capability`, `internal/registry/db/kinds`, `internal/registry/config`, `internal/completion`, `internal/store`, `internal/scheduler`, `internal/fakecoder`, `internal/gateway`, `internal/join`, `internal/projecttemplate`, `internal/repo`, `internal/orgplan` | grow only when we add first-party code |
+| Owned packages in list | `internal/brand`, `internal/id`, `internal/registry/ai/capability`, `internal/registry/db/kinds`, `internal/registry/config`, `internal/completion`, `internal/store`, `internal/scheduler`, `internal/fakecoder`, `internal/gateway`, `internal/join`, `internal/projecttemplate`, `internal/repo`, `internal/orgplan`, `internal/mailer` | grow only when we add first-party code |
 | Product E2E smoke (Milestone 0) | absent | add with step 3 (`02`); not a coverage substitute |
 
 ## Exceptions

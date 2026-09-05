@@ -17,3 +17,4 @@
 ./internal/repo
 ./internal/orgplan
 ./internal/registry/config
+./internal/mailer

@@ -105,6 +105,22 @@ CREATE TABLE IF NOT EXISTS project_devices (
 	PRIMARY KEY (project_id, device_id)
 );
 CREATE INDEX IF NOT EXISTS project_devices_device_id ON project_devices(device_id);
+CREATE TABLE IF NOT EXISTS mail_outbox (
+	id           TEXT PRIMARY KEY,
+	kind         TEXT NOT NULL,
+	to_addr      TEXT NOT NULL,
+	subject      TEXT NOT NULL,
+	text_body    TEXT NOT NULL DEFAULT '',
+	html_body    TEXT NOT NULL DEFAULT '',
+	status       TEXT NOT NULL,
+	attempts     INTEGER NOT NULL DEFAULT 0,
+	last_error   TEXT NOT NULL DEFAULT '',
+	provider_id  TEXT NOT NULL DEFAULT '',
+	available_at INTEGER NOT NULL,
+	claimed_at   INTEGER NOT NULL DEFAULT 0,
+	created_at   INTEGER NOT NULL,
+	sent_at      INTEGER NOT NULL DEFAULT 0
+);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -189,6 +205,22 @@ CREATE TABLE IF NOT EXISTS project_devices (
 	PRIMARY KEY (project_id, device_id)
 );
 CREATE INDEX IF NOT EXISTS project_devices_device_id ON project_devices(device_id);
+CREATE TABLE IF NOT EXISTS mail_outbox (
+	id           TEXT PRIMARY KEY,
+	kind         TEXT NOT NULL,
+	to_addr      TEXT NOT NULL,
+	subject      TEXT NOT NULL,
+	text_body    TEXT NOT NULL DEFAULT '',
+	html_body    TEXT NOT NULL DEFAULT '',
+	status       TEXT NOT NULL,
+	attempts     INTEGER NOT NULL DEFAULT 0,
+	last_error   TEXT NOT NULL DEFAULT '',
+	provider_id  TEXT NOT NULL DEFAULT '',
+	available_at BIGINT NOT NULL,
+	claimed_at   BIGINT NOT NULL DEFAULT 0,
+	created_at   BIGINT NOT NULL,
+	sent_at      BIGINT NOT NULL DEFAULT 0
+);
 `
 
 // OpenStore opens the hub store on a SQLite file (self-host / OSS path).
@@ -227,6 +259,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureProjectDevices(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring project devices: %w", err)
+	}
+	if err := s.ensureMailOutbox(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring mail outbox: %w", err)
 	}
 	if err := s.seedPresets(); err != nil {
 		db.Close()
@@ -372,6 +408,43 @@ func (s *Store) ensureProjectDevices() error {
 		return err
 	}
 	return s.backfillProjectDevices()
+}
+
+// ensureMailOutbox creates the hub mail queue on a live store. CREATE TABLE
+// IF NOT EXISTS in the schema batch does not add a table that was missing
+// when the file was first opened years ago; this runs after that batch,
+// and the due-index is created here, not in the CREATE TABLE text.
+func (s *Store) ensureMailOutbox() error {
+	createdAt := "INTEGER NOT NULL"
+	availableAt := "INTEGER NOT NULL"
+	claimedAt := "INTEGER NOT NULL DEFAULT 0"
+	sentAt := "INTEGER NOT NULL DEFAULT 0"
+	if s.db.Dialect() == store.Postgres {
+		createdAt = "BIGINT NOT NULL"
+		availableAt = "BIGINT NOT NULL"
+		claimedAt = "BIGINT NOT NULL DEFAULT 0"
+		sentAt = "BIGINT NOT NULL DEFAULT 0"
+	}
+	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS mail_outbox (
+		id           TEXT PRIMARY KEY,
+		kind         TEXT NOT NULL,
+		to_addr      TEXT NOT NULL,
+		subject      TEXT NOT NULL,
+		text_body    TEXT NOT NULL DEFAULT '',
+		html_body    TEXT NOT NULL DEFAULT '',
+		status       TEXT NOT NULL,
+		attempts     INTEGER NOT NULL DEFAULT 0,
+		last_error   TEXT NOT NULL DEFAULT '',
+		provider_id  TEXT NOT NULL DEFAULT '',
+		available_at ` + availableAt + `,
+		claimed_at   ` + claimedAt + `,
+		created_at   ` + createdAt + `,
+		sent_at      ` + sentAt + `
+	)`); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS mail_outbox_due ON mail_outbox (status, available_at, id)`)
+	return err
 }
 
 func (s *Store) backfillProjectDevices() error {

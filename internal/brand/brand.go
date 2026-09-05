@@ -87,6 +87,14 @@ const (
 	// EnvOffering is the one-shot override for the hub offering file
 	// (<data-dir>/offering). Same tokens: hosted or selfhost.
 	EnvOffering = EnvPrefix + "OFFERING"
+
+	// EnvResendAPIKey is the hosted transactional-mail key. Empty on
+	// self-host (silent) and on hosted until ops fills it. Never a flag.
+	EnvResendAPIKey = EnvPrefix + "RESEND_API_KEY"
+
+	// EnvMailFrom is the From address Resend will send as, e.g.
+	// `initAgent <noreply@initagent.dev>`. Required when the key is set.
+	EnvMailFrom = EnvPrefix + "MAIL_FROM"
 )
 
 // Service identities. Renaming these breaks upgrades of an already-installed

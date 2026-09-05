@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-05 — Ask a new customer to name the organization and add a first project
 - 2026-09-05 — Cut v0.3.7 so the hosted login card can switch themes
 
 ## v0.3.7 — 2026-09-05

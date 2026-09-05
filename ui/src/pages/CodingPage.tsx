@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
+import Boarding, { isHostedOperator, orgNeedsName } from '../components/Boarding'
 import FxTerminal from '../components/FxTerminal'
 import ProjectModal from '../components/ProjectModal'
 import { useHubEvents, usePoll } from '../hooks'
-import type { Device, Project } from '../types'
+import type { Device, Me, Project } from '../types'
 
-export default function CodingPage() {
+export default function CodingPage({
+  me,
+  onMeChanged,
+}: {
+  me: Me
+  onMeChanged: () => Promise<void> | void
+}) {
   const { projectId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const [projects, setProjects] = useState<Project[]>([])
@@ -16,6 +24,7 @@ export default function CodingPage() {
   const [showModal, setShowModal] = useState(false)
   const [showLoginHint, setShowLoginHint] = useState(() => localStorage.getItem('liveagent.fx.login-hint') !== 'hidden')
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +70,19 @@ export default function CodingPage() {
   }
 
   if (loaded && projects.length === 0) {
+    if (!isHostedOperator(me) && (me.orgs?.length ?? 0) > 0) {
+      return (
+        <Boarding
+          me={me}
+          devices={devices}
+          onMeChanged={onMeChanged}
+          onProjectCreated={(saved) => {
+            setProjects([saved])
+            navigate(`/code/${saved.id}`)
+          }}
+        />
+      )
+    }
     return (
       <div className="code-empty">
         <div className="code-empty-mark"><span>fx</span></div>
@@ -87,6 +109,15 @@ export default function CodingPage() {
 
   return (
     <div className="coding-shell">
+      {orgNeedsName(me) && !isHostedOperator(me) && (
+        <div className="fx-login-hint">
+          <p>
+            <strong>{me.orgs?.[0]?.name}</strong>
+            {' — '}
+            {t('boarding.unnamedHint')}
+          </p>
+        </div>
+      )}
       <header className="coding-toolbar">
         <div className="min-w-0">
           <div className="flex items-center gap-2">

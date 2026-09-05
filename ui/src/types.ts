@@ -31,6 +31,9 @@ export interface Me {
   // Hosted claimed hubs offer customer register next to login. Self-host
   // never does; the flag travels from the hub so the form cannot invent it.
   signup?: boolean
+  // The display name register writes when nobody names the company.
+  // Boarding compares the current org to this rather than repeating it.
+  defaultOrgName?: string
   authenticated: boolean
   version: string
   platformAdmin?: boolean

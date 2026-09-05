@@ -139,6 +139,19 @@
     "removeFailed": "Could not remove",
     "renameFailed": "Could not rename"
   },
+  "boarding": {
+    "eyebrow": "Get started",
+    "nameTitle": "What is your organization called?",
+    "nameHint": "People and projects belong to it. You can rename it later.",
+    "organization": "Organization name",
+    "continue": "Continue",
+    "skipName": "Keep the generic name for now",
+    "projectTitle": "Add your first project",
+    "projectHint": "This is a software project. Choose the machine where its files live, then work from this browser.",
+    "addProject": "Add a project",
+    "skipProject": "You can leave this empty and come back. A project is what you open in Code.",
+    "unnamedHint": "This is the generic name. Rename it under People when you are ready."
+  },
   "claim": {
     "organization": "Organization name",
     "organizationPlaceholder": "default",

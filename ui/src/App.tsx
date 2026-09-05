@@ -30,6 +30,7 @@ export default function App() {
         offering: '',
         passwordMinLength: 12,
         signup: false,
+        defaultOrgName: 'default',
         authenticated: false,
         version: '',
       })
@@ -78,8 +79,8 @@ export default function App() {
     <Routes>
       <Route element={<Layout me={me} />}>
         <Route path="/" element={<Navigate to="/code" replace />} />
-        <Route path="/code" element={<CodingPage />} />
-        <Route path="/code/:projectId" element={<CodingPage />} />
+        <Route path="/code" element={<CodingPage me={me} onMeChanged={refresh} />} />
+        <Route path="/code/:projectId" element={<CodingPage me={me} onMeChanged={refresh} />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/fleet" element={<Dashboard />} />
         <Route path="/devices/:id" element={<DevicePage />} />

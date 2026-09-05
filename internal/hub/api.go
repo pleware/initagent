@@ -237,6 +237,8 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 // credential into, and a hosted hub that fell back to selfhost is otherwise
 // invisible outside the host's own health check. `signup` is the same
 // decision as the register door: claimed and hosted, nowhere else.
+// `defaultOrgName` is what register writes, so boarding can tell an
+// unnamed company from one the owner chose.
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	claimed, err := s.claimed()
 	if err != nil {
@@ -251,6 +253,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		"offering":          string(s.opts.Offering),
 		"passwordMinLength": auth.MinPassword(s.opts.Offering),
 		"signup":            auth.SignupOpen(s.opts.Offering, claimed),
+		"defaultOrgName":    auth.DefaultOrgName,
 		"authenticated":     false,
 		"version":           s.opts.Version,
 	}

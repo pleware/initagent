@@ -138,10 +138,11 @@ func TestMeReportsOfferingAndClaimState(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	var me struct {
-		Claimed       bool   `json:"claimed"`
-		Offering      string `json:"offering"`
-		Signup        bool   `json:"signup"`
-		Authenticated bool   `json:"authenticated"`
+		Claimed        bool   `json:"claimed"`
+		Offering       string `json:"offering"`
+		Signup         bool   `json:"signup"`
+		DefaultOrgName string `json:"defaultOrgName"`
+		Authenticated  bool   `json:"authenticated"`
 	}
 	get := func() {
 		t.Helper()
@@ -158,6 +159,9 @@ func TestMeReportsOfferingAndClaimState(t *testing.T) {
 	get()
 	if me.Offering != string(offering.Hosted) {
 		t.Errorf("offering = %q, want %q", me.Offering, offering.Hosted)
+	}
+	if me.DefaultOrgName != auth.DefaultOrgName {
+		t.Errorf("defaultOrgName = %q, want %q", me.DefaultOrgName, auth.DefaultOrgName)
 	}
 	if me.Claimed || me.Authenticated || me.Signup {
 		t.Errorf("fresh hub reports claimed=%v authenticated=%v signup=%v, want all false", me.Claimed, me.Authenticated, me.Signup)

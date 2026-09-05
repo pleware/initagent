@@ -6,9 +6,11 @@ The public landing page for initagent, and the announcement surface for
 
 Production origin is **https://initagent.dev**. Hub installers are the same
 host: `/install.sh`, `/install.ps1`, `/install-macos.sh`. There is no
-separate install subdomain. The Software surface leads with **Open app**
-→ `https://app.initagent.dev` and **Self-host** → `#install` (single-user,
-$0). We never host workers.
+separate install subdomain. Pages: home (`/#how`), **Plans** `/plans`,
+**For Developers** `/developers`, **Hardware** `/hardware`. The bar leads
+with **Open app** → `https://app.initagent.dev` and **Self-host** →
+`/developers` (single-user, $0). We never host workers. nginx `try_files`
+sends unknown paths to `index.html` so those routes work.
 
 Those three scripts are owned by [`../scripts`](../scripts) and staged into
 `public/` by the Vite build, for `npm run dev` as well as `npm run build`.

@@ -2,6 +2,10 @@
 
 ## Unreleased — product
 
+- 2026-09-05 — Finish hosted boarding and put plans on their own site pages.
+- 2026-09-05 — Site pages for Plans, For Developers, and Hardware
+- 2026-09-05 — Hosted plans: $5 per person; site Plans section
+- 2026-09-05 — Finish hosted boarding: template, first project without a worker, repo bind, enroll, first task
 - 2026-09-05 — Call the hosted door Open app so a visitor does not have to already have an account
 - 2026-09-05 — Put shared shadcn controls in web so both apps share one catalogue
 - 2026-09-05 — Ask a new customer to name the organization and add a first project

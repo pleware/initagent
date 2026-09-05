@@ -57,15 +57,17 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 	created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS projects (
-	id          TEXT PRIMARY KEY,
-	name        TEXT NOT NULL,
-	org_id      TEXT NOT NULL DEFAULT '',
-	gateway_url TEXT NOT NULL DEFAULT '',
-	device_id   TEXT NOT NULL,
-	path        TEXT NOT NULL,
-	created_at  INTEGER NOT NULL,
-	updated_at  INTEGER NOT NULL,
-	FOREIGN KEY(device_id) REFERENCES devices(id)
+	id           TEXT PRIMARY KEY,
+	name         TEXT NOT NULL,
+	org_id       TEXT NOT NULL DEFAULT '',
+	gateway_url  TEXT NOT NULL DEFAULT '',
+	device_id    TEXT NOT NULL DEFAULT '',
+	path         TEXT NOT NULL DEFAULT '',
+	template_id  TEXT NOT NULL DEFAULT '',
+	repo_remote  TEXT NOT NULL DEFAULT '',
+	repo_host    TEXT NOT NULL DEFAULT '',
+	created_at   INTEGER NOT NULL,
+	updated_at   INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
 CREATE TABLE IF NOT EXISTS accounts (
@@ -131,15 +133,17 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 	created_at BIGINT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS projects (
-	id          TEXT PRIMARY KEY,
-	name        TEXT NOT NULL,
-	org_id      TEXT NOT NULL DEFAULT '',
-	gateway_url TEXT NOT NULL DEFAULT '',
-	device_id   TEXT NOT NULL,
-	path        TEXT NOT NULL,
-	created_at  BIGINT NOT NULL,
-	updated_at  BIGINT NOT NULL,
-	FOREIGN KEY(device_id) REFERENCES devices(id)
+	id           TEXT PRIMARY KEY,
+	name         TEXT NOT NULL,
+	org_id       TEXT NOT NULL DEFAULT '',
+	gateway_url  TEXT NOT NULL DEFAULT '',
+	device_id    TEXT NOT NULL DEFAULT '',
+	path         TEXT NOT NULL DEFAULT '',
+	template_id  TEXT NOT NULL DEFAULT '',
+	repo_remote  TEXT NOT NULL DEFAULT '',
+	repo_host    TEXT NOT NULL DEFAULT '',
+	created_at   BIGINT NOT NULL,
+	updated_at   BIGINT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
 CREATE TABLE IF NOT EXISTS accounts (
@@ -191,6 +195,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureProjectOrgColumns(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring project org columns: %w", err)
+	}
+	if err := s.ensureProjectBoardingColumns(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring project boarding columns: %w", err)
 	}
 	if err := s.seedPresets(); err != nil {
 		db.Close()
@@ -290,6 +298,22 @@ func (s *Store) backfillProjectOrgs() error {
 		return err
 	}
 	_, err := s.db.Exec(`UPDATE projects SET org_id = ? WHERE org_id = ''`, orgId)
+	return err
+}
+
+// ensureProjectBoardingColumns adds template and repo fields, and drops the
+// inherited device foreign key so a project can exist before a worker does.
+// Boarding creates the catalogue row first; enroll is a later step (26).
+func (s *Store) ensureProjectBoardingColumns() error {
+	for _, col := range []string{"template_id", "repo_remote", "repo_host"} {
+		if err := s.ensureColumn("projects", col, "TEXT NOT NULL DEFAULT ''"); err != nil {
+			return err
+		}
+	}
+	if s.db.Dialect() != store.Postgres {
+		return nil
+	}
+	_, err := s.db.Exec(`ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_device_id_fkey`)
 	return err
 }
 
@@ -869,8 +893,10 @@ func (s *Store) DeleteDevice(id string) error {
 
 // --- projects ---
 
-// Project binds a named coding workspace to one directory on one device.
-// The browser-hosted fx runtime uses this pair as its remote workspace.
+// Project is a catalogue entry. DeviceId and Path are the inherited fx
+// workspace pair and may be empty: boarding creates the row before a worker
+// exists (26). TemplateId is a catalogue key, not a project.kind. RepoRemote
+// is the canonical clone URL when the template's contract is change (14).
 //
 // OrgId is required: a query without an organization is a bug (`05`).
 // GatewayURL is the hub's existing gateway, copied at create so the row
@@ -881,13 +907,31 @@ type Project struct {
 	Name       string `json:"name"`
 	OrgId      string `json:"orgId"`
 	GatewayURL string `json:"gatewayUrl"`
-	DeviceId   string `json:"deviceId"`
-	Path       string `json:"path"`
+	DeviceId   string `json:"deviceId,omitempty"`
+	Path       string `json:"path,omitempty"`
+	TemplateId string `json:"templateId,omitempty"`
+	RepoRemote string `json:"repoRemote,omitempty"`
+	RepoHost   string `json:"repoHost,omitempty"`
 	CreatedAt  int64  `json:"createdAt"`
 	UpdatedAt  int64  `json:"updatedAt"`
 }
 
-func (s *Store) CreateProject(orgId, name, deviceId, path, gatewayURL string) (*Project, error) {
+const projectColumns = `id, name, org_id, gateway_url, device_id, path, template_id, repo_remote, repo_host, created_at, updated_at`
+
+func scanProject(scan func(dest ...any) error) (*Project, error) {
+	var p Project
+	err := scan(&p.Id, &p.Name, &p.OrgId, &p.GatewayURL, &p.DeviceId, &p.Path,
+		&p.TemplateId, &p.RepoRemote, &p.RepoHost, &p.CreatedAt, &p.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (s *Store) CreateProject(orgId, name, deviceId, path, gatewayURL, templateId, repoRemote, repoHost string) (*Project, error) {
 	if orgId == "" {
 		return nil, fmt.Errorf("create project: org_id is required")
 	}
@@ -905,26 +949,18 @@ func (s *Store) CreateProject(orgId, name, deviceId, path, gatewayURL string) (*
 	now := time.Now().Unix()
 	p := &Project{
 		Id: projectId, Name: name, OrgId: orgId, GatewayURL: gatewayURL,
-		DeviceId: deviceId, Path: path, CreatedAt: now, UpdatedAt: now,
+		DeviceId: deviceId, Path: path, TemplateId: templateId,
+		RepoRemote: repoRemote, RepoHost: repoHost, CreatedAt: now, UpdatedAt: now,
 	}
-	_, err = s.db.Exec(`INSERT INTO projects (id, name, org_id, gateway_url, device_id, path, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.Id, p.Name, p.OrgId, p.GatewayURL, p.DeviceId, p.Path, p.CreatedAt, p.UpdatedAt)
+	_, err = s.db.Exec(`INSERT INTO projects (`+projectColumns+`)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.Id, p.Name, p.OrgId, p.GatewayURL, p.DeviceId, p.Path,
+		p.TemplateId, p.RepoRemote, p.RepoHost, p.CreatedAt, p.UpdatedAt)
 	return p, err
 }
 
 func (s *Store) ProjectById(id string) (*Project, error) {
-	var p Project
-	err := s.db.QueryRow(`SELECT id, name, org_id, gateway_url, device_id, path, created_at, updated_at
-		FROM projects WHERE id = ?`, id).
-		Scan(&p.Id, &p.Name, &p.OrgId, &p.GatewayURL, &p.DeviceId, &p.Path, &p.CreatedAt, &p.UpdatedAt)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &p, nil
+	return scanProject(s.db.QueryRow(`SELECT `+projectColumns+` FROM projects WHERE id = ?`, id).Scan)
 }
 
 func (s *Store) ListProjectsByOrg(orgId string) ([]Project, error) {
@@ -948,26 +984,25 @@ func (s *Store) ListProjectsForOrgs(orgIds []string) ([]Project, error) {
 }
 
 func (s *Store) listProjects(where string, args ...any) ([]Project, error) {
-	rows, err := s.db.Query(`SELECT id, name, org_id, gateway_url, device_id, path, created_at, updated_at
-		FROM projects `+where+` ORDER BY updated_at DESC, name ASC`, args...)
+	rows, err := s.db.Query(`SELECT `+projectColumns+` FROM projects `+where+` ORDER BY updated_at DESC, name ASC`, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	projects := []Project{}
 	for rows.Next() {
-		var p Project
-		if err := rows.Scan(&p.Id, &p.Name, &p.OrgId, &p.GatewayURL, &p.DeviceId, &p.Path, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		p, err := scanProject(rows.Scan)
+		if err != nil {
 			return nil, err
 		}
-		projects = append(projects, p)
+		projects = append(projects, *p)
 	}
 	return projects, rows.Err()
 }
 
-func (s *Store) UpdateProject(id, name, deviceId, path string) (*Project, error) {
-	res, err := s.db.Exec(`UPDATE projects SET name = ?, device_id = ?, path = ?, updated_at = ? WHERE id = ?`,
-		name, deviceId, path, time.Now().Unix(), id)
+func (s *Store) UpdateProject(id, name, deviceId, path, templateId, repoRemote, repoHost string) (*Project, error) {
+	res, err := s.db.Exec(`UPDATE projects SET name = ?, device_id = ?, path = ?, template_id = ?, repo_remote = ?, repo_host = ?, updated_at = ? WHERE id = ?`,
+		name, deviceId, path, templateId, repoRemote, repoHost, time.Now().Unix(), id)
 	if err != nil {
 		return nil, err
 	}

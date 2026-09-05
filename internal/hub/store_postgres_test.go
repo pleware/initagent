@@ -71,7 +71,7 @@ func TestStorePostgresSmoke(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ClaimHub: %v", err)
 	}
-	proj, err := s.CreateProject(org.Id, "smoke-proj", deviceID, "/srv/smoke", "http://gateway")
+	proj, err := s.CreateProject(org.Id, "smoke-proj", deviceID, "/srv/smoke", "http://gateway", "", "", "")
 	if err != nil {
 		t.Fatalf("CreateProject: %v", err)
 	}

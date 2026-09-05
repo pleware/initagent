@@ -1,15 +1,10 @@
 import { useEffect, useState } from "react";
 import { GithubLogo, List, X, Eye } from "@phosphor-icons/react";
 import { HUB, REPO } from "../lib/site";
+import { NAV, ROUTES, navIsCurrent } from "../lib/routes";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 
-const LINKS = [
-  { label: "How it works", href: "#how" },
-  { label: "Fleet agents", href: "#agents" },
-  { label: "initagent Code", href: "#code" },
-];
-
-export function Nav() {
+export function Nav({ path }: { path: string }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -37,7 +32,7 @@ export function Nav() {
         }`}
       >
         <nav className="mx-auto flex h-16 max-w-[1240px] items-center gap-8 px-5 lg:px-8">
-          <a href="#top" className="flex shrink-0 items-center gap-2.5">
+          <a href={ROUTES.home} className="flex shrink-0 items-center gap-2.5">
             <Eye size={20} weight="regular" className="text-accent" />
             <span className="text-[15px] font-semibold tracking-tight">
               initagent
@@ -45,11 +40,14 @@ export function Nav() {
           </a>
 
           <div className="hidden flex-1 items-center gap-7 md:flex">
-            {LINKS.map((l) => (
+            {NAV.map((l) => (
               <a
                 key={l.href}
                 href={l.href}
-                className="text-[13.5px] text-fg-muted transition-colors hover:text-fg"
+                aria-current={navIsCurrent(l.href, path) ? "page" : undefined}
+                className={`text-[13.5px] transition-colors hover:text-fg ${
+                  navIsCurrent(l.href, path) ? "text-fg" : "text-fg-muted"
+                }`}
               >
                 {l.label}
               </a>
@@ -68,7 +66,7 @@ export function Nav() {
               Source
             </a>
             <a
-              href="#install"
+              href={ROUTES.developers}
               className="rounded-control px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-shell hover:text-fg"
             >
               Self-host
@@ -95,11 +93,12 @@ export function Nav() {
         {open && (
           <div className="border-t border-line-2 bg-canvas/95 px-5 py-4 backdrop-blur-xl md:hidden">
             <div className="flex flex-col gap-1">
-              {LINKS.map((l) => (
+              {NAV.map((l) => (
                 <a
                   key={l.href}
                   href={l.href}
                   onClick={() => setOpen(false)}
+                  aria-current={navIsCurrent(l.href, path) ? "page" : undefined}
                   className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-shell hover:text-fg"
                 >
                   {l.label}
@@ -115,7 +114,7 @@ export function Nav() {
                 Source
               </a>
               <a
-                href="#install"
+                href={ROUTES.developers}
                 onClick={() => setOpen(false)}
                 className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-shell hover:text-fg"
               >

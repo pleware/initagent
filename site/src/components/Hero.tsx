@@ -1,5 +1,6 @@
 import { ArrowRight } from "@phosphor-icons/react";
 import { HUB } from "../lib/site";
+import { ROUTES } from "../lib/routes";
 import { Screenshot } from "./Screenshot";
 
 export function Hero() {
@@ -49,7 +50,7 @@ export function Hero() {
               />
             </a>
             <a
-              href="#install"
+              href={ROUTES.developers}
               className="flex items-center gap-2 rounded-control border border-line-2 bg-sidebar px-5 py-3 text-[14.5px] font-medium whitespace-nowrap text-fg transition-colors duration-150 hover:border-fg-subtle hover:bg-shell active:scale-[0.98]"
             >
               Self-host
@@ -59,8 +60,8 @@ export function Hero() {
             className="hero-rise mt-3 text-[13px] text-fg-subtle"
             style={{ animationDelay: "0.22s" }}
           >
-            One free project on our hub. Self-host is $0 for a single user.
-            Workers stay yours.
+            One free project on our hub. $5 per person after that.
+            Self-host is $0. Machines stay yours.
           </p>
         </div>
 

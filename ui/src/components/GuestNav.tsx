@@ -9,8 +9,9 @@ const REPO = 'https://github.com/pleware/initagent'
 
 const LINKS = [
   { key: 'how', href: `${SITE}/#how` },
-  { key: 'agents', href: `${SITE}/#agents` },
-  { key: 'code', href: `${SITE}/#code` },
+  { key: 'plans', href: `${SITE}/plans` },
+  { key: 'developers', href: `${SITE}/developers` },
+  { key: 'hardware', href: `${SITE}/hardware` },
 ] as const
 
 /**
@@ -56,7 +57,7 @@ export default function GuestNav() {
             {t('publicNav.source')}
           </a>
           <a
-            href={`${SITE}/#install`}
+            href={`${SITE}/developers`}
             className="rounded-lg px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-fill-3 hover:text-fg"
           >
             {t('publicNav.selfHost')}
@@ -97,7 +98,7 @@ export default function GuestNav() {
               {t('publicNav.source')}
             </a>
             <a
-              href={`${SITE}/#install`}
+              href={`${SITE}/developers`}
               onClick={() => setOpen(false)}
               className="rounded-lg px-2 py-3 text-[15px] text-fg-muted hover:bg-fill-3 hover:text-fg"
             >

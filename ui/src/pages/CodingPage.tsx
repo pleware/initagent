@@ -76,7 +76,7 @@ export default function CodingPage({
           me={me}
           devices={devices}
           onMeChanged={onMeChanged}
-          onProjectCreated={(saved) => {
+          onFinished={(saved) => {
             setProjects([saved])
             navigate(`/code/${saved.id}`)
           }}

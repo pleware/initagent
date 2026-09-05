@@ -1,26 +1,63 @@
+import { useEffect, type ReactNode } from "react";
 import { Nav } from "./components/Nav";
-import { Hero } from "./components/Hero";
-import { Install } from "./components/Install";
-import { Capabilities } from "./components/Capabilities";
-import { FleetAgents } from "./components/FleetAgents";
-import { HowItWorks } from "./components/HowItWorks";
-import { Exposure } from "./components/Exposure";
-import { OverseerCode } from "./components/OverseerCode";
 import { Footer } from "./components/Footer";
+import { Home } from "./components/Home";
+import { Plans } from "./components/Plans";
+import { Developers } from "./components/Developers";
+import { Hardware } from "./components/Hardware";
+import { NotFound } from "./components/NotFound";
+import { currentPath, ROUTES } from "./lib/routes";
+
+const TITLES: Record<string, string> = {
+  [ROUTES.home]:
+    "initagent - control every machine you own from one browser tab",
+  [ROUTES.plans]: "Plans - initagent",
+  [ROUTES.developers]: "For Developers - initagent",
+  [ROUTES.hardware]: "Hardware - initagent",
+};
+
+function pageFor(path: string): ReactNode {
+  switch (path) {
+    case ROUTES.home:
+      return <Home />;
+    case ROUTES.plans:
+      return <Plans />;
+    case ROUTES.developers:
+      return <Developers />;
+    case ROUTES.hardware:
+      return <Hardware />;
+    default:
+      return <NotFound />;
+  }
+}
 
 export default function App() {
+  const path = currentPath();
+
+  useEffect(() => {
+    function redirectLegacyHash() {
+      if (currentPath() !== ROUTES.home) return;
+      if (location.hash === "#plans") {
+        location.replace(ROUTES.plans);
+        return;
+      }
+      if (location.hash === "#install") {
+        location.replace(ROUTES.developers);
+      }
+    }
+    redirectLegacyHash();
+    window.addEventListener("hashchange", redirectLegacyHash);
+    return () => window.removeEventListener("hashchange", redirectLegacyHash);
+  }, []);
+
+  useEffect(() => {
+    document.title = TITLES[path] ?? "initagent";
+  }, [path]);
+
   return (
     <>
-      <Nav />
-      <main>
-        <Hero />
-        <Install />
-        <Capabilities />
-        <FleetAgents />
-        <HowItWorks />
-        <Exposure />
-        <OverseerCode />
-      </main>
+      <Nav path={path} />
+      {pageFor(path)}
       <Footer />
     </>
   );

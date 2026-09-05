@@ -322,6 +322,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/devices/{id}/fs", s.requireAuth(s.handleFsList))
 	m.HandleFunc("GET /api/devices/{id}/fs/download", s.requireAuth(s.handleFsDownload))
 	m.HandleFunc("POST /api/devices/{id}/fs/upload", s.requireAuth(s.handleFsUpload))
+	m.HandleFunc("GET /api/templates", s.requireAuth(s.handleListTemplates))
 	m.HandleFunc("GET /api/projects", s.requireActor(s.handleListProjects))
 	m.HandleFunc("POST /api/projects", s.requireActor(s.handleCreateProject))
 	m.HandleFunc("PATCH /api/projects/{id}", s.requireActor(s.handleUpdateProject))

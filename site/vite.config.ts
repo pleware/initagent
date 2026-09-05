@@ -30,6 +30,7 @@ function installers(): Plugin {
 }
 
 export default defineConfig({
+  appType: "spa",
   plugins: [react(), tailwindcss(), installers()],
   resolve: {
     dedupe: ["react", "react-dom"],

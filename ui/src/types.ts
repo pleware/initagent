@@ -106,8 +106,20 @@ export interface Project {
   gatewayUrl: string
   deviceId: string
   path: string
+  templateId?: string
+  repoRemote?: string
+  repoHost?: string
   createdAt: number
   updatedAt: number
+}
+
+export interface ProjectTemplate {
+  id: string
+  label: string
+  live: boolean
+  contract: string
+  needsRepo: boolean
+  requiredTasks: string[]
 }
 
 export interface ExecResult {

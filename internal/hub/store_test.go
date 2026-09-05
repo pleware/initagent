@@ -483,7 +483,7 @@ func TestProjectLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := s.CreateProject(org.Id, "Storefront", deviceId, "/Users/dev/storefront", "http://gateway")
+	p, err := s.CreateProject(org.Id, "Storefront", deviceId, "/Users/dev/storefront", "http://gateway", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -497,7 +497,7 @@ func TestProjectLifecycle(t *testing.T) {
 	if projects[0].OrgId != org.Id || projects[0].GatewayURL != "http://gateway" {
 		t.Fatalf("project missing org or gateway: %+v", projects[0])
 	}
-	updated, err := s.UpdateProject(p.Id, "Web store", deviceId, "/Users/dev/web-store")
+	updated, err := s.UpdateProject(p.Id, "Web store", deviceId, "/Users/dev/web-store", "", "", "")
 	if err != nil || updated == nil || updated.Path != "/Users/dev/web-store" {
 		t.Fatalf("UpdateProject: %+v, %v", updated, err)
 	}
@@ -509,6 +509,28 @@ func TestProjectLifecycle(t *testing.T) {
 	}
 }
 
+func TestCreateProjectWithoutADevice(t *testing.T) {
+	s := testStore(t)
+	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.CreateProject(org.Id, "Boarding", "", "", "", "software", "https://github.com/acme/app.git", "github")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.DeviceId != "" || p.Path != "" {
+		t.Fatalf("expected empty device/path, got %+v", p)
+	}
+	if p.TemplateId != "software" || p.RepoHost != "github" {
+		t.Fatalf("template/repo = %+v", p)
+	}
+	got, err := s.ProjectById(p.Id)
+	if err != nil || got == nil || got.RepoRemote != "https://github.com/acme/app.git" {
+		t.Fatalf("reload: %+v %v", got, err)
+	}
+}
+
 func TestDeletingDeviceDeletesItsProjects(t *testing.T) {
 	s := testStore(t)
 	deviceId, _, _ := s.CreateDevice("runner", "runner", "linux", "amd64", false)
@@ -516,7 +538,7 @@ func TestDeletingDeviceDeletesItsProjects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateProject(org.Id, "API", deviceId, "/srv/api", ""); err != nil {
+	if _, err := s.CreateProject(org.Id, "API", deviceId, "/srv/api", "", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.DeleteDevice(deviceId); err != nil {
@@ -534,10 +556,10 @@ func TestCreateProjectRequiresAnOrg(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateProject("", "NoOrg", deviceId, "/tmp", ""); err == nil {
+	if _, err := s.CreateProject("", "NoOrg", deviceId, "/tmp", "", "", "", ""); err == nil {
 		t.Fatal("CreateProject with empty org_id succeeded")
 	}
-	if _, err := s.CreateProject("org-missing", "NoOrg", deviceId, "/tmp", ""); err == nil {
+	if _, err := s.CreateProject("org-missing", "NoOrg", deviceId, "/tmp", "", "", "", ""); err == nil {
 		t.Fatal("CreateProject with an unknown org succeeded")
 	}
 }
@@ -556,10 +578,10 @@ func TestProjectsDoNotCrossOrgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateProject(first.Id, "A", deviceId, "/a", ""); err != nil {
+	if _, err := s.CreateProject(first.Id, "A", deviceId, "/a", "", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateProject(second.Id, "B", deviceId, "/b", ""); err != nil {
+	if _, err := s.CreateProject(second.Id, "B", deviceId, "/b", "", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	onlyFirst, err := s.ListProjectsByOrg(first.Id)

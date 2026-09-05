@@ -13,3 +13,6 @@
 ./internal/offering
 ./internal/auth
 ./internal/authz
+./internal/projecttemplate
+./internal/repo
+./internal/orgplan

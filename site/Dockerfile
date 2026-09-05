@@ -24,4 +24,5 @@ RUN npm run build
 # ── Stage 2: serve ─────────────────────────────────────────────────────
 FROM nginx:1.27-alpine
 COPY --from=build /src/site/dist /usr/share/nginx/html
+COPY site/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

@@ -1,42 +1,74 @@
 package hub
 
 import (
+	"cmp"
 	"net/http"
 	"strings"
 
 	"github.com/pleware/initagent/internal/authz"
+	"github.com/pleware/initagent/internal/projecttemplate"
+	"github.com/pleware/initagent/internal/repo"
 )
 
 const (
-	maxProjectName = 80
-	maxProjectPath = 4096
+	maxProjectName   = 80
+	maxProjectPath   = 4096
+	maxProjectRemote = 2048
 )
 
 type projectInput struct {
-	Name     string `json:"name"`
-	OrgId    string `json:"orgId"`
-	DeviceId string `json:"deviceId"`
-	Path     string `json:"path"`
+	Name       string `json:"name"`
+	OrgId      string `json:"orgId"`
+	DeviceId   string `json:"deviceId"`
+	Path       string `json:"path"`
+	TemplateId string `json:"templateId"`
+	RepoRemote string `json:"repoRemote"`
 }
 
-func cleanProjectInput(input projectInput) (projectInput, string) {
+func cleanProjectFields(input projectInput) (projectInput, string) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.OrgId = strings.TrimSpace(input.OrgId)
 	input.DeviceId = strings.TrimSpace(input.DeviceId)
 	input.Path = strings.TrimSpace(input.Path)
-	if input.Name == "" || input.DeviceId == "" || input.Path == "" {
-		return input, "name, deviceId, and path are required"
-	}
+	input.TemplateId = strings.TrimSpace(input.TemplateId)
+	input.RepoRemote = strings.TrimSpace(input.RepoRemote)
 	if len(input.Name) > maxProjectName {
 		return input, "project name is too long"
 	}
 	if len(input.Path) > maxProjectPath || strings.ContainsRune(input.Path, '\x00') {
 		return input, "project path is invalid"
 	}
+	if len(input.RepoRemote) > maxProjectRemote {
+		return input, "repository address is too long"
+	}
+	if input.TemplateId != "" {
+		tmpl, ok := projecttemplate.Lookup(input.TemplateId)
+		if !ok {
+			return input, "unknown project template"
+		}
+		if !tmpl.Live {
+			return input, "that template is not available yet"
+		}
+	}
 	return input, ""
 }
 
+func repoFields(remote string) (string, string, string) {
+	remote = strings.TrimSpace(remote)
+	if remote == "" {
+		return "", "", ""
+	}
+	host, err := repo.HostFromRemote(remote)
+	if err != nil {
+		return "", "", err.Error()
+	}
+	return remote, string(host), ""
+}
+
 func (s *Server) validateProjectDevice(w http.ResponseWriter, deviceId string) bool {
+	if deviceId == "" {
+		return true
+	}
 	device, err := s.store.DeviceById(deviceId)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
@@ -72,6 +104,10 @@ var errOrgRequired = errBadRequest("orgId is required when you belong to more th
 type errBadRequest string
 
 func (e errBadRequest) Error() string { return string(e) }
+
+func (s *Server) handleListTemplates(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, projecttemplate.Catalogue())
+}
 
 func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
 	requested := strings.TrimSpace(r.URL.Query().Get("org"))
@@ -109,8 +145,12 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, act
 		return
 	}
 	var message string
-	if input, message = cleanProjectInput(input); message != "" {
+	if input, message = cleanProjectFields(input); message != "" {
 		httpError(w, http.StatusBadRequest, message)
+		return
+	}
+	if input.Name == "" {
+		httpError(w, http.StatusBadRequest, "name is required")
 		return
 	}
 	orgId, err := resolveProjectOrg(actor, input.OrgId)
@@ -125,7 +165,12 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, act
 	if !s.validateProjectDevice(w, input.DeviceId) {
 		return
 	}
-	project, err := s.store.CreateProject(orgId, input.Name, input.DeviceId, input.Path, s.opts.GatewayURL)
+	remote, host, message := repoFields(input.RepoRemote)
+	if message != "" {
+		httpError(w, http.StatusBadRequest, message)
+		return
+	}
+	project, err := s.store.CreateProject(orgId, input.Name, input.DeviceId, input.Path, s.opts.GatewayURL, input.TemplateId, remote, host)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -145,14 +190,35 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, act
 		return
 	}
 	var message string
-	if input, message = cleanProjectInput(input); message != "" {
+	if input, message = cleanProjectFields(input); message != "" {
 		httpError(w, http.StatusBadRequest, message)
 		return
 	}
-	if !s.validateProjectDevice(w, input.DeviceId) {
+	name := cmp.Or(input.Name, existing.Name)
+	deviceId := existing.DeviceId
+	if input.DeviceId != "" {
+		deviceId = input.DeviceId
+	}
+	path := existing.Path
+	if input.Path != "" {
+		path = input.Path
+	}
+	templateId := existing.TemplateId
+	if input.TemplateId != "" {
+		templateId = input.TemplateId
+	}
+	if !s.validateProjectDevice(w, deviceId) {
 		return
 	}
-	project, err := s.store.UpdateProject(existing.Id, input.Name, input.DeviceId, input.Path)
+	remote, host := existing.RepoRemote, existing.RepoHost
+	if input.RepoRemote != "" {
+		remote, host, message = repoFields(input.RepoRemote)
+		if message != "" {
+			httpError(w, http.StatusBadRequest, message)
+			return
+		}
+	}
+	project, err := s.store.UpdateProject(existing.Id, name, deviceId, path, templateId, remote, host)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -181,6 +247,10 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request, act
 func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
 	project, ok := s.projectForActor(w, r.PathValue("id"), actor, authz.ReadProject)
 	if !ok {
+		return
+	}
+	if project.DeviceId == "" {
+		httpError(w, http.StatusServiceUnavailable, "project has no device")
 		return
 	}
 	c := s.registry.get(project.DeviceId)

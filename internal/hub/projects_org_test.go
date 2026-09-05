@@ -71,7 +71,7 @@ func TestProjectInAnotherOrgIsNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	device := f.addDevice(t)
-	hidden, err := f.srv.store.CreateProject(other.Id, "Secret", device, "/secret", "")
+	hidden, err := f.srv.store.CreateProject(other.Id, "Secret", device, "/secret", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,5 +105,85 @@ func TestProjectsRefuseApiTokens(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("token list projects: %d, want 401", resp.StatusCode)
+	}
+}
+
+func TestListTemplates(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	resp := f.do(t, http.MethodGet, "/api/templates", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("templates: %d, want 200", resp.StatusCode)
+	}
+	var list []struct {
+		ID   string `json:"id"`
+		Live bool   `json:"live"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		t.Fatal(err)
+	}
+	var live int
+	var sawSoftware bool
+	for _, tmpl := range list {
+		if tmpl.Live {
+			live++
+		}
+		if tmpl.ID == "software" {
+			sawSoftware = tmpl.Live
+		}
+	}
+	if !sawSoftware || live != 1 {
+		t.Fatalf("templates = %+v, want software live and only that", list)
+	}
+}
+
+func TestCreateProjectWithoutDevice(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	f.srv.opts.GatewayURL = "http://gateway.test"
+
+	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
+		"name": "Storefront", "templateId": "software",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create: %d, want 201", resp.StatusCode)
+	}
+	var p Project
+	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
+		t.Fatal(err)
+	}
+	if p.Name != "Storefront" || p.TemplateId != "software" || p.DeviceId != "" {
+		t.Fatalf("project = %+v", p)
+	}
+
+	resp = f.do(t, http.MethodPatch, "/api/projects/"+p.Id, map[string]string{
+		"repoRemote": "https://github.com/acme/app.git",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("bind repo: %d, want 200", resp.StatusCode)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
+		t.Fatal(err)
+	}
+	if p.RepoHost != "github" || p.RepoRemote != "https://github.com/acme/app.git" {
+		t.Fatalf("repo = %+v", p)
+	}
+}
+
+func TestCreateProjectRejectsComingSoonTemplate(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
+		"name": "Clip", "templateId": "video",
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("coming soon: %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestCreateProjectRequiresAName(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
+		"templateId": "software",
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("empty name: %d, want 400", resp.StatusCode)
 	}
 }

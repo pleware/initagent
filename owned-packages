@@ -16,3 +16,4 @@
 ./internal/projecttemplate
 ./internal/repo
 ./internal/orgplan
+./internal/registry/config

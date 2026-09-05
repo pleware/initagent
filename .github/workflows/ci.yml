@@ -18,6 +18,8 @@ jobs:
       - name: Owned package format (gofmt)
         run: bash ./scripts/check-owned-format.sh
       - run: go vet ./...
+      - name: Catalogue generated TypeScript
+        run: go run ./internal/orgplan/gencatalog -check
       - run: go test ./...
       - name: Owned package coverage (≥ 90%)
         run: bash ./scripts/check-owned-coverage.sh

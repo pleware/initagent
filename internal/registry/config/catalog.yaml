@@ -1,0 +1,58 @@
+# Hosted organization-plan catalogue (drafts 32, 48).
+# Slugs are keys. There is no display name: UI and site copy map the slug.
+# Stripe Product/Price ids stay in ops. 0 on a limit means no cap.
+config:
+  plansOrder:
+    - free
+    - starter
+    - team
+    - enterprise
+  plans:
+    free:
+      selfServe: true
+      charge:
+        kind: free
+      themeFamily: default
+      limits:
+        projects: 1
+        workersPerProject: 2
+        people: 1
+        idleDays: 60
+        logDays: 7
+    starter:
+      selfServe: true
+      charge:
+        kind: usd
+        usd: 5
+        perPerson: true
+      themeFamily: default
+      limits:
+        projects: 2
+        workersPerProject: 3
+        people: 0
+        idleDays: 0
+        logDays: 0
+    team:
+      selfServe: true
+      charge:
+        kind: usd
+        usd: 5
+        perPerson: true
+      themeFamily: default
+      limits:
+        projects: 5
+        workersPerProject: 5
+        people: 0
+        idleDays: 0
+        logDays: 0
+    enterprise:
+      selfServe: false
+      charge:
+        kind: contact
+      themeFamily: enterprise
+      limits:
+        projects: 0
+        workersPerProject: 0
+        people: 0
+        idleDays: 0
+        logDays: 0

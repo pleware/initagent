@@ -19,8 +19,8 @@ func TestCatalogueLocksFreeCaps(t *testing.T) {
 	}
 	var selfServe []ID
 	for _, p := range got {
-		if p.ID == "" || p.Label == "" || p.ThemeFamily == "" {
-			t.Fatalf("plan missing id, label, or theme: %+v", p)
+		if p.ID == "" || p.ThemeFamily == "" {
+			t.Fatalf("plan missing id or theme: %+v", p)
 		}
 		if p.SelfServe {
 			selfServe = append(selfServe, p.ID)
@@ -58,8 +58,8 @@ func TestCatalogueLocksFreeCaps(t *testing.T) {
 	if starter.Limits.Projects != 2 || starter.Limits.WorkersPerProject != 3 {
 		t.Fatalf("starter caps = %+v, want 2 projects / 3 workers per project", starter.Limits)
 	}
-	if starter.Charge != (Charge{Kind: ChargeUSD, USD: PersonUSD, PerPerson: true}) || PersonUSD != 5 {
-		t.Fatalf("starter charge = %+v, want $%d per person", starter.Charge, PersonUSD)
+	if starter.Charge != (Charge{Kind: ChargeUSD, USD: PersonUSD(), PerPerson: true}) || PersonUSD() != 5 {
+		t.Fatalf("starter charge = %+v, want $%d per person", starter.Charge, PersonUSD())
 	}
 	team, ok := Lookup(string(Team))
 	if !ok {
@@ -68,8 +68,8 @@ func TestCatalogueLocksFreeCaps(t *testing.T) {
 	if team.Limits.Projects != 5 || team.Limits.WorkersPerProject != 5 {
 		t.Fatalf("team caps = %+v, want 5 projects / 5 workers per project", team.Limits)
 	}
-	if team.Charge != (Charge{Kind: ChargeUSD, USD: PersonUSD, PerPerson: true}) {
-		t.Fatalf("team charge = %+v, want $%d per person", team.Charge, PersonUSD)
+	if team.Charge != (Charge{Kind: ChargeUSD, USD: PersonUSD(), PerPerson: true}) {
+		t.Fatalf("team charge = %+v, want $%d per person", team.Charge, PersonUSD())
 	}
 	ent, ok := Lookup(string(Enterprise))
 	if !ok || ent.ThemeFamily != ThemeEnterprise || ent.Charge.Kind != ChargeContact || ent.Limits != Unlimited {

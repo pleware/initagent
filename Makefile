@@ -3,7 +3,7 @@
 #   make          build everything into ./initagent (UI embedded)
 #   make ui       build the web UI and stage it for embedding
 #   make go       build the Go binary only (uses last staged UI)
-#   make test     run Go tests
+#   make generate  write site/ui TypeScript from catalog.yaml
 #   make cross    cross-compile for all supported platforms into dist/
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -11,7 +11,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION)
 PLATFORMS := darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64
 CMD_DIR := cmd/initagent
 
-.PHONY: all ui go test cross clean
+.PHONY: all ui go test cross clean generate
 
 all: ui go
 
@@ -26,7 +26,11 @@ go:
 
 test:
 	go vet ./...
+	go run ./internal/orgplan/gencatalog -check
 	go test ./...
+
+generate:
+	go run ./internal/orgplan/gencatalog
 
 cross: ui
 	@mkdir -p dist

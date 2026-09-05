@@ -76,6 +76,8 @@ export interface OrgMember {
 
 // Membership is the same relation from the signed-in person's side: which
 // organizations are mine, and what am I in them.
+export type { PlanSlug } from './lib/org-plans.gen'
+
 export interface Membership {
   orgId: string
   name: string

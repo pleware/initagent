@@ -9,8 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@phosphor-icons/react": "^2.1.10",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.2.5",
     "i18next": "^26.4.1",
     "i18next-browser-languagedetector": "^8.2.1",
     "libfx": "^0.0.5",

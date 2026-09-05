@@ -5,10 +5,10 @@
 # This app is never compiled into the hub binary (site/README.md).
 #
 # The build context is the repository root, not site/: the Vite build stages
-# the hub installers from scripts/, and the page imports the theme runtime
-# from ui/src/theme plus palettes from internal/brand/themes. Keep those
-# paths identical to the checkout so relative imports resolve the same here
-# as they do in a working tree.
+# the hub installers from scripts/, and the page imports shared chrome from
+# web/ plus palettes from internal/brand/themes. Keep those paths identical
+# to the checkout so relative imports resolve the same here as they do in a
+# working tree.
 
 # ── Stage 1: build ─────────────────────────────────────────────────────
 FROM node:22-alpine AS build
@@ -17,7 +17,7 @@ COPY site/package.json site/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY scripts/install.sh scripts/install.ps1 scripts/install-macos.sh /src/scripts/
 COPY site/ ./
-COPY ui/src/theme /src/ui/src/theme
+COPY web /src/web
 COPY internal/brand/themes /src/internal/brand/themes
 RUN npm run build
 

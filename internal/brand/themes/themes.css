@@ -55,11 +55,10 @@
  *         the button label, not the button)
  *   -fg   that colour used as text or an icon on the canvas
  *
- * Rule: no token without a call site. The set above is exactly what the app
- * shell (`ui/src/index.css`) consumes today. Terminal palettes, modals, and
- * the per-state colours still inlined in TSX get tokens in the same change
- * that migrates those call sites, not before — a token nobody reads is how
- * the previous starter palette rotted.
+ * Rule: no token without a call site. Tailwind utility names for this set
+ * live in `tw.css` and are imported by both `ui/` and `site/`. Terminal
+ * palettes, modals, and the per-state colours still inlined in TSX get
+ * tokens in the same change that migrates those call sites, not before.
  *
  * Contrast is aimed at WCAG AA on the family's own canvas. Recheck when a
  * value moves; nothing here is verified automatically yet.

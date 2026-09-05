@@ -20,7 +20,19 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "@ia/web": ["../web"],
+      "@ia/web/*": ["../web/*"],
+      "@base-ui/react/*": ["./node_modules/@base-ui/react/*"],
+      "cn": ["./node_modules/cn/dist/index.d.ts"],
+      "class-variance-authority": ["./node_modules/class-variance-authority/dist/index.d.ts"],
+      "@phosphor-icons/react": ["./node_modules/@phosphor-icons/react/dist/index.d.ts"]
+    }
   },
-  "include": ["src", "../ui/src/theme/**/*.ts"]
+  "include": ["src", "../web/**/*.ts", "../web/**/*.tsx"]
 }

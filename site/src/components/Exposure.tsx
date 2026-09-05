@@ -21,15 +21,15 @@ const ROUTES = [
 
 export function Exposure() {
   return (
-    <section className="border-t border-line-soft py-24 lg:py-32">
+    <section className="border-t border-line-1 py-24 lg:py-32">
       <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
         <Reveal>
-          <div className="rounded-panel border border-beacon/30 bg-beacon/10 p-6 lg:p-8">
+          <div className="rounded-panel border border-accent/30 bg-accent/10 p-6 lg:p-8">
             <div className="flex items-start gap-3.5">
               <Warning
                 size={22}
                 weight="regular"
-                className="mt-0.5 shrink-0 text-beacon"
+                className="mt-0.5 shrink-0 text-accent"
               />
               <div>
                 <h2 className="text-[1.6rem] leading-[1.15] font-semibold tracking-tight sm:text-[1.9rem]">
@@ -49,7 +49,7 @@ export function Exposure() {
         </Reveal>
 
         <Reveal delay={0.08}>
-          <div className="mt-6 divide-y divide-line overflow-hidden rounded-panel border border-line bg-ink-900">
+          <div className="mt-6 divide-y divide-line-2 overflow-hidden rounded-panel border border-line-2 bg-sidebar">
             {ROUTES.map((r) => (
               <div
                 key={r.title}
@@ -63,7 +63,7 @@ export function Exposure() {
                     {r.body}
                   </p>
                   {r.code && (
-                    <div className="mt-3 overflow-x-auto rounded-control border border-line bg-ink-950/60 px-4 py-3">
+                    <div className="mt-3 overflow-x-auto rounded-control border border-line-2 bg-canvas/60 px-4 py-3">
                       <code className="font-mono text-[12px] whitespace-pre text-fg-muted">
                         {r.code}
                       </code>

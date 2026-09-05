@@ -13,10 +13,9 @@ WORKDIR /src/ui
 COPY ui/package.json ui/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY ui/ ./
-# The cockpit reads its colour tokens from internal/brand/themes, which sits
-# outside this stage's ui/ context. Keep the path identical to the checkout so
-# the relative @import in src/index.css resolves the same here as it does in a
-# working tree.
+# Tokens and shared chrome sit next to ui/ in the checkout. Keep those
+# relative paths identical so @import and `../../web` resolve here.
+COPY web /src/web
 COPY internal/brand/themes /src/internal/brand/themes
 RUN npm run build
 

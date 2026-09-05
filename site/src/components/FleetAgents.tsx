@@ -23,7 +23,7 @@ const GROUPS = [
 
 export function FleetAgents() {
   return (
-    <section id="agents" className="border-t border-line-soft py-24 lg:py-32">
+    <section id="agents" className="border-t border-line-1 py-24 lg:py-32">
       <div className="mx-auto grid max-w-[1240px] grid-cols-1 gap-14 px-5 lg:grid-cols-12 lg:gap-16 lg:px-8">
         <div className="lg:col-span-5">
           <Reveal>
@@ -39,14 +39,14 @@ export function FleetAgents() {
           </Reveal>
 
           <Reveal delay={0.08}>
-            <div className="mt-8 overflow-hidden rounded-panel border border-line bg-ink-900">
+            <div className="mt-8 overflow-hidden rounded-panel border border-line-2 bg-sidebar">
               <div className="overflow-x-auto p-5 font-mono text-[12.5px] leading-[1.9] whitespace-pre text-fg-muted">
                 <div>
-                  <span className="mr-2 text-beacon select-none">$</span>
+                  <span className="mr-2 text-accent select-none">$</span>
                   initagent fleet login --hub http://YOUR-HUB:4200 --token TOKEN
                 </div>
                 <div>
-                  <span className="mr-2 text-beacon select-none">$</span>
+                  <span className="mr-2 text-accent select-none">$</span>
                   claude mcp add initagent -- initagent mcp
                 </div>
               </div>
@@ -54,12 +54,12 @@ export function FleetAgents() {
           </Reveal>
 
           <Reveal delay={0.14}>
-            <figure className="mt-8 border-l-2 border-beacon/60 pl-5">
+            <figure className="mt-8 border-l-2 border-accent/60 pl-5">
               <blockquote className="text-[16px] leading-relaxed text-fg italic">
                 &ldquo;Launch claude in ~/projects/api on the homelab box, have
                 it fix the failing tests, then report back.&rdquo;
               </blockquote>
-              <figcaption className="mt-2.5 text-[13.5px] text-fg-dim">
+              <figcaption className="mt-2.5 text-[13.5px] text-fg-subtle">
                 The kind of instruction the senior agent turns into work on
                 another machine.
               </figcaption>
@@ -73,7 +73,7 @@ export function FleetAgents() {
               {GROUPS.map((g) => (
                 <div
                   key={g.group}
-                  className={`rounded-panel border border-line bg-ink-900 p-5 ${
+                  className={`rounded-panel border border-line-2 bg-sidebar p-5 ${
                     // Sessions carries the most tools, so it takes the tall
                     // right-hand cell and the other two stack beside it.
                     g.group === "Sessions"
@@ -88,7 +88,7 @@ export function FleetAgents() {
                     {g.tools.map((t) => (
                       <li
                         key={t}
-                        className="rounded-control border border-line bg-ink-850 px-2.5 py-1.5 font-mono text-[12px] text-fg-muted"
+                        className="rounded-control border border-line-2 bg-shell px-2.5 py-1.5 font-mono text-[12px] text-fg-muted"
                       >
                         {t}
                       </li>
@@ -97,7 +97,7 @@ export function FleetAgents() {
                 </div>
               ))}
 
-              <div className="rounded-panel border border-beacon/25 bg-beacon/10 p-5 sm:col-span-2">
+              <div className="rounded-panel border border-accent/25 bg-accent/10 p-5 sm:col-span-2">
                 <h3 className="text-[14.5px] font-semibold tracking-tight">
                   Same tools from the CLI
                 </h3>

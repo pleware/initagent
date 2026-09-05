@@ -17,7 +17,7 @@ function Cell({
 }) {
   return (
     <div
-      className={`rounded-panel border border-line bg-ink-900 transition-colors duration-300 hover:border-fg-dim/40 ${className}`}
+      className={`rounded-panel border border-line-2 bg-sidebar transition-colors duration-300 hover:border-fg-subtle/40 ${className}`}
     >
       {children}
     </div>
@@ -35,7 +35,7 @@ function Copy({
 }) {
   return (
     <div className="p-6 lg:p-7">
-      <Icon size={20} weight="regular" className="text-beacon" />
+      <Icon size={20} weight="regular" className="text-accent" />
       <h3 className="mt-4 text-[17px] font-semibold tracking-tight">{title}</h3>
       <p className="mt-2.5 text-[14.5px] leading-relaxed text-fg-muted">{body}</p>
     </div>
@@ -54,7 +54,7 @@ function Shot({ src, alt }: { src: string; alt: string }) {
 
 export function Capabilities() {
   return (
-    <section className="border-t border-line-soft py-24 lg:py-32">
+    <section className="border-t border-line-1 py-24 lg:py-32">
       <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
         <Reveal className="max-w-[42ch]">
           <h2 className="text-[2rem] leading-[1.1] font-semibold tracking-tight text-balance sm:text-[2.4rem]">
@@ -74,12 +74,12 @@ export function Capabilities() {
 
             <Cell className="overflow-hidden lg:col-span-4">
               <div className="flex items-center gap-2.5 px-6 pt-6 pb-5">
-                <Terminal size={18} weight="regular" className="text-beacon" />
+                <Terminal size={18} weight="regular" className="text-accent" />
                 <h3 className="text-[15.5px] font-semibold tracking-tight">
                   A real terminal in the browser
                 </h3>
               </div>
-              <div className="h-[260px] overflow-hidden border-t border-line">
+              <div className="h-[260px] overflow-hidden border-t border-line-2">
                 <Shot
                   src="/shots/terminal.png"
                   alt="An initagent browser terminal attached to a live shell session on a joined device."
@@ -89,12 +89,12 @@ export function Capabilities() {
 
             <Cell className="overflow-hidden lg:col-span-4">
               <div className="flex items-center gap-2.5 px-6 pt-6 pb-5">
-                <FolderOpen size={18} weight="regular" className="text-beacon" />
+                <FolderOpen size={18} weight="regular" className="text-accent" />
                 <h3 className="text-[15.5px] font-semibold tracking-tight">
                   Browse and move files across devices
                 </h3>
               </div>
-              <div className="h-[260px] overflow-hidden border-t border-line">
+              <div className="h-[260px] overflow-hidden border-t border-line-2">
                 <Shot
                   src="/shots/files.png"
                   alt="The initagent file browser listing directories on a remote device."
@@ -120,7 +120,7 @@ export function Capabilities() {
                   <ArrowsClockwise
                     size={20}
                     weight="regular"
-                    className="text-beacon"
+                    className="text-accent"
                   />
                   <h3 className="mt-4 text-[17px] font-semibold tracking-tight">
                     Updates that can be undone
@@ -132,17 +132,17 @@ export function Capabilities() {
                     one click puts it back.
                   </p>
                 </div>
-                <div className="rounded-control border border-line bg-ink-950/70 p-5 font-mono text-[12.5px] leading-[2] text-fg-muted">
+                <div className="rounded-control border border-line-2 bg-canvas/70 p-5 font-mono text-[12.5px] leading-[2] text-fg-muted">
                   <div>
-                    <span className="mr-2 text-beacon select-none">$</span>
+                    <span className="mr-2 text-accent select-none">$</span>
                     initagent update --check
                   </div>
                   <div>
-                    <span className="mr-2 text-beacon select-none">$</span>
+                    <span className="mr-2 text-accent select-none">$</span>
                     initagent update
                   </div>
                   <div>
-                    <span className="mr-2 text-beacon select-none">$</span>
+                    <span className="mr-2 text-accent select-none">$</span>
                     initagent rollback
                   </div>
                 </div>

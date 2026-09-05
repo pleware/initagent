@@ -72,12 +72,12 @@ export default function Login({
   }
 
   return (
-    <div className="min-h-full">
+    <>
       <a href="#login-email" className="skip-link">
         {t('publicNav.skipToForm')}
       </a>
       <GuestNav />
-      <div className="flex min-h-full items-center justify-center px-4 pt-24 pb-8">
+      <div className="fixed inset-0 flex items-center justify-center px-4 pt-16">
       <form
         onSubmit={submit}
         className="surface w-full max-w-sm rounded-2xl p-8"
@@ -239,6 +239,6 @@ export default function Login({
         )}
       </form>
       </div>
-    </div>
+    </>
   )
 }

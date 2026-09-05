@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "base-nova",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "../internal/brand/themes/tw.css",
+    "baseColor": "neutral",
+    "cssVariables": true
+  },
+  "iconLibrary": "phosphor",
+  "aliases": {
+    "components": "@ia/web",
+    "utils": "@ia/web/lib/utils",
+    "ui": "@ia/web/ui",
+    "lib": "@ia/web/lib",
+    "hooks": "@ia/web/hooks"
+  }
+}

@@ -45,8 +45,8 @@ function Waitlist() {
 
   if (state === "done") {
     return (
-      <div className="flex items-center gap-2.5 rounded-control border border-beacon/35 bg-beacon/10 px-4 py-3.5 text-[14.5px] text-fg">
-        <Check size={17} weight="bold" className="text-beacon" />
+      <div className="flex items-center gap-2.5 rounded-control border border-accent/35 bg-accent/10 px-4 py-3.5 text-[14.5px] text-fg">
+        <Check size={17} weight="bold" className="text-accent" />
         You are on the list. We will write once, when it ships.
       </div>
     );
@@ -72,12 +72,12 @@ function Waitlist() {
           placeholder="you@example.com"
           aria-invalid={state === "invalid"}
           aria-describedby="waitlist-help"
-          className="flex-1 rounded-control border border-line bg-ink-950 px-3.5 py-2.5 text-[14.5px] text-fg placeholder:text-fg-dim focus:border-beacon focus:outline-none"
+          className="flex-1 rounded-control border border-line-2 bg-canvas px-3.5 py-2.5 text-[14.5px] text-fg placeholder:text-fg-subtle focus:border-accent focus:outline-none"
         />
         <button
           type="submit"
           disabled={state === "sending"}
-          className="flex items-center justify-center gap-2 rounded-control bg-beacon px-5 py-2.5 text-[14.5px] font-semibold whitespace-nowrap text-accent-on transition-all duration-150 hover:bg-beacon-deep active:scale-[0.98] disabled:opacity-70"
+          className="flex items-center justify-center gap-2 rounded-control bg-accent px-5 py-2.5 text-[14.5px] font-semibold whitespace-nowrap text-accent-on transition-all duration-150 hover:bg-accent-hover active:scale-[0.98] disabled:opacity-70"
         >
           {state === "sending" ? (
             <>
@@ -93,8 +93,8 @@ function Waitlist() {
         id="waitlist-help"
         className={`mt-2 text-[13px] ${
           state === "invalid" || state === "error"
-            ? "text-beacon"
-            : "text-fg-dim"
+            ? "text-accent"
+            : "text-fg-subtle"
         }`}
       >
         {state === "invalid"
@@ -111,7 +111,7 @@ export function OverseerCode() {
   return (
     <section
       id="code"
-      className="relative overflow-hidden border-t border-line-soft py-24 lg:py-32"
+      className="relative overflow-hidden border-t border-line-1 py-24 lg:py-32"
     >
       <div
         aria-hidden
@@ -125,7 +125,7 @@ export function OverseerCode() {
             <h2 className="text-[2.6rem] leading-[1.03] font-semibold tracking-tight sm:text-[3.2rem] lg:text-[3.8rem]">
               initagent Code
             </h2>
-            <span className="rounded-control border border-beacon/40 px-2.5 py-1 font-mono text-[11.5px] text-beacon">
+            <span className="rounded-control border border-accent/40 px-2.5 py-1 font-mono text-[11.5px] text-accent">
               in development
             </span>
           </div>
@@ -137,9 +137,9 @@ export function OverseerCode() {
         </Reveal>
 
         <Reveal delay={0.08}>
-          <div className="mt-14 grid grid-cols-1 gap-px overflow-hidden rounded-panel border border-line bg-line lg:grid-cols-3">
+          <div className="mt-14 grid grid-cols-1 gap-px overflow-hidden rounded-panel border border-line-2 bg-line-2 lg:grid-cols-3">
             {INTENT.map((item) => (
-              <div key={item.title} className="bg-ink-900 p-6 lg:p-7">
+              <div key={item.title} className="bg-sidebar p-6 lg:p-7">
                 <h3 className="text-[15.5px] font-semibold tracking-tight text-balance">
                   {item.title}
                 </h3>
@@ -161,7 +161,7 @@ export function OverseerCode() {
                   href={RELEASES}
                   target="_blank"
                   rel="noreferrer"
-                  className="group flex items-center gap-2 rounded-control bg-beacon px-5 py-3 text-[14.5px] font-semibold whitespace-nowrap text-accent-on transition-all duration-150 hover:bg-beacon-deep active:scale-[0.98]"
+                  className="group flex items-center gap-2 rounded-control bg-accent px-5 py-3 text-[14.5px] font-semibold whitespace-nowrap text-accent-on transition-all duration-150 hover:bg-accent-hover active:scale-[0.98]"
                 >
                   <BellRinging size={17} weight="regular" />
                   Watch releases
@@ -171,7 +171,7 @@ export function OverseerCode() {
                     className="transition-transform duration-200 group-hover:translate-x-0.5"
                   />
                 </a>
-                <p className="text-[14px] text-fg-dim">
+                <p className="text-[14px] text-fg-subtle">
                   GitHub will tell you the moment it lands.
                 </p>
               </div>

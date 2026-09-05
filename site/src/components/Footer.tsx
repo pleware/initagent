@@ -10,14 +10,14 @@ const LINKS = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-line py-12">
+    <footer className="border-t border-line-2 py-12">
       <div className="mx-auto flex max-w-[1240px] flex-col gap-8 px-5 sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <div className="flex items-center gap-2.5">
-          <Eye size={18} weight="regular" className="text-beacon" />
+          <Eye size={18} weight="regular" className="text-accent" />
           <span className="text-[14.5px] font-semibold tracking-tight">
             initagent
           </span>
-          <span className="text-[13.5px] text-fg-dim">MIT licensed</span>
+          <span className="text-[13.5px] text-fg-subtle">MIT licensed</span>
         </div>
 
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-3">

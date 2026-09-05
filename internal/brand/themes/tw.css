@@ -1,0 +1,87 @@
+/* Tailwind names for --ia-* tokens. Both apps import this after themes.css.
+ *
+ * Canonical utilities:
+ *   canvas, sidebar, shell, statusbar, line-*, fill-*, fg-*, accent,
+ *   rounded-control
+ */
+
+@theme inline {
+  --color-canvas: var(--ia-bg);
+  --color-canvas-sunken: var(--ia-bg-sunken);
+  --color-sidebar: var(--ia-sidebar);
+  --color-shell: var(--ia-shell);
+  --color-statusbar: var(--ia-statusbar);
+
+  --color-line-0: var(--ia-line-0);
+  --color-line-1: var(--ia-line-1);
+  --color-line-2: var(--ia-line-2);
+  --color-line-3: var(--ia-line-3);
+  --color-line-4: var(--ia-line-4);
+
+  --color-fill-1: var(--ia-fill-1);
+  --color-fill-2: var(--ia-fill-2);
+  --color-fill-3: var(--ia-fill-3);
+  --color-fill-4: var(--ia-fill-4);
+  --color-fill-5: var(--ia-fill-5);
+  --color-fill-sunken: var(--ia-fill-sunken);
+  --color-scrim: var(--ia-scrim);
+
+  --color-fg-strong: var(--ia-fg-strong);
+  --color-fg: var(--ia-fg);
+  --color-fg-soft: var(--ia-fg-soft);
+  --color-fg-muted: var(--ia-fg-muted);
+  --color-fg-subtle: var(--ia-fg-subtle);
+  --color-fg-faint: var(--ia-fg-faint);
+  --color-fg-ghost: var(--ia-fg-ghost);
+
+  --color-accent: var(--ia-accent);
+  --color-accent-hover: var(--ia-accent-hover);
+  --color-accent-on: var(--ia-accent-on);
+  --color-accent-fg: var(--ia-accent-fg);
+
+  --color-info: var(--ia-info);
+  --color-info-fg: var(--ia-info-fg);
+  --color-info-fg-strong: var(--ia-info-fg-strong);
+
+  --color-ok: var(--ia-ok);
+  --color-ok-on: var(--ia-ok-on);
+  --color-fail: var(--ia-fail);
+  --color-fail-fg: var(--ia-fail-fg);
+  --color-code: var(--ia-code);
+
+  --color-focus: var(--ia-focus);
+  --color-signal: var(--ia-signal);
+
+  --shadow-surface: var(--ia-shadow-surface);
+  --shadow-glow-ok: var(--ia-glow-ok);
+  --shadow-glow-info: var(--ia-glow-info);
+
+  /* shadcn/ui semantic names → our tokens. Do not redefine --color-accent:
+     that utility is the brand CTA. Their hover "accent" is fill-3. */
+  --color-background: var(--ia-bg);
+  --color-foreground: var(--ia-fg);
+  --color-card: var(--ia-shell);
+  --color-card-foreground: var(--ia-fg);
+  --color-popover: var(--ia-sidebar);
+  --color-popover-foreground: var(--ia-fg);
+  --color-primary: var(--ia-accent);
+  --color-primary-foreground: var(--ia-accent-on);
+  --color-secondary: var(--ia-fill-2);
+  --color-secondary-foreground: var(--ia-fg);
+  --color-muted: var(--ia-fill-2);
+  --color-muted-foreground: var(--ia-fg-muted);
+  --color-accent-foreground: var(--ia-fg);
+  --color-destructive: var(--ia-fail);
+  --color-destructive-foreground: var(--ia-fail-fg);
+  --color-border: var(--ia-line-2);
+  --color-input: var(--ia-line-2);
+  --color-ring: var(--ia-focus);
+}
+
+@theme {
+  --radius-control: 8px;
+}
+
+@utility rounded-control {
+  border-radius: var(--radius-control);
+}

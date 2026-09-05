@@ -31,13 +31,13 @@ export function Screenshot({
         role="img"
         aria-label={alt}
         style={width && height ? { aspectRatio: `${width} / ${height}` } : undefined}
-        className={`flex h-full w-full flex-col items-center justify-center gap-2.5 bg-ink-850 p-6 text-center ${className}`}
+        className={`flex h-full w-full flex-col items-center justify-center gap-2.5 bg-shell p-6 text-center ${className}`}
       >
-        <ImageBroken size={22} weight="regular" className="text-fg-dim" />
-        <span className="max-w-[42ch] text-[13px] leading-relaxed text-fg-dim">
+        <ImageBroken size={22} weight="regular" className="text-fg-subtle" />
+        <span className="max-w-[42ch] text-[13px] leading-relaxed text-fg-subtle">
           {alt}
         </span>
-        <code className="font-mono text-[11.5px] text-fg-dim/70">{src}</code>
+        <code className="font-mono text-[11.5px] text-fg-subtle/70">{src}</code>
       </div>
     );
   }

@@ -16,19 +16,19 @@ function Node({
     <div
       className={`rounded-panel border px-5 py-4 text-center ${
         accent
-          ? "border-beacon/35 bg-beacon/10"
-          : "border-line bg-ink-900"
+          ? "border-accent/35 bg-accent/10"
+          : "border-line-2 bg-sidebar"
       }`}
     >
       <Icon
         size={20}
         weight="regular"
-        className={`mx-auto ${accent ? "text-beacon" : "text-fg-muted"}`}
+        className={`mx-auto ${accent ? "text-accent" : "text-fg-muted"}`}
       />
       <div className="mt-2.5 text-[14.5px] font-semibold tracking-tight">
         {title}
       </div>
-      <div className="mt-1 font-mono text-[11.5px] text-fg-dim">{sub}</div>
+      <div className="mt-1 font-mono text-[11.5px] text-fg-subtle">{sub}</div>
     </div>
   );
 }
@@ -41,7 +41,7 @@ const AGENTS = [
 
 export function HowItWorks() {
   return (
-    <section id="how" className="relative border-t border-line-soft py-24 lg:py-32">
+    <section id="how" className="relative border-t border-line-1 py-24 lg:py-32">
       <div
         aria-hidden
         className="grid-field pointer-events-none absolute inset-0 opacity-40 [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black,transparent)]"
@@ -69,8 +69,8 @@ export function HowItWorks() {
             </div>
 
             <div className="relative flex justify-center py-3">
-              <div className="h-12 w-px bg-line" />
-              <span className="absolute top-1/2 left-1/2 ml-3 -translate-y-1/2 font-mono text-[11px] whitespace-nowrap text-fg-dim">
+              <div className="h-12 w-px bg-line-2" />
+              <span className="absolute top-1/2 left-1/2 ml-3 -translate-y-1/2 font-mono text-[11px] whitespace-nowrap text-fg-subtle">
                 HTTPS + WebSocket
               </span>
             </div>
@@ -85,26 +85,26 @@ export function HowItWorks() {
             </div>
 
             <div className="relative flex justify-center py-3">
-              <div className="h-12 w-px bg-line" />
-              <span className="absolute top-1/2 left-1/2 ml-3 -translate-y-1/2 font-mono text-[11px] whitespace-nowrap text-fg-dim">
+              <div className="h-12 w-px bg-line-2" />
+              <span className="absolute top-1/2 left-1/2 ml-3 -translate-y-1/2 font-mono text-[11px] whitespace-nowrap text-fg-subtle">
                 one WebSocket, dialed out
               </span>
             </div>
 
             {/* Fan-out rail. Hidden below sm, where the nodes stack instead. */}
-            <div className="mx-auto hidden h-px w-2/3 bg-line sm:block" />
+            <div className="mx-auto hidden h-px w-2/3 bg-line-2 sm:block" />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5">
               {AGENTS.map((a) => (
                 <div key={a.title}>
-                  <div className="mx-auto hidden h-8 w-px bg-line sm:block" />
-                  <div className="mx-auto flex h-6 w-px justify-center bg-line sm:hidden" />
+                  <div className="mx-auto hidden h-8 w-px bg-line-2 sm:block" />
+                  <div className="mx-auto flex h-6 w-px justify-center bg-line-2 sm:hidden" />
                   <Node icon={a.icon} title={a.title} sub={a.sub} />
                 </div>
               ))}
             </div>
 
-            <p className="mt-8 text-center text-[13.5px] text-fg-dim">
+            <p className="mt-8 text-center text-[13.5px] text-fg-subtle">
               Each agent handles PTYs, tmux sessions, machine stats, and file
               access on its own box.
             </p>

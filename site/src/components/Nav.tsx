@@ -32,13 +32,13 @@ export function Nav() {
       <header
         className={`fixed inset-x-0 top-0 z-40 transition-colors duration-300 ${
           scrolled
-            ? "border-b border-line bg-ink-950/80 backdrop-blur-xl"
+            ? "border-b border-line-2 bg-canvas/80 backdrop-blur-xl"
             : "border-b border-transparent"
         }`}
       >
         <nav className="mx-auto flex h-16 max-w-[1240px] items-center gap-8 px-5 lg:px-8">
           <a href="#top" className="flex shrink-0 items-center gap-2.5">
-            <Eye size={20} weight="regular" className="text-beacon" />
+            <Eye size={20} weight="regular" className="text-accent" />
             <span className="text-[15px] font-semibold tracking-tight">
               initagent
             </span>
@@ -62,20 +62,20 @@ export function Nav() {
               href={REPO}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-2 rounded-control px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-ink-850 hover:text-fg"
+              className="flex items-center gap-2 rounded-control px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-shell hover:text-fg"
             >
               <GithubLogo size={17} weight="regular" />
               Source
             </a>
             <a
               href="#install"
-              className="rounded-control px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-ink-850 hover:text-fg"
+              className="rounded-control px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-shell hover:text-fg"
             >
               Self-host
             </a>
             <a
               href={HUB}
-              className="rounded-control bg-beacon px-4 py-2 text-[13.5px] font-semibold text-accent-on transition-transform duration-150 hover:bg-beacon-deep active:scale-[0.98]"
+              className="rounded-control bg-accent px-4 py-2 text-[13.5px] font-semibold text-accent-on transition-transform duration-150 hover:bg-accent-hover active:scale-[0.98]"
             >
               Start free
             </a>
@@ -93,14 +93,14 @@ export function Nav() {
         </nav>
 
         {open && (
-          <div className="border-t border-line bg-ink-950/95 px-5 py-4 backdrop-blur-xl md:hidden">
+          <div className="border-t border-line-2 bg-canvas/95 px-5 py-4 backdrop-blur-xl md:hidden">
             <div className="flex flex-col gap-1">
               {LINKS.map((l) => (
                 <a
                   key={l.href}
                   href={l.href}
                   onClick={() => setOpen(false)}
-                  className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-ink-850 hover:text-fg"
+                  className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-shell hover:text-fg"
                 >
                   {l.label}
                 </a>
@@ -110,20 +110,20 @@ export function Nav() {
                 href={REPO}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-ink-850 hover:text-fg"
+                className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-shell hover:text-fg"
               >
                 Source
               </a>
               <a
                 href="#install"
                 onClick={() => setOpen(false)}
-                className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-ink-850 hover:text-fg"
+                className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-shell hover:text-fg"
               >
                 Self-host
               </a>
               <a
                 href={HUB}
-                className="mt-2 rounded-control bg-beacon px-4 py-2.5 text-center text-[15px] font-semibold text-accent-on"
+                className="mt-2 rounded-control bg-accent px-4 py-2.5 text-center text-[15px] font-semibold text-accent-on"
               >
                 Start free
               </a>

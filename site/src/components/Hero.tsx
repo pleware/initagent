@@ -41,7 +41,7 @@ export function Hero() {
               href={HUB}
               className="group flex items-center gap-2 rounded-control bg-accent px-5 py-3 text-[14.5px] font-semibold whitespace-nowrap text-accent-on transition-all duration-150 hover:bg-accent-hover active:scale-[0.98]"
             >
-              Start free
+              Open app
               <ArrowRight
                 size={17}
                 weight="bold"

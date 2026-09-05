@@ -6,7 +6,7 @@ The public landing page for initagent, and the announcement surface for
 
 Production origin is **https://initagent.dev**. Hub installers are the same
 host: `/install.sh`, `/install.ps1`, `/install-macos.sh`. There is no
-separate install subdomain. The Software surface leads with **Start free**
+separate install subdomain. The Software surface leads with **Open app**
 → `https://app.initagent.dev` and **Self-host** → `#install` (single-user,
 $0). We never host workers.
 

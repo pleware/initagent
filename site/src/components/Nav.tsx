@@ -77,7 +77,7 @@ export function Nav() {
               href={HUB}
               className="rounded-control bg-accent px-4 py-2 text-[13.5px] font-semibold text-accent-on transition-transform duration-150 hover:bg-accent-hover active:scale-[0.98]"
             >
-              Start free
+              Open app
             </a>
           </div>
 
@@ -125,7 +125,7 @@ export function Nav() {
                 href={HUB}
                 className="mt-2 rounded-control bg-accent px-4 py-2.5 text-center text-[15px] font-semibold text-accent-on"
               >
-                Start free
+                Open app
               </a>
             </div>
           </div>

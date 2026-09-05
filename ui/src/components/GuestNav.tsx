@@ -15,7 +15,7 @@ const LINKS = [
 
 /**
  * Restricted public bar for sign-in, create-account, and first-run.
- * Same order and labels as the marketing nav, minus Start free — this
+ * Same order and labels as the marketing nav, minus Open app — this
  * origin already is the hub.
  */
 export default function GuestNav() {

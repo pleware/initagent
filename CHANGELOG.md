@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-05 — Let a hosted customer reset a forgotten password in the language they signed up with
 - 2026-09-05 — Queue outbound mail on the hub so hosted send can retry without a second process
 - 2026-09-05 — Keep hosted plan numbers in one YAML catalogue for the hub and the site
 

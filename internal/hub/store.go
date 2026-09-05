@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 	email         TEXT NOT NULL UNIQUE,
 	password_hash TEXT NOT NULL,
 	is_admin      INTEGER NOT NULL DEFAULT 0,
+	locale        TEXT NOT NULL DEFAULT 'en',
 	created_at    INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS accounts_single_admin ON accounts(is_admin) WHERE is_admin = 1;
@@ -121,6 +122,15 @@ CREATE TABLE IF NOT EXISTS mail_outbox (
 	created_at   INTEGER NOT NULL,
 	sent_at      INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS password_resets (
+	id          TEXT PRIMARY KEY,
+	account_id  TEXT NOT NULL,
+	token_hash  TEXT NOT NULL UNIQUE,
+	expires_at  INTEGER NOT NULL,
+	used_at     INTEGER NOT NULL DEFAULT 0,
+	created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS password_resets_account ON password_resets(account_id);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -179,6 +189,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 	email         TEXT NOT NULL UNIQUE,
 	password_hash TEXT NOT NULL,
 	is_admin      INTEGER NOT NULL DEFAULT 0,
+	locale        TEXT NOT NULL DEFAULT 'en',
 	created_at    BIGINT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS accounts_single_admin ON accounts(is_admin) WHERE is_admin = 1;
@@ -221,6 +232,15 @@ CREATE TABLE IF NOT EXISTS mail_outbox (
 	created_at   BIGINT NOT NULL,
 	sent_at      BIGINT NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS password_resets (
+	id          TEXT PRIMARY KEY,
+	account_id  TEXT NOT NULL,
+	token_hash  TEXT NOT NULL UNIQUE,
+	expires_at  BIGINT NOT NULL,
+	used_at     BIGINT NOT NULL DEFAULT 0,
+	created_at  BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS password_resets_account ON password_resets(account_id);
 `
 
 // OpenStore opens the hub store on a SQLite file (self-host / OSS path).
@@ -263,6 +283,14 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureMailOutbox(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring mail outbox: %w", err)
+	}
+	if err := s.ensurePasswordResets(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring password resets: %w", err)
+	}
+	if err := s.ensureAccountLocale(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring account locale: %w", err)
 	}
 	if err := s.seedPresets(); err != nil {
 		db.Close()
@@ -388,6 +416,13 @@ func (s *Store) ensureOrgPlanColumn() error {
 	return s.ensureColumn("orgs", "plan", "TEXT NOT NULL DEFAULT 'free'")
 }
 
+// ensureAccountLocale adds the UI language to a live accounts table.
+// CREATE TABLE IF NOT EXISTS will not add it, and existing rows become
+// English until the person changes it in the cockpit (17, 26).
+func (s *Store) ensureAccountLocale() error {
+	return s.ensureColumn("accounts", "locale", "TEXT NOT NULL DEFAULT 'en'")
+}
+
 // ensureProjectDevices creates the enrollment set for a live hub and copies
 // the inherited selected machine into it. projects.device_id stays the fx
 // target; the join table is who may run there (48).
@@ -488,6 +523,7 @@ type Account struct {
 	Id        string `json:"id"`
 	Email     string `json:"email"`
 	IsAdmin   bool   `json:"isAdmin"`
+	Locale    string `json:"locale"`
 	CreatedAt int64  `json:"createdAt"`
 
 	passwordHash string
@@ -528,7 +564,7 @@ func (s *Store) CountAccounts() (int, error) {
 // impossible until someone deliberately drops the index. Relaxing that later
 // is a migration; recovering from two accidental owners is not.
 func (s *Store) ClaimHub(email, passwordHash, orgName string) (*Account, *Org, error) {
-	return s.insertAccountWithOwnedOrg(email, passwordHash, orgName, true)
+	return s.insertAccountWithOwnedOrg(email, passwordHash, orgName, true, auth.LocaleEN)
 }
 
 // RegisterCustomer stores a hosted customer: a non-admin account, a new
@@ -540,20 +576,24 @@ func (s *Store) ClaimHub(email, passwordHash, orgName string) (*Account, *Org, e
 // caller to remember to clear is_admin after the fact. The unique email
 // index is the arbiter for a duplicate address; a race that both pass the
 // in-memory checks still lands here as ErrEmailTaken.
-func (s *Store) RegisterCustomer(email, passwordHash, orgName string) (*Account, *Org, error) {
-	account, org, err := s.insertAccountWithOwnedOrg(email, passwordHash, orgName, false)
+func (s *Store) RegisterCustomer(email, passwordHash, orgName, locale string) (*Account, *Org, error) {
+	account, org, err := s.insertAccountWithOwnedOrg(email, passwordHash, orgName, false, locale)
 	if uniqueConstraint(err) {
 		return nil, nil, auth.ErrEmailTaken
 	}
 	return account, org, err
 }
 
-func (s *Store) insertAccountWithOwnedOrg(email, passwordHash, orgName string, admin bool) (*Account, *Org, error) {
+func (s *Store) insertAccountWithOwnedOrg(email, passwordHash, orgName string, admin bool, locale string) (*Account, *Org, error) {
 	accountId, err := id.New(id.Account)
 	if err != nil {
 		return nil, nil, err
 	}
 	orgId, err := id.New(id.Org)
+	if err != nil {
+		return nil, nil, err
+	}
+	loc, err := auth.NormalizeLocale(locale)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -564,7 +604,7 @@ func (s *Store) insertAccountWithOwnedOrg(email, passwordHash, orgName string, a
 	}
 	account := &Account{
 		Id: accountId, Email: email, IsAdmin: admin,
-		CreatedAt: now, passwordHash: passwordHash,
+		Locale: loc, CreatedAt: now, passwordHash: passwordHash,
 	}
 	org := &Org{Id: orgId, Name: orgName, Plan: string(orgplan.Free), CreatedAt: now, Members: 1}
 
@@ -573,8 +613,8 @@ func (s *Store) insertAccountWithOwnedOrg(email, passwordHash, orgName string, a
 		return nil, nil, err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`INSERT INTO accounts (id, email, password_hash, is_admin, created_at)
-		VALUES (?, ?, ?, ?, ?)`, account.Id, account.Email, account.passwordHash, isAdmin, now); err != nil {
+	if _, err := tx.Exec(`INSERT INTO accounts (id, email, password_hash, is_admin, locale, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)`, account.Id, account.Email, account.passwordHash, isAdmin, loc, now); err != nil {
 		return nil, nil, err
 	}
 	if _, err := tx.Exec(`INSERT INTO orgs (id, name, plan, created_at) VALUES (?, ?, ?, ?)`,
@@ -667,10 +707,10 @@ func (s *Store) CreateAccount(email, passwordHash string) (*Account, error) {
 	}
 	a := &Account{
 		Id: accountId, Email: email, IsAdmin: false,
-		CreatedAt: time.Now().Unix(), passwordHash: passwordHash,
+		Locale: auth.LocaleEN, CreatedAt: time.Now().Unix(), passwordHash: passwordHash,
 	}
-	_, err = s.db.Exec(`INSERT INTO accounts (id, email, password_hash, is_admin, created_at)
-		VALUES (?, ?, ?, 0, ?)`, a.Id, a.Email, a.passwordHash, a.CreatedAt)
+	_, err = s.db.Exec(`INSERT INTO accounts (id, email, password_hash, is_admin, locale, created_at)
+		VALUES (?, ?, ?, 0, ?, ?)`, a.Id, a.Email, a.passwordHash, a.Locale, a.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -693,9 +733,9 @@ func (s *Store) AccountById(accountId string) (*Account, error) {
 func (s *Store) account(where string, args ...any) (*Account, error) {
 	var a Account
 	var isAdmin int
-	err := s.db.QueryRow(`SELECT id, email, password_hash, is_admin, created_at
+	err := s.db.QueryRow(`SELECT id, email, password_hash, is_admin, locale, created_at
 		FROM accounts `+where, args...).
-		Scan(&a.Id, &a.Email, &a.passwordHash, &isAdmin, &a.CreatedAt)
+		Scan(&a.Id, &a.Email, &a.passwordHash, &isAdmin, &a.Locale, &a.CreatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -703,7 +743,18 @@ func (s *Store) account(where string, args ...any) (*Account, error) {
 		return nil, err
 	}
 	a.IsAdmin = isAdmin == 1
+	a.Locale, _ = auth.NormalizeLocale(a.Locale)
 	return &a, nil
+}
+
+// SetAccountLocale stores the UI language a signed-in person just picked.
+func (s *Store) SetAccountLocale(accountID, locale string) error {
+	loc, err := auth.NormalizeLocale(locale)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.Exec(`UPDATE accounts SET locale = ? WHERE id = ?`, loc, accountID)
+	return err
 }
 
 // ListAccounts returns every account on this installation, oldest first.

@@ -1,14 +1,33 @@
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { authSourceDir, prepareAuthBg } from './scripts/prepare-auth-bg.mjs'
+import { themeBootPlugin } from '../web/theme/boot-plugin.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
+function authBgPlugin(): Plugin {
+  return {
+    name: 'auth-bg',
+    async buildStart() {
+      await prepareAuthBg()
+    },
+    configureServer(server) {
+      server.watcher.add(authSourceDir)
+      server.watcher.on('change', async (file) => {
+        if (!file.replaceAll('\\', '/').includes('/assets/auth/')) return
+        await prepareAuthBg({ force: true })
+        server.ws.send({ type: 'full-reload' })
+      })
+    },
+  }
+}
+
 // In dev, the Go hub runs on :4200 and Vite proxies API traffic to it.
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [themeBootPlugin(), authBgPlugin(), react(), tailwindcss()],
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: {
@@ -22,6 +41,8 @@ export default defineConfig({
     },
   },
   server: {
+    port: 5174,
+    strictPort: true,
     // index.css imports the theme tokens from ../internal/brand/themes, which
     // is outside this project root. Dev needs it readable to serve and watch.
     fs: { allow: ['..'] },

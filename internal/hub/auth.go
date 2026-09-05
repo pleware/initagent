@@ -83,6 +83,21 @@ func (m *sessionManager) revoke(token string) {
 	m.mu.Unlock()
 }
 
+// revokeAccount drops every session for this account so a password reset
+// cannot leave an already-open browser signed in.
+func (m *sessionManager) revokeAccount(account string) {
+	if account == "" {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for token, s := range m.sessions {
+		if s.account == account {
+			delete(m.sessions, token)
+		}
+	}
+}
+
 // --- login rate limiting (per remote IP, fixed window) ---
 
 type rateLimiter struct {

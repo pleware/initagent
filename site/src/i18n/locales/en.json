@@ -1,0 +1,33 @@
+{
+  "nav": {
+    "how": "How it works",
+    "plans": "Plans",
+    "developers": "For Developers",
+    "hardware": "Hardware",
+    "source": "Source",
+    "selfHost": "Self-host",
+    "openApp": "Open app",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "language": "Language",
+    "licensed": "MIT licensed",
+    "docs": "Documentation",
+    "releases": "Releases",
+    "license": "License"
+  },
+  "titles": {
+    "home": "initagent - control every machine you own from one browser tab",
+    "plans": "Plans - initagent",
+    "developers": "For Developers - initagent",
+    "hardware": "Hardware - initagent"
+  },
+  "hero": {
+    "titleLine": "Every machine you own.",
+    "titleAccent": "One browser tab.",
+    "body": "Start free on our hosted hub, or run the same binary on your machine. Live terminals and coding agents across your fleet. We never host your workers.",
+    "openApp": "Open app",
+    "selfHost": "Self-host",
+    "note": "One free project on our hub. $5 per person after that. Self-host is $0. Machines stay yours.",
+    "shotAlt": "The initagent fleet dashboard showing a connected device with live CPU, memory and disk readings."
+  }
+}

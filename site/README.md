@@ -9,7 +9,9 @@ host: `/install.sh`, `/install.ps1`, `/install-macos.sh`. There is no
 separate install subdomain. Pages: home (`/#how`), **Plans** `/plans`,
 **For Developers** `/developers`, **Hardware** `/hardware`. The bar leads
 with **Open app** → `https://app.initagent.dev` and **Self-host** →
-`/developers` (single-user, $0). We never host workers. nginx `try_files`
+`/developers` (single-user, $0). We never host workers. Local `npm run dev`
+sends Open app to the cockpit Vite on `http://127.0.0.1:5174` (override
+with `VITE_HUB`). nginx `try_files`
 sends unknown paths to `index.html` so those routes work.
 
 Those three scripts are owned by [`../scripts`](../scripts) and staged into
@@ -32,7 +34,7 @@ through Fontsource, so the page makes no third-party requests at runtime.
 
 ```sh
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # http://localhost:5173  (cockpit Vite is :5174)
 npm run build    # -> dist/
 ```
 

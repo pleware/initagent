@@ -1,9 +1,14 @@
 import { ArrowRight } from "@phosphor-icons/react";
+import { useTranslation } from "react-i18next";
 import { HUB } from "../lib/site";
 import { ROUTES } from "../lib/routes";
+import { withLangParam } from "../../../web/locale.ts";
 import { Screenshot } from "./Screenshot";
 
 export function Hero() {
+  const { t, i18n } = useTranslation();
+  const hub = withLangParam(HUB, i18n.resolvedLanguage || i18n.language);
+
   return (
     <section id="top" className="relative overflow-hidden pt-24 pb-20">
       {/* Structure, not decoration: the grid matches the page's 80px rhythm and
@@ -20,18 +25,16 @@ export function Hero() {
       <div className="relative mx-auto grid max-w-[1240px] grid-cols-1 items-center gap-14 px-5 lg:grid-cols-12 lg:gap-10 lg:px-8">
         <div className="lg:col-span-6">
           <h1 className="hero-rise text-[2.5rem] leading-[1.06] font-semibold tracking-tight sm:text-[2.9rem] lg:text-[3.1rem]">
-            Every machine you own.
+            {t("hero.titleLine")}
             <br />
-            <span className="text-accent">One browser tab.</span>
+            <span className="text-accent">{t("hero.titleAccent")}</span>
           </h1>
 
           <p
             className="hero-rise mt-6 max-w-[46ch] text-[16.5px] leading-relaxed text-fg-muted"
             style={{ animationDelay: "0.09s" }}
           >
-            Start free on our hosted hub, or run the same binary on your
-            machine. Live terminals and coding agents across your fleet. We
-            never host your workers.
+            {t("hero.body")}
           </p>
 
           <div
@@ -39,10 +42,10 @@ export function Hero() {
             style={{ animationDelay: "0.18s" }}
           >
             <a
-              href={HUB}
+              href={hub}
               className="group flex items-center gap-2 rounded-control bg-accent px-5 py-3 text-[14.5px] font-semibold whitespace-nowrap text-accent-on transition-all duration-150 hover:bg-accent-hover active:scale-[0.98]"
             >
-              Open app
+              {t("hero.openApp")}
               <ArrowRight
                 size={17}
                 weight="bold"
@@ -53,15 +56,14 @@ export function Hero() {
               href={ROUTES.developers}
               className="flex items-center gap-2 rounded-control border border-line-2 bg-sidebar px-5 py-3 text-[14.5px] font-medium whitespace-nowrap text-fg transition-colors duration-150 hover:border-fg-subtle hover:bg-shell active:scale-[0.98]"
             >
-              Self-host
+              {t("hero.selfHost")}
             </a>
           </div>
           <p
             className="hero-rise mt-3 text-[13px] text-fg-subtle"
             style={{ animationDelay: "0.22s" }}
           >
-            One free project on our hub. $5 per person after that.
-            Self-host is $0. Machines stay yours.
+            {t("hero.note")}
           </p>
         </div>
 
@@ -76,7 +78,7 @@ export function Hero() {
             />
             <Screenshot
               src="/shots/dashboard.png"
-              alt="The initagent fleet dashboard showing a connected device with live CPU, memory and disk readings."
+              alt={t("hero.shotAlt")}
               width={1440}
               height={900}
               eager

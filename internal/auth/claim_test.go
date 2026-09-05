@@ -81,6 +81,9 @@ func TestClaimAcceptsFirstOperator(t *testing.T) {
 	if got.OrgName != DefaultOrgName {
 		t.Errorf("org name is %q, want %q", got.OrgName, DefaultOrgName)
 	}
+	if got.Locale != LocaleEN {
+		t.Errorf("locale is %q, want %q when the form omitted it", got.Locale, LocaleEN)
+	}
 }
 
 func TestClaimKeepsASubmittedOrgName(t *testing.T) {
@@ -96,6 +99,22 @@ func TestClaimKeepsASubmittedOrgName(t *testing.T) {
 	}
 	if got.OrgName != "Example Ops" {
 		t.Errorf("org name is %q, want the trimmed submission", got.OrgName)
+	}
+}
+
+func TestClaimKeepsASubmittedLocale(t *testing.T) {
+	st := State{Offering: offering.Selfhost, ExpectedToken: "a-minted-token"}
+	got, err := Claim(st, ClaimRequest{
+		Email:    "ops@example.com",
+		Password: "correct-horse-battery",
+		Token:    "a-minted-token",
+		Locale:   "pl-PL",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Locale != LocalePL {
+		t.Errorf("locale is %q, want %q", got.Locale, LocalePL)
 	}
 }
 
@@ -136,6 +155,12 @@ func TestClaimRejects(t *testing.T) {
 			state:   State{Offering: offering.Hosted, Claimed: true, ExpectedToken: token},
 			req:     ClaimRequest{Email: "ops@example.com", Password: "correct-horse-battery", Token: token},
 			wantErr: ErrAlreadyClaimed,
+		},
+		{
+			name:    "unsupported locale",
+			state:   fresh,
+			req:     ClaimRequest{Email: "ops@example.com", Password: "correct-horse-battery", Token: token, Locale: "de"},
+			wantErr: ErrLocale,
 		},
 		{
 			name:    "wrong token",

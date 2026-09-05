@@ -135,13 +135,15 @@ which organization when you only have one — which is the self-host case
 and the first hosted claim.
 
 On a **claimed hosted** hub the login card also offers **Create an
-account**: email, password, and confirm-password. That mints a customer
+account**: email, password, and confirm-password. The language switcher
+on that screen is stored on the account (`en` or `pl`). That mints a customer
 `acc-` and a new organization named `default` — not a second platform
 admin. Self-host does not show that door; claim already made the operator
 the founder. After sign-in, an empty Code page asks them to name the
 organization (or skip) and add the first project. The hosted platform
-operator is not that funnel. There is no password reset until a mailer
-exists.
+operator is not that funnel. Forgot-password sends a reset mail in the
+language stored on the account through the hub outbox. The link works
+once, for one hour.
 
 The Vercel deployment is the public static product site. The authenticated hub
 remains a durable install on Linux, macOS, or Windows because it owns the local

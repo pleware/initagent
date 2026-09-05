@@ -42,6 +42,8 @@ var (
 	ErrNotHosted      = errors.New("registration is not available on this hub")
 	ErrNotClaimed     = errors.New("hub has no owner yet")
 	ErrEmailTaken     = errors.New("email already registered")
+	ErrResetToken     = errors.New("reset token is invalid or expired")
+	ErrLocale         = errors.New("locale is not supported")
 )
 
 // MinPassword is the shortest password an offering accepts. An unknown

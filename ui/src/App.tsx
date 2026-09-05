@@ -3,6 +3,8 @@ import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { api, setUnauthorizedHandler } from './api'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import DevicePage from './pages/DevicePage'
 import AgentsPage from './pages/AgentsPage'
@@ -13,6 +15,8 @@ import TasksPage from './pages/TasksPage'
 import AdminPage from './pages/AdminPage'
 import PeoplePage from './pages/PeoplePage'
 import type { Me } from './types'
+import i18n from './i18n/config'
+import { resolveLocale } from '../../web/locale.ts'
 
 export default function App() {
   const [me, setMe] = useState<Me | null>(null)
@@ -42,6 +46,15 @@ export default function App() {
   }, [refresh])
 
   useEffect(() => {
+    if (!me?.authenticated || !me.locale) return
+    const locale = resolveLocale(me.locale)
+    document.documentElement.lang = locale
+    if (resolveLocale(i18n.resolvedLanguage || i18n.language) !== locale) {
+      void i18n.changeLanguage(locale)
+    }
+  }, [me])
+
+  useEffect(() => {
     setUnauthorizedHandler(() => {
       setMe((m) => (m ? { ...m, authenticated: false } : m))
       navigate('/login')
@@ -59,6 +72,13 @@ export default function App() {
   if (!me.authenticated) {
     return (
       <Routes>
+        <Route path="/forgot" element={<ForgotPassword />} />
+        <Route
+          path="/reset"
+          element={
+            <ResetPassword passwordMinLength={me.passwordMinLength} onSuccess={refresh} />
+          }
+        />
         <Route
           path="*"
           element={

@@ -1,7 +1,6 @@
 <!doctype html>
-<!-- data-theme carries the fallback id so the first paint is already themed;
-     src/theme replaces it with the stored preference on startup. The old
-     class="dark" is gone: nothing in the app used a dark: variant. -->
+<!-- data-theme is the fallback until the injected boot script reads
+     the shared initagent_theme cookie. The old class="dark" is gone. -->
 <html lang="en" data-theme="legacy-dark">
   <head>
     <meta charset="UTF-8" />

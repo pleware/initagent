@@ -7,6 +7,7 @@ import "./index.css";
 import { initTheme } from "../../web/theme/index.ts";
 
 import App from "./App";
+import "./i18n/config";
 
 initTheme();
 

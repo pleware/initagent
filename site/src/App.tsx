@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Nav } from "./components/Nav";
 import { Footer } from "./components/Footer";
 import { Home } from "./components/Home";
@@ -7,14 +8,6 @@ import { Developers } from "./components/Developers";
 import { Hardware } from "./components/Hardware";
 import { NotFound } from "./components/NotFound";
 import { currentPath, ROUTES } from "./lib/routes";
-
-const TITLES: Record<string, string> = {
-  [ROUTES.home]:
-    "initagent - control every machine you own from one browser tab",
-  [ROUTES.plans]: "Plans - initagent",
-  [ROUTES.developers]: "For Developers - initagent",
-  [ROUTES.hardware]: "Hardware - initagent",
-};
 
 function pageFor(path: string): ReactNode {
   switch (path) {
@@ -33,6 +26,7 @@ function pageFor(path: string): ReactNode {
 
 export default function App() {
   const path = currentPath();
+  const { t } = useTranslation();
 
   useEffect(() => {
     function redirectLegacyHash() {
@@ -51,8 +45,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.title = TITLES[path] ?? "initagent";
-  }, [path]);
+    const titles: Record<string, string> = {
+      [ROUTES.home]: t("titles.home"),
+      [ROUTES.plans]: t("titles.plans"),
+      [ROUTES.developers]: t("titles.developers"),
+      [ROUTES.hardware]: t("titles.hardware"),
+    };
+    document.title = titles[path] ?? "initagent";
+  }, [path, t]);
 
   return (
     <>

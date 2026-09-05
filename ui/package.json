@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "prepare-auth-bg": "node scripts/prepare-auth-bg.mjs",
+    "dev": "npm run prepare-auth-bg && vite",
+    "build": "npm run prepare-auth-bg && tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -28,6 +29,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "sharp": "^0.35.4",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.6.3",
     "vite": "^8.2.0"

@@ -1,17 +1,19 @@
 import { Eye, GithubLogo } from "@phosphor-icons/react";
+import { useTranslation } from "react-i18next";
 import { DOCS, RELEASES, REPO } from "../lib/site";
 import { ROUTES } from "../lib/routes";
 
-const LINKS = [
-  { label: "Plans", href: ROUTES.plans },
-  { label: "For Developers", href: ROUTES.developers },
-  { label: "Hardware", href: ROUTES.hardware },
-  { label: "Documentation", href: DOCS },
-  { label: "Releases", href: RELEASES },
-  { label: "License", href: `${REPO}/blob/main/LICENSE` },
-];
-
 export function Footer() {
+  const { t } = useTranslation();
+  const links = [
+    { label: t("nav.plans"), href: ROUTES.plans },
+    { label: t("nav.developers"), href: ROUTES.developers },
+    { label: t("nav.hardware"), href: ROUTES.hardware },
+    { label: t("nav.docs"), href: DOCS },
+    { label: t("nav.releases"), href: RELEASES },
+    { label: t("nav.license"), href: `${REPO}/blob/main/LICENSE` },
+  ];
+
   return (
     <footer className="border-t border-line-2 py-12">
       <div className="mx-auto flex max-w-[1240px] flex-col gap-8 px-5 sm:flex-row sm:items-center sm:justify-between lg:px-8">
@@ -20,15 +22,15 @@ export function Footer() {
           <span className="text-[14.5px] font-semibold tracking-tight">
             initagent
           </span>
-          <span className="text-[13.5px] text-fg-subtle">MIT licensed</span>
+          <span className="text-[13.5px] text-fg-subtle">{t("nav.licensed")}</span>
         </a>
 
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          {LINKS.map((l) => {
+          {links.map((l) => {
             const external = l.href.startsWith("http");
             return (
               <a
-                key={l.label}
+                key={l.href}
                 href={l.href}
                 target={external ? "_blank" : undefined}
                 rel={external ? "noreferrer" : undefined}

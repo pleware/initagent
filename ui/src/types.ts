@@ -39,6 +39,7 @@ export interface Me {
   platformAdmin?: boolean
   accountId?: string
   email?: string
+  locale?: string
   orgs?: Membership[]
   // The assignable org roles, weakest first. It arrives from the hub rather
   // than being a second list here, because a role name that exists in only

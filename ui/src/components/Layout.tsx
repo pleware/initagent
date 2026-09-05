@@ -137,7 +137,7 @@ export default function Layout({ me }: { me: Me }) {
           </div>
           <div className="ml-auto flex items-center gap-2">
             <ThemeSwitcher />
-            <LanguageSwitcher />
+            <LanguageSwitcher persist />
             <button onClick={logout} className="text-[11px] text-zinc-600 hover:text-zinc-200">Log out</button>
           </div>
         </footer>

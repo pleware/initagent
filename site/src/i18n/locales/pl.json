@@ -1,0 +1,33 @@
+{
+  "nav": {
+    "how": "Jak to działa",
+    "plans": "Plany",
+    "developers": "Dla deweloperów",
+    "hardware": "Sprzęt",
+    "source": "Źródło",
+    "selfHost": "Self-host",
+    "openApp": "Otwórz aplikację",
+    "openMenu": "Otwórz menu",
+    "closeMenu": "Zamknij menu",
+    "language": "Język",
+    "licensed": "Licencja MIT",
+    "docs": "Dokumentacja",
+    "releases": "Wydania",
+    "license": "Licencja"
+  },
+  "titles": {
+    "home": "initagent - steruj każdą swoją maszyną z jednej karty przeglądarki",
+    "plans": "Plany - initagent",
+    "developers": "Dla deweloperów - initagent",
+    "hardware": "Sprzęt - initagent"
+  },
+  "hero": {
+    "titleLine": "Każda maszyna, którą masz.",
+    "titleAccent": "Jedna karta przeglądarki.",
+    "body": "Zacznij za darmo na naszym hostowanym hubie albo uruchom ten sam program u siebie. Terminale na żywo i agenci kodujący w całej flocie. Nigdy nie hostujemy Twoich workerów.",
+    "openApp": "Otwórz aplikację",
+    "selfHost": "Self-host",
+    "note": "Jeden darmowy projekt na naszym hubie. Potem 5 $ za osobę. Self-host to 0 $. Maszyny zostają Twoje.",
+    "shotAlt": "Pulpit floty initagent z podłączonym urządzeniem i odczytami CPU, pamięci i dysku na żywo."
+  }
+}

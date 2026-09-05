@@ -50,6 +50,24 @@ func TestRegisterAcceptsHostedCustomer(t *testing.T) {
 	if got.OrgName != DefaultOrgName {
 		t.Errorf("org name is %q, want %q — boarding names the company", got.OrgName, DefaultOrgName)
 	}
+	if got.Locale != LocaleEN {
+		t.Errorf("locale is %q, want %q when the form omitted it", got.Locale, LocaleEN)
+	}
+}
+
+func TestRegisterKeepsASubmittedLocale(t *testing.T) {
+	st := State{Offering: offering.Hosted, Claimed: true}
+	got, err := Register(st, RegisterRequest{
+		Email:    "ada@example.com",
+		Password: "correct-horse-battery",
+		Locale:   "pl",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Locale != LocalePL {
+		t.Errorf("locale is %q, want %q", got.Locale, LocalePL)
+	}
 }
 
 func TestRegisterRejects(t *testing.T) {
@@ -89,6 +107,12 @@ func TestRegisterRejects(t *testing.T) {
 			state:   hosted,
 			req:     RegisterRequest{Email: "ada@example.com", Password: "hunter22"},
 			wantErr: ErrPasswordWeak,
+		},
+		{
+			name:    "unsupported locale",
+			state:   hosted,
+			req:     RegisterRequest{Email: "ada@example.com", Password: "correct-horse-battery", Locale: "de"},
+			wantErr: ErrLocale,
 		},
 	}
 	for _, tc := range tests {

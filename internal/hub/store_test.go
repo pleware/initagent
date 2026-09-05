@@ -110,6 +110,9 @@ func TestAdminAccount(t *testing.T) {
 	if !found.VerifyPassword("correct-horse-battery") {
 		t.Error("stored hash does not verify the password it was built from")
 	}
+	if found.Locale != auth.LocaleEN {
+		t.Errorf("claim locale = %q, want %q", found.Locale, auth.LocaleEN)
+	}
 	if found.VerifyPassword("something-else") {
 		t.Error("a wrong password verified")
 	}
@@ -160,7 +163,7 @@ func TestRegisterCustomerMintsAccountAndOrg(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	account, org, err := s.RegisterCustomer("ada@example.com", hash, auth.DefaultOrgName)
+	account, org, err := s.RegisterCustomer("ada@example.com", hash, auth.DefaultOrgName, auth.LocaleEN)
 	if err != nil {
 		t.Fatalf("RegisterCustomer: %v", err)
 	}
@@ -177,6 +180,9 @@ func TestRegisterCustomerMintsAccountAndOrg(t *testing.T) {
 	found, err := s.AccountByEmail("ada@example.com")
 	if err != nil || found == nil || found.IsAdmin {
 		t.Fatalf("AccountByEmail = (%v, %v), want a non-admin account", found, err)
+	}
+	if found.Locale != auth.LocaleEN {
+		t.Errorf("customer locale = %q, want %q", found.Locale, auth.LocaleEN)
 	}
 	if !found.VerifyPassword("correct-horse-battery") {
 		t.Error("stored hash does not verify the password it was built from")
@@ -199,6 +205,34 @@ func TestRegisterCustomerMintsAccountAndOrg(t *testing.T) {
 	}
 }
 
+func TestAccountLocalePersists(t *testing.T) {
+	s := testStore(t)
+	hash, err := auth.HashPassword("correct-horse-battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.ClaimHub("ops@example.com", hash, "Ops"); err != nil {
+		t.Fatal(err)
+	}
+	account, _, err := s.RegisterCustomer("ada@example.com", hash, auth.DefaultOrgName, auth.LocalePL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if account.Locale != auth.LocalePL {
+		t.Errorf("register locale = %q, want %q", account.Locale, auth.LocalePL)
+	}
+	if err := s.SetAccountLocale(account.Id, "en-US"); err != nil {
+		t.Fatal(err)
+	}
+	found, err := s.AccountById(account.Id)
+	if err != nil || found == nil || found.Locale != auth.LocaleEN {
+		t.Fatalf("after SetAccountLocale = (%v, %v), want locale %q", found, err, auth.LocaleEN)
+	}
+	if err := s.SetAccountLocale(account.Id, "de"); err == nil {
+		t.Fatal("SetAccountLocale accepted an unsupported language")
+	}
+}
+
 func TestRegisterCustomerEmailIsUnique(t *testing.T) {
 	s := testStore(t)
 	hash, err := auth.HashPassword("correct-horse-battery")
@@ -208,7 +242,7 @@ func TestRegisterCustomerEmailIsUnique(t *testing.T) {
 	if _, _, err := s.ClaimHub("ops@example.com", hash, "Ops"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.RegisterCustomer("ops@example.com", hash, auth.DefaultOrgName); !errors.Is(err, auth.ErrEmailTaken) {
+	if _, _, err := s.RegisterCustomer("ops@example.com", hash, auth.DefaultOrgName, auth.LocaleEN); !errors.Is(err, auth.ErrEmailTaken) {
 		t.Fatalf("RegisterCustomer duplicate email = %v, want ErrEmailTaken", err)
 	}
 	orgs, err := s.ListOrgs()

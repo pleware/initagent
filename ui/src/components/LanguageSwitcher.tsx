@@ -1,37 +1,43 @@
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next'
+import { api } from '../api'
+import { LanguageSwitcher as SharedLanguageSwitcher } from '../../../web/LanguageSwitcher.tsx'
+import { resolveLocale, type Locale } from '../../../web/locale.ts'
 
-const LANGUAGES = [
-  { code: 'en', name: 'English', flag: '🇬🇧' },
-  // Uncomment when Polish translations are ready:
-  // { code: 'pl', name: 'Polski', flag: '🇵🇱' },
-] as const;
+export { resolveLocale }
+export type { Locale }
 
-export default function LanguageSwitcher() {
-  const { i18n } = useTranslation();
+/**
+ * Cockpit language picker. Guests keep the choice in the browser; a
+ * signed-in person also writes it onto the account so the next session
+ * (and reset mail) match.
+ */
+export default function LanguageSwitcher({
+  persist = false,
+  className,
+  size = 'compact',
+}: {
+  persist?: boolean
+  className?: string
+  size?: 'compact' | 'nav'
+}) {
+  const { i18n } = useTranslation()
+  const value = resolveLocale(i18n.resolvedLanguage || i18n.language)
 
-  const handleLanguageChange = (langCode: string) => {
-    i18n.changeLanguage(langCode);
-  };
+  const handleChange = (locale: Locale) => {
+    void i18n.changeLanguage(locale)
+    document.documentElement.lang = locale
+    if (!persist) return
+    void api.patch('/api/me', { locale }).catch(() => {
+      /* local choice already applied; next login restores the stored value */
+    })
+  }
 
   return (
-    <div className="relative inline-block">
-      <select
-        value={i18n.language}
-        onChange={(e) => handleLanguageChange(e.target.value)}
-        className="appearance-none rounded-lg border border-white/[0.07] bg-white/[0.025] px-3 py-2 pr-8 text-sm text-white hover:bg-white/[0.05] focus:outline-none focus:ring-2 focus:ring-blue-500"
-        aria-label="Select language"
-      >
-        {LANGUAGES.map((lang) => (
-          <option key={lang.code} value={lang.code}>
-            {lang.flag} {lang.name}
-          </option>
-        ))}
-      </select>
-      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-        <svg className="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </div>
-    </div>
-  );
+    <SharedLanguageSwitcher
+      value={value}
+      onChange={handleChange}
+      className={className}
+      size={size}
+    />
+  )
 }

@@ -23,6 +23,7 @@ func TestRegisterCustomerOnHostedClaimedHub(t *testing.T) {
 	resp := postJSON(t, f.ts, client, "/api/register", map[string]string{
 		"email":    "  Ada@Example.COM ",
 		"password": "correct-horse-battery",
+		"locale":   "pl",
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("register: %d, want 200", resp.StatusCode)
@@ -35,10 +36,16 @@ func TestRegisterCustomerOnHostedClaimedHub(t *testing.T) {
 	if account.IsAdmin {
 		t.Error("registered account is the platform admin")
 	}
+	if account.Locale != auth.LocalePL {
+		t.Errorf("stored locale = %q, want %q", account.Locale, auth.LocalePL)
+	}
 
 	got := getMe(t, f.ts, client)
 	if !got.Authenticated || got.PlatformAdmin || got.Email != "ada@example.com" {
 		t.Errorf("me after register = %+v, want a signed-in customer", got)
+	}
+	if got.Locale != auth.LocalePL {
+		t.Errorf("me locale = %q, want %q", got.Locale, auth.LocalePL)
 	}
 	if len(got.Orgs) != 1 || got.Orgs[0].Name != auth.DefaultOrgName || got.Orgs[0].Role != string(authz.RoleOwner) {
 		t.Errorf("orgs after register = %+v, want owner of %q", got.Orgs, auth.DefaultOrgName)
@@ -99,6 +106,38 @@ func TestRegisterPasswordFloor(t *testing.T) {
 	}
 }
 
+func TestRegisterRejectsUnsupportedLocale(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	resp := postJSON(t, f.ts, &http.Client{}, "/api/register", map[string]string{
+		"email":    "ada@example.com",
+		"password": "correct-horse-battery",
+		"locale":   "de",
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("unsupported locale register: %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestPatchMeStoresLocale(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	resp := f.do(t, http.MethodPatch, "/api/me", map[string]string{"locale": "pl"})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PATCH /api/me: %d, want 200", resp.StatusCode)
+	}
+	got := getMe(t, f.ts, f.client)
+	if got.Locale != auth.LocalePL {
+		t.Errorf("me locale after patch = %q, want %q", got.Locale, auth.LocalePL)
+	}
+	bad := f.do(t, http.MethodPatch, "/api/me", map[string]string{"locale": "de"})
+	if bad.StatusCode != http.StatusBadRequest {
+		t.Fatalf("PATCH unsupported locale: %d, want 400", bad.StatusCode)
+	}
+	anon := requestJSON(t, f.ts, &http.Client{}, http.MethodPatch, "/api/me", map[string]string{"locale": "pl"})
+	if anon.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("anonymous PATCH /api/me: %d, want 401", anon.StatusCode)
+	}
+}
+
 type meView struct {
 	Claimed       bool         `json:"claimed"`
 	Offering      string       `json:"offering"`
@@ -106,6 +145,7 @@ type meView struct {
 	Authenticated bool         `json:"authenticated"`
 	PlatformAdmin bool         `json:"platformAdmin"`
 	Email         string       `json:"email"`
+	Locale        string       `json:"locale"`
 	Orgs          []Membership `json:"orgs"`
 }
 

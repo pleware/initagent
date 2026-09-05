@@ -19,6 +19,11 @@
 /cmd/initagent/uidist/*
 !/cmd/initagent/uidist/.gitkeep
 
+# Progressive auth backgrounds — sources live in /ui/assets/auth, outputs here.
+/ui/public/auth/
+/ui/src/assets/auth/bg.gen.ts
+/ui/assets/auth/.stamp
+
 # Local dev data
 /tmp/
 *.db

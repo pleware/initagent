@@ -86,6 +86,13 @@ export function resolveThemeId(
   return `${family}-${mode}`
 }
 
+/** Light template (`corporate-light`, `nord-light`, …) vs dark
+ *  (`legacy-dark`, `sunset-dark`, …). The auth split background
+ *  follows this: light art on light ids, dark art on dark ids. */
+export function modeFromThemeId(id: string): ThemeMode {
+  return id.endsWith('-light') ? 'light' : 'dark'
+}
+
 export function honoursSystemMode(family: ThemeFamily): boolean {
   return themeFamilies[family].modes.length > 1
 }

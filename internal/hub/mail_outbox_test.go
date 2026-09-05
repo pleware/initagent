@@ -121,6 +121,10 @@ func TestOpenStoreCreatesMailOutbox(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("mail_outbox missing: ok=%v err=%v", ok, err)
 	}
+	ok, err = s.hasTable("password_resets")
+	if err != nil || !ok {
+		t.Fatalf("password_resets missing: ok=%v err=%v", ok, err)
+	}
 }
 
 func TestDrainOnceSends(t *testing.T) {

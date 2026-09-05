@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { GithubLogo, List, X, Eye } from "@phosphor-icons/react";
+import { useTranslation } from "react-i18next";
 import { HUB, REPO } from "../lib/site";
 import { NAV, ROUTES, navIsCurrent } from "../lib/routes";
+import { withLangParam } from "../../../web/locale.ts";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 export function Nav({ path }: { path: string }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const { t, i18n } = useTranslation();
+  const hub = withLangParam(HUB, i18n.resolvedLanguage || i18n.language);
 
-  // IntersectionObserver on a sentinel instead of a scroll listener, so this
-  // costs nothing per frame.
   useEffect(() => {
     const sentinel = document.getElementById("nav-sentinel");
     if (!sentinel) return;
@@ -49,12 +52,13 @@ export function Nav({ path }: { path: string }) {
                   navIsCurrent(l.href, path) ? "text-fg" : "text-fg-muted"
                 }`}
               >
-                {l.label}
+                {t(`nav.${l.key}`)}
               </a>
             ))}
           </div>
 
           <div className="ml-auto hidden items-center gap-3 md:flex">
+            <LanguageSwitcher size="nav" />
             <ThemeSwitcher />
             <a
               href={REPO}
@@ -63,19 +67,19 @@ export function Nav({ path }: { path: string }) {
               className="flex items-center gap-2 rounded-control px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-shell hover:text-fg"
             >
               <GithubLogo size={17} weight="regular" />
-              Source
+              {t("nav.source")}
             </a>
             <a
               href={ROUTES.developers}
               className="rounded-control px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-shell hover:text-fg"
             >
-              Self-host
+              {t("nav.selfHost")}
             </a>
             <a
-              href={HUB}
+              href={hub}
               className="rounded-control bg-accent px-4 py-2 text-[13.5px] font-semibold text-accent-on transition-transform duration-150 hover:bg-accent-hover active:scale-[0.98]"
             >
-              Open app
+              {t("nav.openApp")}
             </a>
           </div>
 
@@ -83,7 +87,7 @@ export function Nav({ path }: { path: string }) {
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-expanded={open}
-            aria-label={open ? "Close menu" : "Open menu"}
+            aria-label={open ? t("nav.closeMenu") : t("nav.openMenu")}
             className="ml-auto rounded-control p-2 text-fg-muted transition-colors hover:text-fg md:hidden"
           >
             {open ? <X size={20} /> : <List size={20} />}
@@ -101,9 +105,10 @@ export function Nav({ path }: { path: string }) {
                   aria-current={navIsCurrent(l.href, path) ? "page" : undefined}
                   className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-shell hover:text-fg"
                 >
-                  {l.label}
+                  {t(`nav.${l.key}`)}
                 </a>
               ))}
+              <LanguageSwitcher className="px-2 py-2" size="nav" />
               <ThemeSwitcher className="px-2 py-2" />
               <a
                 href={REPO}
@@ -111,20 +116,20 @@ export function Nav({ path }: { path: string }) {
                 rel="noreferrer"
                 className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-shell hover:text-fg"
               >
-                Source
+                {t("nav.source")}
               </a>
               <a
                 href={ROUTES.developers}
                 onClick={() => setOpen(false)}
                 className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-shell hover:text-fg"
               >
-                Self-host
+                {t("nav.selfHost")}
               </a>
               <a
-                href={HUB}
+                href={hub}
                 className="mt-2 rounded-control bg-accent px-4 py-2.5 text-center text-[15px] font-semibold text-accent-on"
               >
-                Open app
+                {t("nav.openApp")}
               </a>
             </div>
           </div>

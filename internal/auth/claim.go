@@ -65,6 +65,8 @@ type ClaimRequest struct {
 	// becomes DefaultOrgName rather than a refusal. Hosted first-run asks
 	// for it; self-host does not, and gets the same default.
 	OrgName string
+	// Locale is the UI language at first-run. Empty becomes English.
+	Locale string
 }
 
 // Credentials is what the hub stores once a claim is accepted.
@@ -72,6 +74,7 @@ type Credentials struct {
 	Email        string
 	PasswordHash string
 	OrgName      string
+	Locale       string
 }
 
 // orgNameMax bounds the name a first-run form can set. It is a display
@@ -124,6 +127,10 @@ func Claim(st State, req ClaimRequest) (Credentials, error) {
 	if err != nil {
 		return Credentials{}, err
 	}
+	locale, err := NormalizeLocale(req.Locale)
+	if err != nil {
+		return Credentials{}, err
+	}
 	if err := CheckPassword(st.Offering, email, req.Password); err != nil {
 		return Credentials{}, err
 	}
@@ -135,5 +142,6 @@ func Claim(st State, req ClaimRequest) (Credentials, error) {
 		Email:        email,
 		PasswordHash: hash,
 		OrgName:      CheckOrgName(req.OrgName),
+		Locale:       locale,
 	}, nil
 }

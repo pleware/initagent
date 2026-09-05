@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { siteOrigin } from '../../../web/origins.ts'
 import ThemeSwitcher from './ThemeSwitcher'
+import LanguageSwitcher from './LanguageSwitcher'
 
 /** Public marketing origin. The unauthenticated hub chrome points back
- *  here so a guest can leave the login card the same way they arrived. */
-const SITE = 'https://initagent.dev'
+ *  here so a guest can leave the login card the same way they arrived.
+ *  On localhost this is the local site (`:5173`), not initagent.dev. */
+const SITE = siteOrigin(import.meta.env.VITE_SITE as string | undefined)
 const REPO = 'https://github.com/pleware/initagent'
 
 const LINKS = [
@@ -46,6 +49,7 @@ export default function GuestNav() {
         </div>
 
         <div className="ml-auto hidden items-center gap-3 md:flex">
+          <LanguageSwitcher size="nav" />
           <ThemeSwitcher size="nav" />
           <a
             href={REPO}
@@ -89,6 +93,7 @@ export default function GuestNav() {
               </a>
             ))}
             <ThemeSwitcher className="px-2 py-2" size="nav" />
+            <LanguageSwitcher className="px-2 py-2" size="nav" />
             <a
               href={REPO}
               target="_blank"

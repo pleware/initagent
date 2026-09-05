@@ -34,6 +34,7 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 		Token    string `json:"token"`
 		OrgName  string `json:"orgName"`
+		Locale   string `json:"locale"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		httpError(w, http.StatusBadRequest, "bad request")
@@ -53,12 +54,13 @@ func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 		Token:    req.Token,
 		OrgName:  req.OrgName,
+		Locale:   req.Locale,
 	})
 	if err != nil {
 		httpError(w, claimStatus(err), err.Error())
 		return
 	}
-	account, _, err := s.store.ClaimHub(creds.Email, creds.PasswordHash, creds.OrgName)
+	account, _, err := s.store.insertAccountWithOwnedOrg(creds.Email, creds.PasswordHash, creds.OrgName, true, creds.Locale)
 	if err != nil {
 		// The partial unique index on is_admin is the arbiter, so a second
 		// concurrent claim lands here rather than creating a second owner.
@@ -83,7 +85,7 @@ func claimStatus(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, auth.ErrClaimToken):
 		return http.StatusForbidden
-	case errors.Is(err, auth.ErrEmailInvalid), errors.Is(err, auth.ErrPasswordWeak):
+	case errors.Is(err, auth.ErrEmailInvalid), errors.Is(err, auth.ErrPasswordWeak), errors.Is(err, auth.ErrLocale):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -152,6 +154,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
+		Locale   string `json:"locale"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		httpError(w, http.StatusBadRequest, "bad request")
@@ -165,12 +168,12 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	creds, err := auth.Register(auth.State{
 		Offering: s.opts.Offering,
 		Claimed:  claimed,
-	}, auth.RegisterRequest{Email: req.Email, Password: req.Password})
+	}, auth.RegisterRequest{Email: req.Email, Password: req.Password, Locale: req.Locale})
 	if err != nil {
 		httpError(w, registerStatus(err), err.Error())
 		return
 	}
-	account, _, err := s.store.RegisterCustomer(creds.Email, creds.PasswordHash, creds.OrgName)
+	account, _, err := s.store.RegisterCustomer(creds.Email, creds.PasswordHash, creds.OrgName, creds.Locale)
 	if err != nil {
 		if errors.Is(err, auth.ErrEmailTaken) {
 			httpError(w, http.StatusConflict, err.Error())
@@ -189,7 +192,7 @@ func registerStatus(err error) int {
 		return http.StatusNotFound
 	case errors.Is(err, auth.ErrNotClaimed), errors.Is(err, auth.ErrEmailTaken):
 		return http.StatusConflict
-	case errors.Is(err, auth.ErrEmailInvalid), errors.Is(err, auth.ErrPasswordWeak):
+	case errors.Is(err, auth.ErrEmailInvalid), errors.Is(err, auth.ErrPasswordWeak), errors.Is(err, auth.ErrLocale):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
@@ -292,6 +295,7 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	if actor.Account != "" {
 		if a, err := s.store.AccountById(actor.Account); err == nil && a != nil {
 			resp["email"] = a.Email
+			resp["locale"] = a.Locale
 		}
 		orgs, err = s.store.ListAccountOrgs(actor.Account)
 		if err != nil {
@@ -301,6 +305,37 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	}
 	resp["orgs"] = orgs
 	writeJSON(w, resp)
+}
+
+// handlePatchMe stores the language a signed-in person just picked. Guests
+// have no row to write; they keep the choice in the browser until they
+// register or claim.
+func (s *Server) handlePatchMe(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
+	if actor.Account == "" {
+		httpError(w, http.StatusUnauthorized, "not authenticated")
+		return
+	}
+	var req struct {
+		Locale string `json:"locale"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		httpError(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	if strings.TrimSpace(req.Locale) == "" {
+		httpError(w, http.StatusBadRequest, auth.ErrLocale.Error())
+		return
+	}
+	locale, err := auth.NormalizeLocale(req.Locale)
+	if err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.store.SetAccountLocale(actor.Account, locale); err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "locale": locale})
 }
 
 // --- enrollment ---

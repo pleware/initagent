@@ -9,15 +9,15 @@ export const ROUTES = {
 } as const;
 
 export type NavItem = {
-  label: string;
+  key: "how" | "plans" | "developers" | "hardware";
   href: string;
 };
 
 export const NAV: readonly NavItem[] = [
-  { label: "How it works", href: ROUTES.how },
-  { label: "Plans", href: ROUTES.plans },
-  { label: "For Developers", href: ROUTES.developers },
-  { label: "Hardware", href: ROUTES.hardware },
+  { key: "how", href: ROUTES.how },
+  { key: "plans", href: ROUTES.plans },
+  { key: "developers", href: ROUTES.developers },
+  { key: "hardware", href: ROUTES.hardware },
 ];
 
 export function currentPath(): string {

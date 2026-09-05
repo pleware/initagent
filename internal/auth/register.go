@@ -15,6 +15,8 @@ func SignupOpen(kind offering.Kind, claimed bool) bool {
 type RegisterRequest struct {
 	Email    string
 	Password string
+	// Locale is the UI language at signup. Empty becomes English.
+	Locale string
 }
 
 // Register decides whether a customer may create an account on this hub,
@@ -38,6 +40,10 @@ func Register(st State, req RegisterRequest) (Credentials, error) {
 	if err != nil {
 		return Credentials{}, err
 	}
+	locale, err := NormalizeLocale(req.Locale)
+	if err != nil {
+		return Credentials{}, err
+	}
 	if err := CheckPassword(st.Offering, email, req.Password); err != nil {
 		return Credentials{}, err
 	}
@@ -49,5 +55,6 @@ func Register(st State, req RegisterRequest) (Credentials, error) {
 		Email:        email,
 		PasswordHash: hash,
 		OrgName:      CheckOrgName(""),
+		Locale:       locale,
 	}, nil
 }

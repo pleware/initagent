@@ -5,6 +5,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "types": ["vite/client"],
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
@@ -27,5 +28,6 @@
       "@phosphor-icons/react": ["./node_modules/@phosphor-icons/react/dist/index.d.ts"]
     }
   },
-  "include": ["src", "../web/**/*.ts", "../web/**/*.tsx"]
+  "include": ["src", "../web/**/*.ts", "../web/**/*.tsx"],
+  "exclude": ["../web/**/*.test.ts"]
 }

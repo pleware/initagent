@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-05 — Stop a fleet update from killing a run the connector is still serving
 - 2026-09-05 — Stop the hosted platform admin from founding a company
 - 2026-09-05 — Let a hosted customer reset a forgotten password in the language they signed up with
 - 2026-09-05 — Queue outbound mail on the hub so hosted send can retry without a second process

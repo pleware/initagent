@@ -49,6 +49,10 @@ type Agent struct {
 	files             map[uint32]*fileStream
 	nextUpdateAttempt time.Time
 	updateApplied     bool
+	// execsInFlight counts supervised commands running right now. Terminals
+	// are excluded: tmux keeps them across a reconnect, while an exec reply
+	// the gateway is waiting on is lost with the socket and its lease expires.
+	execsInFlight int
 }
 
 func New(cfg Config, version string) *Agent {
@@ -329,6 +333,8 @@ func (a *Agent) dispatch(m protocol.Msg) {
 			return
 		}
 		go func() {
+			a.execStarted()
+			defer a.execDone()
 			res := a.execCommand(req)
 			a.reply(m.Id, res, nil)
 		}()

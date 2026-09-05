@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestMaybeSelfUpdateGating(t *testing.T) {
@@ -40,5 +41,89 @@ func TestMaybeSelfUpdateGating(t *testing.T) {
 	a5 := New(Config{HubURL: "http://127.0.0.1:1"}, "v0.1.0")
 	if a5.maybeSelfUpdate(context.Background(), "v0.2.0", "") {
 		t.Error("should not update without trusted repository metadata")
+	}
+}
+
+func TestMaybeSelfUpdateWaitsForARunningCommand(t *testing.T) {
+	os.Setenv(managedEnv, "1")
+	defer os.Unsetenv(managedEnv)
+
+	a := New(Config{HubURL: "http://127.0.0.1:1"}, "v0.1.0")
+	a.execStarted()
+
+	if a.maybeSelfUpdate(context.Background(), "v9.9.9", "ErzenXz/overseer") {
+		t.Error("should not swap the binary while a command is running")
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if !a.nextUpdateAttempt.IsZero() {
+		t.Error("a busy skip should not spend the hourly retry budget")
+	}
+}
+
+func TestRestartWhenIdleReleasesAnIdleDevice(t *testing.T) {
+	a := New(Config{HubURL: "http://127.0.0.1:1"}, "v0.1.0")
+
+	a.restartWhenIdle(context.Background())
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if !a.updateApplied {
+		t.Error("an idle device should restart into the staged binary")
+	}
+}
+
+func TestRestartWhenIdleWaitsForARunningCommand(t *testing.T) {
+	previous := idleRestartPoll
+	idleRestartPoll = time.Millisecond
+	defer func() { idleRestartPoll = previous }()
+
+	a := New(Config{HubURL: "http://127.0.0.1:1"}, "v0.1.0")
+	a.execStarted()
+
+	done := make(chan struct{})
+	go func() {
+		a.restartWhenIdle(context.Background())
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("restarted while a command was still running")
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	a.execDone()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("did not restart after the command finished")
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if !a.updateApplied {
+		t.Error("the staged binary should be picked up once the slot frees")
+	}
+}
+
+func TestRestartWhenIdleGivesUpWhenTheAgentStops(t *testing.T) {
+	previous := idleRestartPoll
+	idleRestartPoll = time.Millisecond
+	defer func() { idleRestartPoll = previous }()
+
+	a := New(Config{HubURL: "http://127.0.0.1:1"}, "v0.1.0")
+	a.execStarted()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	a.restartWhenIdle(ctx)
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.updateApplied {
+		t.Error("a cancelled agent should not claim the swap succeeded")
 	}
 }

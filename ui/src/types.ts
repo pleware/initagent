@@ -60,6 +60,7 @@ export interface Account {
 export interface Org {
   id: string
   name: string
+  plan: string
   createdAt: number
   members: number
 }
@@ -78,6 +79,7 @@ export interface OrgMember {
 export interface Membership {
   orgId: string
   name: string
+  plan: string
   role: string
 }
 

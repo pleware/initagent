@@ -102,6 +102,7 @@ func NewServer(opts Options) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	store.setOffering(opts.Offering)
 	events := newEventBus()
 	s := &Server{
 		opts: opts,
@@ -299,6 +300,7 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/register", s.handleRegister)
 	m.HandleFunc("POST /api/logout", s.handleLogout)
 	m.HandleFunc("GET /api/me", s.handleMe)
+	m.HandleFunc("GET /api/plans", s.handleListPlans)
 	m.HandleFunc("POST /api/enroll", s.handleEnroll)
 	m.HandleFunc("GET /install/", s.installer.ServeScript)
 	m.HandleFunc("GET /api/agent-binary", s.installer.ServeBinary)

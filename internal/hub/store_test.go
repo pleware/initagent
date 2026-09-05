@@ -252,8 +252,8 @@ func TestClaimHubMintsTheFirstOrgAndOwner(t *testing.T) {
 	if err != nil || len(orgs) != 1 {
 		t.Fatalf("ListOrgs = (%v, %v), want one org", orgs, err)
 	}
-	if orgs[0].Id != org.Id || orgs[0].Name != "Example Ops" || orgs[0].Members != 1 {
-		t.Errorf("ListOrgs[0] = %+v, want %q with one member", orgs[0], "Example Ops")
+	if orgs[0].Id != org.Id || orgs[0].Name != "Example Ops" || orgs[0].Members != 1 || orgs[0].Plan != "free" {
+		t.Errorf("ListOrgs[0] = %+v, want %q with one member on free", orgs[0], "Example Ops")
 	}
 
 	members, err := s.ListOrgMembers(org.Id)
@@ -272,8 +272,8 @@ func TestClaimHubMintsTheFirstOrgAndOwner(t *testing.T) {
 		t.Errorf("AccountOrgRoles = (%v, %v), want owner of the first org", roles, err)
 	}
 	mine, err := s.ListAccountOrgs(account.Id)
-	if err != nil || len(mine) != 1 || mine[0].Name != "Example Ops" {
-		t.Errorf("ListAccountOrgs = (%v, %v), want the first org by name", mine, err)
+	if err != nil || len(mine) != 1 || mine[0].Name != "Example Ops" || mine[0].Plan != "free" {
+		t.Errorf("ListAccountOrgs = (%v, %v), want the first org by name on free", mine, err)
 	}
 }
 
@@ -628,6 +628,34 @@ func TestOpenStoreMigratesLegacyProjectsTable(t *testing.T) {
 		if err != nil || !ok {
 			t.Fatalf("column %s after open: ok=%v err=%v", col, ok, err)
 		}
+	}
+}
+
+func TestOpenStoreMigratesOrgPlan(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy-orgs.db")
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE orgs (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		created_at INTEGER NOT NULL
+	)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("OpenStore on a pre-plan orgs table: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+	ok, err := s.hasColumn("orgs", "plan")
+	if err != nil || !ok {
+		t.Fatalf("orgs.plan after open: ok=%v err=%v", ok, err)
 	}
 }
 

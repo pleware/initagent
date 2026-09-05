@@ -10,6 +10,7 @@ import (
 	"github.com/pleware/initagent/internal/auth"
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/offering"
+	"github.com/pleware/initagent/internal/orgplan"
 )
 
 // adminFixture claims a hub and signs in, returning a client that carries the
@@ -79,6 +80,8 @@ func (f *adminFixture) signIn(t *testing.T, email, password string) *http.Client
 }
 
 // addMember creates an account and joins it to the fixture's org.
+// Tests that add a second person are not the free people wall: they lift
+// the org to enterprise first so the roster rules stay under test.
 func (f *adminFixture) addMember(t *testing.T, email, password string, role authz.Role) string {
 	t.Helper()
 	hash, err := auth.HashPassword(password)
@@ -87,6 +90,9 @@ func (f *adminFixture) addMember(t *testing.T, email, password string, role auth
 	}
 	account, err := f.srv.store.CreateAccount(email, hash)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.srv.store.SetOrgPlan(f.orgId, orgplan.Enterprise); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.srv.store.AddOrgMember(f.orgId, account.Id, role); err != nil {
@@ -109,6 +115,7 @@ func TestMeReportsIdentityAndMemberships(t *testing.T) {
 		Orgs          []struct {
 			OrgId string `json:"orgId"`
 			Name  string `json:"name"`
+			Plan  string `json:"plan"`
 			Role  string `json:"role"`
 		} `json:"orgs"`
 	}
@@ -127,6 +134,9 @@ func TestMeReportsIdentityAndMemberships(t *testing.T) {
 	}
 	if me.Orgs[0].Name != "Example Ops" {
 		t.Errorf("org name = %q, want the name submitted at claim", me.Orgs[0].Name)
+	}
+	if me.Orgs[0].Plan != string(orgplan.Free) {
+		t.Errorf("org plan = %q, want free", me.Orgs[0].Plan)
 	}
 }
 

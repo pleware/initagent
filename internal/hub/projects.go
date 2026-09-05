@@ -162,7 +162,13 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, act
 		forbid(w, authz.ErrForbidden)
 		return
 	}
+	if s.refuseAnotherProject(w, orgId) {
+		return
+	}
 	if !s.validateProjectDevice(w, input.DeviceId) {
+		return
+	}
+	if s.refuseAnotherMachine(w, orgId, "", input.DeviceId) {
 		return
 	}
 	remote, host, message := repoFields(input.RepoRemote)
@@ -208,6 +214,9 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, act
 		templateId = input.TemplateId
 	}
 	if !s.validateProjectDevice(w, deviceId) {
+		return
+	}
+	if s.refuseAnotherMachine(w, existing.OrgId, existing.DeviceId, deviceId) {
 		return
 	}
 	remote, host := existing.RepoRemote, existing.RepoHost

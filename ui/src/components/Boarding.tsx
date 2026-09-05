@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { usePoll } from '../hooks'
 import type { Device, Me, Project, ProjectTemplate, TaskView } from '../types'
+import { HubError } from './PlanWall'
 
 // Boarding is the empty-state funnel after hosted signup or a self-host
 // claim (26). Name the company if it is still the generic default, pick a
@@ -51,7 +52,7 @@ export default function Boarding({
   const [copied, setCopied] = useState(false)
   const [task, setTask] = useState<TaskView | null>(null)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<unknown>(null)
 
   const selected = templates.find((item) => item.id === templateId) ?? templates.find((item) => item.live)
 
@@ -75,7 +76,7 @@ export default function Boarding({
       const live = list.find((item) => item.live)
       if (live) setTemplateId(live.id)
     }).catch((cause) => {
-      setError(cause instanceof Error ? cause.message : t('errors.generic'))
+      setError(cause)
     })
   }, [t])
 
@@ -88,7 +89,7 @@ export default function Boarding({
         setWindowsCommand(offer.windowsCommand)
       })
       .catch((cause) => {
-        setError(cause instanceof Error ? cause.message : t('errors.generic'))
+        setError(cause)
       })
   }, [step, t])
 
@@ -114,13 +115,13 @@ export default function Boarding({
       return
     }
     setBusy(true)
-    setError('')
+    setError(null)
     try {
       await api.patch(`/api/orgs/${org.orgId}`, { name: trimmed })
       await onMeChanged()
       setStep('template')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('errors.generic'))
+      setError(cause)
     } finally {
       setBusy(false)
     }
@@ -130,7 +131,7 @@ export default function Boarding({
     event.preventDefault()
     if (!selected?.live || !projectName.trim()) return
     setBusy(true)
-    setError('')
+    setError(null)
     try {
       const saved = await api.post<Project>('/api/projects', {
         name: projectName.trim(),
@@ -139,7 +140,7 @@ export default function Boarding({
       window.dispatchEvent(new Event('liveagent:projects-changed'))
       afterProject(saved)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('errors.generic'))
+      setError(cause)
     } finally {
       setBusy(false)
     }
@@ -149,7 +150,7 @@ export default function Boarding({
     event.preventDefault()
     if (!project || !repoRemote.trim()) return
     setBusy(true)
-    setError('')
+    setError(null)
     try {
       const saved = await api.patch<Project>(`/api/projects/${project.id}`, {
         repoRemote: repoRemote.trim(),
@@ -157,7 +158,7 @@ export default function Boarding({
       setProject(saved)
       setStep(joined ? 'task' : 'worker')
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('errors.generic'))
+      setError(cause)
     } finally {
       setBusy(false)
     }
@@ -166,12 +167,12 @@ export default function Boarding({
   const runFirstTask = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
-    setError('')
+    setError(null)
     setTask(null)
     try {
       setTask(await api.post<TaskView>('/api/tasks', { command: firstTaskCommand }))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('errors.generic'))
+      setError(cause)
     } finally {
       setBusy(false)
     }
@@ -212,11 +213,11 @@ export default function Boarding({
                 className="field-input mt-2"
               />
             </label>
-            {error && <p className="text-sm text-fail-fg">{error}</p>}
+            {error ? <HubError error={error} fallback={t('errors.generic')} /> : null}
             <button type="submit" disabled={busy} className="btn-primary w-full">
               {busy ? t('common.loading') : t('boarding.continue')}
             </button>
-            <button type="button" className="w-full text-sm text-fg-muted underline-offset-2 hover:text-fg hover:underline" onClick={() => { setError(''); setStep('template') }}>
+            <button type="button" className="w-full text-sm text-fg-muted underline-offset-2 hover:text-fg hover:underline" onClick={() => { setError(null); setStep('template') }}>
               {t('boarding.skipName')}
             </button>
           </form>
@@ -251,12 +252,12 @@ export default function Boarding({
               )
             })}
           </div>
-          {error && <p className="mt-3 text-sm text-fail-fg">{error}</p>}
+          {error ? <HubError error={error} fallback={t('errors.generic')} /> : null}
           <button
             type="button"
             className="btn-primary mt-6"
             disabled={!selected?.live}
-            onClick={() => { setError(''); setStep('project') }}
+            onClick={() => { setError(null); setStep('project') }}
           >
             {t('boarding.continue')}
           </button>
@@ -278,7 +279,7 @@ export default function Boarding({
                 className="field-input mt-2"
               />
             </label>
-            {error && <p className="text-sm text-fail-fg">{error}</p>}
+            {error ? <HubError error={error} fallback={t('errors.generic')} /> : null}
             <button type="submit" disabled={busy || !projectName.trim()} className="btn-primary w-full">
               {busy ? t('common.loading') : t('boarding.createProject')}
             </button>
@@ -301,7 +302,7 @@ export default function Boarding({
                 className="field-input mt-2 font-mono text-xs"
               />
             </label>
-            {error && <p className="text-sm text-fail-fg">{error}</p>}
+            {error ? <HubError error={error} fallback={t('errors.generic')} /> : null}
             <button type="submit" disabled={busy || !repoRemote.trim()} className="btn-primary w-full">
               {busy ? t('common.loading') : t('boarding.continue')}
             </button>
@@ -316,7 +317,7 @@ export default function Boarding({
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-fg">{t('boarding.workerTitle')}</h1>
           <p className="mt-3 max-w-lg text-center text-sm leading-6 text-fg-muted">{t('boarding.workerHint')}</p>
           <div className="mt-6 w-full max-w-xl">
-            {error && <p className="mb-3 text-sm text-fail-fg">{error}</p>}
+            {error ? <HubError error={error} fallback={t('errors.generic')} /> : null}
             <div className="mb-3 inline-flex rounded-lg border border-line-2 bg-fill-sunken p-1">
               <button type="button" onClick={() => setPlatform('unix')} className={`rounded-md px-3 py-1.5 text-sm ${platform === 'unix' ? 'bg-fill-4 text-fg' : 'text-fg-muted hover:text-fg'}`}>
                 {t('boarding.unix')}
@@ -337,7 +338,7 @@ export default function Boarding({
             {joined ? (
               <div className="mt-4 flex items-center justify-between rounded-lg border border-ok/30 bg-ok/10 p-3">
                 <span className="text-sm font-medium text-ok-fg">{t('boarding.enrollJoined')}</span>
-                <button type="button" className="btn-primary" onClick={() => { setError(''); setStep('task') }}>
+                <button type="button" className="btn-primary" onClick={() => { setError(null); setStep('task') }}>
                   {t('boarding.continue')}
                 </button>
               </div>
@@ -359,7 +360,7 @@ export default function Boarding({
           <p className="mt-3 max-w-lg text-center text-sm leading-6 text-fg-muted">{t('boarding.taskHint')}</p>
           <form onSubmit={runFirstTask} className="mt-6 w-full max-w-sm flex flex-col gap-3">
             <code className="rounded-lg border border-line-2 bg-fill-sunken px-3 py-2 font-mono text-xs text-fg-soft">{firstTaskCommand}</code>
-            {error && <p className="text-sm text-fail-fg">{error}</p>}
+            {error ? <HubError error={error} fallback={t('errors.generic')} /> : null}
             {task && (
               <p className="text-sm text-fg-soft">
                 {task.state}

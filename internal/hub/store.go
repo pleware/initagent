@@ -13,13 +13,16 @@ import (
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/offering"
+	"github.com/pleware/initagent/internal/orgplan"
 	"github.com/pleware/initagent/internal/store"
 )
 
 // Store wraps the hub's database (SQLite for self-host, Postgres for the
 // hosted offering). The db handle rebinds placeholders per dialect.
 type Store struct {
-	db *store.DB
+	db       *store.DB
+	offering offering.Kind
 }
 
 const schemaSQLite = `
@@ -81,6 +84,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS accounts_single_admin ON accounts(is_admin) WH
 CREATE TABLE IF NOT EXISTS orgs (
 	id         TEXT PRIMARY KEY,
 	name       TEXT NOT NULL,
+	plan       TEXT NOT NULL DEFAULT 'free',
 	created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_members (
@@ -157,6 +161,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS accounts_single_admin ON accounts(is_admin) WH
 CREATE TABLE IF NOT EXISTS orgs (
 	id         TEXT PRIMARY KEY,
 	name       TEXT NOT NULL,
+	plan       TEXT NOT NULL DEFAULT 'free',
 	created_at BIGINT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_members (
@@ -199,6 +204,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureProjectBoardingColumns(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring project boarding columns: %w", err)
+	}
+	if err := s.ensureOrgPlanColumn(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring org plan column: %w", err)
 	}
 	if err := s.seedPresets(); err != nil {
 		db.Close()
@@ -317,6 +326,17 @@ func (s *Store) ensureProjectBoardingColumns() error {
 	return err
 }
 
+// ensureOrgPlanColumn adds the hosted catalogue id to a live orgs table.
+// CREATE TABLE IF NOT EXISTS will not add it, and existing hosted orgs are
+// the free default until Stripe or an operator writes another id (48).
+func (s *Store) ensureOrgPlanColumn() error {
+	return s.ensureColumn("orgs", "plan", "TEXT NOT NULL DEFAULT 'free'")
+}
+
+func (s *Store) setOffering(kind offering.Kind) {
+	s.offering = kind
+}
+
 // --- settings ---
 
 func (s *Store) Setting(key string) (string, error) {
@@ -425,7 +445,7 @@ func (s *Store) insertAccountWithOwnedOrg(email, passwordHash, orgName string, a
 		Id: accountId, Email: email, IsAdmin: admin,
 		CreatedAt: now, passwordHash: passwordHash,
 	}
-	org := &Org{Id: orgId, Name: orgName, CreatedAt: now, Members: 1}
+	org := &Org{Id: orgId, Name: orgName, Plan: string(orgplan.Free), CreatedAt: now, Members: 1}
 
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -436,8 +456,8 @@ func (s *Store) insertAccountWithOwnedOrg(email, passwordHash, orgName string, a
 		VALUES (?, ?, ?, ?, ?)`, account.Id, account.Email, account.passwordHash, isAdmin, now); err != nil {
 		return nil, nil, err
 	}
-	if _, err := tx.Exec(`INSERT INTO orgs (id, name, created_at) VALUES (?, ?, ?)`,
-		org.Id, org.Name, now); err != nil {
+	if _, err := tx.Exec(`INSERT INTO orgs (id, name, plan, created_at) VALUES (?, ?, ?, ?)`,
+		org.Id, org.Name, string(orgplan.Free), now); err != nil {
 		return nil, nil, err
 	}
 	if _, err := tx.Exec(`INSERT INTO org_members (org_id, account_id, role, created_at)
@@ -492,7 +512,7 @@ func (s *Store) BackfillOperatorOrg() (*Org, error) {
 	}
 	now := time.Now().Unix()
 	org := &Org{
-		Id: orgId, Name: auth.DefaultOrgName,
+		Id: orgId, Name: auth.DefaultOrgName, Plan: string(orgplan.Free),
 		CreatedAt: now, Members: 1,
 	}
 	tx, err := s.db.Begin()
@@ -500,8 +520,8 @@ func (s *Store) BackfillOperatorOrg() (*Org, error) {
 		return nil, err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`INSERT INTO orgs (id, name, created_at) VALUES (?, ?, ?)`,
-		org.Id, org.Name, now); err != nil {
+	if _, err := tx.Exec(`INSERT INTO orgs (id, name, plan, created_at) VALUES (?, ?, ?, ?)`,
+		org.Id, org.Name, org.Plan, now); err != nil {
 		return nil, err
 	}
 	if _, err := tx.Exec(`INSERT INTO org_members (org_id, account_id, role, created_at)
@@ -596,6 +616,7 @@ func (s *Store) ListAccounts() ([]Account, error) {
 type Org struct {
 	Id        string `json:"id"`
 	Name      string `json:"name"`
+	Plan      string `json:"plan"`
 	CreatedAt int64  `json:"createdAt"`
 	// Members is the roster size. The platform operator's list of orgs shows
 	// it, which is deliberately as far as that surface goes: enumerating
@@ -619,6 +640,7 @@ type OrgMember struct {
 type Membership struct {
 	OrgId string `json:"orgId"`
 	Name  string `json:"name"`
+	Plan  string `json:"plan"`
 	Role  string `json:"role"`
 }
 
@@ -629,9 +651,9 @@ func (s *Store) CreateOrg(name string) (*Org, error) {
 	if err != nil {
 		return nil, err
 	}
-	o := &Org{Id: orgId, Name: name, CreatedAt: time.Now().Unix()}
-	if _, err := s.db.Exec(`INSERT INTO orgs (id, name, created_at) VALUES (?, ?, ?)`,
-		o.Id, o.Name, o.CreatedAt); err != nil {
+	o := &Org{Id: orgId, Name: name, Plan: string(orgplan.Free), CreatedAt: time.Now().Unix()}
+	if _, err := s.db.Exec(`INSERT INTO orgs (id, name, plan, created_at) VALUES (?, ?, ?, ?)`,
+		o.Id, o.Name, o.Plan, o.CreatedAt); err != nil {
 		return nil, err
 	}
 	return o, nil
@@ -639,9 +661,9 @@ func (s *Store) CreateOrg(name string) (*Org, error) {
 
 // ListOrgs returns every organization with its roster size, oldest first.
 func (s *Store) ListOrgs() ([]Org, error) {
-	rows, err := s.db.Query(`SELECT o.id, o.name, o.created_at, COUNT(m.account_id)
+	rows, err := s.db.Query(`SELECT o.id, o.name, o.plan, o.created_at, COUNT(m.account_id)
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
-		GROUP BY o.id, o.name, o.created_at
+		GROUP BY o.id, o.name, o.plan, o.created_at
 		ORDER BY o.created_at, o.id`)
 	if err != nil {
 		return nil, err
@@ -650,7 +672,7 @@ func (s *Store) ListOrgs() ([]Org, error) {
 	out := []Org{}
 	for rows.Next() {
 		var o Org
-		if err := rows.Scan(&o.Id, &o.Name, &o.CreatedAt, &o.Members); err != nil {
+		if err := rows.Scan(&o.Id, &o.Name, &o.Plan, &o.CreatedAt, &o.Members); err != nil {
 			return nil, err
 		}
 		out = append(out, o)
@@ -661,11 +683,11 @@ func (s *Store) ListOrgs() ([]Org, error) {
 // OrgById returns one organization, or (nil, nil) when it does not exist.
 func (s *Store) OrgById(orgId string) (*Org, error) {
 	var o Org
-	err := s.db.QueryRow(`SELECT o.id, o.name, o.created_at, COUNT(m.account_id)
+	err := s.db.QueryRow(`SELECT o.id, o.name, o.plan, o.created_at, COUNT(m.account_id)
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
 		WHERE o.id = ?
-		GROUP BY o.id, o.name, o.created_at`, orgId).
-		Scan(&o.Id, &o.Name, &o.CreatedAt, &o.Members)
+		GROUP BY o.id, o.name, o.plan, o.created_at`, orgId).
+		Scan(&o.Id, &o.Name, &o.Plan, &o.CreatedAt, &o.Members)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -681,11 +703,21 @@ func (s *Store) RenameOrg(orgId, name string) error {
 	return err
 }
 
+// SetOrgPlan writes a catalogue id. Hosted signup always starts at free;
+// Stripe or an operator moves it later (48). Unknown ids are refused.
+func (s *Store) SetOrgPlan(orgId string, id orgplan.ID) error {
+	if _, err := orgplan.Parse(string(id)); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`UPDATE orgs SET plan = ? WHERE id = ?`, string(id), orgId)
+	return err
+}
+
 // ListAccountOrgs returns the organizations an account belongs to, with the
 // role it holds in each. This is what the cockpit reads at sign-in to know
 // which people it may manage.
 func (s *Store) ListAccountOrgs(accountId string) ([]Membership, error) {
-	rows, err := s.db.Query(`SELECT o.id, o.name, m.role
+	rows, err := s.db.Query(`SELECT o.id, o.name, o.plan, m.role
 		FROM org_members m JOIN orgs o ON o.id = m.org_id
 		WHERE m.account_id = ? ORDER BY o.created_at, o.id`, accountId)
 	if err != nil {
@@ -695,7 +727,7 @@ func (s *Store) ListAccountOrgs(accountId string) ([]Membership, error) {
 	out := []Membership{}
 	for rows.Next() {
 		var m Membership
-		if err := rows.Scan(&m.OrgId, &m.Name, &m.Role); err != nil {
+		if err := rows.Scan(&m.OrgId, &m.Name, &m.Plan, &m.Role); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
@@ -762,9 +794,30 @@ func (s *Store) AccountOrgRoles(accountId string) (map[string]authz.Role, error)
 // refuses a second membership for the same pair, so re-adding somebody is a
 // constraint violation rather than a silent duplicate row.
 func (s *Store) AddOrgMember(orgId, accountId string, role authz.Role) error {
+	if err := s.refuseAnotherPerson(orgId); err != nil {
+		return err
+	}
 	_, err := s.db.Exec(`INSERT INTO org_members (org_id, account_id, role, created_at)
 		VALUES (?, ?, ?, ?)`, orgId, accountId, string(role), time.Now().Unix())
 	return err
+}
+
+func (s *Store) refuseAnotherPerson(orgId string) error {
+	if s.offering != offering.Hosted {
+		return nil
+	}
+	org, err := s.OrgById(orgId)
+	if err != nil {
+		return err
+	}
+	if org == nil {
+		return nil
+	}
+	limit := orgplan.Caps(s.offering, orgplan.ID(org.Plan)).People
+	if orgplan.AllowsAnother(org.Members, limit) {
+		return nil
+	}
+	return planLimitError{Wall: "people", Limit: limit}
 }
 
 // SetOrgMemberRole changes a role. Whether the change is allowed is decided
@@ -968,6 +1021,15 @@ func (s *Store) ListProjectsByOrg(orgId string) ([]Project, error) {
 		return []Project{}, nil
 	}
 	return s.listProjects(`WHERE org_id = ?`, orgId)
+}
+
+func (s *Store) CountProjects(orgId string) (int, error) {
+	if orgId == "" {
+		return 0, nil
+	}
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM projects WHERE org_id = ?`, orgId).Scan(&n)
+	return n, err
 }
 
 func (s *Store) ListProjectsForOrgs(orgIds []string) ([]Project, error) {

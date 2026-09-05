@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-05 — Enforce hosted plan caps on create-project and a second person
 - 2026-09-05 — Cut v0.3.8 so hosted boarding and the Plans pages go live
 
 ## v0.3.8 — 2026-09-05

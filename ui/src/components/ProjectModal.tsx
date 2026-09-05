@@ -2,6 +2,7 @@ import { FormEvent, useMemo, useState } from 'react'
 import { api } from '../api'
 import type { Device, Project } from '../types'
 import Modal from './Modal'
+import { HubError } from './PlanWall'
 
 export default function ProjectModal({
   devices,
@@ -20,13 +21,13 @@ export default function ProjectModal({
   const [deviceId, setDeviceId] = useState(project?.deviceId ?? firstDevice)
   const [path, setPath] = useState(project?.path ?? '')
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<unknown>(null)
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
     if (!name.trim() || !deviceId || !path.trim()) return
     setSaving(true)
-    setError('')
+    setError(null)
     try {
       const body = { name: name.trim(), deviceId, path: path.trim() }
       const saved = project
@@ -35,7 +36,7 @@ export default function ProjectModal({
       window.dispatchEvent(new Event('liveagent:projects-changed'))
       onSaved(saved)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save project')
+      setError(cause)
     } finally {
       setSaving(false)
     }
@@ -78,7 +79,7 @@ export default function ProjectModal({
           />
         </label>
 
-        {error && <p className="rounded-lg border border-rose-400/20 bg-rose-400/[0.07] px-3 py-2 text-sm text-rose-200">{error}</p>}
+        {error ? <HubError error={error} fallback="Could not save project" className="rounded-lg border border-rose-400/20 bg-rose-400/[0.07] px-3 py-2 text-sm text-rose-200" /> : null}
 
         <div className="flex justify-end gap-2 border-t border-white/[0.07] pt-4">
           <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>

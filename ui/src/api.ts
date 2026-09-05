@@ -9,9 +9,15 @@ export function setUnauthorizedHandler(fn: () => void) {
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  code?: string
+  wall?: string
+  limit?: number
+  constructor(status: number, message: string, code?: string, wall?: string, limit?: number) {
     super(message)
     this.status = status
+    this.code = code
+    this.wall = wall
+    this.limit = limit
   }
 }
 
@@ -26,13 +32,19 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
   if (!res.ok) {
     let msg = res.statusText
+    let code: string | undefined
+    let wall: string | undefined
+    let limit: number | undefined
     try {
       const data = await res.json()
       if (data.error) msg = data.error
+      if (typeof data.code === 'string') code = data.code
+      if (typeof data.wall === 'string') wall = data.wall
+      if (typeof data.limit === 'number') limit = data.limit
     } catch {
       /* not json */
     }
-    throw new ApiError(res.status, msg)
+    throw new ApiError(res.status, msg, code, wall, limit)
   }
   return res.json() as Promise<T>
 }

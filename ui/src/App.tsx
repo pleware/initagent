@@ -49,7 +49,7 @@ export default function App() {
 
   if (me === null) {
     return (
-      <div className="flex h-full items-center justify-center text-zinc-500">
+      <div className="flex h-full items-center justify-center text-fg-muted">
         Loading…
       </div>
     )

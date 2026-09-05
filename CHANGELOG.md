@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-05 — Put the marketing nav on the unsigned-in hub
 - 2026-09-04 — Cut v0.3.6 so the hosted site image includes the theme switcher
 - 2026-09-05 — Cut v0.3.6 so the hosted site image includes the theme switcher
 

@@ -86,6 +86,17 @@
     "people": "People",
     "administration": "Administration"
   },
+  "publicNav": {
+    "home": "initagent",
+    "how": "How it works",
+    "agents": "Fleet agents",
+    "code": "initagent Code",
+    "source": "Source",
+    "selfHost": "Self-host",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "skipToForm": "Skip to sign in"
+  },
   "admin": {
     "eyebrow": "Administration",
     "title": "This hub",

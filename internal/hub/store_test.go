@@ -490,6 +490,9 @@ func TestProjectLifecycle(t *testing.T) {
 	if p.Name != "Storefront" || p.DeviceId != deviceId {
 		t.Fatalf("unexpected project: %+v", p)
 	}
+	if len(p.DeviceIds) != 1 || p.DeviceIds[0] != deviceId {
+		t.Fatalf("enrolled machines = %v, want [%s]", p.DeviceIds, deviceId)
+	}
 	projects, err := s.ListProjectsByOrg(org.Id)
 	if err != nil || len(projects) != 1 {
 		t.Fatalf("ListProjectsByOrg: %+v, %v", projects, err)
@@ -522,6 +525,9 @@ func TestCreateProjectWithoutADevice(t *testing.T) {
 	if p.DeviceId != "" || p.Path != "" {
 		t.Fatalf("expected empty device/path, got %+v", p)
 	}
+	if len(p.DeviceIds) != 0 {
+		t.Fatalf("expected no enrolled machines, got %v", p.DeviceIds)
+	}
 	if p.TemplateId != "software" || p.RepoHost != "github" {
 		t.Fatalf("template/repo = %+v", p)
 	}
@@ -531,22 +537,59 @@ func TestCreateProjectWithoutADevice(t *testing.T) {
 	}
 }
 
-func TestDeletingDeviceDeletesItsProjects(t *testing.T) {
+func TestDeletingDeviceDetachesItFromProjects(t *testing.T) {
 	s := testStore(t)
 	deviceId, _, _ := s.CreateDevice("runner", "runner", "linux", "amd64", false)
 	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateProject(org.Id, "API", deviceId, "/srv/api", "", "", "", ""); err != nil {
+	p, err := s.CreateProject(org.Id, "API", deviceId, "/srv/api", "", "", "", "")
+	if err != nil {
 		t.Fatal(err)
 	}
 	if err := s.DeleteDevice(deviceId); err != nil {
 		t.Fatal(err)
 	}
 	projects, err := s.ListProjectsByOrg(org.Id)
-	if err != nil || len(projects) != 0 {
-		t.Fatalf("projects left after deleting device: %+v, %v", projects, err)
+	if err != nil || len(projects) != 1 {
+		t.Fatalf("project should remain after deleting its machine: %+v, %v", projects, err)
+	}
+	if projects[0].Id != p.Id || projects[0].DeviceId != "" || len(projects[0].DeviceIds) != 0 {
+		t.Fatalf("detached project = %+v", projects[0])
+	}
+}
+
+func TestDeletingDeviceKeepsTheOtherMachines(t *testing.T) {
+	s := testStore(t)
+	first, _, err := s.CreateDevice("one", "one", "linux", "amd64", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, _, err := s.CreateDevice("two", "two", "linux", "amd64", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.CreateProject(org.Id, "API", first, "/srv/api", "", "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AttachProjectDevice(p.Id, second); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteDevice(first); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.ProjectById(p.Id)
+	if err != nil || got == nil {
+		t.Fatalf("project vanished: %v", err)
+	}
+	if got.DeviceId != second || len(got.DeviceIds) != 1 || got.DeviceIds[0] != second {
+		t.Fatalf("after deleting the selected machine = %+v", got)
 	}
 }
 
@@ -656,6 +699,41 @@ func TestOpenStoreMigratesOrgPlan(t *testing.T) {
 	ok, err := s.hasColumn("orgs", "plan")
 	if err != nil || !ok {
 		t.Fatalf("orgs.plan after open: ok=%v err=%v", ok, err)
+	}
+}
+
+func TestOpenStoreBackfillsProjectDevices(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy-devices.db")
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE projects (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		device_id TEXT NOT NULL,
+		path TEXT NOT NULL,
+		created_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL
+	)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO projects (id, name, device_id, path, created_at, updated_at)
+		VALUES ('prj-old', 'Legacy', 'dev-old', '/old', 1, 1)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("OpenStore on a project with a selected machine: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+	ids, err := s.ListProjectDeviceIds("prj-old")
+	if err != nil || len(ids) != 1 || ids[0] != "dev-old" {
+		t.Fatalf("backfill = %v, %v", ids, err)
 	}
 }
 

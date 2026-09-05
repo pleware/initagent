@@ -329,6 +329,8 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/projects", s.requireActor(s.handleCreateProject))
 	m.HandleFunc("PATCH /api/projects/{id}", s.requireActor(s.handleUpdateProject))
 	m.HandleFunc("DELETE /api/projects/{id}", s.requireActor(s.handleDeleteProject))
+	m.HandleFunc("POST /api/projects/{id}/devices", s.requireActor(s.handleAttachProjectDevice))
+	m.HandleFunc("DELETE /api/projects/{id}/devices/{deviceId}", s.requireActor(s.handleDetachProjectDevice))
 	m.HandleFunc("POST /api/projects/{id}/exec", s.requireActor(s.handleProjectExec))
 	m.HandleFunc("POST /api/tasks", s.requireAuth(s.handleCreateTask))
 	m.HandleFunc("GET /api/tasks/{id}", s.requireAuth(s.handleGetTask))

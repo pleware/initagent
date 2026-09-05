@@ -91,19 +91,32 @@ func (s *Server) refuseAnotherProject(w http.ResponseWriter, orgId string) bool 
 	return true
 }
 
-func (s *Server) refuseAnotherMachine(w http.ResponseWriter, orgId, existingDevice, nextDevice string) bool {
+func (s *Server) refuseAnotherMachine(w http.ResponseWriter, orgId, projectId, nextDevice string) bool {
 	nextDevice = strings.TrimSpace(nextDevice)
-	existingDevice = strings.TrimSpace(existingDevice)
-	if nextDevice == "" || nextDevice == existingDevice || existingDevice != "" {
-		// Empty is no bind. Replacing the one slot is not adding a machine.
+	if nextDevice == "" {
 		return false
+	}
+	if projectId != "" {
+		enrolled, err := s.store.ProjectHasDevice(projectId, nextDevice)
+		if err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return true
+		}
+		if enrolled {
+			return false
+		}
 	}
 	caps, err := s.orgCaps(orgId)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return true
 	}
-	if orgplan.AllowsAnother(0, caps.WorkersPerProject) {
+	n, err := s.store.CountProjectDevices(projectId)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return true
+	}
+	if orgplan.AllowsAnother(n, caps.WorkersPerProject) {
 		return false
 	}
 	writePlanLimit(w, "machines", caps.WorkersPerProject)

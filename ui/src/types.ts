@@ -107,6 +107,7 @@ export interface Project {
   orgId: string
   gatewayUrl: string
   deviceId: string
+  deviceIds?: string[]
   path: string
   templateId?: string
   repoRemote?: string

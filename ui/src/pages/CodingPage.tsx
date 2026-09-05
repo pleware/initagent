@@ -164,6 +164,9 @@ export default function CodingPage({
             setProjects((current) => current.map((item) => item.id === saved.id ? saved : item))
             navigate(`/code/${saved.id}`)
           }}
+          onUpdated={(saved) => {
+            setProjects((current) => current.map((item) => item.id === saved.id ? saved : item))
+          }}
         />
       )}
     </div>

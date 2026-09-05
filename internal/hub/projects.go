@@ -216,7 +216,7 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, act
 	if !s.validateProjectDevice(w, deviceId) {
 		return
 	}
-	if s.refuseAnotherMachine(w, existing.OrgId, existing.DeviceId, deviceId) {
+	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, deviceId) {
 		return
 	}
 	remote, host := existing.RepoRemote, existing.RepoHost
@@ -228,6 +228,84 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, act
 		}
 	}
 	project, err := s.store.UpdateProject(existing.Id, name, deviceId, path, templateId, remote, host)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if project == nil {
+		httpError(w, http.StatusNotFound, "project not found")
+		return
+	}
+	writeJSON(w, project)
+}
+
+func (s *Server) handleAttachProjectDevice(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
+	existing, ok := s.projectForActor(w, r.PathValue("id"), actor, authz.CreateProject)
+	if !ok {
+		return
+	}
+	var input struct {
+		DeviceId string `json:"deviceId"`
+	}
+	if err := readJSON(r, &input); err != nil {
+		httpError(w, http.StatusBadRequest, "invalid device")
+		return
+	}
+	deviceId := strings.TrimSpace(input.DeviceId)
+	if deviceId == "" {
+		httpError(w, http.StatusBadRequest, "deviceId is required")
+		return
+	}
+	if !s.validateProjectDevice(w, deviceId) {
+		return
+	}
+	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, deviceId) {
+		return
+	}
+	added, err := s.store.AttachProjectDevice(existing.Id, deviceId)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	project, err := s.store.ProjectById(existing.Id)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if project == nil {
+		httpError(w, http.StatusNotFound, "project not found")
+		return
+	}
+	if added {
+		w.WriteHeader(http.StatusCreated)
+	}
+	writeJSON(w, project)
+}
+
+func (s *Server) handleDetachProjectDevice(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
+	existing, ok := s.projectForActor(w, r.PathValue("id"), actor, authz.CreateProject)
+	if !ok {
+		return
+	}
+	deviceId := strings.TrimSpace(r.PathValue("deviceId"))
+	if deviceId == "" {
+		httpError(w, http.StatusBadRequest, "deviceId is required")
+		return
+	}
+	enrolled, err := s.store.ProjectHasDevice(existing.Id, deviceId)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if !enrolled {
+		httpError(w, http.StatusNotFound, "device is not on this project")
+		return
+	}
+	if err := s.store.DetachProjectDevice(existing.Id, deviceId); err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	project, err := s.store.ProjectById(existing.Id)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

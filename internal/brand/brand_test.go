@@ -29,6 +29,7 @@ func TestExportedIdentity(t *testing.T) {
 		{"EnvOffering", brand.EnvOffering, "INITAGENT_OFFERING"},
 		{"EnvResendAPIKey", brand.EnvResendAPIKey, "INITAGENT_RESEND_API_KEY"},
 		{"EnvMailFrom", brand.EnvMailFrom, "INITAGENT_MAIL_FROM"},
+		{"EnvTrustedProxies", brand.EnvTrustedProxies, "INITAGENT_TRUSTED_PROXIES"},
 		{"TokenPrefix", brand.TokenPrefix, "iagt_"},
 		{"SessionCookie", brand.SessionCookie, "initagent_auth"},
 		{"EnvPrefix", brand.EnvPrefix, "INITAGENT_"},

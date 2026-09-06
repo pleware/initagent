@@ -37,7 +37,7 @@ func usageText() string {
 
 Usage:
   {{bin}} serve [--addr :4200] [--data-dir ~/{{cfg}}] [--gateway-url URL] [--offering selfhost|hosted]
-                                                             Run the hub (web UI + API)
+              [--trusted-proxies CIDR,...]                  Run the hub (web UI + API)
   {{bin}} serve --tls-domain d.com --tls-email you@d.com   Run the hub with automatic HTTPS (Let's Encrypt)
   {{bin}} gateway [--addr :4201] [--data-dir ~/{{cfg}}] [--project prj-…] [--public-url URL]
                                                              Run the project gateway (enroll + tasks)
@@ -148,6 +148,7 @@ func cmdServe(args []string) error {
 	offeringFlag := fs.String("offering", "", "hub offering: selfhost or hosted (default: "+brand.OfferingFile+" in --data-dir, else selfhost)")
 	tlsDomain := fs.String("tls-domain", "", "enable automatic HTTPS (Let's Encrypt) for this domain; serves :443 + :80")
 	tlsEmail := fs.String("tls-email", "", "contact email for Let's Encrypt (expiry notices)")
+	trustedProxies := fs.String("trusted-proxies", os.Getenv(brand.EnvTrustedProxies), "comma-separated CIDRs allowed to set X-Forwarded-For; empty = connection address")
 	fs.Parse(args)
 
 	if *tlsDomain != "" && *tlsEmail == "" {
@@ -172,19 +173,20 @@ func cmdServe(args []string) error {
 	log.Printf("offering %s", kind)
 
 	srv, err := hub.NewServer(hub.Options{
-		Addr:          *addr,
-		DataDir:       resolvedDir,
-		Version:       version,
-		GithubRepo:    brand.ReleaseSource,
-		TLSDomain:     *tlsDomain,
-		TLSEmail:      *tlsEmail,
-		UI:            uiFS(),
-		GatewayURL:    *gatewayURL,
-		GatewaySecret: os.Getenv(brand.EnvGatewaySecret),
-		DatabaseURL:   *databaseURL,
-		Offering:      kind,
-		ResendAPIKey:  os.Getenv(brand.EnvResendAPIKey),
-		MailFrom:      os.Getenv(brand.EnvMailFrom),
+		Addr:           *addr,
+		DataDir:        resolvedDir,
+		Version:        version,
+		GithubRepo:     brand.ReleaseSource,
+		TLSDomain:      *tlsDomain,
+		TLSEmail:       *tlsEmail,
+		UI:             uiFS(),
+		GatewayURL:     *gatewayURL,
+		GatewaySecret:  os.Getenv(brand.EnvGatewaySecret),
+		DatabaseURL:    *databaseURL,
+		Offering:       kind,
+		ResendAPIKey:   os.Getenv(brand.EnvResendAPIKey),
+		MailFrom:       os.Getenv(brand.EnvMailFrom),
+		TrustedProxies: *trustedProxies,
 	})
 	if err != nil {
 		return err

@@ -16,7 +16,7 @@ import (
 // account. Unknown addresses still answer 200, so the form cannot be used to
 // enumerate who has an account here.
 func (s *Server) handlePasswordForgot(w http.ResponseWriter, r *http.Request) {
-	if !s.loginRL.allow(r.RemoteAddr) {
+	if !s.loginRL.allow(s.clientAddr(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again in a minute")
 		return
 	}
@@ -68,7 +68,7 @@ func (s *Server) handlePasswordForgot(w http.ResponseWriter, r *http.Request) {
 // handlePasswordReset sets a new password from a one-time mail token and
 // signs the browser in. Confirm-password stays on the form.
 func (s *Server) handlePasswordReset(w http.ResponseWriter, r *http.Request) {
-	if !s.loginRL.allow(r.RemoteAddr) {
+	if !s.loginRL.allow(s.clientAddr(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again in a minute")
 		return
 	}

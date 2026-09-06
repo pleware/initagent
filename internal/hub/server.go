@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,6 +68,12 @@ type Options struct {
 	// silent. Ops supplies both via env, never flags.
 	ResendAPIKey string
 	MailFrom     string
+
+	// TrustedProxies is a comma-separated list of CIDRs or addresses
+	// allowed to set X-Forwarded-For. Empty means the rate-limit key is
+	// the TCP peer, which is correct for a hub that is not behind a
+	// reverse proxy (`26`).
+	TrustedProxies string
 }
 
 // Server is the hub.
@@ -81,6 +88,7 @@ type Server struct {
 	sessions      *sessionManager
 	loginRL       *rateLimiter
 	registerRL    *rateLimiter
+	trusted       []netip.Prefix
 	events        *eventBus
 	registry      *registry
 	mux           *http.ServeMux
@@ -106,11 +114,14 @@ func NewServer(opts Options) (*Server, error) {
 	if err := os.MkdirAll(opts.DataDir, 0o700); err != nil {
 		return nil, err
 	}
+	trusted, err := parseTrustedProxies(opts.TrustedProxies)
+	if err != nil {
+		return nil, err
+	}
 	if opts.GithubRepo == "" {
 		opts.GithubRepo = brand.ReleaseSource
 	}
 	var store *Store
-	var err error
 	if opts.DatabaseURL != "" {
 		store, err = OpenStorePostgres(opts.DatabaseURL)
 	} else {
@@ -142,6 +153,7 @@ func NewServer(opts Options) (*Server, error) {
 		mux:        http.NewServeMux(),
 		mail:       sender,
 		mailWake:   make(chan struct{}, 1),
+		trusted:    trusted,
 	}
 	claimed, err := s.claimed()
 	if err != nil {

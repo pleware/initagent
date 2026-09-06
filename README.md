@@ -97,6 +97,12 @@ On macOS, pipe `sh -s -- uninstall`; on Windows, download the script and run it
 with `-Action uninstall`. Both preserve hub data unless `INITAGENT_PURGE=1` is
 set, matching the Linux safety model.
 
+Behind a reverse proxy, pass `--trusted-proxies` (or
+`INITAGENT_TRUSTED_PROXIES`) with that proxy's CIDRs so login rate
+limits key on the real client. Empty — the default — ignores
+`X-Forwarded-For`. Trusting the header from the internet is how an
+attacker mints buckets.
+
 For HTTPS with Let's Encrypt, point DNS at the VM, open ports 80/443, then run:
 
 ```sh

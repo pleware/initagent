@@ -106,6 +106,11 @@ const (
 	// self-host default; ops sets it wherever the gateway is reachable. It
 	// carries no project scope — scoped tokens are 09.
 	EnvGatewaySecret = EnvPrefix + "GATEWAY_SECRET"
+
+	// EnvTrustedProxies is a comma-separated list of CIDRs whose
+	// X-Forwarded-For header the hub may use as the client address. Empty
+	// means the connection address, which is the self-host default (`26`).
+	EnvTrustedProxies = EnvPrefix + "TRUSTED_PROXIES"
 )
 
 // Service identities. Renaming these breaks upgrades of an already-installed

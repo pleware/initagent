@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-06 — Key pre-auth rate limits on X-Forwarded-For only from trusted hops
 - 2026-09-06 — Name the product copyright PWare, not Pleware
 - 2026-09-06 — Give every API token a subject, a boundary and a verb list
 - 2026-09-05 — Serve every project from one gateway and route by the project's own gateway URL

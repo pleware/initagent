@@ -26,7 +26,7 @@ import (
 // The bootstrap token is what separates the operator from whoever else found
 // the URL, so this endpoint is worthless without it (`26`).
 func (s *Server) handleSetup(w http.ResponseWriter, r *http.Request) {
-	if !s.loginRL.allow(r.RemoteAddr) {
+	if !s.loginRL.allow(s.clientAddr(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again in a minute")
 		return
 	}
@@ -105,7 +105,7 @@ func claimStatus(err error) int {
 // it so an existing self-host install keeps working. Nothing writes that
 // setting any more.
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
-	if !s.loginRL.allow(r.RemoteAddr) {
+	if !s.loginRL.allow(s.clientAddr(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again in a minute")
 		return
 	}
@@ -153,7 +153,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 // answers 409 so this cannot replace setup. A session cookie is issued the
 // same way login does; a bearer token is ignored on purpose (`09`, `26`).
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
-	if !s.registerRL.allow(r.RemoteAddr) {
+	if !s.registerRL.allow(s.clientAddr(r)) {
 		httpError(w, http.StatusTooManyRequests, "too many attempts, try again in a minute")
 		return
 	}

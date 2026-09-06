@@ -338,6 +338,10 @@ func (a *Agent) dispatch(m protocol.Msg) {
 			res := a.execCommand(req)
 			a.reply(m.Id, res, nil)
 		}()
+	case protocol.TypeProcessStart:
+		go a.handleProcessStart(m)
+	case protocol.TypeRunSendKeys:
+		go a.handleRunSendKeys(m)
 	case protocol.TypeFsList:
 		var req protocol.FsList
 		if err := json.Unmarshal(m.Data, &req); err != nil {

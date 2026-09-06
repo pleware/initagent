@@ -194,6 +194,7 @@ func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Command  string `json:"command"`
 		DeviceID string `json:"deviceId"`
+		Launch   string `json:"launch"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1<<20)).Decode(&req); err != nil {
 		httpError(w, http.StatusBadRequest, "bad request")
@@ -201,6 +202,11 @@ func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(req.Command) == "" {
 		httpError(w, http.StatusBadRequest, ErrEmptyCommand.Error())
+		return
+	}
+	launch, err := scheduler.NormalizeLaunch(req.Launch)
+	if err != nil {
+		httpError(w, http.StatusBadRequest, ErrUnknownLaunch.Error())
 		return
 	}
 	worker := req.DeviceID
@@ -230,8 +236,9 @@ func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := g.store.Enqueue(r.Context(), scheduler.Task{
-		ProjectID: projectID,
-		Command:   req.Command,
+		ProjectID:  projectID,
+		Command:    req.Command,
+		LaunchMode: launch,
 	}); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

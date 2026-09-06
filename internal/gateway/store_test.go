@@ -119,6 +119,39 @@ func TestEnqueueKeepsCallerTaskID(t *testing.T) {
 	if got.ID != taskID {
 		t.Fatalf("id = %q, want %q", got.ID, taskID)
 	}
+	if got.LaunchMode != scheduler.LaunchExec {
+		t.Fatalf("default launch = %q", got.LaunchMode)
+	}
+}
+
+func TestEnqueuePersistsLaunchMode(t *testing.T) {
+	g := openTest(t, "")
+	got, err := g.Store().Enqueue(context.Background(), scheduler.Task{
+		ProjectID:  g.Project().ID,
+		Command:    "coder",
+		LaunchMode: scheduler.LaunchSendKeys,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := g.Store().Task(context.Background(), got.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.LaunchMode != scheduler.LaunchSendKeys {
+		t.Fatalf("launch = %q", loaded.LaunchMode)
+	}
+}
+
+func TestEnqueueRejectsUnknownLaunch(t *testing.T) {
+	g := openTest(t, "")
+	if _, err := g.Store().Enqueue(context.Background(), scheduler.Task{
+		ProjectID:  g.Project().ID,
+		Command:    "coder",
+		LaunchMode: "tmux",
+	}); err == nil {
+		t.Fatal("expected error")
+	}
 }
 
 func TestScanTaskError(t *testing.T) {

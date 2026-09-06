@@ -3,6 +3,8 @@
 package scheduler
 
 import (
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -21,13 +23,14 @@ const (
 
 // Task represents a unit of work in the scheduling queue.
 type Task struct {
-	ID        string    // task ID (e.g., tsk-...)
-	ProjectID string    // project ID (e.g., prj-...)
-	OwnerID   string    // owner ID (e.g., acc-...) or empty for shared pool
-	ActorID   string    // persona ID (e.g., psn-...)
-	State     TaskState // current state
-	CoderKind string    // coder kind (e.g., "aider", "openclaw")
-	Command   string    // shell command for Milestone 0 exec dispatch
+	ID         string    // task ID (e.g., tsk-...)
+	ProjectID  string    // project ID (e.g., prj-...)
+	OwnerID    string    // owner ID (e.g., acc-...) or empty for shared pool
+	ActorID    string    // persona ID (e.g., psn-...)
+	State      TaskState // current state
+	CoderKind  string    // coder kind (e.g., "aider", "openclaw")
+	Command    string    // shell command for Milestone 0 exec dispatch
+	LaunchMode string    // exec | process | send_keys; empty means exec
 
 	// Placement
 	AssignedWorkerID string    // device ID (e.g., dev-...) when assigned
@@ -74,5 +77,24 @@ func (t *Task) CanTransition(to TaskState) bool {
 
 	default:
 		return false
+	}
+}
+
+const (
+	LaunchExec     = "exec"
+	LaunchProcess  = "process"
+	LaunchSendKeys = "send_keys"
+)
+
+// NormalizeLaunch maps an empty value to exec and rejects unknown modes.
+func NormalizeLaunch(mode string) (string, error) {
+	mode = strings.TrimSpace(mode)
+	switch mode {
+	case "", LaunchExec:
+		return LaunchExec, nil
+	case LaunchProcess, LaunchSendKeys:
+		return mode, nil
+	default:
+		return "", fmt.Errorf("unknown launch mode %q", mode)
 	}
 }

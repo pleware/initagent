@@ -24,6 +24,12 @@ func (p *ProcessResolver) Supports(mode LaunchMode) bool {
 }
 
 func (p *ProcessResolver) Watch(ctx context.Context, run RunContext) (<-chan Outcome, error) {
+	if run.ProcessExit != nil {
+		out := make(chan Outcome, 1)
+		out <- processOutcome(*run.ProcessExit, run.ProcessID)
+		close(out)
+		return out, nil
+	}
 	if run.ProcessID == 0 {
 		return nil, fmt.Errorf("process resolver requires non-zero ProcessID")
 	}
@@ -31,6 +37,20 @@ func (p *ProcessResolver) Watch(ctx context.Context, run RunContext) (<-chan Out
 	out := make(chan Outcome, 1)
 	go p.watch(ctx, run, out)
 	return out, nil
+}
+
+func processOutcome(exit, pid int) Outcome {
+	msg := fmt.Sprintf("process exit code %d", exit)
+	if pid != 0 {
+		msg = fmt.Sprintf("pid %d exited with %d", pid, exit)
+	}
+	return Outcome{
+		Done:     true,
+		ExitCode: exit,
+		Reason:   "process",
+		Trust:    TrustHigh,
+		Message:  msg,
+	}
 }
 
 func (p *ProcessResolver) watch(ctx context.Context, run RunContext, out chan<- Outcome) {
@@ -65,16 +85,9 @@ func (p *ProcessResolver) watch(ctx context.Context, run RunContext, out chan<- 
 			// If it returns error, process is gone
 			err = proc.Signal(os.Signal(nil))
 			if err != nil {
-				// Process is gone - but we don't have the exit code here
-				// Real implementation would use syscall.Wait4 or similar
-				// For now, assume success (code 0) if we can't determine
-				out <- Outcome{
-					Done:     true,
-					ExitCode: 0, // TODO: capture real exit code via Wait4/WaitForExit
-					Reason:   "process",
-					Trust:    TrustHigh,
-					Message:  fmt.Sprintf("pid %d exited", run.ProcessID),
-				}
+				// Pid poll cannot recover the exit code; the wired path
+				// supplies ProcessExit after the agent Wait-ed the child.
+				out <- processOutcome(0, run.ProcessID)
 				return
 			}
 		}

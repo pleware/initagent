@@ -62,3 +62,55 @@ func TestMsgRoundTrip(t *testing.T) {
 		t.Errorf("got %+v", e)
 	}
 }
+
+func TestProcessStartRoundTrip(t *testing.T) {
+	m, err := NewMsg(TypeProcessStart, 3, 0, ProcessStart{Command: "coder", TimeoutSec: 30, RunID: "tsk-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back Msg
+	b, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(b, &back); err != nil {
+		t.Fatal(err)
+	}
+	if back.Type != TypeProcessStart || back.Id != 3 {
+		t.Fatalf("got %+v", back)
+	}
+	var p ProcessStart
+	if err := json.Unmarshal(back.Data, &p); err != nil {
+		t.Fatal(err)
+	}
+	if p.Command != "coder" || p.TimeoutSec != 30 || p.RunID != "tsk-1" {
+		t.Fatalf("got %+v", p)
+	}
+}
+
+func TestRunSendKeysRoundTrip(t *testing.T) {
+	m, err := NewMsg(TypeRunSendKeys, 4, 0, RunSendKeys{
+		Command: "coder", Nonce: "0123456789abcdef", RunID: "tsk-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back Msg
+	b, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(b, &back); err != nil {
+		t.Fatal(err)
+	}
+	if back.Type != TypeRunSendKeys {
+		t.Fatalf("got %+v", back)
+	}
+	var r RunSendKeys
+	if err := json.Unmarshal(back.Data, &r); err != nil {
+		t.Fatal(err)
+	}
+	if r.Command != "coder" || r.Nonce != "0123456789abcdef" {
+		t.Fatalf("got %+v", r)
+	}
+}

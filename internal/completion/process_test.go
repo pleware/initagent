@@ -27,17 +27,52 @@ func TestProcessResolver_Supports(t *testing.T) {
 
 func TestProcessResolver_MissingProcessID(t *testing.T) {
 	p := &ProcessResolver{}
-	ctx := context.Background()
-
 	run := RunContext{
 		RunID:      "test-1",
 		LaunchMode: LaunchSupervised,
 		ProcessID:  0, // missing
 	}
 
-	_, err := p.Watch(ctx, run)
+	_, err := p.Watch(t.Context(), run)
 	if err == nil {
 		t.Fatal("expected error for missing ProcessID")
+	}
+}
+
+func TestProcessResolver_WatchProcessExitKnown(t *testing.T) {
+	p := &ProcessResolver{}
+	code := 9
+	ch, err := p.Watch(t.Context(), RunContext{
+		RunID:       "test-exit",
+		LaunchMode:  LaunchSupervised,
+		ProcessID:   4242,
+		ProcessExit: &code,
+	})
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+	outcome := <-ch
+	if !outcome.Done || outcome.ExitCode != 9 || outcome.Reason != "process" || outcome.Trust != TrustHigh {
+		t.Fatalf("outcome = %+v", outcome)
+	}
+	if _, ok := <-ch; ok {
+		t.Fatal("channel should be closed")
+	}
+}
+
+func TestResolve_SupervisedProcess(t *testing.T) {
+	code := 0
+	outcome, err := Default.Resolve(t.Context(), RunContext{
+		RunID:       "run-1",
+		LaunchMode:  LaunchSupervised,
+		ProcessID:   11,
+		ProcessExit: &code,
+	})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if outcome.Reason != "process" || outcome.ExitCode != 0 || outcome.Trust != TrustHigh {
+		t.Fatalf("outcome = %+v", outcome)
 	}
 }
 

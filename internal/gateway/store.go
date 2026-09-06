@@ -28,6 +28,7 @@ var (
 	ErrDeviceOffline   = errors.New("device is not connected")
 	ErrDeviceDraining  = errors.New("device is draining")
 	ErrEmptyCommand    = errors.New("task command is empty")
+	ErrUnknownLaunch   = errors.New("unknown launch mode")
 )
 
 // EnrollTTL is how long a minted enroll token can be exchanged.
@@ -131,6 +132,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 	exit_code          INTEGER NOT NULL DEFAULT 0,
 	reason             TEXT NOT NULL DEFAULT '',
 	command            TEXT NOT NULL DEFAULT '',
+	launch_mode        TEXT NOT NULL DEFAULT 'exec',
 	FOREIGN KEY(project_id) REFERENCES projects(id)
 );
 CREATE INDEX IF NOT EXISTS tasks_project_id ON tasks(project_id);
@@ -234,6 +236,7 @@ func openStore(path string) (*Store, error) {
 	}
 	// Existing files created before command existed; ignore duplicate-column.
 	_, _ = db.Exec(`ALTER TABLE tasks ADD COLUMN command TEXT NOT NULL DEFAULT ''`)
+	_, _ = db.Exec(`ALTER TABLE tasks ADD COLUMN launch_mode TEXT NOT NULL DEFAULT 'exec'`)
 	return &Store{db: db}, nil
 }
 

@@ -35,17 +35,22 @@ func (s *Store) Enqueue(ctx context.Context, task scheduler.Task) (scheduler.Tas
 	task.State = scheduler.TaskQueued
 	task.CreatedAt = now
 	task.UpdatedAt = now
+	mode, err := scheduler.NormalizeLaunch(task.LaunchMode)
+	if err != nil {
+		return scheduler.Task{}, err
+	}
+	task.LaunchMode = mode
 
-	_, err := s.db.ExecContext(ctx, `
+	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO tasks (
 			id, project_id, owner_id, actor_id, state, coder_kind,
 			assigned_worker_id, lease_expiry, created_at, updated_at,
-			exit_code, reason, command
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			exit_code, reason, command, launch_mode
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, task.ID, task.ProjectID, task.OwnerID, task.ActorID, string(task.State),
 		task.CoderKind, task.AssignedWorkerID, unixTime(task.LeaseExpiry),
 		unixTime(task.CreatedAt), unixTime(task.UpdatedAt), task.ExitCode, task.Reason,
-		task.Command)
+		task.Command, task.LaunchMode)
 	if err != nil {
 		return scheduler.Task{}, fmt.Errorf("enqueue task: %w", err)
 	}
@@ -133,7 +138,7 @@ func (s *Store) SetState(ctx context.Context, taskID string, to scheduler.TaskSt
 
 const taskSelect = `
 SELECT id, project_id, owner_id, actor_id, state, coder_kind,
-	assigned_worker_id, lease_expiry, created_at, updated_at, exit_code, reason, command
+	assigned_worker_id, lease_expiry, created_at, updated_at, exit_code, reason, command, launch_mode
 FROM tasks`
 
 type rowScanner interface {
@@ -147,7 +152,7 @@ func scanTask(row rowScanner) (scheduler.Task, error) {
 	err := row.Scan(
 		&t.ID, &t.ProjectID, &t.OwnerID, &t.ActorID, &state, &t.CoderKind,
 		&t.AssignedWorkerID, &lease, &created, &updated, &t.ExitCode, &t.Reason,
-		&t.Command,
+		&t.Command, &t.LaunchMode,
 	)
 	if err != nil {
 		return scheduler.Task{}, err

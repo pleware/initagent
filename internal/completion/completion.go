@@ -43,7 +43,10 @@ type RunContext struct {
 	WorkerID    string
 	LaunchMode  LaunchMode
 	OutputPath  string      // path to terminal/log output file (for sentinel/file resolvers)
+	Output      string      // in-memory stream snapshot (for sentinel); empty to poll OutputPath
+	Nonce       string      // per-run sentinel nonce; minted by the gateway, never a model prompt
 	ProcessID   int         // OS pid (for process resolver); 0 if not supervised
+	ProcessExit *int        // known OS exit code after the agent waited; nil to poll ProcessID
 	SentinelDir string      // directory of per-run done files: <SentinelDir>/<RunID>.done
 	Exec        *ExecResult // completion payload for a supervised one-shot exec; nil otherwise
 }

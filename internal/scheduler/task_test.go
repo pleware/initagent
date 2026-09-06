@@ -96,3 +96,21 @@ func TestTask_CanTransition(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeLaunch(t *testing.T) {
+	got, err := NormalizeLaunch("")
+	if err != nil || got != LaunchExec {
+		t.Fatalf("empty = %q %v", got, err)
+	}
+	got, err = NormalizeLaunch(" process ")
+	if err != nil || got != LaunchProcess {
+		t.Fatalf("process = %q %v", got, err)
+	}
+	got, err = NormalizeLaunch(LaunchSendKeys)
+	if err != nil || got != LaunchSendKeys {
+		t.Fatalf("send_keys = %q %v", got, err)
+	}
+	if _, err := NormalizeLaunch("tmux"); err == nil {
+		t.Fatal("expected error for unknown launch")
+	}
+}

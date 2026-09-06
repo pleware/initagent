@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/pleware/initagent/internal/completion"
 	"github.com/pleware/initagent/internal/protocol"
 	"github.com/pleware/initagent/internal/scheduler"
 )
@@ -141,6 +142,136 @@ func TestCreateTaskExecFailed(t *testing.T) {
 	}
 	if view.State != string(scheduler.TaskFailed) || view.ExitCode != 7 {
 		t.Fatalf("view = %+v", view)
+	}
+}
+
+func replyProcess(t *testing.T, conn *websocket.Conn, exit int) {
+	t.Helper()
+	go func() {
+		for {
+			var m protocol.Msg
+			if err := conn.ReadJSON(&m); err != nil {
+				return
+			}
+			if m.Type != protocol.TypeProcessStart {
+				continue
+			}
+			res, _ := protocol.NewMsg(protocol.TypeResult, m.Id, 0, protocol.ProcessResult{
+				Pid:      4242,
+				ExitCode: exit,
+			})
+			_ = conn.WriteJSON(res)
+		}
+	}()
+}
+
+func replySendKeys(t *testing.T, conn *websocket.Conn, exit int) {
+	t.Helper()
+	go func() {
+		for {
+			var m protocol.Msg
+			if err := conn.ReadJSON(&m); err != nil {
+				return
+			}
+			if m.Type != protocol.TypeRunSendKeys {
+				continue
+			}
+			var req protocol.RunSendKeys
+			_ = json.Unmarshal(m.Data, &req)
+			res, _ := protocol.NewMsg(protocol.TypeResult, m.Id, 0, protocol.RunSendKeysResult{
+				ExitCode: exit,
+				Output:   completion.Marker(req.Nonce, exit),
+			})
+			_ = conn.WriteJSON(res)
+		}
+	}()
+}
+
+func TestCreateTaskProcessDone(t *testing.T) {
+	g := openTest(t, "")
+	deviceID, conn, ts := connectAgentWS(t, g)
+	replyProcess(t, conn, 0)
+
+	rec := postTask(t, ts, map[string]string{"command": "coder", "deviceId": deviceID, "launch": "process"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
+	}
+	var view TaskView
+	if err := json.NewDecoder(rec.Body).Decode(&view); err != nil {
+		t.Fatal(err)
+	}
+	if view.State != string(scheduler.TaskDone) || view.ExitCode != 0 || view.Reason != "process" {
+		t.Fatalf("view = %+v", view)
+	}
+	if view.Launch != scheduler.LaunchProcess {
+		t.Fatalf("launch = %q", view.Launch)
+	}
+}
+
+func TestCreateTaskProcessFailed(t *testing.T) {
+	g := openTest(t, "")
+	deviceID, conn, ts := connectAgentWS(t, g)
+	replyProcess(t, conn, 3)
+
+	rec := postTask(t, ts, map[string]string{"command": "coder", "deviceId": deviceID, "launch": "process"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
+	}
+	var view TaskView
+	if err := json.NewDecoder(rec.Body).Decode(&view); err != nil {
+		t.Fatal(err)
+	}
+	if view.State != string(scheduler.TaskFailed) || view.ExitCode != 3 || view.Reason != "process" {
+		t.Fatalf("view = %+v", view)
+	}
+}
+
+func TestCreateTaskSendKeysDone(t *testing.T) {
+	g := openTest(t, "")
+	deviceID, conn, ts := connectAgentWS(t, g)
+	replySendKeys(t, conn, 0)
+
+	rec := postTask(t, ts, map[string]string{"command": "coder", "deviceId": deviceID, "launch": "send_keys"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
+	}
+	var view TaskView
+	if err := json.NewDecoder(rec.Body).Decode(&view); err != nil {
+		t.Fatal(err)
+	}
+	if view.State != string(scheduler.TaskDone) || view.ExitCode != 0 || view.Reason != "sentinel" {
+		t.Fatalf("view = %+v", view)
+	}
+	if view.Launch != scheduler.LaunchSendKeys {
+		t.Fatalf("launch = %q", view.Launch)
+	}
+}
+
+func TestCreateTaskSendKeysFailed(t *testing.T) {
+	g := openTest(t, "")
+	deviceID, conn, ts := connectAgentWS(t, g)
+	replySendKeys(t, conn, 2)
+
+	rec := postTask(t, ts, map[string]string{"command": "coder", "deviceId": deviceID, "launch": "send_keys"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
+	}
+	var view TaskView
+	if err := json.NewDecoder(rec.Body).Decode(&view); err != nil {
+		t.Fatal(err)
+	}
+	if view.State != string(scheduler.TaskFailed) || view.ExitCode != 2 || view.Reason != "sentinel" {
+		t.Fatalf("view = %+v", view)
+	}
+}
+
+func TestCreateTaskUnknownLaunch(t *testing.T) {
+	g := openTest(t, "")
+	deviceID, conn, ts := connectAgentWS(t, g)
+	replyExec(t, conn, 0)
+	rec := postTask(t, ts, map[string]string{"command": "true", "deviceId": deviceID, "launch": "tmux"})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -351,6 +482,62 @@ func TestRunQueuedBadExecJSON(t *testing.T) {
 	}
 }
 
+func TestRunQueuedBadProcessJSON(t *testing.T) {
+	g := openTest(t, "")
+	deviceID, conn, _ := connectAgentWS(t, g)
+	go func() {
+		var m protocol.Msg
+		if err := conn.ReadJSON(&m); err != nil {
+			return
+		}
+		_ = conn.WriteJSON(protocol.Msg{Type: protocol.TypeResult, Id: m.Id, Data: json.RawMessage(`"nope"`)})
+	}()
+	if _, err := g.Store().Enqueue(context.Background(), scheduler.Task{
+		ProjectID:  g.Project().ID,
+		Command:    "coder",
+		LaunchMode: scheduler.LaunchProcess,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	view, err := g.RunQueued(context.Background(), g.Project().ID, deviceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.State != string(scheduler.TaskFailed) {
+		t.Fatalf("view = %+v", view)
+	}
+}
+
+func TestRunQueuedSendKeysNoMarker(t *testing.T) {
+	g := openTest(t, "")
+	deviceID, conn, _ := connectAgentWS(t, g)
+	go func() {
+		var m protocol.Msg
+		if err := conn.ReadJSON(&m); err != nil {
+			return
+		}
+		res, _ := protocol.NewMsg(protocol.TypeResult, m.Id, 0, protocol.RunSendKeysResult{
+			ExitCode: 0,
+			Output:   "no marker here",
+		})
+		_ = conn.WriteJSON(res)
+	}()
+	if _, err := g.Store().Enqueue(context.Background(), scheduler.Task{
+		ProjectID:  g.Project().ID,
+		Command:    "coder",
+		LaunchMode: scheduler.LaunchSendKeys,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	view, err := g.RunQueued(context.Background(), g.Project().ID, deviceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.State != string(scheduler.TaskFailed) {
+		t.Fatalf("view = %+v", view)
+	}
+}
+
 func TestGetTaskAfterClose(t *testing.T) {
 	g := openTest(t, "")
 	task, err := g.Store().Enqueue(context.Background(), scheduler.Task{ProjectID: g.Project().ID})
@@ -363,5 +550,21 @@ func TestGetTaskAfterClose(t *testing.T) {
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d", rec.Code)
+	}
+}
+
+func TestProcessOnOffline(t *testing.T) {
+	g := openTest(t, "")
+	_, err := g.processOn(t.Context(), &scheduler.Task{AssignedWorkerID: mustDevice(t)})
+	if err != ErrDeviceOffline {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestSendKeysOnOffline(t *testing.T) {
+	g := openTest(t, "")
+	_, err := g.sendKeysOn(t.Context(), &scheduler.Task{AssignedWorkerID: mustDevice(t)}, "0123456789abcdef0123456789abcdef")
+	if err != ErrDeviceOffline {
+		t.Fatalf("err = %v", err)
 	}
 }

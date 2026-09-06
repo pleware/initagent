@@ -225,6 +225,18 @@
     "commandPlaceholder": "echo hello from the worker",
     "deviceLabel": "Worker",
     "anyDevice": "Any online worker",
+    "launchLabel": "How it finishes",
+    "launch": "Launch",
+    "launchOption": {
+      "exec": "Wait for the command (exec)",
+      "process": "Wait for the child (process)",
+      "send_keys": "Type into tmux (send keys)"
+    },
+    "launchHint": {
+      "exec": "The worker runs the command and reports when it exits. This is the default.",
+      "process": "The worker starts a child process and waits for that child. Use this on Windows without tmux.",
+      "send_keys": "The worker types into tmux and waits for a marker. The worker must have tmux."
+    },
     "submit": "Run task",
     "submitting": "Running…",
     "noOnlineWorkers": "No workers are online. Enroll a worker, then submit again.",

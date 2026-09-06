@@ -137,11 +137,14 @@ export interface ExecResult {
   truncated?: boolean
 }
 
+export type TaskLaunch = 'exec' | 'process' | 'send_keys'
+
 export interface TaskView {
   id: string
   projectId: string
   state: string
   command: string
+  launch?: string
   assignedWorkerId?: string
   exitCode: number
   reason?: string

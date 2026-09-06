@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, forProject } from '../api'
-import type { Device, TaskView } from '../types'
+import type { Device, TaskLaunch, TaskView } from '../types'
+
+const LAUNCH_MODES: readonly TaskLaunch[] = ['exec', 'process', 'send_keys']
 
 export default function TasksPage() {
   const { t } = useTranslation()
@@ -14,6 +16,7 @@ export default function TasksPage() {
   const [devices, setDevices] = useState<Device[]>([])
   const [command, setCommand] = useState('')
   const [deviceId, setDeviceId] = useState('')
+  const [launch, setLaunch] = useState<TaskLaunch>('exec')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<TaskView | null>(null)
   const [error, setError] = useState('')
@@ -39,7 +42,10 @@ export default function TasksPage() {
     setError('')
     setResult(null)
     try {
-      const body: { command: string; deviceId?: string } = { command: command.trim() }
+      const body: { command: string; deviceId?: string; launch: TaskLaunch } = {
+        command: command.trim(),
+        launch,
+      }
       if (deviceId) body.deviceId = deviceId
       setResult(await api.post<TaskView>(forProject('/api/tasks', projectId), body))
     } catch (err) {
@@ -70,10 +76,11 @@ export default function TasksPage() {
           placeholder={t('tasks.commandPlaceholder')}
           className="mt-2 w-full rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 font-mono text-sm text-white placeholder:text-zinc-600 focus:border-blue-500/60 focus:outline-none"
         />
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <label className="flex items-center gap-2 text-[11px] font-medium text-zinc-500">
             <span>{t('tasks.deviceLabel')}</span>
             <select
+              id="task-device"
               value={deviceId}
               onChange={(e) => setDeviceId(e.target.value)}
               className="rounded-lg border border-white/[0.08] bg-white/[0.025] px-2 py-1.5 text-sm text-white focus:outline-none"
@@ -82,10 +89,29 @@ export default function TasksPage() {
               {online.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </label>
+          <label className="flex items-center gap-2 text-[11px] font-medium text-zinc-500">
+            <span>{t('tasks.launchLabel')}</span>
+            <select
+              id="task-launch"
+              value={launch}
+              onChange={(e) => {
+                const next = e.target.value
+                if (next === 'exec' || next === 'process' || next === 'send_keys') {
+                  setLaunch(next)
+                }
+              }}
+              className="rounded-lg border border-white/[0.08] bg-white/[0.025] px-2 py-1.5 text-sm text-white focus:outline-none"
+            >
+              {LAUNCH_MODES.map((mode) => (
+                <option key={mode} value={mode}>{t(`tasks.launchOption.${mode}`)}</option>
+              ))}
+            </select>
+          </label>
           <button type="submit" disabled={submitting || !command.trim()} className="btn-primary sm:ml-auto">
             {submitting ? t('tasks.submitting') : t('tasks.submit')}
           </button>
         </div>
+        <p className="mt-3 text-xs text-zinc-500">{t(`tasks.launchHint.${launch}`)}</p>
         {online.length === 0 && !result && (
           <p className="mt-3 text-xs text-amber-200/70">{t('tasks.noOnlineWorkers')}</p>
         )}
@@ -98,6 +124,7 @@ export default function TasksPage() {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span className={`rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${done ? 'bg-lime-400/10 text-lime-300' : failed ? 'bg-rose-400/10 text-rose-300' : 'bg-white/[0.06] text-zinc-300'}`}>{result.state}</span>
             <Fact label={t('tasks.taskId')} value={result.id} />
+            {result.launch && <Fact label={t('tasks.launch')} value={result.launch} />}
             <Fact label={t('tasks.exitCode')} value={String(result.exitCode)} />
             {result.reason && <Fact label={t('tasks.reason')} value={result.reason} />}
             {result.assignedWorkerId && <Fact label={t('tasks.deviceLabel')} value={result.assignedWorkerId} />}

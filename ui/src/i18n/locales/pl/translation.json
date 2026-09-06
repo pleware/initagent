@@ -225,6 +225,18 @@
     "commandPlaceholder": "echo hello from the worker",
     "deviceLabel": "Worker",
     "anyDevice": "Dowolny worker online",
+    "launchLabel": "Jak się kończy",
+    "launch": "Uruchomienie",
+    "launchOption": {
+      "exec": "Czekaj na polecenie (exec)",
+      "process": "Czekaj na proces potomny (process)",
+      "send_keys": "Wpisz do tmux (send keys)"
+    },
+    "launchHint": {
+      "exec": "Worker uruchamia polecenie i zgłasza wynik, gdy się skończy. To jest domyślne.",
+      "process": "Worker startuje proces potomny i czeka, aż ten proces się skończy. Na Windowsie bez tmux wybierz to albo exec.",
+      "send_keys": "Worker wpisuje polecenie do tmux i czeka na znacznik. Worker musi mieć tmux."
+    },
     "submit": "Uruchom zadanie",
     "submitting": "Uruchamianie…",
     "noOnlineWorkers": "Żaden worker nie jest online. Zarejestruj workera i wyślij ponownie.",

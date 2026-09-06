@@ -31,7 +31,14 @@ function global:Invoke-WebRequest {
   if ($Uri -match '/archive/') { Copy-Item -Force $SourceZip $OutFile; return }
   throw "unexpected URL in installer test: $Uri"
 }
-function global:schtasks.exe { $global:LASTEXITCODE = 0 }
+function global:schtasks.exe {
+  if ($args -contains '/Run') {
+    $tokenPath = Join-Path $env:INITAGENT_DATA_DIR 'bootstrap-token'
+    New-Item -ItemType Directory -Force -Path $env:INITAGENT_DATA_DIR | Out-Null
+    [IO.File]::WriteAllText($tokenPath, "test-claim-token")
+  }
+  $global:LASTEXITCODE = 0
+}
 function global:go {
   if ($args[0] -eq 'env') { return 'go1.25.0' }
   if ($args[0] -eq 'build') {
@@ -49,6 +56,7 @@ function global:npm { $global:LASTEXITCODE = 0 }
 try {
   $output = & (Join-Path $Root "scripts\install.ps1") 6>&1 | Out-String
   if ($output -notmatch 'falling back to source build') { throw "Windows installer did not exercise the source fallback" }
+  if ($output -notmatch 'first-run token: test-claim-token') { throw "Windows installer did not print the first-run token" }
   $installed = Join-Path $env:INITAGENT_BIN_DIR "initagent.exe"
   $runner = Join-Path $env:INITAGENT_BIN_DIR "initagent-hub.ps1"
   if (-not (Test-Path $installed)) { throw "Windows binary was not installed" }

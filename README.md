@@ -120,12 +120,15 @@ make            # builds the UI + the ./initagent binary (needs Go 1.25 + Node 2
 ```
 
 A hub with no owner prints a one-time bootstrap token when it starts, and
-writes the same value to `bootstrap-token` in its data directory. Open
-`http://localhost:4200` and claim the hub with your email, a password, and
-that token. The token is what stops a hub that is reachable from anywhere
-being claimed by whoever finds the address first; it stops working the moment
-the hub is claimed, and a restart mints a new one if you lose it. The hub
-machine shows up as your first device automatically.
+writes the same value to `bootstrap-token` in its data directory. The
+Linux, macOS, and Windows installers wait for that file after starting the
+service and print the token so you do not have to dig in the service log.
+Open `http://localhost:4200` and claim the hub with your email, a password,
+and that token. A claimed hub skips the line. The token is what stops a
+hub that is reachable from anywhere being claimed by whoever finds the
+address first; it stops working the moment the hub is claimed, and a
+restart mints a new one if you lose it. The hub machine shows up as your
+first device automatically.
 
 Claiming also creates the hub's first organization and makes you its owner.
 On a hosted hub the form asks for a name; left blank — and always on

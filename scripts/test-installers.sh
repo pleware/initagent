@@ -118,9 +118,19 @@ run_linux() {
   bindir="$home/bin"
   units="$home/systemd"
   mkdir -p "$home"
+  cat > "$MOCK_BIN/systemctl" <<EOF
+#!/bin/sh
+if [ "\$1" = restart ]; then
+  mkdir -p '$data'
+  printf 'test-claim-token\n' > '$data/bootstrap-token'
+fi
+exit 0
+EOF
+  chmod +x "$MOCK_BIN/systemctl"
   export HOME="$home" INSTALLER_TEST_HOME="$home" INSTALLER_MOCK_OS=Linux INSTALLER_MOCK_ARCH=x86_64
   output="$(INITAGENT_USER="$(/usr/bin/id -un)" INITAGENT_DATA_DIR="$data" INITAGENT_BIN_DIR="$bindir" INITAGENT_SYSTEMD_DIR="$units" INITAGENT_INSTALL_SOURCE=auto sh "$ROOT/scripts/install.sh" 2>&1)"
   printf '%s' "$output" | grep -q 'falling back to source build'
+  printf '%s' "$output" | grep -q 'first-run token: test-claim-token'
   [ -x "$data/bin/initagent" ]
   [ -L "$bindir/initagent" ]
   grep -q 'ExecStart=' "$units/initagent-hub.service"
@@ -143,9 +153,19 @@ run_macos() {
   bindir="$home/bin"
   agents="$home/Launch Agents"
   mkdir -p "$home"
+  cat > "$MOCK_BIN/launchctl" <<EOF
+#!/bin/sh
+if [ "\$1" = kickstart ]; then
+  mkdir -p '$data'
+  printf 'test-claim-token\n' > '$data/bootstrap-token'
+fi
+exit 0
+EOF
+  chmod +x "$MOCK_BIN/launchctl"
   export HOME="$home" INSTALLER_TEST_HOME="$home" INSTALLER_MOCK_OS=Darwin INSTALLER_MOCK_ARCH=arm64
   output="$(INITAGENT_DATA_DIR="$data" INITAGENT_BIN_DIR="$bindir" INITAGENT_LAUNCH_AGENT_DIR="$agents" INITAGENT_INSTALL_SOURCE=auto sh "$ROOT/scripts/install-macos.sh" 2>&1)"
   printf '%s' "$output" | grep -q 'falling back to source build'
+  printf '%s' "$output" | grep -q 'first-run token: test-claim-token'
   [ -x "$bindir/initagent" ]
   plist="$agents/dev.initagent.hub.plist"
   [ -f "$plist" ]

@@ -193,8 +193,32 @@ if command -v plutil >/dev/null 2>&1; then plutil -lint "$PLIST" >/dev/null; fi
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 launchctl kickstart -k "gui/$(id -u)/$LABEL"
 
+# The hub mints bootstrap-token only when unclaimed. Wait so a first install
+# can print it; a claimed hub (or a test fixture) just skips.
+print_claim_token() {
+  token_file="$DATA_DIR/bootstrap-token"
+  wait="${INITAGENT_BOOTSTRAP_WAIT:-15}"
+  case "$wait" in *[!0-9]*) wait=15 ;; esac
+  n=0
+  while :; do
+    if test -s "$token_file" 2>/dev/null; then
+      token="$(cat "$token_file" 2>/dev/null | tr -d '\r\n' || true)"
+      if [ -n "$token" ]; then
+        log "first-run token: $token"
+        log "paste it on the claim screen; the file $token_file is removed once claimed"
+        return 0
+      fi
+    fi
+    [ "$n" -ge "$wait" ] && break
+    n=$((n + 1))
+    sleep 1
+  done
+  log "claim token: not written (hub already claimed, or still starting; see $token_file or the service log)"
+}
+
 INSTALLED_VERSION="$("$BIN" version 2>/dev/null | sed 's/^initagent //' || true)"
 [ -n "$INSTALLED_VERSION" ] && log "installed $INSTALLED_VERSION" || log "installed initagent"
 case "$ADDR" in :*) OPEN_ADDR="http://localhost$ADDR" ;; *) OPEN_ADDR="http://$ADDR" ;; esac
 log "service: $LABEL"
+print_claim_token
 log "open: $OPEN_ADDR"

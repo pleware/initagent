@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-06 — Print the first-run claim token at the end of hub install
 - 2026-09-06 — Cut v0.3.10 so hosted login is per client and an outdated connector takes no new work
 
 ## v0.3.10 — 2026-09-06

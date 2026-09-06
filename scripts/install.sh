@@ -256,10 +256,34 @@ EOF
   $SUDO systemctl restart "$SERVICE_NAME"
 }
 
+# The hub mints bootstrap-token only when unclaimed. Wait so a first install
+# can print it; a claimed hub (or a test fixture) just skips.
+print_claim_token() {
+  token_file="$DATA_DIR/bootstrap-token"
+  wait="${INITAGENT_BOOTSTRAP_WAIT:-15}"
+  case "$wait" in *[!0-9]*) wait=15 ;; esac
+  n=0
+  while :; do
+    if $SUDO test -s "$token_file" 2>/dev/null; then
+      token="$($SUDO cat "$token_file" 2>/dev/null | tr -d '\r\n' || true)"
+      if [ -n "$token" ]; then
+        log "first-run token: $token"
+        log "paste it on the claim screen; the file $token_file is removed once claimed"
+        return 0
+      fi
+    fi
+    [ "$n" -ge "$wait" ] && break
+    n=$((n + 1))
+    sleep 1
+  done
+  log "claim token: not written (hub already claimed, or still starting; see $token_file or the service log)"
+}
+
 install_binary
 install_service
 INSTALLED_VERSION="$("$MANAGED_BIN_DIR/initagent" version 2>/dev/null | sed 's/^initagent //' || true)"
 [ -n "$INSTALLED_VERSION" ] && log "installed $INSTALLED_VERSION" || log "installed initagent"
 log "service: $SERVICE_NAME"
 log "status: systemctl status $SERVICE_NAME"
+print_claim_token
 if [ -n "$TLS_DOMAIN" ]; then log "open: https://$TLS_DOMAIN"; else case "$ADDR" in :*) log "open: http://<this-host>$ADDR" ;; *) log "open: http://$ADDR" ;; esac; fi

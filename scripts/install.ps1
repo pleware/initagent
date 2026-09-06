@@ -28,6 +28,34 @@ function Write-InitagentLog([string]$Message) {
   Write-Host "initagent: $Message"
 }
 
+# The hub mints bootstrap-token only when unclaimed. Wait so a first install
+# can print it; a claimed hub (or a test fixture) just skips.
+function Write-ClaimToken {
+  $tokenFile = Join-Path $DataDir "bootstrap-token"
+  $wait = 15
+  if ($env:INITAGENT_BOOTSTRAP_WAIT -match '^[0-9]+$') {
+    $wait = [int]$env:INITAGENT_BOOTSTRAP_WAIT
+  }
+  for ($n = 0; ; $n++) {
+    if (Test-Path -LiteralPath $tokenFile) {
+      $token = $null
+      try {
+        $token = (Get-Content -LiteralPath $tokenFile -Raw -ErrorAction Stop).Trim()
+      } catch {
+        $token = $null
+      }
+      if ($token) {
+        Write-InitagentLog "first-run token: $token"
+        Write-InitagentLog "paste it on the claim screen; the file $tokenFile is removed once claimed"
+        return
+      }
+    }
+    if ($n -ge $wait) { break }
+    Start-Sleep -Seconds 1
+  }
+  Write-InitagentLog "claim token: not written (hub already claimed, or still starting; see $tokenFile or the service log)"
+}
+
 function Invoke-Download([string]$Uri, [string]$OutFile) {
   Invoke-WebRequest -UseBasicParsing -Uri $Uri -OutFile $OutFile
 }
@@ -212,6 +240,7 @@ try {
   if ($installedVersion) { Write-InitagentLog "installed $installedVersion" } else { Write-InitagentLog "installed initagent" }
   $openAddr = if ($Addr.StartsWith(':')) { "http://localhost$Addr" } else { "http://$Addr" }
   Write-InitagentLog "service: $Task"
+  Write-ClaimToken
   Write-InitagentLog "open: $openAddr"
 } finally {
   Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $TempRoot

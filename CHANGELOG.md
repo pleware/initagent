@@ -2,6 +2,10 @@
 
 ## Unreleased — product
 
+- 2026-09-06 — Cut v0.3.10 so hosted login is per client and an outdated connector takes no new work
+
+## v0.3.10 — 2026-09-06
+
 - 2026-09-06 — Key pre-auth rate limits on X-Forwarded-For only from trusted hops
 - 2026-09-06 — Stop claiming onto a connector behind the advertised version
 - 2026-09-06 — Name the product copyright PWare, not Pleware

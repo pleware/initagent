@@ -2,6 +2,10 @@
 
 ## Unreleased — product
 
+- 2026-09-06 — Cut v0.3.11 so a queued run can finish through process or send_keys and a reconnect does not repeat it
+
+## v0.3.11 — 2026-09-06
+
 - 2026-09-06 — Write a per-run done file so a reconnect does not repeat finished work
 - 2026-09-06 — Let the cockpit Tasks page pick how a run finishes
 - 2026-09-06 — Finish a queued run through process or send_keys, not only exec

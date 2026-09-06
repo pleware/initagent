@@ -67,7 +67,7 @@ export function Nav({ path }: { path: string }) {
               className="flex items-center gap-2 rounded-control px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-shell hover:text-fg"
             >
               <GithubLogo size={17} weight="regular" />
-              {t("nav.source")}
+              {t("nav.github")}
             </a>
             <a
               href={ROUTES.developers}
@@ -116,7 +116,7 @@ export function Nav({ path }: { path: string }) {
                 rel="noreferrer"
                 className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-shell hover:text-fg"
               >
-                {t("nav.source")}
+                {t("nav.github")}
               </a>
               <a
                 href={ROUTES.developers}

@@ -58,7 +58,7 @@ export default function GuestNav() {
             className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-fill-3 hover:text-fg"
           >
             <GithubIcon />
-            {t('publicNav.source')}
+            {t('publicNav.github')}
           </a>
           <a
             href={`${SITE}/developers`}
@@ -100,7 +100,7 @@ export default function GuestNav() {
               rel="noreferrer"
               className="rounded-lg px-2 py-3 text-[15px] text-fg-muted hover:bg-fill-3 hover:text-fg"
             >
-              {t('publicNav.source')}
+              {t('publicNav.github')}
             </a>
             <a
               href={`${SITE}/developers`}

@@ -43,4 +43,7 @@ type RunSendKeys struct {
 type RunSendKeysResult struct {
 	ExitCode int    `json:"exitCode"`
 	Output   string `json:"output,omitempty"`
+	// DoneFile is the contents of `.initagent/runs/<runId>.done` when the
+	// wrapper wrote it. The gateway finishes through the file resolver.
+	DoneFile string `json:"doneFile,omitempty"`
 }

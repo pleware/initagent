@@ -227,3 +227,43 @@ func TestDefaultRegistry_HasSentinel(t *testing.T) {
 		t.Fatal("expected sentinel resolver in default registry")
 	}
 }
+
+func TestWrapUnixDoneWritesPath(t *testing.T) {
+	nonce := "0123456789abcdef0123456789abcdef"
+	got := WrapUnixDone("true", nonce, "/tmp/runs/run-1.done")
+	if !strings.Contains(got, "/tmp/runs/run-1.done") {
+		t.Fatalf("wrap missing done path: %q", got)
+	}
+	if !strings.Contains(got, "_ia_code") {
+		t.Fatalf("wrap missing captured exit: %q", got)
+	}
+}
+
+func TestWrapUnixDoneEmptyPathMatchesWrapUnix(t *testing.T) {
+	nonce := "0123456789abcdef0123456789abcdef"
+	if WrapUnixDone("true", nonce, "") != WrapUnix("true", nonce) {
+		t.Fatal("empty done path should match WrapUnix")
+	}
+}
+
+func TestWrapPowerShellDoneWritesPath(t *testing.T) {
+	nonce := "0123456789abcdef0123456789abcdef"
+	got := WrapPowerShellDone("coder-cli", nonce, `C:\runs\run-1.done`)
+	if !strings.Contains(got, `C:\runs\run-1.done`) {
+		t.Fatalf("wrap missing done path: %q", got)
+	}
+}
+
+func TestResolve_DoneBodyUsesFile(t *testing.T) {
+	outcome, err := Default.Resolve(t.Context(), RunContext{
+		RunID:      "run-1",
+		LaunchMode: LaunchSendKeys,
+		DoneBody:   "0\n",
+	})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if outcome.Reason != "file" || outcome.ExitCode != 0 || outcome.Trust != TrustHigh {
+		t.Fatalf("outcome = %+v", outcome)
+	}
+}

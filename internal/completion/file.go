@@ -1,6 +1,7 @@
 package completion
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pleware/initagent/internal/brand"
 )
 
 // FileResolver watches for a per-run done file written by the wrapper.
@@ -50,6 +53,13 @@ func SentinelPath(dir, runID string) (string, error) {
 }
 
 func (f *FileResolver) Watch(ctx context.Context, run RunContext) (<-chan Outcome, error) {
+	if strings.TrimSpace(run.DoneBody) != "" {
+		out := make(chan Outcome, 1)
+		out <- parseDone([]byte(run.DoneBody), "worker done file")
+		close(out)
+		return out, nil
+	}
+
 	path, err := SentinelPath(run.SentinelDir, run.RunID)
 	if err != nil {
 		return nil, err
@@ -58,6 +68,33 @@ func (f *FileResolver) Watch(ctx context.Context, run RunContext) (<-chan Outcom
 	out := make(chan Outcome, 1)
 	go f.watch(ctx, path, out)
 	return out, nil
+}
+
+// RunsDir is `.initagent/runs` under home, matching Draft 12.
+func RunsDir(home string) string {
+	return filepath.Join(home, brand.ConfigDir, "runs")
+}
+
+// WriteDone writes a plain-integer done file for runID. The wrapper and the
+// supervised process path both call this so a reconnect can recover the exit.
+func WriteDone(dir, runID string, exit int) error {
+	path, err := SentinelPath(dir, runID)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(path, fmt.Appendf(nil, "%d\n", exit), 0o600)
+}
+
+// ReadDone reports whether a done file already exists for runID.
+func ReadDone(dir, runID string) (Outcome, bool) {
+	path, err := SentinelPath(dir, runID)
+	if err != nil {
+		return Outcome{}, false
+	}
+	return checkSentinel(path)
 }
 
 func (f *FileResolver) watch(ctx context.Context, path string, out chan<- Outcome) {
@@ -97,11 +134,24 @@ func checkSentinel(path string) (Outcome, bool) {
 	if err != nil {
 		return Outcome{}, false
 	}
+	if len(bytes.TrimSpace(content)) == 0 {
+		return Outcome{}, false
+	}
+	return parseDone(content, path), true
+}
 
+func parseDone(content []byte, source string) Outcome {
 	base := Outcome{
-		Done:   true,
-		Reason: "file",
-		Trust:  TrustHigh,
+		Done:    true,
+		Reason:  "file",
+		Trust:   TrustHigh,
+		Message: fmt.Sprintf("sentinel file at %s", source),
+	}
+
+	text := strings.TrimSpace(string(content))
+	if code, err := strconv.Atoi(text); err == nil {
+		base.ExitCode = code
+		return base
 	}
 
 	var jsonData struct {
@@ -110,19 +160,10 @@ func checkSentinel(path string) (Outcome, bool) {
 	}
 	if err := json.Unmarshal(content, &jsonData); err == nil {
 		base.ExitCode = jsonData.ExitCode
-		base.Message = fmt.Sprintf("sentinel file at %s", path)
-		return base, true
+		return base
 	}
 
-	text := strings.TrimSpace(string(content))
-	code, err := strconv.Atoi(text)
-	if err != nil {
-		base.ExitCode = 1
-		base.Message = fmt.Sprintf("malformed sentinel at %s", path)
-		return base, true
-	}
-
-	base.ExitCode = code
-	base.Message = fmt.Sprintf("sentinel file at %s", path)
-	return base, true
+	base.ExitCode = 1
+	base.Message = fmt.Sprintf("malformed sentinel at %s", source)
+	return base
 }

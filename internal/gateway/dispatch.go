@@ -171,13 +171,20 @@ func (g *Gateway) resolveProcess(ctx context.Context, task *scheduler.Task, res 
 }
 
 func (g *Gateway) resolveSentinel(ctx context.Context, task *scheduler.Task, nonce string, res protocol.RunSendKeysResult) (completion.Outcome, error) {
-	return completion.Default.Resolve(ctx, completion.RunContext{
+	run := completion.RunContext{
 		RunID:      task.ID,
 		WorkerID:   task.AssignedWorkerID,
 		LaunchMode: completion.LaunchSendKeys,
 		Nonce:      nonce,
 		Output:     res.Output,
-	})
+	}
+	if res.DoneFile != "" {
+		// The worker wrote `.done`. Finish through the file resolver so a
+		// later reconnect can report the same high-trust outcome.
+		run.DoneBody = res.DoneFile
+		run.Output = ""
+	}
+	return completion.Default.Resolve(ctx, run)
 }
 
 func rpcTimeout(ctx context.Context) time.Duration {

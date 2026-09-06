@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-06 — Write a per-run done file so a reconnect does not repeat finished work
 - 2026-09-06 — Let the cockpit Tasks page pick how a run finishes
 - 2026-09-06 — Finish a queued run through process or send_keys, not only exec
 - 2026-09-06 — Print the first-run claim token at the end of hub install

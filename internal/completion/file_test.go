@@ -238,3 +238,51 @@ func TestFileResolver_MissingRunID(t *testing.T) {
 		t.Fatal("expected error for missing RunID")
 	}
 }
+
+func TestFileResolver_DoneBody(t *testing.T) {
+	f := &FileResolver{}
+	ch, err := f.Watch(t.Context(), RunContext{DoneBody: "5\n"})
+	if err != nil {
+		t.Fatalf("Watch: %v", err)
+	}
+	outcome := <-ch
+	if !outcome.Done || outcome.ExitCode != 5 || outcome.Reason != "file" || outcome.Trust != TrustHigh {
+		t.Fatalf("outcome = %+v", outcome)
+	}
+}
+
+func TestWriteDoneAndReadDone(t *testing.T) {
+	dir := t.TempDir()
+	if err := WriteDone(dir, "run-w", 9); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := ReadDone(dir, "run-w")
+	if !ok || got.ExitCode != 9 {
+		t.Fatalf("ReadDone = %+v %v", got, ok)
+	}
+	if _, ok := ReadDone(dir, "run-missing"); ok {
+		t.Fatal("expected missing file")
+	}
+}
+
+func TestRunsDir(t *testing.T) {
+	got := RunsDir("/home/op")
+	want := filepath.Join("/home/op", ".initagent", "runs")
+	if got != want {
+		t.Fatalf("RunsDir = %q, want %q", got, want)
+	}
+}
+
+func TestFileResolver_EmptyFileIsNotDone(t *testing.T) {
+	tmp := t.TempDir()
+	path, err := SentinelPath(tmp, "run-empty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, found := checkSentinel(path); found {
+		t.Fatal("empty done file must not count as completion")
+	}
+}

@@ -265,6 +265,39 @@ func TestCreateTaskSendKeysFailed(t *testing.T) {
 	}
 }
 
+func TestCreateTaskSendKeysDoneFile(t *testing.T) {
+	g := openTest(t, "")
+	deviceID, conn, ts := connectAgentWS(t, g)
+	go func() {
+		for {
+			var m protocol.Msg
+			if err := conn.ReadJSON(&m); err != nil {
+				return
+			}
+			if m.Type != protocol.TypeRunSendKeys {
+				continue
+			}
+			res, _ := protocol.NewMsg(protocol.TypeResult, m.Id, 0, protocol.RunSendKeysResult{
+				ExitCode: 0,
+				DoneFile: "0\n",
+			})
+			_ = conn.WriteJSON(res)
+		}
+	}()
+
+	rec := postTask(t, ts, map[string]string{"command": "coder", "deviceId": deviceID, "launch": "send_keys"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
+	}
+	var view TaskView
+	if err := json.NewDecoder(rec.Body).Decode(&view); err != nil {
+		t.Fatal(err)
+	}
+	if view.State != string(scheduler.TaskDone) || view.ExitCode != 0 || view.Reason != "file" {
+		t.Fatalf("view = %+v", view)
+	}
+}
+
 func TestCreateTaskUnknownLaunch(t *testing.T) {
 	g := openTest(t, "")
 	deviceID, conn, ts := connectAgentWS(t, g)

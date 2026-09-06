@@ -7,9 +7,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -161,12 +163,43 @@ func Match(output, nonce string) (int, bool) {
 
 // WrapUnix wraps command so a POSIX pane prints Marker after it exits.
 func WrapUnix(command, nonce string) string {
-	return "{ " + command + "; printf '\\n<<<initagent " + nonce + " exit=%d>>>\\n' $?; }"
+	return WrapUnixDone(command, nonce, "")
+}
+
+// WrapUnixDone is WrapUnix plus a write of the exit code to donePath.
+// Sentinel and file are one wrapper, two signals (Draft 12). An empty
+// donePath keeps the stream-only wrap.
+func WrapUnixDone(command, nonce, donePath string) string {
+	if donePath == "" {
+		return "{ " + command + "; printf '\\n<<<initagent " + nonce + " exit=%d>>>\\n' $?; }"
+	}
+	quoted := shellSingleQuote(filepath.ToSlash(donePath))
+	dir := shellSingleQuote(filepath.ToSlash(filepath.Dir(donePath)))
+	return "{ " + command + "; _ia_code=$?; printf '\\n<<<initagent " + nonce + " exit=%d>>>\\n' \"$_ia_code\"; mkdir -p " + dir + " && printf '%d\\n' \"$_ia_code\" > " + quoted + "; }"
 }
 
 // WrapPowerShell wraps command for a PowerShell pane.
 func WrapPowerShell(command, nonce string) string {
-	return command + `; Write-Output ("` + "`n" + "<<<initagent " + nonce + ` exit=$LASTEXITCODE>>>")`
+	return WrapPowerShellDone(command, nonce, "")
+}
+
+// WrapPowerShellDone is WrapPowerShell plus a write of the exit code to donePath.
+func WrapPowerShellDone(command, nonce, donePath string) string {
+	marker := command + `; Write-Output ("` + "`n" + "<<<initagent " + nonce + ` exit=$LASTEXITCODE>>>")`
+	if donePath == "" {
+		return marker
+	}
+	quoted := powershellSingleQuote(donePath)
+	dir := powershellSingleQuote(filepath.Dir(donePath))
+	return marker + `; New-Item -ItemType Directory -Force -Path ` + dir + ` | Out-Null; Set-Content -LiteralPath ` + quoted + ` -Value $LASTEXITCODE`
+}
+
+func shellSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, `'`, `'\''`) + "'"
+}
+
+func powershellSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, `'`, `''`) + "'"
 }
 
 // WrapCommand picks the wrapper for this agent's OS. tmux send_keys always

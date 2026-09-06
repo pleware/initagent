@@ -53,6 +53,9 @@ type Agent struct {
 	// are excluded: tmux keeps them across a reconnect, while an exec reply
 	// the gateway is waiting on is lost with the socket and its lease expires.
 	execsInFlight int
+
+	// runsDir holds per-run `.done` files. Empty means `~/.initagent/runs`.
+	runsDir string
 }
 
 func New(cfg Config, version string) *Agent {

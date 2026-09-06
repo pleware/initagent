@@ -48,6 +48,7 @@ type RunContext struct {
 	ProcessID   int         // OS pid (for process resolver); 0 if not supervised
 	ProcessExit *int        // known OS exit code after the agent waited; nil to poll ProcessID
 	SentinelDir string      // directory of per-run done files: <SentinelDir>/<RunID>.done
+	DoneBody    string      // contents of that file as read by the worker; FileResolver uses this when the gateway cannot see worker disk
 	Exec        *ExecResult // completion payload for a supervised one-shot exec; nil otherwise
 }
 

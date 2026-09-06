@@ -389,3 +389,6 @@ under Apache License 2.0.
 Upstream Overseer remains MIT under Erzen Krasniqi's copyright; that
 notice stays in [NOTICE](NOTICE). Git tags published under MIT before
 this change remain MIT.
+
+Outside contributions need a signed [CLA](CLA.md). See
+[CONTRIBUTING.md](CONTRIBUTING.md).

@@ -206,10 +206,14 @@ func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	worker := req.DeviceID
 	if worker == "" {
 		worker = g.firstOnlineID(projectID)
-	}
-	if worker == "" {
-		httpError(w, http.StatusServiceUnavailable, ErrDeviceOffline.Error())
-		return
+		if worker == "" {
+			if g.hasDraining(projectID) {
+				httpError(w, http.StatusConflict, ErrDeviceDraining.Error())
+				return
+			}
+			httpError(w, http.StatusServiceUnavailable, ErrDeviceOffline.Error())
+			return
+		}
 	}
 	if !id.Is(id.Device, worker) {
 		httpError(w, http.StatusBadRequest, ErrBadDeviceID.Error())
@@ -219,6 +223,10 @@ func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 	// reachable through this project's task surface (01).
 	if g.connForProject(projectID, worker) == nil {
 		httpError(w, http.StatusServiceUnavailable, ErrDeviceOffline.Error())
+		return
+	}
+	if g.draining(worker) {
+		httpError(w, http.StatusConflict, ErrDeviceDraining.Error())
 		return
 	}
 	if _, err := g.store.Enqueue(r.Context(), scheduler.Task{
@@ -233,6 +241,8 @@ func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		code := http.StatusInternalServerError
 		switch {
 		case errors.Is(err, scheduler.ErrNoFreeSlot):
+			code = http.StatusConflict
+		case errors.Is(err, ErrDeviceDraining):
 			code = http.StatusConflict
 		case errors.Is(err, ErrDeviceOffline):
 			code = http.StatusServiceUnavailable

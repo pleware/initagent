@@ -26,6 +26,7 @@ var (
 	ErrBadTaskID       = errors.New("task id must be a tsk- identifier")
 	ErrBadDeviceID     = errors.New("device id must be a dev- identifier")
 	ErrDeviceOffline   = errors.New("device is not connected")
+	ErrDeviceDraining  = errors.New("device is draining")
 	ErrEmptyCommand    = errors.New("task command is empty")
 )
 
@@ -80,6 +81,9 @@ type presence struct {
 	hello     protocol.Hello
 	stats     *protocol.Stats
 	conn      *agentConn
+	// draining is set at Hello when the advertised fleet version is newer
+	// than this connector. Claim skips it until the next Hello matches (`10`).
+	draining bool
 }
 
 // Gateway is one process serving many projects: a store, the project this

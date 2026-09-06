@@ -18,6 +18,11 @@ import (
 
 func connectAgentWS(t *testing.T, g *Gateway) (deviceID string, conn *websocket.Conn, ts *httptest.Server) {
 	t.Helper()
+	return connectAgent(t, g, protocol.Hello{Hostname: "box", OS: "linux"})
+}
+
+func connectAgent(t *testing.T, g *Gateway, hello protocol.Hello) (deviceID string, conn *websocket.Conn, ts *httptest.Server) {
+	t.Helper()
 	deviceID, token, err := g.Store().CreateDevice(context.Background(), g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
@@ -32,8 +37,8 @@ func connectAgentWS(t *testing.T, g *Gateway) (deviceID string, conn *websocket.
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = conn.Close() })
-	hello, _ := protocol.NewMsg(protocol.TypeHello, 0, 0, protocol.Hello{Hostname: "box", OS: "linux"})
-	if err := conn.WriteJSON(hello); err != nil {
+	msg, _ := protocol.NewMsg(protocol.TypeHello, 0, 0, hello)
+	if err := conn.WriteJSON(msg); err != nil {
 		t.Fatal(err)
 	}
 	var welcome protocol.Msg

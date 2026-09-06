@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/pleware/initagent/internal/protocol"
+	"github.com/pleware/initagent/internal/updater"
 )
 
 var upgrader = websocket.Upgrader{
@@ -178,6 +179,7 @@ func (g *Gateway) attachConn(id, projectID string, hello protocol.Hello, c *agen
 	p.projectID = projectID
 	p.hello = hello
 	p.conn = c
+	p.draining = updater.IsNewer(g.joiner.Version, hello.Version)
 	g.online[id] = p
 }
 
@@ -210,16 +212,35 @@ func (g *Gateway) connForProject(projectID, id string) *agentConn {
 	return p.conn
 }
 
-// firstOnlineID picks any connected machine belonging to projectID.
+// firstOnlineID picks a connected machine belonging to projectID that is
+// not draining. An outdated connector stays attached so its current run can
+// finish, but it takes no new work (`10`, `11`).
 func (g *Gateway) firstOnlineID(projectID string) string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	for id, p := range g.online {
-		if p.conn != nil && p.projectID == projectID {
+		if p.conn != nil && p.projectID == projectID && !p.draining {
 			return id
 		}
 	}
 	return ""
+}
+
+func (g *Gateway) draining(id string) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.online[id].draining
+}
+
+func (g *Gateway) hasDraining(projectID string) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for _, p := range g.online {
+		if p.conn != nil && p.projectID == projectID && p.draining {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *Gateway) setStats(id string, st *protocol.Stats) {

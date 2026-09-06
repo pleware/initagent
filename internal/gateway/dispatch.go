@@ -48,6 +48,9 @@ func (g *Gateway) RunQueued(ctx context.Context, projectID, workerID string) (Ta
 	if g.connForProject(projectID, workerID) == nil {
 		return TaskView{}, ErrDeviceOffline
 	}
+	if g.draining(workerID) {
+		return TaskView{}, ErrDeviceDraining
+	}
 	claimed, _, err := g.Claim(ctx, projectID, workerID)
 	if err != nil {
 		return TaskView{}, err

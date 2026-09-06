@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/pleware/initagent/internal/authz"
 )
 
 // fakeGateway serves canned task responses and records what the hub proxied.
@@ -40,7 +42,14 @@ func newTaskHub(t *testing.T, gatewayURL string) (*Server, *httptest.Server, str
 	ts := httptest.NewServer(srv.mux)
 	t.Cleanup(ts.Close)
 
-	token, err := srv.store.CreateApiToken("test")
+	// A tenant-wide token, so these tests exercise placement rather than the
+	// boundary axis — which has its own tests in tokens_test.go. No project
+	// row yet: several of them depend on the hub starting with none.
+	account, org := seedOwner(t, srv.store)
+	token, _, err := srv.store.CreateApiToken("test", account, authz.Grant{
+		Org:    org,
+		Scopes: []authz.Capability{authz.CreateTask, authz.ReadTask, authz.EnrollDevice, authz.ReadProject},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

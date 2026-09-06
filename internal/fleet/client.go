@@ -85,6 +85,20 @@ func New(hubURL, token string) *Client {
 	}
 }
 
+// StatusError is a refusal the hub explained, with the code kept alongside
+// the message.
+//
+// Both halves matter once tokens are scoped: 401 says the credential is wrong
+// or revoked, 403 says it is real but does not carry this verb. A caller that
+// only sees the text cannot tell "sign in again" from "re-mint with one more
+// scope", and those are different instructions to give a person.
+type StatusError struct {
+	Code    int
+	Message string
+}
+
+func (e *StatusError) Error() string { return e.Message }
+
 func (c *Client) do(method, path string, body any, out any) error {
 	var reader io.Reader
 	if body != nil {
@@ -113,9 +127,9 @@ func (c *Client) do(method, path string, body any, out any) error {
 			Error string `json:"error"`
 		}
 		if json.Unmarshal(data, &e) == nil && e.Error != "" {
-			return fmt.Errorf("%s", e.Error)
+			return &StatusError{Code: resp.StatusCode, Message: e.Error}
 		}
-		return fmt.Errorf("%s %s: %s", method, path, resp.Status)
+		return &StatusError{Code: resp.StatusCode, Message: fmt.Sprintf("%s %s: %s", method, path, resp.Status)}
 	}
 	if out != nil {
 		return json.Unmarshal(data, out)

@@ -90,15 +90,21 @@ func (s *Server) validateProjectDevice(w http.ResponseWriter, deviceId string) b
 // keeps working. Two or more memberships without an orgId is a 400, not a
 // guess: inventing a "current org" on the server is how a contractor's
 // project lands in the wrong company.
-func resolveProjectOrg(actor authz.Actor, requested string) (string, error) {
+func resolveProjectOrg(cred authz.Credential, requested string) (string, error) {
 	requested = strings.TrimSpace(requested)
 	if requested != "" {
 		return requested, nil
 	}
-	if only := actor.SoleOrg(); only != "" {
+	// A token already names its tenant, so it never has to guess — and it
+	// must not fall through to its author's memberships, which may be wider
+	// than the boundary the token was given.
+	if cred.Grant != nil {
+		return cred.Grant.Org, nil
+	}
+	if only := cred.Actor.SoleOrg(); only != "" {
 		return only, nil
 	}
-	if len(actor.Orgs) == 0 {
+	if len(cred.Actor.Orgs) == 0 {
 		return "", authz.ErrForbidden
 	}
 	return "", errOrgRequired
@@ -114,10 +120,13 @@ func (s *Server) handleListTemplates(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, projecttemplate.Catalogue())
 }
 
-func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
+func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	requested := strings.TrimSpace(r.URL.Query().Get("org"))
 	if requested != "" {
-		if !actor.Can(authz.ReadProject, requested) {
+		// A project-scoped token is refused here rather than narrowed: it
+		// asked for a whole organization, which is wider than it holds.
+		// Omitting ?org= gets it the project it does hold.
+		if !cred.Can(authz.ReadProject, requested, "") {
 			forbid(w, authz.ErrForbidden)
 			return
 		}
@@ -129,22 +138,21 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request, acto
 		writeJSON(w, projects)
 		return
 	}
-	var orgIds []string
-	for orgId := range actor.Orgs {
-		if actor.Can(authz.ReadProject, orgId) {
-			orgIds = append(orgIds, orgId)
-		}
-	}
-	projects, err := s.store.ListProjectsForOrgs(orgIds)
+	// Same resolution the gateway placement uses, so the catalogue a caller
+	// can list and the projects it can route to cannot drift apart.
+	projects, err := s.readableProjects(cred)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if projects == nil {
+		projects = []Project{}
+	}
 	writeJSON(w, projects)
 }
 
-func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
-	if s.opts.Offering == offering.Hosted && actor.Platform {
+func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if s.opts.Offering == offering.Hosted && cred.Actor.Platform {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -162,7 +170,7 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, act
 		httpError(w, http.StatusBadRequest, "name is required")
 		return
 	}
-	orgId, err := resolveProjectOrg(actor, input.OrgId)
+	orgId, err := resolveProjectOrg(cred, input.OrgId)
 	if err != nil {
 		if errors.Is(err, authz.ErrForbidden) {
 			forbid(w, err)
@@ -171,7 +179,7 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, act
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if !actor.Can(authz.CreateProject, orgId) {
+	if !cred.Can(authz.CreateProject, orgId, "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -198,8 +206,8 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, act
 	writeJSON(w, project)
 }
 
-func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
-	existing, ok := s.projectForActor(w, r.PathValue("id"), actor, authz.CreateProject)
+func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	existing, ok := s.projectFor(w, r.PathValue("id"), cred, authz.AdminProject)
 	if !ok {
 		return
 	}
@@ -252,8 +260,8 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, act
 	writeJSON(w, project)
 }
 
-func (s *Server) handleAttachProjectDevice(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
-	existing, ok := s.projectForActor(w, r.PathValue("id"), actor, authz.CreateProject)
+func (s *Server) handleAttachProjectDevice(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	existing, ok := s.projectFor(w, r.PathValue("id"), cred, authz.AdminProject)
 	if !ok {
 		return
 	}
@@ -295,8 +303,8 @@ func (s *Server) handleAttachProjectDevice(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, project)
 }
 
-func (s *Server) handleDetachProjectDevice(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
-	existing, ok := s.projectForActor(w, r.PathValue("id"), actor, authz.CreateProject)
+func (s *Server) handleDetachProjectDevice(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	existing, ok := s.projectFor(w, r.PathValue("id"), cred, authz.AdminProject)
 	if !ok {
 		return
 	}
@@ -330,8 +338,8 @@ func (s *Server) handleDetachProjectDevice(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, project)
 }
 
-func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
-	project, ok := s.projectForActor(w, r.PathValue("id"), actor, authz.DeleteProject)
+func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	project, ok := s.projectFor(w, r.PathValue("id"), cred, authz.DeleteProject)
 	if !ok {
 		return
 	}
@@ -344,8 +352,8 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request, act
 
 // handleProjectExec is the narrow host boundary used by browser-hosted fx.
 // The browser supplies only a command; the hub owns the selected node and cwd.
-func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
-	project, ok := s.projectForActor(w, r.PathValue("id"), actor, authz.ReadProject)
+func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	project, ok := s.projectFor(w, r.PathValue("id"), cred, authz.ExecDevice)
 	if !ok {
 		return
 	}
@@ -386,17 +394,26 @@ func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, actor
 	writeJSON(w, result)
 }
 
-// projectForActor loads a project and checks the capability inside its org.
-// A missing project and a project in someone else's org both answer 404, so
-// the catalogue cannot be used to discover ids you cannot read.
-func (s *Server) projectForActor(w http.ResponseWriter, id string, actor authz.Actor, c authz.Capability) (*Project, bool) {
+// projectFor loads a project and checks the capability against it.
+//
+// The single choke point for every project route, which is why the boundary
+// axis arrives here for free: passing the project's own id as the target is
+// what stops a project-scoped token operating on its neighbour.
+//
+// A missing project and a project outside the credential's reach both answer
+// 404, so the catalogue cannot be used to discover ids you cannot read.
+func (s *Server) projectFor(w http.ResponseWriter, id string, cred authz.Credential, c authz.Capability) (*Project, bool) {
 	project, err := s.store.ProjectById(id)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return nil, false
 	}
-	if project == nil || !actor.Can(c, project.OrgId) {
+	if project == nil {
 		httpError(w, http.StatusNotFound, "project not found")
+		return nil, false
+	}
+	if !cred.Can(c, project.OrgId, project.Id) {
+		hideOrRefuse(w, cred, c, "project not found", bound{org: project.OrgId, project: project.Id})
 		return nil, false
 	}
 	return project, true

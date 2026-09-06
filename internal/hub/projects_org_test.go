@@ -86,26 +86,9 @@ func TestProjectInAnotherOrgIsNotFound(t *testing.T) {
 	}
 }
 
-func TestProjectsRefuseApiTokens(t *testing.T) {
-	f := hostedCustomer(t)
-	token, err := f.srv.store.CreateApiToken("ci")
-	if err != nil {
-		t.Fatal(err)
-	}
-	req, err := http.NewRequest(http.MethodGet, f.ts.URL+"/api/projects", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("token list projects: %d, want 401", resp.StatusCode)
-	}
-}
+// The project surfaces used to refuse every token outright. A scoped token is
+// now admitted to what it names — see TestProjectsTakeScopedTokens and
+// TestTokenCannotCrossIntoAnotherProject in tokens_test.go.
 
 func TestListTemplates(t *testing.T) {
 	f := hostedCustomer(t)

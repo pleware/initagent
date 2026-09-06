@@ -191,43 +191,10 @@ func TestAdminSurfacesRefuseAnonymous(t *testing.T) {
 	}
 }
 
-// The trap this closes: API tokens carry no scope, so if the admin routes sat
-// behind the older middleware, every token ever minted for the CLI or MCP
-// would be a platform administrator.
-func TestAdminSurfacesRefuseApiTokens(t *testing.T) {
-	f := claimedHub(t, offering.Hosted)
-	token, err := f.srv.store.CreateApiToken("ci")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req, err := http.NewRequest(http.MethodGet, f.ts.URL+"/api/admin/accounts", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err := (&http.Client{}).Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 401 {
-		t.Errorf("GET /api/admin/accounts with an API token: %d, want 401", resp.StatusCode)
-	}
-
-	// The same token still works where it always did, so this is a boundary
-	// on the new surface and not a regression for the CLI.
-	req, _ = http.NewRequest(http.MethodGet, f.ts.URL+"/api/devices", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	devices, err := (&http.Client{}).Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer devices.Body.Close()
-	if devices.StatusCode != 200 {
-		t.Errorf("GET /api/devices with an API token: %d, want 200", devices.StatusCode)
-	}
-}
+// This used to assert that every API token gets 401 on the account surfaces,
+// because a token named nobody. It now names an `acc-`, so admission is
+// decided by the scope list and the boundary — see
+// TestAdminSurfacesTakeScopedTokens in tokens_test.go.
 
 func TestPlatformSurfaceListsAccountsAndOrgs(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)

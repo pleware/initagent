@@ -39,8 +39,12 @@ func (s *Server) handleMCPHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := strings.TrimPrefix(auth, "Bearer ")
-	if ok, err := s.store.ValidApiToken(token); err != nil || !ok {
-		httpError(w, http.StatusUnauthorized, "invalid API token")
+	// Only that the credential exists is checked here. What it may *do* is
+	// decided by the ordinary route guards below, because every tool re-enters
+	// the hub's own API carrying this same token — so a scope refusal reaches
+	// the MCP client already naming the verb it is missing.
+	if _, ok, err := s.store.ApiTokenAuth(token); err != nil || !ok {
+		httpError(w, http.StatusUnauthorized, "invalid or revoked API token")
 		return
 	}
 

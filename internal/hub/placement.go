@@ -17,6 +17,11 @@ type placement struct {
 	gatewayURL string
 }
 
+// projectParam is the query parameter a caller names a project with. One
+// constant, because the middleware that authorizes the request and the
+// resolver that routes it must read the same key.
+const projectParam = "project"
+
 var (
 	errProjectRequired = errBadRequest("project is required when this hub has more than one project (?project=prj-…)")
 	errNoProject       = errBadRequest("this hub has no project yet")
@@ -29,25 +34,26 @@ var (
 // and two projects without one is a 400 rather than a guess. Guessing here
 // would run a contractor's command against the wrong company's machine.
 //
-// A nil actor means the caller authenticated with an API token, which carries
-// no scope today (09). Such a caller may name any project on the hub, which
-// is the same reach it already has; it is not widened here, and scoping it is
-// 09's job, not this function's.
-func (s *Server) resolveProject(actor *authz.Actor, requested string) (*Project, error) {
+// "Readable" means readable *by this credential*. While a token carried no
+// boundary this function had to let any bearer name any project on the hub,
+// and once placement became a column that turned into "reach any project's
+// gateway". The grant closes it.
+func (s *Server) resolveProject(cred authz.Credential, requested string) (*Project, error) {
 	if requested = strings.TrimSpace(requested); requested != "" {
 		project, err := s.store.ProjectById(requested)
 		if err != nil {
 			return nil, err
 		}
-		// A project in someone else's org answers the same 404 as a missing
-		// one, so the router cannot be used to discover ids you cannot read.
-		if project == nil || (actor != nil && !actor.Can(authz.ReadProject, project.OrgId)) {
+		// A project outside this credential's reach answers the same 404 as a
+		// missing one, so the router cannot be used to discover ids you
+		// cannot read.
+		if project == nil || !cred.Can(authz.ReadProject, project.OrgId, project.Id) {
 			return nil, errProjectNotFound
 		}
 		return project, nil
 	}
 
-	projects, err := s.readableProjects(actor)
+	projects, err := s.readableProjects(cred)
 	if err != nil {
 		return nil, err
 	}
@@ -61,17 +67,61 @@ func (s *Server) resolveProject(actor *authz.Actor, requested string) (*Project,
 	}
 }
 
-func (s *Server) readableProjects(actor *authz.Actor) ([]Project, error) {
-	if actor == nil {
-		return s.store.ListAllProjects()
+func (s *Server) readableProjects(cred authz.Credential) ([]Project, error) {
+	// A project-scoped token has exactly one candidate, so there is nothing
+	// to disambiguate and no reason to read the rest of the tenant.
+	if g := cred.Grant; g != nil && g.Project != "" {
+		project, err := s.store.ProjectById(g.Project)
+		if err != nil || project == nil {
+			return nil, err
+		}
+		if !cred.Can(authz.ReadProject, project.OrgId, project.Id) {
+			return nil, nil
+		}
+		return []Project{*project}, nil
 	}
 	var orgIds []string
-	for orgId := range actor.Orgs {
-		if actor.Can(authz.ReadProject, orgId) {
-			orgIds = append(orgIds, orgId)
+	for _, b := range credentialBounds(cred) {
+		if cred.Can(authz.ReadProject, b.org, b.project) {
+			orgIds = append(orgIds, b.org)
 		}
 	}
 	return s.store.ListProjectsForOrgs(orgIds)
+}
+
+// deviceFilter reports which machines a credential may see.
+//
+// It returns a predicate rather than a set so the "whole installation" case
+// stays honest: the operator of a hub with no organizations owns the orphan
+// machines too, and materialising that as a set would mean listing every
+// device just to answer one question.
+//
+// Everything else is reached through the projects the credential can read,
+// so a machine attached to nothing is invisible to a scoped caller. That is
+// the same fail-closed rule the middleware applies per device.
+func (s *Server) deviceFilter(cred authz.Credential) (func(string) bool, error) {
+	if cred.Can(authz.ReadDevice, "", "") {
+		return func(string) bool { return true }, nil
+	}
+	projects, err := s.readableProjects(cred)
+	if err != nil {
+		return nil, err
+	}
+	projectIds := make([]string, len(projects))
+	for i, p := range projects {
+		projectIds[i] = p.Id
+	}
+	byProject, err := s.store.deviceIdsByProjects(projectIds)
+	if err != nil {
+		return nil, err
+	}
+	visible := map[string]bool{}
+	for _, deviceIds := range byProject {
+		for _, deviceId := range deviceIds {
+			visible[deviceId] = true
+		}
+	}
+	return func(deviceId string) bool { return visible[deviceId] }, nil
 }
 
 var errProjectNotFound = errNotFound("project not found")
@@ -85,13 +135,8 @@ func (e errNotFound) Error() string { return string(e) }
 // is empty, which is what rows written before placement was read look like,
 // and what a single-box self-host looks like when the flag is the only
 // configuration there is.
-func (s *Server) gatewayFor(w http.ResponseWriter, r *http.Request) (placement, bool) {
-	actor, err := s.optionalActor(r)
-	if err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
-		return placement{}, false
-	}
-	project, err := s.resolveProject(actor, r.URL.Query().Get("project"))
+func (s *Server) gatewayFor(w http.ResponseWriter, r *http.Request, cred authz.Credential) (placement, bool) {
+	project, err := s.resolveProject(cred, r.URL.Query().Get(projectParam))
 	if err != nil {
 		// A hub with no project row yet still has its flag: that is a
 		// self-host box before anyone created a project, and the gateway

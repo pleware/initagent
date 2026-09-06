@@ -14,7 +14,10 @@
 // 09's subject / boundary / verbs axes.
 package authz
 
-import "errors"
+import (
+	"errors"
+	"slices"
+)
 
 // Role is an organization role (25). A role is a named bundle of
 // capabilities, never a thing to compare against at a call site.
@@ -90,6 +93,70 @@ const (
 	// DeleteProject is removing a project from an organization. Same floor
 	// as create: an admin who can add one can take it away.
 	DeleteProject Capability = "delete:hub.project"
+
+	// AdminProject is editing a project that already exists: its name, its
+	// repository, and which machines may run its work.
+	AdminProject Capability = "admin:hub.project"
+
+	// ReadDevice is seeing the machines enrolled into a project.
+	ReadDevice Capability = "read:fleet.device"
+
+	// EnrollDevice mints the token that joins a machine, so it hands out
+	// capability rather than reading it.
+	EnrollDevice Capability = "create:fleet.device"
+
+	// AdminDevice renames or removes an enrolled machine.
+	AdminDevice Capability = "admin:fleet.device"
+
+	// ExecDevice runs an arbitrary command on someone's machine. Draft 09
+	// keeps this out of every credential unless it was asked for by name:
+	// the attributable path is a task, which is queued, bounded and logged.
+	// A role still carries it, because the cockpit's own terminal runs on a
+	// session where a person is present; what a *token* may do is the axis
+	// this constant exists to make explicit.
+	ExecDevice Capability = "exec:fleet.device"
+
+	// ReadTerminal lists terminal sessions and reads their output.
+	ReadTerminal Capability = "read:fleet.terminal"
+
+	// AttachTerminal opens, steers or kills a terminal session. Draft 09
+	// names `attach:fleet.terminal` and deliberately avoids saying `tmux`:
+	// a backend name in a permission breaks on the first Windows worker.
+	AttachTerminal Capability = "attach:fleet.terminal"
+
+	// ReadFile lists and downloads files from a machine.
+	ReadFile Capability = "read:fleet.file"
+
+	// WriteFile uploads onto a machine.
+	WriteFile Capability = "write:fleet.file"
+
+	// ReadTask is reading a queued or finished task.
+	ReadTask Capability = "read:project.task"
+
+	// CreateTask submits work. This is the normal path for running something
+	// (09), which is why its floor is lower than ExecDevice's blast radius
+	// would suggest: a task is attributable and bounded.
+	CreateTask Capability = "create:project.task"
+
+	// ReadTemplate is reading the project templates a new project starts from.
+	ReadTemplate Capability = "read:hub.template"
+
+	// ReadPreset is reading the saved command presets.
+	ReadPreset Capability = "read:hub.preset"
+
+	// AdminPreset creates or removes a preset.
+	AdminPreset Capability = "admin:hub.preset"
+
+	// ReadEvent subscribes to the hub's event stream.
+	ReadEvent Capability = "read:hub.event"
+
+	// ReadUpdate is the installation's own release status.
+	ReadUpdate Capability = "read:hub.update"
+
+	// AdminUpdate installs or rolls back the installation's binary. This is
+	// operating the hub, not using it, which is why it lives at the
+	// installation boundary where no token can reach it.
+	AdminUpdate Capability = "admin:hub.update"
 )
 
 // installation lists the capabilities that exist at the hub boundary. A
@@ -98,17 +165,78 @@ const (
 var installation = map[Capability]bool{
 	AdminAccounts: true,
 	ReadOrg:       true,
+	ReadUpdate:    true,
+	AdminUpdate:   true,
 }
 
 // orgMinimum is the weakest role that carries each capability inside an org.
+//
+// Reads sit at member and mutations at admin, following the project rows that
+// were here first. The interactive fleet verbs — exec, attach, upload — are
+// the exception at member, because that is what an authenticated caller can
+// already do today and tightening the cockpit's own terminal is a separate
+// change with its own UI consequences (09 keeps the question open).
 var orgMinimum = map[Capability]Role{
-	ReadOrg:       RoleMember,
-	AdminOrg:      RoleAdmin,
-	DeleteOrg:     RoleOwner,
-	ReadProject:   RoleMember,
-	CreateProject: RoleAdmin,
-	DeleteProject: RoleAdmin,
+	ReadOrg:        RoleMember,
+	AdminOrg:       RoleAdmin,
+	DeleteOrg:      RoleOwner,
+	ReadProject:    RoleMember,
+	CreateProject:  RoleAdmin,
+	DeleteProject:  RoleAdmin,
+	AdminProject:   RoleAdmin,
+	ReadDevice:     RoleMember,
+	EnrollDevice:   RoleAdmin,
+	AdminDevice:    RoleAdmin,
+	ExecDevice:     RoleMember,
+	ReadTerminal:   RoleMember,
+	AttachTerminal: RoleMember,
+	ReadFile:       RoleMember,
+	WriteFile:      RoleMember,
+	ReadTask:       RoleMember,
+	CreateTask:     RoleMember,
+	ReadTemplate:   RoleMember,
+	ReadPreset:     RoleMember,
+	AdminPreset:    RoleAdmin,
+	ReadEvent:      RoleMember,
 }
+
+// Capabilities lists every capability this hub understands, sorted.
+//
+// It is derived from the two maps above rather than kept beside them: a
+// hand-maintained third list is how a capability ends up grantable but never
+// enforced, or enforced but impossible to grant.
+func Capabilities() []Capability {
+	all := make([]Capability, 0, len(installation)+len(orgMinimum))
+	for c := range installation {
+		all = append(all, c)
+	}
+	for c := range orgMinimum {
+		if !installation[c] {
+			all = append(all, c)
+		}
+	}
+	slices.Sort(all)
+	return all
+}
+
+// GrantableScopes lists what a token may carry, sorted. Installation
+// administration is absent by construction: 09 gives an API token a project
+// or a tenant as its boundary, so running the hub itself is not on offer to
+// a secret that was handed to a machine.
+func GrantableScopes() []Capability {
+	all := make([]Capability, 0, len(orgMinimum))
+	for c := range orgMinimum {
+		all = append(all, c)
+	}
+	slices.Sort(all)
+	return all
+}
+
+// Dangerous marks a scope whose worst case is arbitrary code execution on
+// someone else's machine. The cockpit separates these in its picker and
+// leaves them unchecked; keeping the judgement here means the form cannot
+// disagree with the rule it is rendering.
+func Dangerous(c Capability) bool { return c == ExecDevice }
 
 // Actor is the resolved identity behind a request. The hub builds it at the
 // edge from the session and the store; every decision below reads only this.
@@ -126,6 +254,17 @@ type Actor struct {
 	// belong to many (25), so there is no "current org" here — the boundary
 	// arrives with the request.
 	Orgs map[string]Role
+
+	// Unpartitioned marks the operator of an installation that has no
+	// organizations at all: a hub claimed before accounts existed, whose
+	// projects still carry an empty org_id (26's legacy path).
+	//
+	// Such an actor holds everything, because there is no second tenant to
+	// be isolated from and refusing would lock the only administrator out of
+	// their own fleet. The flag is a fact about the installation, not a
+	// power: it is false the moment an organization exists, and it can only
+	// be set for the platform operator.
+	Unpartitioned bool
 }
 
 // Can reports whether the actor may exercise c inside org.
@@ -141,6 +280,13 @@ type Actor struct {
 // hub is unaffected, because claiming mints them a real owner membership in
 // the hub's first org — they hold both, and they hold the second one visibly.
 func (a Actor) Can(c Capability, org string) bool {
+	// A hub with no organizations has no boundary to enforce, so its
+	// operator is not refused by one. This keeps a pre-accounts self-host
+	// installation working after tokens gained axes, and it evaporates as
+	// soon as the hub has a tenant worth separating.
+	if a.Unpartitioned && a.Platform {
+		return true
+	}
 	if org == "" {
 		return a.Platform && installation[c]
 	}

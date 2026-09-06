@@ -22,14 +22,15 @@ func (g *recordingGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"id": "tsk-1", "state": "done"})
 }
 
-// project inserts a project row placed on gatewayURL and returns its prj-.
+// addProject inserts a project row placed on gatewayURL and returns its prj-.
+//
+// They all land in the hub's own organization, which is the one the token
+// from newTaskHub is bound to. Placement is the axis under test in this file;
+// crossing a boundary is tested in tokens_test.go.
 func addProject(t *testing.T, srv *Server, name, gatewayURL string) string {
 	t.Helper()
-	org, err := srv.store.CreateOrg(name + " org")
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, err := srv.store.CreateProject(org.Id, name, "", "", gatewayURL, "", "", "")
+	_, org := seedOwner(t, srv.store)
+	p, err := srv.store.CreateProject(org, name, "", "", gatewayURL, "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

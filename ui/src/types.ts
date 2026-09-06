@@ -45,6 +45,8 @@ export interface Me {
   // than being a second list here, because a role name that exists in only
   // one of the two places is a permission bug waiting for a typo.
   orgRoles?: string[]
+  // The verbs a token may carry, for the same reason as orgRoles.
+  tokenScopes?: TokenScope[]
 }
 
 // Account is a person who can sign in. Only one account per installation
@@ -189,10 +191,27 @@ export interface Preset {
   kind: string
 }
 
+// ApiTokenInfo is one issued credential as the cockpit lists it. Every field
+// after `name` is one of draft 09's three axes — who it acts as, how far it
+// reaches, what it may do — because a token the operator cannot read those
+// off is a token they cannot decide to revoke.
 export interface ApiTokenInfo {
-  id: number
+  id: string
   name: string
+  accountId: string
+  orgId: string
+  projectId: string
+  scopes: string[]
   createdAt: number
+  lastUsedAt: number
+}
+
+// TokenScope is one verb the hub will accept in a mint. `dangerous` is what
+// keeps arbitrary command execution off the same footing as reading a device
+// list: the mint form separates it and leaves it unchecked.
+export interface TokenScope {
+  scope: string
+  dangerous: boolean
 }
 
 export interface UpdateStatus {

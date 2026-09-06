@@ -28,8 +28,8 @@ import (
 // run (`admin:hub.account`, 09). An org owner asking the same question uses
 // their org's member list, which is a different boundary and a different
 // answer.
-func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
-	if !actor.Can(authz.AdminAccounts, "") {
+func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.AdminAccounts, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -48,8 +48,8 @@ func (s *Server) handleListAccounts(w http.ResponseWriter, r *http.Request, acto
 // org-boundary capability that the platform flag does not grant, because 09
 // has not decided whether a hub admin has any path into a customer's data and
 // answering it here by accident is the wrong way to find out.
-func (s *Server) handleListAllOrgs(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
-	if !actor.Can(authz.ReadOrg, "") {
+func (s *Server) handleListAllOrgs(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.ReadOrg, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -62,12 +62,10 @@ func (s *Server) handleListAllOrgs(w http.ResponseWriter, r *http.Request, actor
 }
 
 // handleListOrgMembers serves one organization's roster to its own people.
-func (s *Server) handleListOrgMembers(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
+func (s *Server) handleListOrgMembers(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	orgId := r.PathValue("id")
-	if !actor.Can(authz.ReadOrg, orgId) {
-		// 404 rather than 403 for an org the caller is not in: on a hub with
-		// many customers, "you may not see this" confirms the org exists.
-		httpError(w, http.StatusNotFound, "no such organization")
+	if !cred.Can(authz.ReadOrg, orgId, "") {
+		hideOrRefuse(w, cred, authz.ReadOrg, "no such organization", bound{org: orgId})
 		return
 	}
 	members, err := s.store.ListOrgMembers(orgId)
@@ -83,10 +81,10 @@ func (s *Server) handleListOrgMembers(w http.ResponseWriter, r *http.Request, ac
 // It exists because first-run guesses the name from the operator's email
 // domain, and a guess with no way to correct it is a permanent typo on every
 // screen.
-func (s *Server) handleRenameOrg(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
+func (s *Server) handleRenameOrg(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	orgId := r.PathValue("id")
-	if !actor.Can(authz.AdminOrg, orgId) {
-		httpError(w, http.StatusNotFound, "no such organization")
+	if !cred.Can(authz.AdminOrg, orgId, "") {
+		hideOrRefuse(w, cred, authz.AdminOrg, "no such organization", bound{org: orgId})
 		return
 	}
 	var req struct {
@@ -110,7 +108,7 @@ func (s *Server) handleRenameOrg(w http.ResponseWriter, r *http.Request, actor a
 }
 
 // handleSetOrgMemberRole changes one person's role in an organization.
-func (s *Server) handleSetOrgMemberRole(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
+func (s *Server) handleSetOrgMemberRole(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	orgId := r.PathValue("id")
 	target := r.PathValue("accountId")
 	var req struct {
@@ -130,7 +128,14 @@ func (s *Server) handleSetOrgMemberRole(w http.ResponseWriter, r *http.Request, 
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if err := authz.AuthorizeRoleChange(actor, roster, target, role); err != nil {
+	// Changing membership is organization administration, so a token has to
+	// carry that verb by name. The rules below then apply to the person
+	// behind it, unchanged — a token cannot promote past its own author.
+	if cred.Scoped() && !cred.Can(authz.AdminOrg, orgId, "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	if err := authz.AuthorizeRoleChange(cred.Actor, roster, target, role); err != nil {
 		forbid(w, err)
 		return
 	}
@@ -143,7 +148,7 @@ func (s *Server) handleSetOrgMemberRole(w http.ResponseWriter, r *http.Request, 
 
 // handleRemoveOrgMember removes somebody from an organization, or lets them
 // leave it themselves.
-func (s *Server) handleRemoveOrgMember(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
+func (s *Server) handleRemoveOrgMember(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	orgId := r.PathValue("id")
 	target := r.PathValue("accountId")
 	roster, err := s.store.OrgRoster(orgId)
@@ -151,7 +156,14 @@ func (s *Server) handleRemoveOrgMember(w http.ResponseWriter, r *http.Request, a
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if err := authz.AuthorizeRemoval(actor, roster, target); err != nil {
+	// Gated only for tokens. A session reaches the rules below directly,
+	// where leaving an organization yourself is allowed at any role — a
+	// requirement AdminOrg would break.
+	if cred.Scoped() && !cred.Can(authz.AdminOrg, orgId, "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	if err := authz.AuthorizeRemoval(cred.Actor, roster, target); err != nil {
 		forbid(w, err)
 		return
 	}

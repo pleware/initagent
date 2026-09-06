@@ -297,6 +297,18 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		roles = append(roles, string(role))
 	}
 	resp["orgRoles"] = roles
+	// The scopes a token may carry travel from here for the same reason: a
+	// checkbox naming a verb this hub does not know is a token nobody can
+	// mint, and the `dangerous` flag is what keeps arbitrary command
+	// execution from being one careless click in the mint form (09).
+	scopes := make([]map[string]any, 0, len(authz.GrantableScopes()))
+	for _, scope := range authz.GrantableScopes() {
+		scopes = append(scopes, map[string]any{
+			"scope":     string(scope),
+			"dangerous": authz.Dangerous(scope),
+		})
+	}
+	resp["tokenScopes"] = scopes
 	orgs := []Membership{}
 	if actor.Account != "" {
 		if a, err := s.store.AccountById(actor.Account); err == nil && a != nil {
@@ -316,7 +328,8 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 // handlePatchMe stores the language a signed-in person just picked. Guests
 // have no row to write; they keep the choice in the browser until they
 // register or claim.
-func (s *Server) handlePatchMe(w http.ResponseWriter, r *http.Request, actor authz.Actor) {
+func (s *Server) handlePatchMe(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	actor := cred.Actor
 	if actor.Account == "" {
 		httpError(w, http.StatusUnauthorized, "not authenticated")
 		return
@@ -378,8 +391,8 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"deviceId": id, "deviceToken": token})
 }
 
-func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request) {
-	p, ok := s.gatewayFor(w, r)
+func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	p, ok := s.gatewayFor(w, r, cred)
 	if !ok {
 		return
 	}
@@ -423,11 +436,11 @@ func (s *Server) deviceViews() ([]deviceView, error) {
 	return out, nil
 }
 
-func (s *Server) handleListDevices(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleListDevices(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	// The flag still decides whether this hub has a gateway plane at all;
 	// without one the inherited single-plane path below is the answer.
 	if s.opts.GatewayURL != "" {
-		p, ok := s.gatewayFor(w, r)
+		p, ok := s.gatewayFor(w, r, cred)
 		if !ok {
 			return
 		}
@@ -439,7 +452,18 @@ func (s *Server) handleListDevices(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, views)
+	visible, err := s.deviceFilter(cred)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	mine := make([]deviceView, 0, len(views))
+	for _, v := range views {
+		if visible(v.Id) {
+			mine = append(mine, v)
+		}
+	}
+	writeJSON(w, mine)
 }
 
 func (s *Server) handleRenameDevice(w http.ResponseWriter, r *http.Request) {
@@ -735,8 +759,16 @@ type fleetSession struct {
 	DeviceName string `json:"deviceName"`
 }
 
-func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	devices, err := s.store.ListDevices()
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// The registry is installation-wide, so this view has to be narrowed
+	// before it is fanned out: without it a member of one organization would
+	// see every terminal session running on the hub.
+	visible, err := s.deviceFilter(cred)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -750,6 +782,9 @@ func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request) {
 	var out []fleetSession
 	var wg sync.WaitGroup
 	for _, c := range conns {
+		if !visible(c.deviceId) {
+			continue
+		}
 		wg.Add(1)
 		go func(c *agentConn) {
 			defer wg.Done()
@@ -826,8 +861,13 @@ func (s *Server) handleDeletePreset(w http.ResponseWriter, r *http.Request) {
 
 // --- API tokens ---
 
-func (s *Server) handleListApiTokens(w http.ResponseWriter, r *http.Request) {
-	tokens, err := s.store.ListApiTokens()
+// errNoSubject refuses to mint on a hub whose only credential is the legacy
+// operator password. A token needs an `acc-` to act as, and inventing one
+// here would attribute a machine's actions to a person who does not exist.
+const errNoSubject = "claim this hub with an email and password before minting tokens"
+
+func (s *Server) handleListApiTokens(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	tokens, err := s.store.ListApiTokens(cred.Actor.Account)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -838,31 +878,91 @@ func (s *Server) handleListApiTokens(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, tokens)
 }
 
-func (s *Server) handleCreateApiToken(w http.ResponseWriter, r *http.Request) {
+// handleCreateApiToken mints a credential narrower than the person asking.
+//
+// Every axis is checked against the minter rather than trusted from the
+// request: a member cannot hand out an admin's verbs, and nobody can hand out
+// reach into an organization they do not belong to. That check is what makes
+// the intersection rule hold at rest rather than only at request time.
+func (s *Server) handleCreateApiToken(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	var req struct {
-		Name string `json:"name"`
+		Name      string   `json:"name"`
+		OrgId     string   `json:"orgId"`
+		ProjectId string   `json:"projectId"`
+		Scopes    []string `json:"scopes"`
 	}
 	if err := readJSON(r, &req); err != nil || strings.TrimSpace(req.Name) == "" {
 		httpError(w, http.StatusBadRequest, "name required")
 		return
 	}
-	token, err := s.store.CreateApiToken(strings.TrimSpace(req.Name))
+	if cred.Actor.Account == "" {
+		httpError(w, http.StatusConflict, errNoSubject)
+		return
+	}
+	orgId, err := resolveProjectOrg(cred, req.OrgId)
 	if err != nil {
+		if errors.Is(err, authz.ErrForbidden) {
+			forbid(w, err)
+			return
+		}
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	scopes, err := authz.ParseScopes(strings.Join(req.Scopes, " "))
+	if err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if len(scopes) == 0 {
+		httpError(w, http.StatusBadRequest, "at least one scope is required")
+		return
+	}
+	projectId := strings.TrimSpace(req.ProjectId)
+	if projectId != "" {
+		project, err := s.store.ProjectById(projectId)
+		if err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		// A project in another org would give the token a boundary its own
+		// org row contradicts, so the pair has to agree before it is stored.
+		if project == nil || project.OrgId != orgId {
+			httpError(w, http.StatusNotFound, "project not found")
+			return
+		}
+	}
+	for _, c := range scopes {
+		if !cred.Actor.Can(c, orgId) {
+			httpError(w, http.StatusForbidden, "you cannot grant "+string(c)+" in this organization")
+			return
+		}
+	}
+	secret, row, err := s.store.CreateApiToken(strings.TrimSpace(req.Name), cred.Actor.Account,
+		authz.Grant{Org: orgId, Project: projectId, Scopes: scopes})
+	if err != nil {
+		if errors.Is(err, ErrTokenUnscoped) {
+			httpError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	// The plaintext token is shown exactly once.
-	writeJSON(w, map[string]string{"token": token})
+	// The plaintext secret is shown exactly once, beside the row so the
+	// cockpit can list what was just handed out without a second request.
+	w.WriteHeader(http.StatusCreated)
+	writeJSON(w, map[string]any{"token": secret, "row": row})
 }
 
-func (s *Server) handleDeleteApiToken(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+func (s *Server) handleDeleteApiToken(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	revoked, err := s.store.RevokeApiToken(r.PathValue("id"), cred.Actor.Account)
 	if err != nil {
-		httpError(w, http.StatusBadRequest, "bad id")
+		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if err := s.store.DeleteApiToken(id); err != nil {
-		httpError(w, http.StatusInternalServerError, err.Error())
+	// Someone else's token answers the same 404 as a missing one, so the id
+	// space cannot be probed for tokens you do not own.
+	if !revoked {
+		httpError(w, http.StatusNotFound, "token not found")
 		return
 	}
 	writeJSON(w, map[string]bool{"ok": true})

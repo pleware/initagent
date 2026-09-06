@@ -19,6 +19,7 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 
 	"github.com/pleware/initagent/internal/agent"
+	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/join"
 	"github.com/pleware/initagent/internal/mailer"
@@ -336,7 +337,7 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/password/reset", s.handlePasswordReset)
 	m.HandleFunc("POST /api/logout", s.handleLogout)
 	m.HandleFunc("GET /api/me", s.handleMe)
-	m.HandleFunc("PATCH /api/me", s.requireActor(s.handlePatchMe))
+	m.HandleFunc("PATCH /api/me", s.requireSession(s.handlePatchMe))
 	m.HandleFunc("GET /api/plans", s.handleListPlans)
 	m.HandleFunc("POST /api/enroll", s.handleEnroll)
 	m.HandleFunc("GET /install/", s.installer.ServeScript)
@@ -346,56 +347,68 @@ func (s *Server) routes() {
 	// Remote MCP endpoint (does its own Bearer-token auth).
 	m.HandleFunc("/mcp", s.handleMCPHTTP)
 
-	// Authenticated API.
-	m.HandleFunc("GET /api/devices", s.requireAuth(s.handleListDevices))
-	m.HandleFunc("PATCH /api/devices/{id}", s.requireAuth(s.handleRenameDevice))
-	m.HandleFunc("DELETE /api/devices/{id}", s.requireAuth(s.handleDeleteDevice))
-	m.HandleFunc("POST /api/enroll-tokens", s.requireAuth(s.handleCreateEnrollToken))
-	m.HandleFunc("GET /api/devices/{id}/sessions", s.requireAuth(s.handleListSessions))
-	m.HandleFunc("POST /api/devices/{id}/sessions", s.requireAuth(s.handleCreateSession))
-	m.HandleFunc("DELETE /api/devices/{id}/sessions/{name}", s.requireAuth(s.handleKillSession))
-	m.HandleFunc("POST /api/devices/{id}/sessions/{name}/input", s.requireAuth(s.handleSessionInput))
-	m.HandleFunc("GET /api/devices/{id}/sessions/{name}/output", s.requireAuth(s.handleSessionOutput))
-	m.HandleFunc("POST /api/devices/{id}/exec", s.requireAuth(s.handleExec))
-	m.HandleFunc("GET /api/devices/{id}/setup", s.requireAuth(s.handleSetupStatus))
-	m.HandleFunc("GET /api/devices/{id}/fs", s.requireAuth(s.handleFsList))
-	m.HandleFunc("GET /api/devices/{id}/fs/download", s.requireAuth(s.handleFsDownload))
-	m.HandleFunc("POST /api/devices/{id}/fs/upload", s.requireAuth(s.handleFsUpload))
-	m.HandleFunc("GET /api/templates", s.requireAuth(s.handleListTemplates))
-	m.HandleFunc("GET /api/projects", s.requireActor(s.handleListProjects))
-	m.HandleFunc("POST /api/projects", s.requireActor(s.handleCreateProject))
-	m.HandleFunc("PATCH /api/projects/{id}", s.requireActor(s.handleUpdateProject))
-	m.HandleFunc("DELETE /api/projects/{id}", s.requireActor(s.handleDeleteProject))
-	m.HandleFunc("POST /api/projects/{id}/devices", s.requireActor(s.handleAttachProjectDevice))
-	m.HandleFunc("DELETE /api/projects/{id}/devices/{deviceId}", s.requireActor(s.handleDetachProjectDevice))
-	m.HandleFunc("POST /api/projects/{id}/exec", s.requireActor(s.handleProjectExec))
-	m.HandleFunc("POST /api/tasks", s.requireAuth(s.handleCreateTask))
-	m.HandleFunc("GET /api/tasks/{id}", s.requireAuth(s.handleGetTask))
-	m.HandleFunc("GET /api/agents", s.requireAuth(s.handleFleetAgents))
-	m.HandleFunc("GET /api/presets", s.requireAuth(s.handleListPresets))
-	m.HandleFunc("POST /api/presets", s.requireAuth(s.handleCreatePreset))
-	m.HandleFunc("DELETE /api/presets/{id}", s.requireAuth(s.handleDeletePreset))
-	m.HandleFunc("GET /api/tokens", s.requireAuth(s.handleListApiTokens))
-	m.HandleFunc("POST /api/tokens", s.requireAuth(s.handleCreateApiToken))
-	m.HandleFunc("DELETE /api/tokens/{id}", s.requireAuth(s.handleDeleteApiToken))
-	m.HandleFunc("GET /api/updates", s.requireAuth(s.handleUpdateStatus))
-	m.HandleFunc("POST /api/updates/check", s.requireAuth(s.handleUpdateCheck))
-	m.HandleFunc("PATCH /api/updates", s.requireAuth(s.handleUpdateSettings))
-	m.HandleFunc("POST /api/updates/install", s.requireAuth(s.handleUpdateInstall))
-	m.HandleFunc("POST /api/updates/rollback", s.requireAuth(s.handleUpdateRollback))
-	m.HandleFunc("GET /api/ws/term", s.requireAuth(s.handleTermWS))
-	m.HandleFunc("GET /api/ws/events", s.requireAuth(s.handleEventsWS))
+	// Authenticated API. Every route below names exactly one capability, and
+	// the middleware it uses says where the boundary comes from: the machine
+	// in the path (requireDevice), a query parameter or the credential's own
+	// grant (requireFleet), a row the handler has to load first
+	// (requireCredential), or the installation itself.
+	m.HandleFunc("GET /api/devices", s.requireFleet(authz.ReadDevice, s.handleListDevices))
+	m.HandleFunc("PATCH /api/devices/{id}", s.requireDevice(authz.AdminDevice, plain(s.handleRenameDevice)))
+	m.HandleFunc("DELETE /api/devices/{id}", s.requireDevice(authz.AdminDevice, plain(s.handleDeleteDevice)))
+	m.HandleFunc("POST /api/enroll-tokens", s.requireFleet(authz.EnrollDevice, s.handleCreateEnrollToken))
+	m.HandleFunc("GET /api/devices/{id}/sessions", s.requireDevice(authz.ReadTerminal, plain(s.handleListSessions)))
+	m.HandleFunc("POST /api/devices/{id}/sessions", s.requireDevice(authz.AttachTerminal, plain(s.handleCreateSession)))
+	m.HandleFunc("DELETE /api/devices/{id}/sessions/{name}", s.requireDevice(authz.AttachTerminal, plain(s.handleKillSession)))
+	m.HandleFunc("POST /api/devices/{id}/sessions/{name}/input", s.requireDevice(authz.AttachTerminal, plain(s.handleSessionInput)))
+	m.HandleFunc("GET /api/devices/{id}/sessions/{name}/output", s.requireDevice(authz.ReadTerminal, plain(s.handleSessionOutput)))
+	m.HandleFunc("POST /api/devices/{id}/exec", s.requireDevice(authz.ExecDevice, plain(s.handleExec)))
+	m.HandleFunc("GET /api/devices/{id}/setup", s.requireDevice(authz.ReadDevice, plain(s.handleSetupStatus)))
+	m.HandleFunc("GET /api/devices/{id}/fs", s.requireDevice(authz.ReadFile, plain(s.handleFsList)))
+	m.HandleFunc("GET /api/devices/{id}/fs/download", s.requireDevice(authz.ReadFile, plain(s.handleFsDownload)))
+	m.HandleFunc("POST /api/devices/{id}/fs/upload", s.requireDevice(authz.WriteFile, plain(s.handleFsUpload)))
+	m.HandleFunc("GET /api/templates", s.requireFleet(authz.ReadTemplate, plain(s.handleListTemplates)))
+	m.HandleFunc("GET /api/projects", s.requireCredential(s.handleListProjects))
+	m.HandleFunc("POST /api/projects", s.requireCredential(s.handleCreateProject))
+	m.HandleFunc("PATCH /api/projects/{id}", s.requireCredential(s.handleUpdateProject))
+	m.HandleFunc("DELETE /api/projects/{id}", s.requireCredential(s.handleDeleteProject))
+	m.HandleFunc("POST /api/projects/{id}/devices", s.requireCredential(s.handleAttachProjectDevice))
+	m.HandleFunc("DELETE /api/projects/{id}/devices/{deviceId}", s.requireCredential(s.handleDetachProjectDevice))
+	m.HandleFunc("POST /api/projects/{id}/exec", s.requireCredential(s.handleProjectExec))
+	m.HandleFunc("POST /api/tasks", s.requireFleet(authz.CreateTask, s.handleCreateTask))
+	m.HandleFunc("GET /api/tasks/{id}", s.requireFleet(authz.ReadTask, s.handleGetTask))
+	m.HandleFunc("GET /api/agents", s.requireFleet(authz.ReadDevice, s.handleFleetAgents))
+	m.HandleFunc("GET /api/presets", s.requireFleet(authz.ReadPreset, plain(s.handleListPresets)))
+	m.HandleFunc("POST /api/presets", s.requireFleet(authz.AdminPreset, plain(s.handleCreatePreset)))
+	m.HandleFunc("DELETE /api/presets/{id}", s.requireFleet(authz.AdminPreset, plain(s.handleDeletePreset)))
+
+	// Credentials are session-only. A token that can mint a token launders a
+	// narrow grant into a wide one, and then every scope check above is
+	// decoration (09).
+	m.HandleFunc("GET /api/tokens", s.requireSession(s.handleListApiTokens))
+	m.HandleFunc("POST /api/tokens", s.requireSession(s.handleCreateApiToken))
+	m.HandleFunc("DELETE /api/tokens/{id}", s.requireSession(s.handleDeleteApiToken))
+
+	// Operating the installation, which is not something a machine secret
+	// reaches: a token's boundary is a project or a tenant.
+	m.HandleFunc("GET /api/updates", s.requireInstallation(authz.ReadUpdate, plain(s.handleUpdateStatus)))
+	m.HandleFunc("POST /api/updates/check", s.requireInstallation(authz.AdminUpdate, plain(s.handleUpdateCheck)))
+	m.HandleFunc("PATCH /api/updates", s.requireInstallation(authz.AdminUpdate, plain(s.handleUpdateSettings)))
+	m.HandleFunc("POST /api/updates/install", s.requireInstallation(authz.AdminUpdate, plain(s.handleUpdateInstall)))
+	m.HandleFunc("POST /api/updates/rollback", s.requireInstallation(authz.AdminUpdate, plain(s.handleUpdateRollback)))
+
+	m.HandleFunc("GET /api/ws/term", s.requireFleet(authz.AttachTerminal, plain(s.handleTermWS)))
+	m.HandleFunc("GET /api/ws/events", s.requireFleet(authz.ReadEvent, plain(s.handleEventsWS)))
 
 	// Hub surfaces: the installation's operator, and an organization's own
-	// people (17, 25). These take requireActor rather than requireAuth
-	// because they need to know who is asking, and because an unscoped API
-	// token must not be a way in (see requireActor).
-	m.HandleFunc("GET /api/admin/accounts", s.requireActor(s.handleListAccounts))
-	m.HandleFunc("GET /api/admin/orgs", s.requireActor(s.handleListAllOrgs))
-	m.HandleFunc("PATCH /api/orgs/{id}", s.requireActor(s.handleRenameOrg))
-	m.HandleFunc("GET /api/orgs/{id}/members", s.requireActor(s.handleListOrgMembers))
-	m.HandleFunc("PATCH /api/orgs/{id}/members/{accountId}", s.requireActor(s.handleSetOrgMemberRole))
-	m.HandleFunc("DELETE /api/orgs/{id}/members/{accountId}", s.requireActor(s.handleRemoveOrgMember))
+	// people (17, 25). These load an org or an account before they can name
+	// their boundary, so the capability check is in the handler with the row
+	// in hand rather than repeated here.
+	m.HandleFunc("GET /api/admin/accounts", s.requireCredential(s.handleListAccounts))
+	m.HandleFunc("GET /api/admin/orgs", s.requireCredential(s.handleListAllOrgs))
+	m.HandleFunc("PATCH /api/orgs/{id}", s.requireCredential(s.handleRenameOrg))
+	m.HandleFunc("GET /api/orgs/{id}/members", s.requireCredential(s.handleListOrgMembers))
+	m.HandleFunc("PATCH /api/orgs/{id}/members/{accountId}", s.requireCredential(s.handleSetOrgMemberRole))
+	m.HandleFunc("DELETE /api/orgs/{id}/members/{accountId}", s.requireCredential(s.handleRemoveOrgMember))
 
 	// Web UI (embedded SPA) at everything else.
 	if s.opts.UI != nil {

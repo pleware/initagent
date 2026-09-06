@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -147,39 +148,167 @@ func (r *rateLimiter) allow(remoteAddr string) bool {
 
 // --- middleware ---
 
-// requireAuth accepts either a valid browser session cookie or an API token
-// via Authorization: Bearer (used by the CLI and MCP server).
+// credHandler is a handler that has already been told who is asking. Every
+// guarded route takes one, so no handler reads a cookie or a bearer itself
+// and no handler has to know which of the two it received.
+type credHandler func(http.ResponseWriter, *http.Request, authz.Credential)
+
+// plain adapts a handler that does not need to know who is asking.
 //
-// This proves that somebody authenticated and nothing else. Endpoints that
-// need to know *who* use requireActor instead.
-func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
+// The middleware has already decided, and these handlers act on a target the
+// URL names. Marking them explicitly is worth the noise: the ones that *do*
+// take a credential are exactly the ones with something left to check or
+// filter, so this reads as a list of what is already settled.
+func plain(next http.HandlerFunc) credHandler {
+	return func(w http.ResponseWriter, r *http.Request, _ authz.Credential) { next(w, r) }
+}
+
+// bound is one organization-or-project pair a request could be acting in.
+//
+// Requests often have more than one candidate: a machine attached to three
+// projects is reachable by a credential holding any of them. The resolvers
+// below therefore return a list, and the middleware needs a single match.
+type bound struct {
+	org     string
+	project string
+}
+
+// atInstallation is the empty boundary — operating the hub itself rather than
+// acting inside a tenant. No token reaches it, by the rule in authz.Grant.
+var atInstallation = []bound{{}}
+
+// credentialOf resolves the secret on a request into who is asking and how
+// far that secret reaches.
+//
+// A cookie yields a session with no grant: a person is present, so their role
+// is the whole answer. A bearer yields the token's row, whose subject and
+// boundary are what let one handler serve both.
+func (s *Server) credentialOf(r *http.Request) (authz.Credential, bool, error) {
+	if c, err := r.Cookie(sessionCookie); err == nil {
+		if account, ok := s.sessions.lookup(c.Value); ok {
+			actor, err := s.resolveActor(account)
+			if err != nil {
+				return authz.Credential{}, false, err
+			}
+			return authz.Credential{Actor: actor}, true, nil
+		}
+	}
+	presented, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !ok || presented == "" {
+		return authz.Credential{}, false, nil
+	}
+	t, found, err := s.store.ApiTokenAuth(presented)
+	if err != nil || !found {
+		return authz.Credential{}, false, err
+	}
+	// A subjectless token cannot be written — the store refuses — but if one
+	// ever appeared it must not resolve to the legacy operator, because
+	// resolveActor reads an empty account as the installation's owner.
+	if t.AccountId == "" {
+		return authz.Credential{}, false, nil
+	}
+	actor, err := s.resolveActor(t.AccountId)
+	if err != nil {
+		return authz.Credential{}, false, err
+	}
+	grant := t.Grant
+	return authz.Credential{Actor: actor, Grant: &grant}, true, nil
+}
+
+// requireAt guards a route with exactly one capability, checked against the
+// boundaries the request could be acting in.
+//
+// It replaced a middleware that proved only "somebody authenticated". That
+// was enough while every credential was equal; it stopped being enough the
+// moment one of the routes behind it was arbitrary command execution on an
+// enrolled machine.
+func (s *Server) requireAt(c authz.Capability, at func(*http.Request, authz.Credential) ([]bound, error), next credHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if c, err := r.Cookie(sessionCookie); err == nil && s.sessions.valid(c.Value) {
-			next(w, r)
+		cred, ok, err := s.credentialOf(r)
+		if err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
-			token := strings.TrimPrefix(auth, "Bearer ")
-			if ok, _ := s.store.ValidApiToken(token); ok {
-				next(w, r)
+		if !ok {
+			httpError(w, http.StatusUnauthorized, "not authenticated")
+			return
+		}
+		bounds, err := at(r, cred)
+		if err != nil {
+			var notFound errNotFound
+			if errors.As(err, &notFound) {
+				httpError(w, http.StatusNotFound, err.Error())
+				return
+			}
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		for _, b := range bounds {
+			if cred.Can(c, b.org, b.project) {
+				next(w, r, cred)
 				return
 			}
 		}
-		httpError(w, http.StatusUnauthorized, "not authenticated")
+		refuse(w, cred, c, bounds)
 	}
 }
 
-// requireActor resolves who is making the request and hands the actor to the
-// handler, which then asks authz what that actor may do.
+// requireDevice guards a route whose path names the machine it acts on. The
+// boundary is that machine's, which is what keeps a project-scoped token off
+// another project's hardware.
+func (s *Server) requireDevice(c authz.Capability, next credHandler) http.HandlerFunc {
+	return s.requireAt(c, func(r *http.Request, _ authz.Credential) ([]bound, error) {
+		return s.boundsForDevice(strings.TrimSpace(r.PathValue("id")))
+	}, next)
+}
+
+// requireFleet guards a route that names its target by query parameter, or
+// not at all: creating a task, reading presets, watching events.
 //
-// **A browser session only, deliberately.** An API token would also satisfy
-// requireAuth, and API tokens carry no scope today: every token ever minted
-// for the CLI or for MCP would silently become a platform administrator the
-// moment an admin route went behind the older middleware. Scoping tokens
-// along 09's three axes is the real answer and is on the backlog; until then
-// the account surfaces are reachable by the credential that has a person
-// behind it.
-func (s *Server) requireActor(next func(http.ResponseWriter, *http.Request, authz.Actor)) http.HandlerFunc {
+// Separate from requireDevice on purpose. Several of these routes have an
+// {id} of their own — a task, a preset — and reading that as a device id
+// would check the wrong boundary and refuse every caller.
+func (s *Server) requireFleet(c authz.Capability, next credHandler) http.HandlerFunc {
+	return s.requireAt(c, s.atFleet, next)
+}
+
+// requireInstallation guards a route that operates the hub rather than using
+// it. Only the platform operator passes, and no token does.
+func (s *Server) requireInstallation(c authz.Capability, next credHandler) http.HandlerFunc {
+	return s.requireAt(c, func(*http.Request, authz.Credential) ([]bound, error) {
+		return atInstallation, nil
+	}, next)
+}
+
+// requireCredential admits any authenticated caller and leaves the capability
+// to the handler.
+//
+// For the routes that load a row before they can name their own boundary — a
+// project by path id, an org by path id — where checking here would mean
+// fetching it twice. Those handlers call Credential.Can with the row in hand.
+func (s *Server) requireCredential(next credHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cred, ok, err := s.credentialOf(r)
+		if err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if !ok {
+			httpError(w, http.StatusUnauthorized, "not authenticated")
+			return
+		}
+		next(w, r, cred)
+	}
+}
+
+// requireSession admits a browser session and refuses every token.
+//
+// Two surfaces need this. **Minting and revoking credentials**: a token that
+// can mint a token launders a narrow grant into a wide one, and every scope
+// check downstream becomes decoration. **The account behind a credential**:
+// changing its own password would let a read-only token trade itself for a
+// full session.
+func (s *Server) requireSession(next credHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookie)
 		if err != nil {
@@ -196,31 +325,118 @@ func (s *Server) requireActor(next func(http.ResponseWriter, *http.Request, auth
 			httpError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		next(w, r, actor)
+		next(w, r, authz.Credential{Actor: actor})
 	}
 }
 
-// optionalActor resolves who is behind a request when a browser session says
-// so, and reports nothing when the credential is an API token.
+// atFleet resolves the boundaries a fleet request acts in.
 //
-// It exists for the routes that requireAuth already guards, where knowing
-// the person lets us scope a project to their membership. Returning nil for a
-// token keeps that credential's semantics exactly as they are — unscoped
-// (09) — rather than quietly widening or narrowing it here.
-func (s *Server) optionalActor(r *http.Request) (*authz.Actor, error) {
-	c, err := r.Cookie(sessionCookie)
-	if err != nil {
-		return nil, nil
+// A named machine is the strongest signal available, so ?device= wins: the
+// projects it is attached to are its boundary. Failing that an explicit
+// ?project= answers, and failing that the credential's own boundary does —
+// the shape of a self-host install and of the CLI, where there is one of
+// everything.
+func (s *Server) atFleet(r *http.Request, cred authz.Credential) ([]bound, error) {
+	q := r.URL.Query()
+	if deviceId := strings.TrimSpace(q.Get("device")); deviceId != "" {
+		return s.boundsForDevice(deviceId)
 	}
-	account, ok := s.sessions.lookup(c.Value)
-	if !ok {
-		return nil, nil
+	if projectId := strings.TrimSpace(q.Get(projectParam)); projectId != "" {
+		return s.boundsForProject(projectId)
 	}
-	actor, err := s.resolveActor(account)
+	return credentialBounds(cred), nil
+}
+
+// boundsForDevice answers where a machine lives. An unattached machine yields
+// nothing, so nothing scoped can reach it — see Store.DeviceBoundaries.
+func (s *Server) boundsForDevice(deviceId string) ([]bound, error) {
+	rows, err := s.store.DeviceBoundaries(deviceId)
 	if err != nil {
 		return nil, err
 	}
-	return &actor, nil
+	out := make([]bound, 0, len(rows))
+	for _, b := range rows {
+		out = append(out, bound{org: b.OrgId, project: b.ProjectId})
+	}
+	return out, nil
+}
+
+// boundsForProject answers where a named project lives.
+//
+// A project that does not exist is a 404 rather than a refusal: the caller
+// named something absent, not something forbidden. Nothing leaks, because a
+// project that exists but lies outside the credential's reach answers 404
+// too — see resolveProject.
+func (s *Server) boundsForProject(projectId string) ([]bound, error) {
+	project, err := s.store.ProjectById(projectId)
+	if err != nil {
+		return nil, err
+	}
+	if project == nil {
+		return nil, errProjectNotFound
+	}
+	return []bound{{org: project.OrgId, project: project.Id}}, nil
+}
+
+// credentialBounds is the fallback for a request that names neither a device
+// nor a project: listing machines, reading presets, watching events.
+//
+// A session is checked in every org it belongs to, which is the reach it
+// already has. A token is checked in its own boundary, so the scope list does
+// the deciding and a token cannot widen itself by omitting a target.
+func credentialBounds(cred authz.Credential) []bound {
+	if cred.Grant != nil {
+		return []bound{{org: cred.Grant.Org, project: cred.Grant.Project}}
+	}
+	out := make([]bound, 0, len(cred.Actor.Orgs)+1)
+	for org := range cred.Actor.Orgs {
+		out = append(out, bound{org: org})
+	}
+	// The installation is appended, not substituted, so an operator who also
+	// owns an org keeps both surfaces.
+	return append(out, bound{})
+}
+
+// refuse explains a refusal in terms the caller can act on.
+//
+// A bare 403 is the worst possible answer after this change: the holder
+// cannot tell whether their credential is wrong, revoked, or simply missing
+// one verb. Naming the axis that failed makes re-minting an obvious next
+// step, and it discloses nothing the holder could not learn by trying.
+func refuse(w http.ResponseWriter, cred authz.Credential, c authz.Capability, bounds []bound) {
+	if !cred.Scoped() {
+		httpError(w, http.StatusForbidden, "not allowed")
+		return
+	}
+	if !slices.Contains(cred.Grant.Scopes, c) {
+		httpError(w, http.StatusForbidden, "this token is missing the "+string(c)+" scope")
+		return
+	}
+	inside := slices.ContainsFunc(bounds, func(b bound) bool {
+		return cred.Grant.Contains(b.org, b.project)
+	})
+	if !inside {
+		httpError(w, http.StatusForbidden, "this token is scoped to another project or organization")
+		return
+	}
+	// Scope and boundary both hold, so the account behind the token no longer
+	// has the role. That is the intersection working as intended.
+	httpError(w, http.StatusForbidden, "the account behind this token no longer has this permission")
+}
+
+// hideOrRefuse answers a refusal a handler makes after loading the row it
+// acts on, where a plain 403 and a plain 404 are each wrong half the time.
+//
+// A tenant the caller cannot see at all answers 404: on a hub with many
+// customers, "you may not see this" confirms it exists. But a token already
+// scoped *into* that tenant has learned nothing new, and hiding the row costs
+// its holder the one thing they need — the name of the scope to re-mint with.
+func hideOrRefuse(w http.ResponseWriter, cred authz.Credential, c authz.Capability, absent string, b bound) {
+	if cred.Scoped() && cred.Grant.Contains(b.org, b.project) {
+		refuse(w, cred, c, []bound{b})
+		return
+	}
+	httpError(w, http.StatusNotFound, absent)
 }
 
 // resolveActor turns an account id into the identity the rules read.
@@ -231,7 +447,15 @@ func (s *Server) optionalActor(r *http.Request) (*authz.Actor, error) {
 // membership, because there is no row saying otherwise.
 func (s *Server) resolveActor(account string) (authz.Actor, error) {
 	if account == "" {
-		return authz.Actor{Platform: true}, nil
+		// Such a hub may also have no organizations at all, in which case
+		// there is no boundary to enforce and this operator holds the fleet.
+		// The check runs only for this legacy credential, so a hub with
+		// accounts never pays for it.
+		orgs, err := s.store.ListOrgs()
+		if err != nil {
+			return authz.Actor{}, err
+		}
+		return authz.Actor{Platform: true, Unpartitioned: len(orgs) == 0}, nil
 	}
 	a, err := s.store.AccountById(account)
 	if err != nil {

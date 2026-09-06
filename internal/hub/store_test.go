@@ -554,24 +554,8 @@ func mustOrgId(t *testing.T, s *Store) string {
 	return orgs[0].Id
 }
 
-func TestApiTokens(t *testing.T) {
-	s := testStore(t)
-	token, err := s.CreateApiToken("ci")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ok, _ := s.ValidApiToken(token); !ok {
-		t.Error("fresh token should validate")
-	}
-	tokens, _ := s.ListApiTokens()
-	if len(tokens) != 1 {
-		t.Fatalf("got %d tokens", len(tokens))
-	}
-	s.DeleteApiToken(tokens[0].Id)
-	if ok, _ := s.ValidApiToken(token); ok {
-		t.Error("revoked token should fail")
-	}
-}
+// Token storage is covered by TestApiTokenLifecycle in tokens_test.go, which
+// asserts the three axes a token now carries rather than just its existence.
 
 func TestPresetsSeeded(t *testing.T) {
 	s := testStore(t)

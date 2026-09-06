@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 	"time"
@@ -55,10 +57,16 @@ CREATE TABLE IF NOT EXISTS presets (
 	kind    TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS api_tokens (
-	id         INTEGER PRIMARY KEY AUTOINCREMENT,
-	name       TEXT NOT NULL,
-	token_hash TEXT NOT NULL UNIQUE,
-	created_at INTEGER NOT NULL
+	id           TEXT PRIMARY KEY,
+	name         TEXT NOT NULL,
+	token_hash   TEXT NOT NULL UNIQUE,
+	account_id   TEXT NOT NULL,
+	org_id       TEXT NOT NULL,
+	project_id   TEXT NOT NULL DEFAULT '',
+	scopes       TEXT NOT NULL DEFAULT '',
+	created_at   INTEGER NOT NULL,
+	last_used_at INTEGER NOT NULL DEFAULT 0,
+	revoked_at   INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS projects (
 	id           TEXT PRIMARY KEY,
@@ -165,10 +173,16 @@ CREATE TABLE IF NOT EXISTS presets (
 	kind    TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS api_tokens (
-	id         BIGSERIAL PRIMARY KEY,
-	name       TEXT NOT NULL,
-	token_hash TEXT NOT NULL UNIQUE,
-	created_at BIGINT NOT NULL
+	id           TEXT PRIMARY KEY,
+	name         TEXT NOT NULL,
+	token_hash   TEXT NOT NULL UNIQUE,
+	account_id   TEXT NOT NULL,
+	org_id       TEXT NOT NULL,
+	project_id   TEXT NOT NULL DEFAULT '',
+	scopes       TEXT NOT NULL DEFAULT '',
+	created_at   BIGINT NOT NULL,
+	last_used_at BIGINT NOT NULL DEFAULT 0,
+	revoked_at   BIGINT NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS projects (
 	id           TEXT PRIMARY KEY,
@@ -291,6 +305,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureAccountLocale(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring account locale: %w", err)
+	}
+	if err := s.ensureApiTokens(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring api tokens: %w", err)
 	}
 	if err := s.seedPresets(); err != nil {
 		db.Close()
@@ -479,6 +497,54 @@ func (s *Store) ensureMailOutbox() error {
 		return err
 	}
 	_, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS mail_outbox_due ON mail_outbox (status, available_at, id)`)
+	return err
+}
+
+// ensureApiTokens reshapes a live hub's token table onto the three axes of
+// 09: subject, boundary, verbs. CREATE TABLE IF NOT EXISTS in the schema
+// batch does not alter a table that already exists.
+//
+// **Every existing row is destroyed.** That is the decision, not an accident.
+// The old shape recorded no subject, so an inherited row has nobody to
+// attribute it to and no honest boundary to be given; keeping them would have
+// left fleet-wide execution alive behind exactly the credential this change
+// retires. Operators re-mint, and the release note says so before they
+// upgrade.
+//
+// Detection is the presence of account_id, so this runs once. A restart must
+// not be a way to lose working credentials.
+func (s *Store) ensureApiTokens() error {
+	ok, err := s.hasColumn("api_tokens", "account_id")
+	if err != nil || ok {
+		return err
+	}
+	if _, err := s.db.Exec(`DROP TABLE IF EXISTS api_tokens`); err != nil {
+		return err
+	}
+	createdAt := "INTEGER NOT NULL"
+	stamp := "INTEGER NOT NULL DEFAULT 0"
+	if s.db.Dialect() == store.Postgres {
+		createdAt = "BIGINT NOT NULL"
+		stamp = "BIGINT NOT NULL DEFAULT 0"
+	}
+	if _, err := s.db.Exec(`CREATE TABLE api_tokens (
+		id           TEXT PRIMARY KEY,
+		name         TEXT NOT NULL,
+		token_hash   TEXT NOT NULL UNIQUE,
+		account_id   TEXT NOT NULL,
+		org_id       TEXT NOT NULL,
+		project_id   TEXT NOT NULL DEFAULT '',
+		scopes       TEXT NOT NULL DEFAULT '',
+		created_at   ` + createdAt + `,
+		last_used_at ` + stamp + `,
+		revoked_at   ` + stamp + `
+	)`); err != nil {
+		return err
+	}
+	// Index outside the CREATE TABLE text, the same way ensureMailOutbox does
+	// it: an index statement folded into a table batch is what crash-looped
+	// v0.3.2 on the live hub.
+	_, err = s.db.Exec(`CREATE INDEX IF NOT EXISTS api_tokens_account_id ON api_tokens(account_id)`)
 	return err
 }
 
@@ -1520,6 +1586,39 @@ func (s *Store) fillProjectsDeviceIds(projects []Project) error {
 	return nil
 }
 
+// DeviceBoundary is one place a machine is reachable from: the project it is
+// attached to, and the organization that owns that project.
+type DeviceBoundary struct {
+	OrgId     string
+	ProjectId string
+}
+
+// DeviceBoundaries lists where a machine lives.
+//
+// A machine can serve several projects, so this is a list and a credential
+// reaching any one entry reaches the machine. An empty result means the
+// machine is attached to nothing, which no scoped credential can reach —
+// there is no owner to check against, and treating an orphan as everyone's
+// would make it the one device every token could touch.
+func (s *Store) DeviceBoundaries(deviceId string) ([]DeviceBoundary, error) {
+	rows, err := s.db.Query(`SELECT p.org_id, p.id FROM project_devices pd
+		JOIN projects p ON p.id = pd.project_id
+		WHERE pd.device_id = ? ORDER BY p.id`, deviceId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []DeviceBoundary
+	for rows.Next() {
+		var b DeviceBoundary
+		if err := rows.Scan(&b.OrgId, &b.ProjectId); err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) deviceIdsByProjects(projectIds []string) (map[string][]string, error) {
 	out := make(map[string][]string, len(projectIds))
 	for _, id := range projectIds {
@@ -1618,48 +1717,154 @@ func (s *Store) DeletePreset(id int64) error {
 
 // --- API tokens ---
 
+// ApiToken is one issued credential as the cockpit lists it. The secret is
+// absent by construction: it exists in plaintext exactly once, in the reply
+// to the mint that produced it.
 type ApiToken struct {
-	Id        int64  `json:"id"`
-	Name      string `json:"name"`
-	CreatedAt int64  `json:"createdAt"`
+	Id         string   `json:"id"`
+	Name       string   `json:"name"`
+	AccountId  string   `json:"accountId"`
+	OrgId      string   `json:"orgId"`
+	ProjectId  string   `json:"projectId"`
+	Scopes     []string `json:"scopes"`
+	CreatedAt  int64    `json:"createdAt"`
+	LastUsedAt int64    `json:"lastUsedAt"`
 }
 
-func (s *Store) CreateApiToken(name string) (string, error) {
-	token := brand.TokenPrefix + randomToken()
-	_, err := s.db.Exec(`INSERT INTO api_tokens (name, token_hash, created_at) VALUES (?, ?, ?)`,
-		name, hashToken(token), time.Now().Unix())
-	return token, err
+// TokenAuth is what a presented secret proves: the account it acts as, and
+// how far it reaches. The hub turns one into an authz.Credential at the edge
+// so no handler downstream reads a bearer again.
+type TokenAuth struct {
+	TokenId   string
+	AccountId string
+	Grant     authz.Grant
 }
 
-func (s *Store) ValidApiToken(token string) (bool, error) {
-	var id int64
-	err := s.db.QueryRow(`SELECT id FROM api_tokens WHERE token_hash = ?`, hashToken(token)).Scan(&id)
-	if err == sql.ErrNoRows {
-		return false, nil
+// ErrTokenUnscoped refuses a mint missing one of 09's three axes. A token
+// without all of them is precisely the credential this table was rebuilt to
+// eliminate, so the store declines to write one even when a handler asks.
+var ErrTokenUnscoped = errors.New("a token needs an account, an organization and at least one scope")
+
+// CreateApiToken mints a scoped credential and returns the secret once,
+// alongside the row the cockpit will list.
+func (s *Store) CreateApiToken(name, accountId string, g authz.Grant) (string, ApiToken, error) {
+	if accountId == "" || g.Org == "" || len(g.Scopes) == 0 {
+		return "", ApiToken{}, ErrTokenUnscoped
 	}
-	return err == nil, err
+	rowId, err := id.New(id.Token)
+	if err != nil {
+		return "", ApiToken{}, err
+	}
+	secret := brand.TokenPrefix + randomToken()
+	now := time.Now().Unix()
+	scopes := authz.FormatScopes(g.Scopes)
+	if _, err := s.db.Exec(`INSERT INTO api_tokens
+		(id, name, token_hash, account_id, org_id, project_id, scopes, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		rowId, name, hashToken(secret), accountId, g.Org, g.Project, scopes, now); err != nil {
+		return "", ApiToken{}, err
+	}
+	return secret, ApiToken{
+		Id:        rowId,
+		Name:      name,
+		AccountId: accountId,
+		OrgId:     g.Org,
+		ProjectId: g.Project,
+		Scopes:    strings.Fields(scopes),
+		CreatedAt: now,
+	}, nil
 }
 
-func (s *Store) ListApiTokens() ([]ApiToken, error) {
-	rows, err := s.db.Query(`SELECT id, name, created_at FROM api_tokens ORDER BY id`)
+// ApiTokenAuth resolves a presented secret into its subject and reach.
+//
+// A revoked row is not found rather than returned-and-flagged: revocation has
+// to be a hard stop here, not a field some later caller might forget to test.
+func (s *Store) ApiTokenAuth(secret string) (TokenAuth, bool, error) {
+	var (
+		a        TokenAuth
+		project  string
+		scopes   string
+		lastUsed int64
+	)
+	err := s.db.QueryRow(`SELECT id, account_id, org_id, project_id, scopes, last_used_at
+		FROM api_tokens WHERE token_hash = ? AND revoked_at = 0`, hashToken(secret)).
+		Scan(&a.TokenId, &a.AccountId, &a.Grant.Org, &project, &scopes, &lastUsed)
+	if err == sql.ErrNoRows {
+		return TokenAuth{}, false, nil
+	}
+	if err != nil {
+		return TokenAuth{}, false, err
+	}
+	parsed, err := authz.ParseScopes(scopes)
+	if err != nil {
+		// A scope list this build does not understand is refused, never
+		// downgraded to the subset it happens to recognise. Silently
+		// honouring less is confusing; silently honouring more is a breach.
+		return TokenAuth{}, false, err
+	}
+	a.Grant.Project = project
+	a.Grant.Scopes = parsed
+	s.touchApiToken(a.TokenId, lastUsed)
+	return a, true, nil
+}
+
+// touchApiToken records use at minute granularity, best effort.
+//
+// "When was this last used" is read by a person deciding whether to revoke,
+// and that answer does not need a database write on every request — nor is it
+// worth failing a request the credential was entitled to make.
+func (s *Store) touchApiToken(tokenId string, lastUsed int64) {
+	now := time.Now().Unix()
+	if now-lastUsed < 60 {
+		return
+	}
+	if _, err := s.db.Exec(`UPDATE api_tokens SET last_used_at = ? WHERE id = ?`, now, tokenId); err != nil {
+		log.Printf("stamping last use on %s: %v", tokenId, err)
+	}
+}
+
+// ListApiTokens returns one account's own credentials.
+//
+// Scoped to the account on purpose: listing every token on the hub was
+// tolerable while a token had no owner, but now it would show one person how
+// far another person's secrets reach.
+func (s *Store) ListApiTokens(accountId string) ([]ApiToken, error) {
+	rows, err := s.db.Query(`SELECT id, name, account_id, org_id, project_id, scopes, created_at, last_used_at
+		FROM api_tokens WHERE account_id = ? AND revoked_at = 0 ORDER BY created_at, id`, accountId)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []ApiToken
 	for rows.Next() {
-		var t ApiToken
-		if err := rows.Scan(&t.Id, &t.Name, &t.CreatedAt); err != nil {
+		var (
+			t      ApiToken
+			scopes string
+		)
+		if err := rows.Scan(&t.Id, &t.Name, &t.AccountId, &t.OrgId, &t.ProjectId,
+			&scopes, &t.CreatedAt, &t.LastUsedAt); err != nil {
 			return nil, err
 		}
+		t.Scopes = strings.Fields(scopes)
 		out = append(out, t)
 	}
 	return out, rows.Err()
 }
 
-func (s *Store) DeleteApiToken(id int64) error {
-	_, err := s.db.Exec(`DELETE FROM api_tokens WHERE id = ?`, id)
-	return err
+// RevokeApiToken stops a credential and reports whether it found one.
+//
+// Scoped to the owner, so one person cannot revoke another's. It stamps
+// rather than deletes: 09 wants token mint and revoke in the audit log, and
+// a deleted row leaves that entry pointing at nothing.
+func (s *Store) RevokeApiToken(tokenId, accountId string) (bool, error) {
+	res, err := s.db.Exec(`UPDATE api_tokens SET revoked_at = ?
+		WHERE id = ? AND account_id = ? AND revoked_at = 0`,
+		time.Now().Unix(), tokenId, accountId)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
 }
 
 func boolInt(b bool) int {

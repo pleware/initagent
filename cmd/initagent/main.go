@@ -3,9 +3,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -253,7 +255,15 @@ func cmdFleet(args []string) error {
 		}
 		client := fleet.New(*hubURL, *token)
 		if _, err := client.Devices(); err != nil {
-			return fmt.Errorf("could not talk to hub: %w", err)
+			// A refusal is proof the credential is live: the hub read it,
+			// found the account behind it and declined one verb. A token
+			// minted for tasks alone is a legitimate token, so saving it is
+			// right — only say which door it will not open.
+			var refused *fleet.StatusError
+			if !errors.As(err, &refused) || refused.Code != http.StatusForbidden {
+				return fmt.Errorf("could not talk to hub: %w", err)
+			}
+			fmt.Println("note: " + refused.Message)
 		}
 		if err := fleet.SaveConfig(fleet.ClientConfig{HubURL: *hubURL, Token: *token}); err != nil {
 			return err

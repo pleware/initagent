@@ -106,7 +106,7 @@ export default function App() {
         <Route path="/devices/:id" element={<DevicePage />} />
         <Route path="/agents" element={<AgentsPage />} />
         <Route path="/setup" element={<SetupPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings" element={<SettingsPage me={me} />} />
         <Route path="/people" element={<PeoplePage me={me} onChanged={refresh} />} />
         {/* The administration surface exists for the operator of this hub.
             The route is absent for everyone else rather than rendering a

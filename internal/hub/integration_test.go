@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/pleware/initagent/internal/authz"
 	"time"
 
 	"github.com/pleware/initagent/internal/agent"
@@ -265,7 +267,7 @@ func TestAuthFlow(t *testing.T) {
 	}
 	// API token auth.
 	var resp *http.Response
-	apiToken, _ := srv.store.CreateApiToken("test")
+	apiToken := fleetToken(t, srv.store, "", authz.ReadDevice, authz.ReadProject)
 	req, _ := http.NewRequest("GET", ts.URL+"/api/devices", nil)
 	req.Header.Set("Authorization", "Bearer "+apiToken)
 	resp, _ = http.DefaultClient.Do(req)

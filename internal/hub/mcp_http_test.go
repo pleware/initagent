@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/pleware/initagent/internal/authz"
 )
 
 // mcpCall posts one JSON-RPC message to the /mcp endpoint with the given token.
@@ -28,11 +30,10 @@ func mcpCall(t *testing.T, base, token, body string) (int, map[string]any) {
 
 func TestMCPHTTPEndpoint(t *testing.T) {
 	srv, base := startHub(t)
-	connectAgent(t, srv, base)
-	token, err := srv.store.CreateApiToken("mcp-http-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	deviceId := connectAgent(t, srv, base)
+	// MCP tools re-enter the hub's own API with this token, so the scopes it
+	// carries are the scopes its tools have.
+	token := fleetToken(t, srv.store, deviceId)
 
 	t.Run("rejects missing token", func(t *testing.T) {
 		code, _ := mcpCall(t, base, "", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
@@ -88,6 +89,29 @@ func TestMCPHTTPEndpoint(t *testing.T) {
 		text, _ := first["text"].(string)
 		if !strings.Contains(text, "mcp-http-121") {
 			t.Errorf("run_command output = %q", text)
+		}
+	})
+
+	// The scopes travel with the bearer all the way through the re-entry, so
+	// a narrow token reaches the tool and is refused by the ordinary route
+	// guard. The refusal has to name the verb: an agent told only "Error:
+	// forbidden" has nothing to report back to the person who minted it.
+	t.Run("a tool refusal names the missing scope", func(t *testing.T) {
+		narrow := fleetToken(t, srv.store, deviceId, authz.ReadDevice, authz.ReadProject)
+		body := `{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"run_command","arguments":{"device":"test-device","command":"echo nope"}}}`
+		code, out := mcpCall(t, base, narrow, body)
+		if code != 200 {
+			t.Fatalf("got %d; a scope refusal is a tool error, not a transport failure", code)
+		}
+		res, _ := out["result"].(map[string]any)
+		if res["isError"] != true {
+			t.Fatalf("result = %v; want a tool error", res)
+		}
+		content, _ := res["content"].([]any)
+		first, _ := content[0].(map[string]any)
+		text, _ := first["text"].(string)
+		if !strings.Contains(text, string(authz.ExecDevice)) {
+			t.Errorf("tool error = %q; want it to name %q", text, authz.ExecDevice)
 		}
 	})
 

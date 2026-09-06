@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"github.com/pleware/initagent/internal/authz"
 )
 
 // TestTerminalBridge drives the full browser path: WS into the hub, PTY on
@@ -20,10 +22,8 @@ func TestTerminalBridge(t *testing.T) {
 	srv, base := startHub(t)
 	deviceId := connectAgent(t, srv, base)
 
-	apiToken, err := srv.store.CreateApiToken("term-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	apiToken := fleetToken(t, srv.store, deviceId,
+		authz.AttachTerminal, authz.ReadTerminal, authz.ReadProject)
 	session := fmt.Sprintf("ovsr-term-%d", time.Now().UnixNano())
 	defer exec.Command("tmux", "kill-session", "-t", session).Run()
 

@@ -79,7 +79,7 @@ func TestListDevicesAsksGateway(t *testing.T) {
 	srv.opts.GatewayURL = ts.URL
 	req := httptest.NewRequest("GET", "/api/devices", nil)
 	w := httptest.NewRecorder()
-	srv.handleListDevices(w, req)
+	srv.handleListDevices(w, req, operatorCred)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}
@@ -97,7 +97,7 @@ func TestCreateEnrollTokenRequiresGatewayURL(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/enroll-tokens", nil)
 	req.Host = "hub.example:4200"
 	w := httptest.NewRecorder()
-	srv.handleCreateEnrollToken(w, req)
+	srv.handleCreateEnrollToken(w, req, operatorCred)
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want 503 (must not bake r.Host)", w.Code)
 	}
@@ -117,7 +117,7 @@ func TestCreateEnrollTokenAsksGateway(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/enroll-tokens", nil)
 	req.Host = "hub.example:4200"
 	w := httptest.NewRecorder()
-	srv.handleCreateEnrollToken(w, req)
+	srv.handleCreateEnrollToken(w, req, operatorCred)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}

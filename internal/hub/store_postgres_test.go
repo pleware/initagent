@@ -87,12 +87,20 @@ func TestStorePostgresSmoke(t *testing.T) {
 		t.Fatal("enroll token did not consume on first use")
 	}
 
-	apiTok, err := s.CreateApiToken("smoke-ci")
+	tokenOwner, tokenOrg := seedOwner(t, s)
+	apiTok, _, err := s.CreateApiToken("smoke-ci", tokenOwner,
+		authz.Grant{Org: tokenOrg, Scopes: []authz.Capability{authz.ReadDevice}})
 	if err != nil {
 		t.Fatalf("CreateApiToken: %v", err)
 	}
-	if ok, _ := s.ValidApiToken(apiTok); !ok {
-		t.Fatal("fresh api token should validate")
+	// The scope column round-trips through Postgres, not only SQLite: this is
+	// the dialect where a BIGINT/TEXT mismatch in the rebuilt table would show.
+	resolved, ok, err := s.ApiTokenAuth(apiTok)
+	if err != nil || !ok {
+		t.Fatalf("ApiTokenAuth = (%v, %v)", ok, err)
+	}
+	if resolved.Grant.Org != tokenOrg || len(resolved.Grant.Scopes) != 1 {
+		t.Fatalf("resolved grant = %+v; want the one minted", resolved.Grant)
 	}
 
 	// Accounts are the reason to care about this test rather than trusting

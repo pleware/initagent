@@ -3,7 +3,10 @@
 # 👁️ initagent
 
 [![CI](https://github.com/pleware/initagent/actions/workflows/ci.yml/badge.svg)](https://github.com/pleware/initagent/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/pleware/initagent/branch/main/graph/badge.svg)](https://codecov.io/gh/pleware/initagent)
 [![Go](https://img.shields.io/github/go-mod/go-version/pleware/initagent)](https://github.com/pleware/initagent/blob/main/go.mod)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/pleware/initagent)](https://github.com/pleware/initagent/releases)
 
 **Control all your machines from one browser tab.**
 

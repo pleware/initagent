@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-06 — Publish owned-package coverage to Codecov and add public README badges.
 - 2026-09-06 — Cut v0.3.11 so a queued run can finish through process or send_keys and a reconnect does not repeat it
 
 ## v0.3.11 — 2026-09-06

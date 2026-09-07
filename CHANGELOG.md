@@ -5,6 +5,7 @@
 - 2026-09-07 — Vendor Vercel web-design and composition skills for site and ui.
 - 2026-09-07 — Add a WebGL tile lift on the guest login art.
 - 2026-09-07 — Make login art tiles 20px with a 100px lift and fill the pane.
+- 2026-09-07 — Extrude login art tiles as cubes up to 1000px.
 - 2026-09-07 — Show the first-task result in the same code box as the command, a shade darker
 - 2026-09-07 — Read the Windows ConPTY exit code instead of inventing 1
 - 2026-09-07 — Proxy the fleet terminal through the gateway so + Terminal works

@@ -69,9 +69,9 @@ export default function AuthSplitBg() {
         className="absolute inset-0 size-full"
         tileSize={20}
         radius={200}
-        depth={100}
-        gap={2}
-        rotationStrength={8}
+        depth={1000}
+        gap={5}
+        rotationStrength={16}
         easing={0.08}
         fallback={<Variant assets={assets} />}
       />

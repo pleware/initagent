@@ -91,11 +91,13 @@ const ATLAS_VERTEX = /* glsl */ `
 attribute vec2 uvOffset;
 attribute vec2 uvScale;
 varying vec2 vAtlasUv;
-varying vec3 vNormal;
+varying vec3 vWorldNormal;
+varying vec3 vLocalNormal;
 
 void main() {
-  vAtlasUv = uv * uvScale + uvOffset;
-  vNormal = normalize(normalMatrix * mat3(instanceMatrix) * normal);
+  vAtlasUv = uv * uvScale * 0.996 + uvOffset + uvScale * 0.002;
+  vLocalNormal = normal;
+  vWorldNormal = normalize(normalMatrix * mat3(instanceMatrix) * normal);
   gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
 }
 `
@@ -103,13 +105,18 @@ void main() {
 const ATLAS_FRAGMENT = /* glsl */ `
 uniform sampler2D map;
 varying vec2 vAtlasUv;
-varying vec3 vNormal;
+varying vec3 vWorldNormal;
+varying vec3 vLocalNormal;
 
 void main() {
-  vec4 tex = texture2D(map, vAtlasUv);
-  vec3 lightDir = normalize(vec3(0.25, 0.4, 1.0));
-  float lambert = 0.88 + 0.12 * max(dot(normalize(vNormal), lightDir), 0.0);
-  gl_FragColor = vec4(tex.rgb * lambert, tex.a);
+  bool front = normalize(vLocalNormal).z > 0.5;
+  vec3 albedo = front ? texture2D(map, vAtlasUv).rgb : vec3(0.48, 0.49, 0.52);
+  vec3 n = normalize(vWorldNormal);
+  vec3 key = normalize(vec3(0.55, 0.35, 0.6));
+  vec3 fill = normalize(vec3(-0.45, 0.15, 0.4));
+  float lit = 0.22 + 0.62 * max(dot(n, key), 0.0) + 0.28 * max(dot(n, fill), 0.0);
+  float shade = front ? (0.86 + 0.14 * max(dot(n, key), 0.0)) : lit;
+  gl_FragColor = vec4(albedo * shade, 1.0);
 }
 `
 
@@ -192,7 +199,7 @@ function TileGrid({
   gridRef.current = grid
 
   const geometry = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(grid.tileW, grid.tileH)
+    const geo = new THREE.BoxGeometry(grid.tileW, grid.tileH, 1)
     geo.setAttribute('uvOffset', new THREE.InstancedBufferAttribute(grid.uvOffset, 2))
     geo.setAttribute('uvScale', new THREE.InstancedBufferAttribute(grid.uvScale, 2))
     return geo
@@ -266,12 +273,15 @@ function TileGrid({
         moving = true
       }
 
-      const shrink = gap > 0 ? (force * gap) / Math.min(buffers.tileW, buffers.tileH) : 0
-      const scale = Math.max(0.92, 1 - shrink)
+      const tileMin = Math.min(buffers.tileW, buffers.tileH)
+      const shrink = gap > 0 ? (force * gap) / tileMin : 0
+      const restOverlap = (1 - Math.min(1, buffers.z[i] / 12)) * (1.5 / tileMin)
+      const scale = Math.max(0.92, 1 - shrink + restOverlap)
+      const thickness = Math.max(0.02, buffers.z[i])
 
-      obj.position.set(buffers.centersX[i], buffers.centersY[i], buffers.z[i])
+      obj.position.set(buffers.centersX[i], buffers.centersY[i], thickness / 2)
       obj.rotation.set(buffers.rotX[i], buffers.rotY[i], 0)
-      obj.scale.set(scale, scale, 1)
+      obj.scale.set(scale, scale, thickness)
       obj.updateMatrix()
       mesh.setMatrixAt(i, obj.matrix)
     }
@@ -356,11 +366,11 @@ export default function TileImageCanvas({
     <div ref={setContainer} className="absolute inset-0 size-full">
       <Canvas
         camera={{ fov: CAMERA_FOV, position: [0, 0, 800], near: 1, far: 4000 }}
-        dpr={[1, 2]}
+        dpr={1}
         flat
         linear
         resize={{ debounce: 0, scroll: false, offsetSize: true }}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        gl={{ antialias: false, alpha: true, powerPreference: 'high-performance', stencil: false }}
         style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }}
       >
         {container ? <BindToContainer container={container} /> : null}

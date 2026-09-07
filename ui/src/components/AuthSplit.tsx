@@ -33,11 +33,11 @@ export default function AuthSplit({
         {t('publicNav.skipToForm')}
       </a>
       <GuestNav />
-      <div className="flex h-full min-h-0 pt-16">
+      <div className="flex min-h-dvh pt-16">
         <div className="flex flex-1 flex-col justify-center overflow-y-auto bg-canvas px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
           <div className="mx-auto w-full max-w-sm lg:w-96">{children}</div>
         </div>
-        <div className="relative hidden w-0 flex-1 overflow-hidden lg:block" aria-hidden>
+        <div className="relative hidden min-h-[calc(100dvh-4rem)] w-0 flex-1 overflow-hidden lg:block" aria-hidden>
           <AuthSplitBg />
         </div>
       </div>

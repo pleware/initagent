@@ -71,12 +71,8 @@ export function coverPlaneSize(
   imageW: number,
   imageH: number,
 ): { width: number; height: number } {
-  const imageAspect = imageW / imageH
-  const viewAspect = viewW / viewH
-  if (viewAspect > imageAspect) {
-    return { width: viewW, height: viewW / imageAspect }
-  }
-  return { width: viewH * imageAspect, height: viewH }
+  const scale = Math.max(viewW / Math.max(imageW, 1), viewH / Math.max(imageH, 1))
+  return { width: imageW * scale, height: imageH * scale }
 }
 
 export function rowsFromImage(columns: number, imageW: number, imageH: number): number {

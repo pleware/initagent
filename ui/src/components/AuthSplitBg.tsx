@@ -67,11 +67,11 @@ export default function AuthSplitBg() {
         key={mode}
         src={assets.png}
         className="absolute inset-0 size-full"
-        tileSize={10}
+        tileSize={20}
         radius={200}
-        depth={32}
+        depth={100}
         gap={2}
-        rotationStrength={3}
+        rotationStrength={8}
         easing={0.08}
         fallback={<Variant assets={assets} />}
       />

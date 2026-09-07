@@ -91,9 +91,11 @@ const ATLAS_VERTEX = /* glsl */ `
 attribute vec2 uvOffset;
 attribute vec2 uvScale;
 varying vec2 vAtlasUv;
+varying vec3 vNormal;
 
 void main() {
   vAtlasUv = uv * uvScale + uvOffset;
+  vNormal = normalize(normalMatrix * mat3(instanceMatrix) * normal);
   gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
 }
 `
@@ -101,9 +103,13 @@ void main() {
 const ATLAS_FRAGMENT = /* glsl */ `
 uniform sampler2D map;
 varying vec2 vAtlasUv;
+varying vec3 vNormal;
 
 void main() {
-  gl_FragColor = texture2D(map, vAtlasUv);
+  vec4 tex = texture2D(map, vAtlasUv);
+  vec3 lightDir = normalize(vec3(0.25, 0.4, 1.0));
+  float lambert = 0.88 + 0.12 * max(dot(normalize(vNormal), lightDir), 0.0);
+  gl_FragColor = vec4(tex.rgb * lambert, tex.a);
 }
 `
 
@@ -235,7 +241,7 @@ function TileGrid({
     smooth.current.y += (targetY - smooth.current.y) * MOUSE_SMOOTHING
 
     const rotRad = THREE.MathUtils.degToRad(rotationStrength)
-    const depthWorld = depth * (camera.position.z / 800)
+    const depthWorld = depth
     const obj = dummy.current
     let moving = false
 

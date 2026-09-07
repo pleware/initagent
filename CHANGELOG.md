@@ -3,6 +3,7 @@
 ## Unreleased — product
 
 - 2026-09-07 — Add a WebGL tile lift on the guest login art.
+- 2026-09-07 — Make login art tiles 20px with a 100px lift and fill the pane.
 - 2026-09-06 — Label the site GitHub control GitHub, not Source
 - 2026-09-06 — Require a CLA on outside pull requests
 - 2026-09-06 — Relicense the product under FSL-1.1-ALv2; Overseer stays MIT in NOTICE

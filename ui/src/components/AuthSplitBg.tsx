@@ -5,6 +5,7 @@ import {
   authBgLight,
   type AuthBgAssets,
 } from '../assets/auth/bg.gen.ts'
+import { TileImage3D } from './effects/TileImage3D/TileImage3D.tsx'
 
 function readPaneMode(): ThemeMode {
   return modeFromThemeId(document.documentElement.dataset.theme ?? '')
@@ -62,7 +63,18 @@ export default function AuthSplitBg() {
   return (
     <div className="absolute inset-0">
       <div className="absolute inset-0 bg-sidebar" />
-      <Variant key={mode} assets={assets} />
+      <TileImage3D
+        key={mode}
+        src={assets.png}
+        className="absolute inset-0 size-full"
+        tileSize={10}
+        radius={200}
+        depth={32}
+        gap={2}
+        rotationStrength={3}
+        easing={0.08}
+        fallback={<Variant assets={assets} />}
+      />
     </div>
   )
 }

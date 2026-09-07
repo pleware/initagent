@@ -2,8 +2,15 @@
 
 ## Unreleased — product
 
+- 2026-09-07 — Vendor Vercel web-design and composition skills for site and ui.
 - 2026-09-07 — Add a WebGL tile lift on the guest login art.
 - 2026-09-07 — Make login art tiles 20px with a 100px lift and fill the pane.
+- 2026-09-07 — Show the first-task result in the same code box as the command, a shade darker
+- 2026-09-07 — Read the Windows ConPTY exit code instead of inventing 1
+- 2026-09-07 — Proxy the fleet terminal through the gateway so + Terminal works
+- 2026-09-07 — Keep boarding open until the funnel finishes, and add I'll decide later
+- 2026-09-07 — Enroll the self-host box as a worker when the first project is created
+- 2026-09-07 — Show the initAgent wordmark in headers
 - 2026-09-06 — Label the site GitHub control GitHub, not Source
 - 2026-09-06 — Require a CLA on outside pull requests
 - 2026-09-06 — Relicense the product under FSL-1.1-ALv2; Overseer stays MIT in NOTICE

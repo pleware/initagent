@@ -92,7 +92,7 @@ func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	if err := ws.WriteJSON(welcome); err != nil {
+	if err := ac.sendJSON(welcome); err != nil {
 		return
 	}
 	log.Printf("device %s (%s) connected", device.Name, device.ID)

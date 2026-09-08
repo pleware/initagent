@@ -316,7 +316,7 @@ function BindToContainer({ container }: { container: HTMLElement }) {
     const apply = () => {
       const { width, height } = container.getBoundingClientRect()
       if (width < 1 || height < 1) return
-      setSize(width, height, false)
+      setSize(width, height)
       const canvas = container.querySelector('canvas')
       if (canvas instanceof HTMLCanvasElement) {
         canvas.style.width = '100%'

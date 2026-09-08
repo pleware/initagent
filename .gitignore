@@ -43,7 +43,9 @@ coverage
 # OS / editor
 .DS_Store
 *.log
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 # agentize workspace (MassTrade)
 .agentize/

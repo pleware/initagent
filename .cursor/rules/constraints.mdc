@@ -1,0 +1,17 @@
+---
+description: Read CONSTRAINTS.md before code; never weaken the quality bar to pass
+alwaysApply: true
+---
+
+# Constraints gate
+
+`CONSTRAINTS.md` at the repo root is the quality bar: the floor plus the
+enforced, numbered dimensions (gofmt clean, `go vet` zero issues, owned
+tests passing, coverage ≥ 90% statements on `owned-packages`). Read it
+before writing product Go. Do not weaken it — or `owned-packages`,
+`codecov.yml`, or this file — to make a change pass.
+
+Coverage is scoped to the packages listed in `owned-packages`; run
+`./scripts/check-owned-coverage.sh` before handing work back. A coverage
+number moving down, a suppression comment appearing, or a threshold
+changing in the same commit as a failing feature is a review finding.

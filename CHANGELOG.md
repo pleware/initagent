@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-08 — rules: add constraints gate pointer and track .cursor/rules
 - 2026-09-08 — Pin CI/release Node to 22 (max, not 24)
 - 2026-09-08 — Fix UI build and gateway WebSocket welcome write
 - 2026-09-08 — Proxy device operations and fan out fleet views across the gateway

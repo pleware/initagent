@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-08 — Pin CI/release Node to 22 (max, not 24)
 - 2026-09-08 — Fix UI build and gateway WebSocket welcome write
 - 2026-09-08 — Proxy device operations and fan out fleet views across the gateway
 - 2026-09-07 — Vendor Vercel web-design and composition skills for site and ui.

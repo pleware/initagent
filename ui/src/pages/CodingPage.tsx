@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import Boarding, { isHostedOperator, orgNeedsName } from '../components/Boarding'
+import { isBoardingComplete, markBoardingDone } from '../components/boardingState'
+import ConfirmTypeDialog from '../components/ConfirmTypeDialog'
 import FxTerminal from '../components/FxTerminal'
 import ProjectModal from '../components/ProjectModal'
 import { useHubEvents, usePoll } from '../hooks'
@@ -22,6 +24,9 @@ export default function CodingPage({
   const [loaded, setLoaded] = useState(false)
   const [editing, setEditing] = useState<Project | undefined>()
   const [showModal, setShowModal] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [showLoginHint, setShowLoginHint] = useState(() => localStorage.getItem('liveagent.fx.login-hint') !== 'hidden')
   const navigate = useNavigate()
   const { t } = useTranslation()
@@ -61,44 +66,68 @@ export default function CodingPage({
     if (!projectId && projects.length > 0) navigate(`/code/${projects[0].id}`, { replace: true })
   }, [navigate, projectId, projects])
 
+  const boardingOpen =
+    loaded &&
+    !isHostedOperator(me) &&
+    (me.orgs?.length ?? 0) > 0 &&
+    !isBoardingComplete(projects)
+
   const project = useMemo(() => projects.find((item) => item.id === projectId), [projectId, projects])
   const device = useMemo(() => devices.find((item) => item.id === project?.deviceId), [devices, project])
 
   const removeProject = async () => {
-    if (!project || !window.confirm(`Remove ${project.name} from LiveAgent? Files on ${device?.name ?? 'the machine'} will not be deleted.`)) return
-    await api.del(`/api/projects/${project.id}`)
-    window.dispatchEvent(new Event('liveagent:projects-changed'))
-    const remaining = projects.filter((item) => item.id !== project.id)
-    setProjects(remaining)
-    navigate(remaining[0] ? `/code/${remaining[0].id}` : '/code')
+    if (!project) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await api.del(`/api/projects/${project.id}`)
+      window.dispatchEvent(new Event('liveagent:projects-changed'))
+      const remaining = projects.filter((item) => item.id !== project.id)
+      setProjects(remaining)
+      setShowDelete(false)
+      navigate(remaining[0] ? `/code/${remaining[0].id}` : '/code')
+    } catch {
+      setDeleteError(t('code.deleteFailed'))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  if (loaded && isHostedOperator(me) && projects.length === 0) {
+    return (
+      <div className="code-empty">
+        <div className="code-empty-mark"><span>fx</span></div>
+        <p className="eyebrow mt-7">{t('code.operatorEmptyEyebrow')}</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-white">{t('code.operatorEmptyTitle')}</h1>
+        <p className="mt-3 max-w-lg text-center text-sm leading-6 text-zinc-500">
+          {t('code.operatorEmptyHint')}
+        </p>
+      </div>
+    )
+  }
+
+  if (boardingOpen) {
+    return (
+      <Boarding
+        me={me}
+        devices={devices}
+        initialProject={projects[0]}
+        onMeChanged={onMeChanged}
+        onFinished={(saved) => {
+          markBoardingDone(saved.id)
+          setProjects((current) => {
+            if (current.some((item) => item.id === saved.id)) {
+              return current.map((item) => (item.id === saved.id ? saved : item))
+            }
+            return [saved, ...current]
+          })
+          navigate(`/code/${saved.id}`)
+        }}
+      />
+    )
   }
 
   if (loaded && projects.length === 0) {
-    if (isHostedOperator(me)) {
-      return (
-        <div className="code-empty">
-          <div className="code-empty-mark"><span>fx</span></div>
-          <p className="eyebrow mt-7">{t('code.operatorEmptyEyebrow')}</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-white">{t('code.operatorEmptyTitle')}</h1>
-          <p className="mt-3 max-w-lg text-center text-sm leading-6 text-zinc-500">
-            {t('code.operatorEmptyHint')}
-          </p>
-        </div>
-      )
-    }
-    if ((me.orgs?.length ?? 0) > 0) {
-      return (
-        <Boarding
-          me={me}
-          devices={devices}
-          onMeChanged={onMeChanged}
-          onFinished={(saved) => {
-            setProjects([saved])
-            navigate(`/code/${saved.id}`)
-          }}
-        />
-      )
-    }
     return (
       <div className="code-empty">
         <div className="code-empty-mark"><span>fx</span></div>
@@ -148,7 +177,13 @@ export default function CodingPage({
             {device?.name ?? 'Unknown machine'}
           </span>
           <button onClick={() => { setEditing(project); setShowModal(true) }} className="toolbar-button" aria-label="Edit project"><SlidersIcon /></button>
-          <button onClick={removeProject} className="toolbar-button toolbar-button-danger" aria-label="Remove project"><TrashIcon /></button>
+          <button
+            onClick={() => { setDeleteError(''); setShowDelete(true) }}
+            className="toolbar-button toolbar-button-danger"
+            aria-label={t('code.removeAria')}
+          >
+            <TrashIcon />
+          </button>
         </div>
       </header>
 
@@ -170,6 +205,18 @@ export default function CodingPage({
         <span className="ml-auto hidden sm:inline">Commands execute in {project.path}</span>
       </footer>
 
+      {showDelete && (
+        <ConfirmTypeDialog
+          title={t('code.deleteTitle')}
+          hint={t('code.deleteHint', { machine: device?.name ?? t('code.unknownMachine') })}
+          phrase={project.name || project.id}
+          confirmLabel={t('code.deleteConfirm')}
+          busy={deleting}
+          error={deleteError || undefined}
+          onClose={() => { if (!deleting) setShowDelete(false) }}
+          onConfirm={removeProject}
+        />
+      )}
       {showModal && (
         <ProjectModal
           devices={devices}

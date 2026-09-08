@@ -76,6 +76,10 @@ select:focus-visible {
   @apply inline-flex items-center justify-center rounded-lg border border-line-3 bg-fill-2 px-3.5 py-2 text-sm font-medium text-fg-soft hover:border-line-4 hover:bg-fill-5 hover:text-fg-strong active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45;
 }
 
+.btn-danger {
+  @apply inline-flex items-center justify-center rounded-lg border border-fail/30 bg-fail/10 px-4 py-2 text-sm font-semibold text-fail-fg hover:bg-fail/20 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45;
+}
+
 .data-number {
   @apply font-mono tabular-nums tracking-tight;
 }

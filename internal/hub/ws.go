@@ -12,6 +12,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/pleware/initagent/internal/authz"
+	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/protocol"
 )
 
@@ -90,7 +92,7 @@ func (s *Server) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 // Browser sends binary frames (raw keystrokes) and JSON text frames
 // {"type":"resize","cols":N,"rows":N}. It receives raw binary output and a
 // final JSON {"type":"exit","error":?}.
-func (s *Server) handleTermWS(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleTermWS(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	q := r.URL.Query()
 	deviceId := q.Get("device")
 	session := q.Get("session")
@@ -102,7 +104,15 @@ func (s *Server) handleTermWS(w http.ResponseWriter, r *http.Request) {
 	}
 	c := s.registry.get(deviceId)
 	if c == nil {
-		httpError(w, http.StatusServiceUnavailable, "device is offline")
+		if s.opts.GatewayURL == "" {
+			httpError(w, http.StatusServiceUnavailable, "device is offline")
+			return
+		}
+		p, ok := s.gatewayFor(w, r, cred)
+		if !ok {
+			return
+		}
+		s.proxyTermWS(w, r, p, deviceId, session, cols, rows)
 		return
 	}
 	browser, err := upgrader.Upgrade(w, r, nil)
@@ -182,6 +192,74 @@ func (s *Server) handleTermWS(w http.ResponseWriter, r *http.Request) {
 
 	errMsg := <-exit
 	sendBrowser(websocket.TextMessage, exitJSON(errMsg))
+}
+
+// proxyTermWS copies a browser terminal onto the project's gateway. The
+// worker lives on that socket after self-host enroll (10), not on the hub.
+func (s *Server) proxyTermWS(w http.ResponseWriter, r *http.Request, p placement, deviceId, session string, cols, rows int) {
+	u, err := termGatewayURL(p.gatewayURL, deviceId, session, cols, rows)
+	if err != nil {
+		httpError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	header := http.Header{}
+	if p.projectID != "" {
+		header.Set(brand.ProjectHeader, p.projectID)
+	}
+	if s.opts.GatewaySecret != "" {
+		header.Set("Authorization", "Bearer "+s.opts.GatewaySecret)
+	}
+	upstream, _, err := websocket.DefaultDialer.Dial(u, header)
+	if err != nil {
+		httpError(w, http.StatusBadGateway, "gateway unreachable: "+err.Error())
+		return
+	}
+	defer upstream.Close()
+
+	browser, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+	defer browser.Close()
+
+	var wg sync.WaitGroup
+	copyWS := func(dst, src *websocket.Conn) {
+		defer dst.Close()
+		defer src.Close()
+		for {
+			msgType, data, err := src.ReadMessage()
+			if err != nil {
+				return
+			}
+			if err := dst.WriteMessage(msgType, data); err != nil {
+				return
+			}
+		}
+	}
+	wg.Go(func() { copyWS(browser, upstream) })
+	wg.Go(func() { copyWS(upstream, browser) })
+	wg.Wait()
+}
+
+func termGatewayURL(gatewayURL, deviceId, session string, cols, rows int) (string, error) {
+	raw := strings.TrimRight(gatewayURL, "/") + "/api/ws/term"
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+	switch u.Scheme {
+	case "https":
+		u.Scheme = "wss"
+	case "http":
+		u.Scheme = "ws"
+	}
+	q := u.Query()
+	q.Set("device", deviceId)
+	q.Set("session", session)
+	q.Set("cols", strconv.Itoa(cols))
+	q.Set("rows", strconv.Itoa(rows))
+	u.RawQuery = q.Encode()
+	return u.String(), nil
 }
 
 func exitJSON(errMsg string) []byte {

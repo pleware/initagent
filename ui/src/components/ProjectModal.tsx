@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react'
+import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api } from '../api'
 import type { Device, Project } from '../types'
 import Modal from './Modal'
@@ -138,18 +139,19 @@ export default function ProjectModal({
             </ul>
             {available.length > 0 ? (
               <div className="mt-3 flex gap-2">
-                <select
+                <SimpleSelect
+                  size="default"
                   value={addId}
-                  onChange={(event) => setAddId(event.target.value)}
-                  className="field-input min-w-0 flex-1"
-                >
-                  <option value="" className="bg-zinc-900">Add a machine…</option>
-                  {available.map((device) => (
-                    <option key={device.id} value={device.id} className="bg-zinc-900">
-                      {device.name} {device.online ? '· online' : '· offline'}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setAddId}
+                  className="min-w-0 flex-1"
+                  items={[
+                    { value: '', label: 'Add a machine…' },
+                    ...available.map((device) => ({
+                      value: device.id,
+                      label: `${device.name} ${device.online ? '· online' : '· offline'}`,
+                    })),
+                  ]}
+                />
                 <button type="button" onClick={addMachine} disabled={adding || !addId} className="btn-secondary shrink-0">
                   {adding ? 'Adding…' : 'Add'}
                 </button>
@@ -160,16 +162,21 @@ export default function ProjectModal({
 
         <label className="block">
           <span className="field-label">Run on</span>
-          <select value={deviceId} onChange={(event) => setDeviceId(event.target.value)} className="field-input mt-2">
-            {runOnIds.map((id) => {
-              const device = deviceById.get(id)
-              return (
-                <option key={id} value={id} className="bg-zinc-900">
-                  {device?.name ?? id} {device?.online ? '· online' : '· offline'}
-                </option>
-              )
-            })}
-          </select>
+          <div className="mt-2">
+            <SimpleSelect
+              size="default"
+              value={deviceId}
+              onValueChange={setDeviceId}
+              className="w-full"
+              items={runOnIds.map((id) => {
+                const device = deviceById.get(id)
+                return {
+                  value: id,
+                  label: `${device?.name ?? id} ${device?.online ? '· online' : '· offline'}`,
+                }
+              })}
+            />
+          </div>
           <span className="mt-2 block text-xs text-zinc-600">
             {editing
               ? 'fx sends commands only to this machine. Other enrolled machines stay on the project.'

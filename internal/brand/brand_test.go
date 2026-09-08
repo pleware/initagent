@@ -1,6 +1,10 @@
 package brand_test
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -17,6 +21,7 @@ func TestExportedIdentity(t *testing.T) {
 		want string
 	}{
 		{"Name", brand.Name, "initagent"},
+		{"DisplayName", brand.DisplayName, "initAgent"},
 		{"Binary", brand.Binary, "initagent"},
 		{"ConfigDir", brand.ConfigDir, ".initagent"},
 		{"WindowsAppDir", brand.WindowsAppDir, "Initagent"},
@@ -50,6 +55,30 @@ func TestExportedIdentity(t *testing.T) {
 				t.Fatalf("%s is blank", tc.name)
 			}
 		})
+	}
+}
+
+func TestDisplayNameDiffersFromName(t *testing.T) {
+	t.Parallel()
+	if brand.DisplayName == brand.Name {
+		t.Fatal("DisplayName must be the wordmark, not the machine name")
+	}
+}
+
+func TestDisplayNameMatchesChromeFile(t *testing.T) {
+	t.Parallel()
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("no caller")
+	}
+	path := filepath.Join(filepath.Dir(file), "..", "..", "web", "brand.ts")
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []byte("export const displayName = '" + brand.DisplayName + "'")
+	if !bytes.Contains(got, want) {
+		t.Fatalf("%s missing %q", path, want)
 	}
 }
 

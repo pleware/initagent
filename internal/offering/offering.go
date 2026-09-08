@@ -63,6 +63,26 @@ func RequireStart(kind Kind, databaseURL string) error {
 	return nil
 }
 
+// CompanionListen is the loopback address self-host `serve` binds when
+// `--gateway-url` is empty. Enroll, tasks, and the first-box worker need a
+// gateway; hosted never starts one here (ops runs `initagent gateway`).
+const CompanionListen = "127.0.0.1:4201"
+
+// CompanionGateway is how self-host `serve` gets a placement URL without a
+// flag. A set flag always wins. Hosted with an empty flag starts nothing:
+// that hub has no local gateway. The companion still talks HTTP, so hub
+// and gateway stay separate packages (`02`); this is only the single-box
+// default so `initagent serve` can mint an enroll command.
+func CompanionGateway(kind Kind, flagURL string) (listen, url string, start bool) {
+	if raw := strings.TrimSpace(flagURL); raw != "" {
+		return "", raw, false
+	}
+	if kind != Selfhost {
+		return "", "", false
+	}
+	return CompanionListen, "http://" + CompanionListen, true
+}
+
 // ReadFile loads <dataDir>/offering. Missing is ( "", false, nil ).
 func ReadFile(dataDir string) (body string, present bool, err error) {
 	path := filepath.Join(dataDir, brand.OfferingFile)

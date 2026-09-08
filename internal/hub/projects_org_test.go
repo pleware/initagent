@@ -103,18 +103,14 @@ func TestListTemplates(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	var live int
-	var sawSoftware bool
+	var live []string
 	for _, tmpl := range list {
 		if tmpl.Live {
-			live++
-		}
-		if tmpl.ID == "software" {
-			sawSoftware = tmpl.Live
+			live = append(live, tmpl.ID)
 		}
 	}
-	if !sawSoftware || live != 1 {
-		t.Fatalf("templates = %+v, want software live and only that", list)
+	if len(live) != 2 || live[0] != "software" || live[1] != "later" {
+		t.Fatalf("templates = %+v, want software and later live", list)
 	}
 }
 
@@ -147,6 +143,25 @@ func TestCreateProjectWithoutDevice(t *testing.T) {
 	}
 	if p.RepoHost != "github" || p.RepoRemote != "https://github.com/acme/app.git" {
 		t.Fatalf("repo = %+v", p)
+	}
+}
+
+func TestCreateProjectLaterTemplate(t *testing.T) {
+	f := hostedCustomer(t)
+	f.srv.opts.GatewayURL = "http://gateway.test"
+
+	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
+		"name": "Scratch", "templateId": "later",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create later: %d, want 201", resp.StatusCode)
+	}
+	var p Project
+	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
+		t.Fatal(err)
+	}
+	if p.Name != "Scratch" || p.TemplateId != "later" || p.RepoRemote != "" {
+		t.Fatalf("later project = %+v", p)
 	}
 }
 

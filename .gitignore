@@ -24,6 +24,12 @@
 /ui/src/assets/auth/bg.gen.ts
 /ui/assets/auth/.stamp
 
+# Extra Markdown lives in the parent workspace (always private).
+# README.md, LICENSE, and CHANGELOG.md stay. Do not add more.
+/drafts/
+/docs/
+/backlog.md
+
 # Local dev data
 /tmp/
 *.db
@@ -37,6 +43,7 @@ coverage
 # OS / editor
 .DS_Store
 *.log
+.cursor/
 
 # agentize workspace (MassTrade)
 .agentize/

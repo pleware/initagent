@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { displayName } from '../../../web/brand.ts'
 import { api } from '../api'
 import type { Me, Project } from '../types'
 import LanguageSwitcher from './LanguageSwitcher'
@@ -131,7 +132,9 @@ export default function Layout({ me }: { me: Me }) {
         </section>
 
         <footer className="sidebar-footer">
-          <div className="operator-avatar">LA</div>
+          <div className="operator-avatar" title={me.email} aria-hidden>
+            {operatorInitials(me.email)}
+          </div>
           <div className="min-w-0">
             <p className="truncate text-xs font-medium text-zinc-300">
               {me.orgs?.[0]?.name ?? me.email ?? 'Personal fleet'}
@@ -151,11 +154,50 @@ export default function Layout({ me }: { me: Me }) {
   )
 }
 
+// operatorInitials turns an email into two uppercase letters.
+// john.doe@x → JD; alice@x → AL; j@acme.com → JA. Always two characters.
+function operatorInitials(email?: string): string {
+  const trimmed = email?.trim() ?? ''
+  const at = trimmed.indexOf('@')
+  const localRaw = at >= 0 ? trimmed.slice(0, at) : trimmed
+  const domain = at >= 0 ? trimmed.slice(at + 1) : ''
+  const local = localRaw.split('+')[0] ?? ''
+  const parts = local.split(/[._-]+/).map(lettersOf).filter((part) => part.length > 0)
+
+  if (parts.length >= 2) {
+    return twoLetters(parts[0][0], parts[parts.length - 1][0])
+  }
+  const word = parts[0] ?? ''
+  if (word.length >= 2) {
+    return twoLetters(word[0], word[1])
+  }
+  if (word.length === 1) {
+    const host = lettersOf(domain.split('.')[0] ?? '')
+    return twoLetters(word[0], host[0] ?? word[0])
+  }
+  const domainLetters = lettersOf(domain)
+  if (domainLetters.length >= 2) {
+    return twoLetters(domainLetters[0], domainLetters[1])
+  }
+  if (domainLetters.length === 1) {
+    return twoLetters(domainLetters[0], domainLetters[0])
+  }
+  return 'IA'
+}
+
+function lettersOf(value: string): string {
+  return [...value].filter((ch) => /\p{L}/u.test(ch)).join('')
+}
+
+function twoLetters(first: string, second: string): string {
+  return (first + second).toUpperCase()
+}
+
 function Brand() {
   return (
     <NavLink to="/code" className="flex items-center gap-2 text-zinc-100">
       <span className="brand-mark"><span>⌁</span></span>
-      <span className="text-sm font-semibold tracking-[-0.025em]">LiveAgent</span>
+      <span className="text-sm font-semibold tracking-[-0.025em]">{displayName}</span>
     </NavLink>
   )
 }

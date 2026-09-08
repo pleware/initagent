@@ -16,10 +16,10 @@
     "license": "Licencja"
   },
   "titles": {
-    "home": "initagent - steruj każdą swoją maszyną z jednej karty przeglądarki",
-    "plans": "Plany - initagent",
-    "developers": "Dla deweloperów - initagent",
-    "hardware": "Sprzęt - initagent"
+    "home": "initAgent - steruj każdą swoją maszyną z jednej karty przeglądarki",
+    "plans": "Plany - initAgent",
+    "developers": "Dla deweloperów - initAgent",
+    "hardware": "Sprzęt - initAgent"
   },
   "hero": {
     "titleLine": "Każda maszyna, którą masz.",

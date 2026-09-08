@@ -71,3 +71,16 @@ func TestTerminalBridge(t *testing.T) {
 	}
 	t.Fatalf("terminal output never contained result; got: %q", collected.String())
 }
+
+func TestTermGatewayURL(t *testing.T) {
+	got, err := termGatewayURL("http://127.0.0.1:4201/", "dev-1", "term-2", 80, 24)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(got, "ws://127.0.0.1:4201/api/ws/term?") {
+		t.Fatalf("url = %q", got)
+	}
+	if !strings.Contains(got, "device=dev-1") || !strings.Contains(got, "session=term-2") {
+		t.Fatalf("query missing ids: %q", got)
+	}
+}

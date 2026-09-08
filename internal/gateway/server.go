@@ -57,7 +57,8 @@ func (g *Gateway) fromHub(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // Handler serves health, enroll, devices, binaries, the agent websocket,
-// and task enqueue/dispatch.
+// the terminal hop the hub proxies (16), session/exec HTTP the hub
+// proxies the same way, and task enqueue/dispatch.
 func (g *Gateway) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
@@ -66,9 +67,21 @@ func (g *Gateway) Handler() http.Handler {
 	mux.HandleFunc("POST /api/enroll-tokens", g.fromHub(g.handleCreateEnrollToken))
 	mux.HandleFunc("POST /api/enroll", g.handleEnroll)
 	mux.HandleFunc("GET /api/devices", g.fromHub(g.handleListDevices))
+	mux.HandleFunc("GET /api/agents", g.fromHub(g.handleFleetAgents))
 	mux.HandleFunc("GET /install/", g.joiner.ServeScript)
 	mux.HandleFunc("GET /api/agent-binary", g.joiner.ServeBinary)
 	mux.HandleFunc("GET /api/ws/agent", g.handleAgentWS)
+	mux.HandleFunc("GET /api/ws/term", g.fromHub(g.handleTermWS))
+	mux.HandleFunc("GET /api/devices/{id}/sessions", g.fromHub(g.handleListSessions))
+	mux.HandleFunc("POST /api/devices/{id}/sessions", g.fromHub(g.handleCreateSession))
+	mux.HandleFunc("DELETE /api/devices/{id}/sessions/{name}", g.fromHub(g.handleKillSession))
+	mux.HandleFunc("POST /api/devices/{id}/sessions/{name}/input", g.fromHub(g.handleSessionInput))
+	mux.HandleFunc("GET /api/devices/{id}/sessions/{name}/output", g.fromHub(g.handleSessionOutput))
+	mux.HandleFunc("POST /api/devices/{id}/exec", g.fromHub(g.handleExec))
+	mux.HandleFunc("GET /api/devices/{id}/setup", g.fromHub(g.handleSetupStatus))
+	mux.HandleFunc("GET /api/devices/{id}/fs", g.fromHub(g.handleFsList))
+	mux.HandleFunc("GET /api/devices/{id}/fs/download", g.fromHub(g.handleFsDownload))
+	mux.HandleFunc("POST /api/devices/{id}/fs/upload", g.fromHub(g.handleFsUpload))
 	mux.HandleFunc("POST /api/tasks", g.fromHub(g.handleCreateTask))
 	mux.HandleFunc("GET /api/tasks/{id}", g.fromHub(g.handleGetTask))
 	return mux
@@ -283,33 +296,39 @@ func (g *Gateway) handleGetTask(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, viewTask(task, "", ""))
 }
 
-// Serve listens on addr until ctx is cancelled.
-func (g *Gateway) Serve(ctx context.Context, addr string) error {
+// Start binds addr and serves in the background until ctx is cancelled.
+// The returned URL is what a hub should put in --gateway-url.
+func (g *Gateway) Start(ctx context.Context, addr string) (string, error) {
 	if addr == "" {
 		addr = g.addr
 	}
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		return err
+		return "", err
 	}
 	g.addr = ln.Addr().String()
 
 	srv := &http.Server{Handler: g.Handler()}
-	errc := make(chan error, 1)
 	go func() {
-		errc <- srv.Serve(ln)
+		_ = srv.Serve(ln)
 	}()
-
-	select {
-	case <-ctx.Done():
+	go func() {
+		<-ctx.Done()
 		shut, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(shut)
-		return ctx.Err()
-	case err := <-errc:
-		if err == http.ErrServerClosed {
-			return nil
-		}
+	}()
+	return "http://" + g.addr, nil
+}
+
+// Serve listens on addr until ctx is cancelled.
+func (g *Gateway) Serve(ctx context.Context, addr string) error {
+	if _, err := g.Start(ctx, addr); err != nil {
 		return err
 	}
+	<-ctx.Done()
+	if err := ctx.Err(); err == context.Canceled {
+		return err
+	}
+	return ctx.Err()
 }

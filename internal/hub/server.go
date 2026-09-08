@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -101,6 +102,11 @@ type Server struct {
 	// The embedded agent and the MCP endpoint use it so they work identically
 	// whether the public listener is HTTP or HTTPS.
 	internalURL string
+
+	// selfhostWorkerReady closes when the first self-host project has
+	// enrolled this box on the gateway. runEmbeddedAgent waits on it.
+	selfhostWorkerReady  chan struct{}
+	signalSelfhostWorker func()
 }
 
 func NewServer(opts Options) (*Server, error) {
@@ -137,6 +143,7 @@ func NewServer(opts Options) (*Server, error) {
 		return nil, err
 	}
 	events := newEventBus()
+	workerReady := make(chan struct{})
 	s := &Server{
 		opts: opts,
 		installer: join.Installer{
@@ -144,16 +151,18 @@ func NewServer(opts Options) (*Server, error) {
 			GithubRepo: opts.GithubRepo,
 			Version:    opts.Version,
 		},
-		store:      store,
-		sessions:   newSessionManager(),
-		loginRL:    newRateLimiter(),
-		registerRL: newRateLimiter(),
-		events:     events,
-		registry:   newRegistry(events),
-		mux:        http.NewServeMux(),
-		mail:       sender,
-		mailWake:   make(chan struct{}, 1),
-		trusted:    trusted,
+		store:                store,
+		sessions:             newSessionManager(),
+		loginRL:              newRateLimiter(),
+		registerRL:           newRateLimiter(),
+		events:               events,
+		registry:             newRegistry(events),
+		mux:                  http.NewServeMux(),
+		mail:                 sender,
+		mailWake:             make(chan struct{}, 1),
+		trusted:              trusted,
+		selfhostWorkerReady:  workerReady,
+		signalSelfhostWorker: sync.OnceFunc(func() { close(workerReady) }),
 	}
 	claimed, err := s.claimed()
 	if err != nil {
@@ -229,6 +238,7 @@ func (s *Server) Run(ctx context.Context) error {
 		internalSrv.Shutdown(shutdownCtx)
 	}()
 	go s.runEmbeddedAgent(runCtx)
+	go s.recoverSelfhostWorker(runCtx)
 	go s.runMailOutbox(runCtx)
 
 	if s.opts.TLSDomain != "" {
@@ -308,8 +318,17 @@ func (s *Server) runTLS(ctx context.Context) error {
 }
 
 // runEmbeddedAgent registers (once) and runs an in-process agent for the hub
-// machine, connecting over the internal loopback listener like any other device.
+// machine. With a gateway, self-host waits for the first project and dials
+// that gateway (10). Hosted never enrolls this process as a worker (01).
+// Without a gateway, the inherited single-plane path still dials loopback.
 func (s *Server) runEmbeddedAgent(ctx context.Context) {
+	if strings.TrimSpace(s.opts.GatewayURL) != "" {
+		if s.opts.Offering != offering.Selfhost {
+			return
+		}
+		s.runSelfhostGatewayAgent(ctx)
+		return
+	}
 	token, err := s.store.Setting("hub_device_token")
 	if err != nil {
 		log.Printf("embedded agent: %v", err)
@@ -368,16 +387,16 @@ func (s *Server) routes() {
 	m.HandleFunc("PATCH /api/devices/{id}", s.requireDevice(authz.AdminDevice, plain(s.handleRenameDevice)))
 	m.HandleFunc("DELETE /api/devices/{id}", s.requireDevice(authz.AdminDevice, plain(s.handleDeleteDevice)))
 	m.HandleFunc("POST /api/enroll-tokens", s.requireFleet(authz.EnrollDevice, s.handleCreateEnrollToken))
-	m.HandleFunc("GET /api/devices/{id}/sessions", s.requireDevice(authz.ReadTerminal, plain(s.handleListSessions)))
-	m.HandleFunc("POST /api/devices/{id}/sessions", s.requireDevice(authz.AttachTerminal, plain(s.handleCreateSession)))
-	m.HandleFunc("DELETE /api/devices/{id}/sessions/{name}", s.requireDevice(authz.AttachTerminal, plain(s.handleKillSession)))
-	m.HandleFunc("POST /api/devices/{id}/sessions/{name}/input", s.requireDevice(authz.AttachTerminal, plain(s.handleSessionInput)))
-	m.HandleFunc("GET /api/devices/{id}/sessions/{name}/output", s.requireDevice(authz.ReadTerminal, plain(s.handleSessionOutput)))
-	m.HandleFunc("POST /api/devices/{id}/exec", s.requireDevice(authz.ExecDevice, plain(s.handleExec)))
-	m.HandleFunc("GET /api/devices/{id}/setup", s.requireDevice(authz.ReadDevice, plain(s.handleSetupStatus)))
-	m.HandleFunc("GET /api/devices/{id}/fs", s.requireDevice(authz.ReadFile, plain(s.handleFsList)))
-	m.HandleFunc("GET /api/devices/{id}/fs/download", s.requireDevice(authz.ReadFile, plain(s.handleFsDownload)))
-	m.HandleFunc("POST /api/devices/{id}/fs/upload", s.requireDevice(authz.WriteFile, plain(s.handleFsUpload)))
+	m.HandleFunc("GET /api/devices/{id}/sessions", s.requireDevice(authz.ReadTerminal, s.handleListSessions))
+	m.HandleFunc("POST /api/devices/{id}/sessions", s.requireDevice(authz.AttachTerminal, s.handleCreateSession))
+	m.HandleFunc("DELETE /api/devices/{id}/sessions/{name}", s.requireDevice(authz.AttachTerminal, s.handleKillSession))
+	m.HandleFunc("POST /api/devices/{id}/sessions/{name}/input", s.requireDevice(authz.AttachTerminal, s.handleSessionInput))
+	m.HandleFunc("GET /api/devices/{id}/sessions/{name}/output", s.requireDevice(authz.ReadTerminal, s.handleSessionOutput))
+	m.HandleFunc("POST /api/devices/{id}/exec", s.requireDevice(authz.ExecDevice, s.handleExec))
+	m.HandleFunc("GET /api/devices/{id}/setup", s.requireDevice(authz.ReadDevice, s.handleSetupStatus))
+	m.HandleFunc("GET /api/devices/{id}/fs", s.requireDevice(authz.ReadFile, s.handleFsList))
+	m.HandleFunc("GET /api/devices/{id}/fs/download", s.requireDevice(authz.ReadFile, s.handleFsDownload))
+	m.HandleFunc("POST /api/devices/{id}/fs/upload", s.requireDevice(authz.WriteFile, s.handleFsUpload))
 	m.HandleFunc("GET /api/templates", s.requireFleet(authz.ReadTemplate, plain(s.handleListTemplates)))
 	m.HandleFunc("GET /api/projects", s.requireCredential(s.handleListProjects))
 	m.HandleFunc("POST /api/projects", s.requireCredential(s.handleCreateProject))
@@ -402,13 +421,13 @@ func (s *Server) routes() {
 
 	// Operating the installation, which is not something a machine secret
 	// reaches: a token's boundary is a project or a tenant.
-	m.HandleFunc("GET /api/updates", s.requireInstallation(authz.ReadUpdate, plain(s.handleUpdateStatus)))
+	m.HandleFunc("GET /api/updates", s.requireInstallation(authz.ReadUpdate, s.handleUpdateStatus))
 	m.HandleFunc("POST /api/updates/check", s.requireInstallation(authz.AdminUpdate, plain(s.handleUpdateCheck)))
 	m.HandleFunc("PATCH /api/updates", s.requireInstallation(authz.AdminUpdate, plain(s.handleUpdateSettings)))
 	m.HandleFunc("POST /api/updates/install", s.requireInstallation(authz.AdminUpdate, plain(s.handleUpdateInstall)))
 	m.HandleFunc("POST /api/updates/rollback", s.requireInstallation(authz.AdminUpdate, plain(s.handleUpdateRollback)))
 
-	m.HandleFunc("GET /api/ws/term", s.requireFleet(authz.AttachTerminal, plain(s.handleTermWS)))
+	m.HandleFunc("GET /api/ws/term", s.requireFleet(authz.AttachTerminal, s.handleTermWS))
 	m.HandleFunc("GET /api/ws/events", s.requireFleet(authz.ReadEvent, plain(s.handleEventsWS)))
 
 	// Hub surfaces: the installation's operator, and an organization's own

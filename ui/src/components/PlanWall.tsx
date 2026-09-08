@@ -17,12 +17,29 @@ export default function PlanWall({ error }: { error: unknown }) {
   )
 }
 
-export function HubError({ error, fallback, className = 'text-sm text-fail-fg' }: { error: unknown; fallback: string; className?: string }) {
+export function HubError({
+  error,
+  fallback,
+  className = 'rounded-lg border border-fail/30 bg-fail/10 px-3 py-3 text-left text-sm text-fail-fg',
+}: {
+  error: unknown
+  fallback: string
+  className?: string
+}) {
   if (!error) return null
   if (error instanceof ApiError && error.code === 'plan_limit') {
     return <PlanWall error={error} />
   }
-  return <p className={className}>{planLimitMessage(error, fallback)}</p>
+  return (
+    <p role="alert" className={className}>
+      {planLimitMessage(error, fallback)}
+    </p>
+  )
+}
+
+export function isMissingGateway(error: unknown): boolean {
+  const message = planLimitMessage(error, '')
+  return message.includes('has no gateway') || message.includes('gateway URL is required')
 }
 
 export function planLimitMessage(error: unknown, fallback: string): string {

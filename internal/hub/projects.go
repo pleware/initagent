@@ -9,6 +9,7 @@ import (
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/projecttemplate"
+	"github.com/pleware/initagent/internal/protocol"
 	"github.com/pleware/initagent/internal/repo"
 )
 
@@ -202,6 +203,7 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, cre
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	project = s.bindSelfhostWorker(r.Context(), project)
 	w.WriteHeader(http.StatusCreated)
 	writeJSON(w, project)
 }
@@ -361,11 +363,6 @@ func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, cred 
 		httpError(w, http.StatusServiceUnavailable, "project has no device")
 		return
 	}
-	c := s.registry.get(project.DeviceId)
-	if c == nil {
-		httpError(w, http.StatusServiceUnavailable, "project device is offline")
-		return
-	}
 	var input struct {
 		Command   string `json:"command"`
 		TimeoutMs int    `json:"timeoutMs"`
@@ -385,13 +382,27 @@ func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, cred 
 	if timeoutSec > 600 {
 		timeoutSec = 600
 	}
-	result, err := s.execOnDevice(c, input.Command, project.Path, timeoutSec)
-	if err != nil {
-		httpError(w, http.StatusBadGateway, err.Error())
+	if c := s.registry.get(project.DeviceId); c != nil {
+		result, err := s.execOnDevice(c, input.Command, project.Path, timeoutSec)
+		if err != nil {
+			httpError(w, http.StatusBadGateway, err.Error())
+			return
+		}
+		_ = s.store.TouchProject(project.Id)
+		writeJSON(w, result)
 		return
 	}
-	_ = s.store.TouchProject(project.Id)
-	writeJSON(w, result)
+	// The worker lives on the gateway (self-host enroll, 10/16): rewrite the
+	// command into the device-exec shape and hop, exactly as the session and
+	// device-exec routes do.
+	target := s.projectGateway(project)
+	if target == "" {
+		httpError(w, http.StatusServiceUnavailable, "project device is offline")
+		return
+	}
+	s.proxyGatewayJSON(w, r, placement{projectID: project.Id, gatewayURL: target},
+		http.MethodPost, "/api/devices/"+project.DeviceId+"/exec", deviceProxyTimeout,
+		protocol.Exec{Command: input.Command, Cwd: project.Path, TimeoutSec: timeoutSec})
 }
 
 // projectFor loads a project and checks the capability against it.

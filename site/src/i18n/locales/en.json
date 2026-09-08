@@ -16,10 +16,10 @@
     "license": "License"
   },
   "titles": {
-    "home": "initagent - control every machine you own from one browser tab",
-    "plans": "Plans - initagent",
-    "developers": "For Developers - initagent",
-    "hardware": "Hardware - initagent"
+    "home": "initAgent - control every machine you own from one browser tab",
+    "plans": "Plans - initAgent",
+    "developers": "For Developers - initAgent",
+    "hardware": "Hardware - initAgent"
   },
   "hero": {
     "titleLine": "Every machine you own.",

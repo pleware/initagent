@@ -3,6 +3,7 @@ import { GithubLogo, List, X, Eye } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
 import { HUB, REPO } from "../lib/site";
 import { NAV, ROUTES, navIsCurrent } from "../lib/routes";
+import { displayName } from "../../../web/brand.ts";
 import { withLangParam } from "../../../web/locale.ts";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import LanguageSwitcher from "./LanguageSwitcher";
@@ -38,7 +39,7 @@ export function Nav({ path }: { path: string }) {
           <a href={ROUTES.home} className="flex shrink-0 items-center gap-2.5">
             <Eye size={20} weight="regular" className="text-accent" />
             <span className="text-[15px] font-semibold tracking-tight">
-              initagent
+              {displayName}
             </span>
           </a>
 

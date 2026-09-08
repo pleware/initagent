@@ -1,18 +1,11 @@
 import { useMemo } from 'react'
 import { cn } from 'cn'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select'
+import { SimpleSelect } from './components/SimpleSelect'
 import { LOCALES, resolveLocale, type Locale } from './locale'
 
 /**
  * Language picker for the hub and the marketing site.
- * Shared Select from `web/ui` (shadcn base-nova), same shape as ThemeSwitcher.
+ * Same SimpleSelect as the rest of the chrome.
  */
 export function LanguageSwitcher({
   value,
@@ -39,31 +32,13 @@ export function LanguageSwitcher({
       <span className={labelled ? 'text-sm font-medium text-fg' : 'sr-only'}>
         {label ?? 'Language'}
       </span>
-      <Select
+      <SimpleSelect
         items={items}
         value={current}
-        onValueChange={(next) => {
-          const locale = resolveLocale(next)
-          if (locale === current) return
-          onChange(locale)
-        }}
-      >
-        <SelectTrigger
-          size={size === 'compact' && !labelled ? 'sm' : 'default'}
-          className={labelled ? 'w-full' : undefined}
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent alignItemWithTrigger={false} align="start">
-          <SelectGroup>
-            {items.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+        onValueChange={(next) => onChange(resolveLocale(next))}
+        size={size === 'compact' && !labelled ? 'sm' : 'default'}
+        className={labelled ? 'w-full' : undefined}
+      />
     </div>
   )
 }

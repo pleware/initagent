@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api } from '../api'
 import type { Device, Preset } from '../types'
 import Modal from './Modal'
@@ -76,17 +77,16 @@ export default function LaunchSessionModal({
             <label className="mb-1 block text-sm font-medium text-zinc-300">
               Device
             </label>
-            <select
+            <SimpleSelect
+              size="default"
               value={deviceId}
-              onChange={(e) => setDeviceId(e.target.value)}
-              className={inputClass}
-            >
-              {online.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name} ({d.os}/{d.arch})
-                </option>
-              ))}
-            </select>
+              onValueChange={setDeviceId}
+              className="w-full"
+              items={online.map((d) => ({
+                value: d.id,
+                label: `${d.name} (${d.os}/${d.arch})`,
+              }))}
+            />
           </div>
         )}
 

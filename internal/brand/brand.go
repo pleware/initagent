@@ -14,8 +14,12 @@
 package brand
 
 const (
-	// Name is the product name shown to people.
+	// Name is the machine name: binary stem, GitHub, hostnames, env.
 	Name = "initagent"
+
+	// DisplayName is the people-facing wordmark in headers, titles, and
+	// cockpit chrome. Commands stay Name.
+	DisplayName = "initAgent"
 
 	// Binary is the executable name, and the stem of generated helper
 	// scripts and service units.

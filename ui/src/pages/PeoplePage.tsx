@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api, timeAgo } from '../api'
 import DataTable from '../components/DataTable'
 import type { Me, OrgMember } from '../types'
@@ -130,18 +131,13 @@ export default function PeoplePage({
         </div>
         <div className="flex items-center gap-3">
           {memberships.length > 1 && (
-            <select
+            <SimpleSelect
+              size="default"
               value={orgId}
-              onChange={(e) => setOrgId(e.target.value)}
+              onValueChange={setOrgId}
               aria-label={t('admin.organization')}
-              className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"
-            >
-              {memberships.map((m) => (
-                <option key={m.orgId} value={m.orgId}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
+              items={memberships.map((m) => ({ value: m.orgId, label: m.name }))}
+            />
           )}
           {canManage && (
             <button onClick={rename} className="btn-secondary">
@@ -179,19 +175,13 @@ export default function PeoplePage({
             header: t('people.role'),
             cell: (m) =>
               canManage ? (
-                <select
+                <SimpleSelect
                   value={m.role}
                   disabled={busy === m.accountId}
-                  onChange={(e) => changeRole(m.accountId, e.target.value)}
+                  onValueChange={(role) => changeRole(m.accountId, role)}
                   aria-label={`${t('people.role')}: ${m.email}`}
-                  className="rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-sm text-zinc-100"
-                >
-                  {roles.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
+                  items={roles.map((role) => ({ value: role, label: role }))}
+                />
               ) : (
                 <span className="text-zinc-400">{m.role}</span>
               ),

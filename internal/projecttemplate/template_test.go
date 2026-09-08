@@ -7,7 +7,7 @@ import (
 	"github.com/pleware/initagent/internal/registry/ai/capability"
 )
 
-func TestCatalogueShipsSoftwareOnly(t *testing.T) {
+func TestCatalogueLiveSoftwareAndLater(t *testing.T) {
 	t.Parallel()
 	got := Catalogue()
 	if len(got) == 0 {
@@ -30,8 +30,8 @@ func TestCatalogueShipsSoftwareOnly(t *testing.T) {
 			}
 		}
 	}
-	if !slices.Equal(live, []ID{Software}) {
-		t.Fatalf("live templates = %v, want only software", live)
+	if !slices.Equal(live, []ID{Software, Later}) {
+		t.Fatalf("live templates = %v, want software then later", live)
 	}
 }
 
@@ -44,6 +44,7 @@ func TestLookup(t *testing.T) {
 		repo     bool
 	}{
 		{"software", true, true, true},
+		{"later", true, true, false},
 		{"website", true, false, true},
 		{"poem", true, false, false},
 		{"", false, false, false},

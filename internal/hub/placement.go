@@ -130,6 +130,48 @@ type errNotFound string
 
 func (e errNotFound) Error() string { return string(e) }
 
+// projectGateway resolves where a project's workers live: its own
+// gateway_url column first, then the hub's --gateway-url flag. Empty means
+// the project has no gateway at all.
+func (s *Server) projectGateway(project *Project) string {
+	target := strings.TrimSpace(project.GatewayURL)
+	if target == "" {
+		target = s.opts.GatewayURL
+	}
+	return target
+}
+
+// gatewayTargets returns the distinct (project, gateway) pairs a credential's
+// readable projects route to. It is the fan-out counterpart to gatewayFor:
+// fleet-wide surfaces ask every reachable gateway and merge, not one. The
+// hub's --gateway-url flag is the fallback when there are no project rows yet
+// (self-host before the first project), the same shape gatewayFor already
+// answers with.
+func (s *Server) gatewayTargets(cred authz.Credential) ([]placement, error) {
+	projects, err := s.readableProjects(cred)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	out := make([]placement, 0, len(projects))
+	for i := range projects {
+		target := s.projectGateway(&projects[i])
+		if target == "" {
+			continue
+		}
+		key := projects[i].Id + "\x00" + target
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, placement{projectID: projects[i].Id, gatewayURL: target})
+	}
+	if len(out) == 0 && strings.TrimSpace(s.opts.GatewayURL) != "" {
+		out = append(out, placement{gatewayURL: s.opts.GatewayURL})
+	}
+	return out, nil
+}
+
 // gatewayFor resolves the placement for a request, answering the request
 // itself on failure. It falls back to the hub's --gateway-url when the column
 // is empty, which is what rows written before placement was read look like,
@@ -159,10 +201,7 @@ func (s *Server) gatewayFor(w http.ResponseWriter, r *http.Request, cred authz.C
 		}
 		return placement{}, false
 	}
-	target := strings.TrimSpace(project.GatewayURL)
-	if target == "" {
-		target = s.opts.GatewayURL
-	}
+	target := s.projectGateway(project)
 	if target == "" {
 		httpError(w, http.StatusServiceUnavailable, "project "+project.Id+" has no gateway; set --gateway-url or the project's gateway")
 		return placement{}, false

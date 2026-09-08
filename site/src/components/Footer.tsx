@@ -1,5 +1,6 @@
 import { Eye, GithubLogo } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
+import { displayName } from "../../../web/brand.ts";
 import { DOCS, RELEASES, REPO } from "../lib/site";
 import { ROUTES } from "../lib/routes";
 
@@ -20,7 +21,7 @@ export function Footer() {
         <a href={ROUTES.home} className="flex items-center gap-2.5">
           <Eye size={18} weight="regular" className="text-accent" />
           <span className="text-[14.5px] font-semibold tracking-tight">
-            initagent
+            {displayName}
           </span>
           <span className="text-[13.5px] text-fg-subtle">{t("nav.licensed")}</span>
         </a>
@@ -44,7 +45,7 @@ export function Footer() {
             href={REPO}
             target="_blank"
             rel="noreferrer"
-            aria-label="initagent on GitHub"
+            aria-label={`${displayName} on GitHub`}
             className="text-fg-muted transition-colors hover:text-fg"
           >
             <GithubLogo size={18} weight="regular" />

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { displayName } from '../../../web/brand.ts'
 import { siteOrigin } from '../../../web/origins.ts'
 import ThemeSwitcher from './ThemeSwitcher'
 import LanguageSwitcher from './LanguageSwitcher'
@@ -32,7 +33,7 @@ export default function GuestNav() {
         <a href={SITE} className="flex shrink-0 items-center gap-2.5 text-fg-strong">
           <EyeIcon />
           <span className="text-[15px] font-semibold tracking-tight">
-            {t('publicNav.home')}
+            {displayName}
           </span>
         </a>
 

@@ -3,10 +3,7 @@
 # 👁️ initagent
 
 [![CI](https://github.com/pleware/initagent/actions/workflows/ci.yml/badge.svg)](https://github.com/pleware/initagent/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/pleware/initagent/branch/main/graph/badge.svg)](https://codecov.io/gh/pleware/initagent)
 [![Go](https://img.shields.io/github/go-mod/go-version/pleware/initagent)](https://github.com/pleware/initagent/blob/main/go.mod)
-[![License](https://img.shields.io/badge/license-FSL--1.1--ALv2-lightgrey?style=flat-square)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/pleware/initagent)](https://github.com/pleware/initagent/releases)
 
 **Control all your machines from one browser tab.**
 
@@ -121,6 +118,11 @@ cd initagent
 make            # builds the UI + the ./initagent binary (needs Go 1.25 + Node 20)
 ./initagent serve
 ```
+
+Self-host `serve` also starts a companion gateway on `127.0.0.1:4201`
+when `--gateway-url` is empty, so the first project can enroll this
+machine. Pass `--gateway-url` to point at a gateway you already run
+with `initagent gateway`.
 
 A hub with no owner prints a one-time bootstrap token when it starts, and
 writes the same value to `bootstrap-token` in its data directory. The
@@ -378,17 +380,5 @@ git tag v0.1.0 && git push origin v0.1.0
 
 ## License
 
-[FSL-1.1-ALv2](LICENSE) — source available. Self-host, internal use,
-non-commercial education/research, and professional services for a
-licensee are Permitted Purposes. Offering a commercial hosted control
-plane that substitutes for initAgent (including
-[app.initagent.dev](https://app.initagent.dev)) is a Competing Use.
-Two years after we publish a version, that version is also available
-under Apache License 2.0.
-
-Upstream Overseer remains MIT under Erzen Krasniqi's copyright; that
-notice stays in [NOTICE](NOTICE). Git tags published under MIT before
-this change remain MIT.
-
-Outside contributions need a signed [CLA](CLA.md). See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+MIT — see [LICENSE](LICENSE). Upstream Overseer remains MIT under
+Erzen Krasniqi's copyright; that notice stays in [NOTICE](NOTICE).

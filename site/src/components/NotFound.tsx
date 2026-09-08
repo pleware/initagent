@@ -1,3 +1,4 @@
+import { displayName } from "../../../web/brand.ts";
 import { ROUTES } from "../lib/routes";
 
 export function NotFound() {
@@ -15,7 +16,7 @@ export function NotFound() {
             href={ROUTES.home}
             className="mt-8 inline-block rounded-control bg-accent px-4 py-2.5 text-[14.5px] font-semibold text-accent-on hover:bg-accent-hover"
           >
-            Back to initagent
+            Back to {displayName}
           </a>
         </div>
       </section>

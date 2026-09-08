@@ -28,9 +28,13 @@ func (t *unixTerminal) Close() error                { return t.pty.Close() }
 func (t *unixTerminal) Resize(cols, rows uint16) error {
 	return pty.Setsize(t.pty, &pty.Winsize{Cols: cols, Rows: rows})
 }
-func (t *unixTerminal) KillWait() {
+func (t *unixTerminal) KillWait() int {
 	if t.cmd.Process != nil {
 		_ = t.cmd.Process.Kill()
 	}
 	_ = t.cmd.Wait()
+	if t.cmd.ProcessState != nil {
+		return t.cmd.ProcessState.ExitCode()
+	}
+	return -1
 }

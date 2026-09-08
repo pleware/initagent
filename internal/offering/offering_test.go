@@ -9,6 +9,32 @@ import (
 	"github.com/pleware/initagent/internal/brand"
 )
 
+func TestCompanionGateway(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name   string
+		kind   Kind
+		flag   string
+		listen string
+		url    string
+		start  bool
+	}{
+		{name: "selfhost empty flag starts companion", kind: Selfhost, listen: CompanionListen, url: "http://" + CompanionListen, start: true},
+		{name: "selfhost flag wins", kind: Selfhost, flag: " http://gw:4201 ", url: "http://gw:4201"},
+		{name: "hosted empty flag starts nothing", kind: Hosted},
+		{name: "hosted flag still used", kind: Hosted, flag: "https://gw.example", url: "https://gw.example"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			listen, url, start := CompanionGateway(tc.kind, tc.flag)
+			if listen != tc.listen || url != tc.url || start != tc.start {
+				t.Fatalf("got listen=%q url=%q start=%v, want %q %q %v", listen, url, start, tc.listen, tc.url, tc.start)
+			}
+		})
+	}
+}
+
 func TestParse(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

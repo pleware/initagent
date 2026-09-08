@@ -1,50 +1,53 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { api, forProject } from '../api'
 import { usePoll } from '../hooks'
 import type { Device, Me, Project, ProjectTemplate, TaskView } from '../types'
-import { HubError } from './PlanWall'
+import { HubError, isMissingGateway } from './PlanWall'
+import {
+  isHostedOperator,
+  nextStepAfterProject,
+  orgNeedsName,
+  resumeBoardingStep,
+  type BoardingStep,
+} from './boardingState'
 
-// Boarding is the empty-state funnel after hosted signup or a self-host
-// claim (26). Name the company if it is still the generic default, pick a
-// shipped template, create the first project, bind a repo when the contract
-// is change, enroll a worker, then run one task. Skip-ahead is allowed at
-// each step. The hosted platform operator is not this funnel.
+export { isHostedOperator, orgNeedsName }
 
-type Step = 'name' | 'template' | 'project' | 'repo' | 'worker' | 'task'
-
-export function isHostedOperator(me: Me): boolean {
-  return me.platformAdmin === true && me.offering === 'hosted'
-}
-
-export function orgNeedsName(me: Me): boolean {
-  const name = me.orgs?.[0]?.name
-  const unnamed = me.defaultOrgName || 'default'
-  return Boolean(name && name === unnamed)
-}
+// Boarding is the first-run funnel after hosted signup or a self-host
+// claim (26). It stays mounted until onFinished, even after the first
+// project exists. Org name and the first project are required. Steps
+// after create-project are per template: repo only when that template
+// needs one. Skip-ahead is allowed after that (repo, worker, task).
+// The hosted platform operator is not this funnel.
 
 const firstTaskCommand = 'echo hello from initagent'
+const firstTaskBoxClass =
+  'block w-full whitespace-pre-wrap rounded-lg border border-line-2 bg-fill-sunken px-3 py-2 font-mono text-xs text-fg-soft'
 
 export default function Boarding({
   me,
   devices,
+  initialProject,
   onMeChanged,
   onFinished,
 }: {
   me: Me
   devices: Device[]
+  initialProject?: Project
   onMeChanged: () => Promise<void> | void
   onFinished: (project: Project) => void
 }) {
   const { t } = useTranslation()
   const org = me.orgs?.[0]
-  const [step, setStep] = useState<Step>(orgNeedsName(me) ? 'name' : 'template')
+  const [step, setStep] = useState<BoardingStep>(orgNeedsName(me) ? 'name' : 'template')
   const [orgName, setOrgName] = useState('')
   const [templates, setTemplates] = useState<ProjectTemplate[]>([])
-  const [templateId, setTemplateId] = useState('software')
-  const [projectName, setProjectName] = useState('')
-  const [project, setProject] = useState<Project | null>(null)
-  const [repoRemote, setRepoRemote] = useState('')
+  const [templateId, setTemplateId] = useState(initialProject?.templateId ?? 'software')
+  const [projectName, setProjectName] = useState(initialProject?.name ?? '')
+  const [project, setProject] = useState<Project | null>(initialProject ?? null)
+  const [resumed, setResumed] = useState(false)
+  const [repoRemote, setRepoRemote] = useState(initialProject?.repoRemote ?? '')
   const [fleet, setFleet] = useState<Device[]>(devices)
   const [command, setCommand] = useState('')
   const [windowsCommand, setWindowsCommand] = useState('')
@@ -64,6 +67,9 @@ export default function Boarding({
     }
   }, [])
 
+  const online = fleet.filter((device) => device.online)
+  const joined = online.length > 0
+
   usePoll(loadFleet, step === 'worker' || step === 'task' ? 4000 : 30_000)
 
   useEffect(() => {
@@ -73,12 +79,23 @@ export default function Boarding({
   useEffect(() => {
     api.get<ProjectTemplate[]>('/api/templates').then((list) => {
       setTemplates(list)
+      if (initialProject?.templateId) return
       const live = list.find((item) => item.live)
       if (live) setTemplateId(live.id)
     }).catch((cause) => {
       setError(cause)
     })
-  }, [t])
+  }, [t, initialProject?.templateId])
+
+  useEffect(() => {
+    if (resumed || !initialProject || templates.length === 0) return
+    setProject(initialProject)
+    setProjectName(initialProject.name)
+    if (initialProject.templateId) setTemplateId(initialProject.templateId)
+    if (initialProject.repoRemote) setRepoRemote(initialProject.repoRemote)
+    setStep(resumeBoardingStep(me, initialProject, templates, joined))
+    setResumed(true)
+  }, [initialProject, joined, me, resumed, templates])
 
   useEffect(() => {
     if (step !== 'worker') return
@@ -95,33 +112,30 @@ export default function Boarding({
       })
   }, [step, project?.id, t])
 
-  const online = fleet.filter((device) => device.online)
-  const joined = online.length > 0
+  const afterName = () => {
+    if (project) {
+      setStep(nextStepAfterProject(project, templates, joined))
+      return
+    }
+    setStep('template')
+  }
 
   const afterProject = (saved: Project) => {
     setProject(saved)
-    const tmpl = templates.find((item) => item.id === saved.templateId) ?? selected
-    if (tmpl?.needsRepo) {
-      setStep('repo')
-      return
-    }
-    setStep(joined ? 'task' : 'worker')
+    setStep(nextStepAfterProject(saved, templates, joined))
   }
 
   const saveName = async (event: FormEvent) => {
     event.preventDefault()
     if (!org) return
     const trimmed = orgName.trim()
-    if (trimmed === '') {
-      setStep('template')
-      return
-    }
+    if (trimmed === '') return
     setBusy(true)
     setError(null)
     try {
       await api.patch(`/api/orgs/${org.orgId}`, { name: trimmed })
       await onMeChanged()
-      setStep('template')
+      afterName()
     } catch (cause) {
       setError(cause)
     } finally {
@@ -158,7 +172,7 @@ export default function Boarding({
         repoRemote: repoRemote.trim(),
       })
       setProject(saved)
-      setStep(joined ? 'task' : 'worker')
+      setStep(nextStepAfterProject(saved, templates, joined))
     } catch (cause) {
       setError(cause)
     } finally {
@@ -186,6 +200,14 @@ export default function Boarding({
 
   const skipRepo = () => setStep(joined ? 'task' : 'worker')
   const skipWorker = () => setStep('task')
+  const backToName = () => {
+    setError(null)
+    setStep('name')
+  }
+  const backToTemplate = () => {
+    setError(null)
+    setStep('template')
+  }
 
   const copy = async () => {
     const text = platform === 'windows' ? windowsCommand : command
@@ -210,17 +232,15 @@ export default function Boarding({
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
                 autoFocus
+                required
                 maxLength={120}
                 placeholder={me.defaultOrgName || 'default'}
                 className="field-input mt-2"
               />
             </label>
             {error ? <HubError error={error} fallback={t('errors.generic')} /> : null}
-            <button type="submit" disabled={busy} className="btn-primary w-full">
+            <button type="submit" disabled={busy || !orgName.trim()} className="btn-primary w-full">
               {busy ? t('common.loading') : t('boarding.continue')}
-            </button>
-            <button type="button" className="w-full text-sm text-fg-muted underline-offset-2 hover:text-fg hover:underline" onClick={() => { setError(null); setStep('template') }}>
-              {t('boarding.skipName')}
             </button>
           </form>
         </>
@@ -263,6 +283,9 @@ export default function Boarding({
           >
             {t('boarding.continue')}
           </button>
+          <button type="button" className="mt-3 w-full max-w-sm text-sm text-fg-muted underline-offset-2 hover:text-fg hover:underline" onClick={backToName}>
+            {t('common.back')}
+          </button>
         </>
       )}
       {step === 'project' && (
@@ -285,7 +308,9 @@ export default function Boarding({
             <button type="submit" disabled={busy || !projectName.trim()} className="btn-primary w-full">
               {busy ? t('common.loading') : t('boarding.createProject')}
             </button>
-            <p className="text-center text-xs leading-5 text-fg-ghost">{t('boarding.skipProject')}</p>
+            <button type="button" className="w-full text-sm text-fg-muted underline-offset-2 hover:text-fg hover:underline" onClick={backToTemplate}>
+              {t('common.back')}
+            </button>
           </form>
         </>
       )}
@@ -311,6 +336,21 @@ export default function Boarding({
             <button type="button" className="w-full text-sm text-fg-muted underline-offset-2 hover:text-fg hover:underline" onClick={skipRepo}>
               {t('boarding.skipRepo')}
             </button>
+            <p className="text-center text-xs leading-5 text-fg-ghost">
+              <Trans
+                i18nKey="boarding.repoNoGit"
+                components={{
+                  github: (
+                    <a
+                      href="https://github.com/new"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-fg-muted underline underline-offset-2 hover:text-fg"
+                    />
+                  ),
+                }}
+              />
+            </p>
           </form>
         </>
       )}
@@ -319,36 +359,49 @@ export default function Boarding({
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-fg">{t('boarding.workerTitle')}</h1>
           <p className="mt-3 max-w-lg text-center text-sm leading-6 text-fg-muted">{t('boarding.workerHint')}</p>
           <div className="mt-6 w-full max-w-xl">
-            {error ? <HubError error={error} fallback={t('errors.generic')} /> : null}
-            <div className="mb-3 inline-flex rounded-lg border border-line-2 bg-fill-sunken p-1">
-              <button type="button" onClick={() => setPlatform('unix')} className={`rounded-md px-3 py-1.5 text-sm ${platform === 'unix' ? 'bg-fill-4 text-fg' : 'text-fg-muted hover:text-fg'}`}>
-                {t('boarding.unix')}
-              </button>
-              <button type="button" onClick={() => setPlatform('windows')} className={`rounded-md px-3 py-1.5 text-sm ${platform === 'windows' ? 'bg-fill-4 text-fg' : 'text-fg-muted hover:text-fg'}`}>
-                {t('boarding.windows')}
-              </button>
-            </div>
-            <div className="flex items-stretch gap-2">
-              <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-line-2 bg-fill-sunken p-3 font-mono text-[13px] text-ok-fg">
-                {(platform === 'windows' ? windowsCommand : command) || t('common.loading')}
-              </code>
-              <button type="button" onClick={copy} disabled={!(platform === 'windows' ? windowsCommand : command)} className="btn-secondary shrink-0">
-                {copied ? t('boarding.copied') : t('boarding.copy')}
-              </button>
-            </div>
-            <p className="mt-3 text-xs text-fg-ghost">{t('boarding.enrollExpire')}</p>
-            {joined ? (
-              <div className="mt-4 flex items-center justify-between rounded-lg border border-ok/30 bg-ok/10 p-3">
-                <span className="text-sm font-medium text-ok-fg">{t('boarding.enrollJoined')}</span>
-                <button type="button" className="btn-primary" onClick={() => { setError(null); setStep('task') }}>
-                  {t('boarding.continue')}
-                </button>
+            {isMissingGateway(error) ? (
+              <div role="alert" className="mb-4 rounded-lg border border-fail/30 bg-fail/10 px-3 py-3 text-left">
+                <p className="text-sm font-medium text-fail-fg">{t('boarding.noGatewayTitle')}</p>
+                <p className="mt-1 text-sm leading-5 text-fg-muted">{t('boarding.noGatewayHint')}</p>
               </div>
-            ) : (
-              <p className="mt-4 flex items-center gap-2 text-sm text-fg-muted">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-ok" />
-                {t('boarding.enrollWait')}
-              </p>
+            ) : error ? (
+              <div className="mb-4">
+                <HubError error={error} fallback={t('errors.generic')} />
+              </div>
+            ) : null}
+            {!isMissingGateway(error) && (
+              <>
+                <div className="mb-3 inline-flex rounded-lg border border-line-2 bg-fill-sunken p-1">
+                  <button type="button" onClick={() => setPlatform('unix')} className={`rounded-md px-3 py-1.5 text-sm ${platform === 'unix' ? 'bg-fill-4 text-fg' : 'text-fg-muted hover:text-fg'}`}>
+                    {t('boarding.unix')}
+                  </button>
+                  <button type="button" onClick={() => setPlatform('windows')} className={`rounded-md px-3 py-1.5 text-sm ${platform === 'windows' ? 'bg-fill-4 text-fg' : 'text-fg-muted hover:text-fg'}`}>
+                    {t('boarding.windows')}
+                  </button>
+                </div>
+                <div className="flex items-stretch gap-2">
+                  <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-line-2 bg-fill-sunken p-3 font-mono text-[13px] text-ok-fg">
+                    {(platform === 'windows' ? windowsCommand : command) || t('common.loading')}
+                  </code>
+                  <button type="button" onClick={copy} disabled={!(platform === 'windows' ? windowsCommand : command)} className="btn-secondary shrink-0">
+                    {copied ? t('boarding.copied') : t('boarding.copy')}
+                  </button>
+                </div>
+                <p className="mt-3 text-xs text-fg-ghost">{t('boarding.enrollExpire')}</p>
+                {joined ? (
+                  <div className="mt-4 flex items-center justify-between rounded-lg border border-ok/30 bg-ok/10 p-3">
+                    <span className="text-sm font-medium text-ok-fg">{t('boarding.enrollJoined')}</span>
+                    <button type="button" className="btn-primary" onClick={() => { setError(null); setStep('task') }}>
+                      {t('boarding.continue')}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="mt-4 flex items-center gap-2 text-sm text-fg-muted">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-ok" />
+                    {t('boarding.enrollWait')}
+                  </p>
+                )}
+              </>
             )}
             <button type="button" className="mt-4 w-full text-sm text-fg-muted underline-offset-2 hover:text-fg hover:underline" onClick={skipWorker}>
               {t('boarding.skipWorker')}
@@ -361,20 +414,23 @@ export default function Boarding({
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-fg">{t('boarding.taskTitle')}</h1>
           <p className="mt-3 max-w-lg text-center text-sm leading-6 text-fg-muted">{t('boarding.taskHint')}</p>
           <form onSubmit={runFirstTask} className="mt-6 w-full max-w-sm flex flex-col gap-3">
-            <code className="rounded-lg border border-line-2 bg-fill-sunken px-3 py-2 font-mono text-xs text-fg-soft">{firstTaskCommand}</code>
+            <code className={firstTaskBoxClass}>{firstTaskCommand}</code>
             {error ? <HubError error={error} fallback={t('errors.generic')} /> : null}
-            {task && (
-              <p className="text-sm text-fg-soft">
-                {task.state}
-                {task.stdout ? ` — ${task.stdout.trim()}` : ''}
-              </p>
-            )}
             <button type="submit" disabled={busy || online.length === 0} className="btn-primary w-full">
               {busy ? t('boarding.taskRunning') : t('boarding.runTask')}
             </button>
             <button type="button" className="w-full text-sm text-fg-muted underline-offset-2 hover:text-fg hover:underline" onClick={finish}>
               {project ? t('boarding.done') : t('boarding.skipTask')}
             </button>
+            <div className="text-left">
+              <p id="boarding-task-result" className="field-label">{t('boarding.taskResult')}</p>
+              <code
+                aria-labelledby="boarding-task-result"
+                className={`${firstTaskBoxClass} mt-2 min-h-20 bg-canvas-sunken`}
+              >
+                {task ? `${task.state}${task.stdout ? ` — ${task.stdout.trim()}` : ''}` : '\u00a0'}
+              </code>
+            </div>
             {online.length === 0 && <p className="text-center text-xs text-fg-ghost">{t('tasks.noOnlineWorkers')}</p>}
           </form>
         </>

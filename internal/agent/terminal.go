@@ -21,7 +21,8 @@ type termStream struct {
 type terminalBackend interface {
 	io.ReadWriteCloser
 	Resize(cols, rows uint16) error
-	KillWait()
+	// KillWait reaps the child and returns its OS exit code, or -1 if unknown.
+	KillWait() int
 }
 
 func (t *termStream) write(p []byte) {
@@ -68,7 +69,17 @@ func (a *Agent) termOpen(channel uint32, req protocol.TermOpen) {
 		return
 	}
 	if !tmuxAvailable() {
-		fail(fmt.Errorf("session %q not found and tmux is not installed", req.Session))
+		// Same as tmux new-session -A: + Terminal names the session in the
+		// browser and the first attach creates it. Windows has no tmux.
+		if err := a.createEphemeral(protocol.SessionCreate{Name: req.Session, Kind: "shell"}); err != nil {
+			fail(err)
+			return
+		}
+		if eph := a.ephemeral(req.Session); eph != nil {
+			a.attachEphemeral(channel, eph, req)
+			return
+		}
+		fail(fmt.Errorf("session %q could not be created", req.Session))
 		return
 	}
 	// Reject a duplicate open on a channel already in use, so a buggy/hostile
@@ -118,13 +129,17 @@ func (a *Agent) pumpTerm(t *termStream) {
 		}
 	}
 	// Process cleanup happens in the platform backend. On Windows the process
-	// was spawned through ConPTY rather than os/exec, so cmd.Wait is invalid.
-	t.backend.KillWait()
+	// was spawned through ConPTY rather than os/exec, so cmd.Wait is invalid;
+	// the handle still answers GetExitCodeProcess after `exit`.
+	code := t.backend.KillWait()
 	t.close() // idempotent; ensures the PTY is closed if we exited via read error
 	a.mu.Lock()
 	delete(a.terms, t.channel)
 	a.mu.Unlock()
 	exit, _ := protocol.NewMsg(protocol.TypeTermExit, 0, t.channel, nil)
+	if code >= 0 {
+		exit.Error = fmt.Sprintf("exit %d", code)
+	}
 	a.send(exit)
 }
 

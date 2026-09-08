@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	"github.com/pleware/initagent/internal/deviceops"
 	"github.com/pleware/initagent/internal/protocol"
 )
 
@@ -125,6 +126,25 @@ func (c *agentConn) closeChannel(id uint32) {
 	c.mu.Lock()
 	delete(c.channels, id)
 	c.mu.Unlock()
+}
+
+// The exported methods below adapt *agentConn to deviceops.Conn so the hub
+// and the gateway share one implementation of exec, fs, and setup probing.
+
+func (c *agentConn) Call(ctx context.Context, typ string, payload, out any) error {
+	return c.requestInto(ctx, typ, payload, out)
+}
+
+func (c *agentConn) OpenChannel(h *deviceops.Channel) uint32 {
+	return c.openChannel(&hubChannel{onBinary: h.OnBinary, onControl: h.OnControl})
+}
+
+func (c *agentConn) CloseChannel(id uint32) { c.closeChannel(id) }
+
+func (c *agentConn) SendJSON(m protocol.Msg) error { return c.sendJSON(m) }
+
+func (c *agentConn) SendBinary(channel uint32, payload []byte) error {
+	return c.sendBinary(channel, payload)
 }
 
 // --- registry of connected agents ---

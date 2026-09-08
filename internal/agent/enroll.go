@@ -24,19 +24,24 @@ func ConfigPath() (string, error) {
 	return filepath.Join(home, brand.ConfigDir, brand.ConnectorConfigFile), nil
 }
 
-// LoadConfig reads the enrolled-agent config.
+// LoadConfig reads the enrolled-agent config from the default path.
 func LoadConfig() (Config, error) {
-	var cfg Config
 	p, err := ConfigPath()
 	if err != nil {
-		return cfg, err
+		return Config{}, err
 	}
-	b, err := os.ReadFile(p)
+	return LoadConfigFrom(p)
+}
+
+// LoadConfigFrom reads a connector config from path.
+func LoadConfigFrom(path string) (Config, error) {
+	var cfg Config
+	b, err := os.ReadFile(path)
 	if err != nil {
-		return cfg, fmt.Errorf("reading %s (is this device enrolled? run `%s agent enroll`): %w", p, brand.Binary, err)
+		return cfg, fmt.Errorf("reading %s (is this device enrolled? run `%s agent enroll`): %w", path, brand.Binary, err)
 	}
 	if err := json.Unmarshal(b, &cfg); err != nil {
-		return cfg, fmt.Errorf("parsing %s: %w", p, err)
+		return cfg, fmt.Errorf("parsing %s: %w", path, err)
 	}
 	return cfg, nil
 }
@@ -54,8 +59,19 @@ type enrollResponse struct {
 }
 
 // Enroll exchanges a single-use enrollment token for a permanent device
-// credential and writes the agent config.
+// credential and writes the default agent config.
 func Enroll(hubURL, token string) (Config, error) {
+	p, err := ConfigPath()
+	if err != nil {
+		return Config{}, err
+	}
+	return EnrollTo(hubURL, token, p)
+}
+
+// EnrollTo is Enroll with an explicit config path. The self-host hub uses
+// this so the first-box worker does not share ~/.initagent/connector.json
+// with a separately installed connector.
+func EnrollTo(hubURL, token, configPath string) (Config, error) {
 	hubURL = strings.TrimRight(hubURL, "/")
 	hostname, _ := os.Hostname()
 	body, _ := json.Marshal(enrollRequest{
@@ -75,17 +91,19 @@ func Enroll(hubURL, token string) (Config, error) {
 	if err := json.Unmarshal(respBody, &er); err != nil {
 		return Config{}, fmt.Errorf("parsing enrollment response: %w", err)
 	}
+	if er.DeviceId == "" || er.DeviceToken == "" {
+		return Config{}, fmt.Errorf("enrollment response missing device credentials")
+	}
 
 	cfg := Config{HubURL: hubURL, DeviceId: er.DeviceId, Token: er.DeviceToken}
-	p, err := ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o700); err != nil {
+		return Config{}, err
+	}
+	out, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return Config{}, err
 	}
-	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
-		return Config{}, err
-	}
-	out, _ := json.MarshalIndent(cfg, "", "  ")
-	if err := os.WriteFile(p, out, 0o600); err != nil {
+	if err := os.WriteFile(configPath, out, 0o600); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil

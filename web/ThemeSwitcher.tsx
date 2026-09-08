@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { cn } from 'cn'
+import { SimpleSelect } from './components/SimpleSelect'
 import {
   currentPreference,
   isThemeFamily,
@@ -8,18 +9,10 @@ import {
   themeFamilies,
   type ThemeFamily,
 } from './theme'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select'
 
 /**
  * Family picker for the hub and the marketing site.
- * Shared Select from `web/ui` (shadcn base-nova).
+ * Same SimpleSelect as LanguageSwitcher and the hub forms.
  */
 export function ThemeSwitcher({
   className = '',
@@ -48,7 +41,7 @@ export function ThemeSwitcher({
       <span className={labelled ? 'text-sm font-medium text-fg' : 'sr-only'}>
         {label ?? 'Theme'}
       </span>
-      <Select
+      <SimpleSelect
         items={items}
         value={family}
         onValueChange={(next) => {
@@ -56,23 +49,9 @@ export function ThemeSwitcher({
           setFamily(next)
           setTheme({ family: next })
         }}
-      >
-        <SelectTrigger
-          size={size === 'compact' && !labelled ? 'sm' : 'default'}
-          className={labelled ? 'w-full' : undefined}
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent alignItemWithTrigger={false} align="start">
-          <SelectGroup>
-            {items.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+        size={size === 'compact' && !labelled ? 'sm' : 'default'}
+        className={labelled ? 'w-full' : undefined}
+      />
     </div>
   )
 }

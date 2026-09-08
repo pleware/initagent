@@ -19,6 +19,24 @@ import (
 	"github.com/pleware/initagent/internal/protocol"
 )
 
+func TestStartServesHealth(t *testing.T) {
+	g := openTest(t, "")
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+	url, err := g.Start(ctx, "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.Get(url + "/health")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("health = %d", resp.StatusCode)
+	}
+}
+
 func TestCreateEnrollTokenHTTPUsesRequestHost(t *testing.T) {
 	g := openTest(t, "")
 	req := httptest.NewRequest(http.MethodPost, "/api/enroll-tokens", nil)

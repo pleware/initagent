@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
 
+	"github.com/pleware/initagent/internal/deviceops"
 	"github.com/pleware/initagent/internal/protocol"
 	"github.com/pleware/initagent/internal/updater"
 )
@@ -24,16 +26,27 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+type termChannel struct {
+	onBinary  func([]byte)
+	onControl func(protocol.Msg)
+}
+
 type agentConn struct {
-	ws      *websocket.Conn
-	writeMu sync.Mutex
-	mu      sync.Mutex
-	nextID  uint64
-	pending map[uint64]chan protocol.Msg
+	ws          *websocket.Conn
+	writeMu     sync.Mutex
+	mu          sync.Mutex
+	nextID      uint64
+	pending     map[uint64]chan protocol.Msg
+	channels    map[uint32]*termChannel
+	nextChannel atomic.Uint32
 }
 
 func newAgentConn(ws *websocket.Conn) *agentConn {
-	return &agentConn{ws: ws, pending: map[uint64]chan protocol.Msg{}}
+	return &agentConn{
+		ws:       ws,
+		pending:  map[uint64]chan protocol.Msg{},
+		channels: map[uint32]*termChannel{},
+	}
 }
 
 func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
@@ -90,21 +103,29 @@ func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		if msgType != websocket.TextMessage {
-			continue
-		}
-		var m protocol.Msg
-		if err := json.Unmarshal(data, &m); err != nil {
-			continue
-		}
-		switch m.Type {
-		case protocol.TypeStats:
-			var st protocol.Stats
-			if err := json.Unmarshal(m.Data, &st); err == nil {
-				g.setStats(device.ID, &st)
+		switch msgType {
+		case websocket.TextMessage:
+			var m protocol.Msg
+			if err := json.Unmarshal(data, &m); err != nil {
+				continue
 			}
-		case protocol.TypeResult:
-			ac.deliver(m)
+			switch {
+			case m.Type == protocol.TypeStats:
+				var st protocol.Stats
+				if err := json.Unmarshal(m.Data, &st); err == nil {
+					g.setStats(device.ID, &st)
+				}
+			case m.Type == protocol.TypeResult:
+				ac.deliver(m)
+			case m.Channel != 0:
+				ac.control(m)
+			}
+		case websocket.BinaryMessage:
+			ch, payload, err := protocol.DecodeFrame(data)
+			if err != nil {
+				continue
+			}
+			ac.binary(ch, payload)
 		}
 	}
 }
@@ -126,6 +147,8 @@ func (c *agentConn) closePending() {
 	c.mu.Lock()
 	pending := c.pending
 	c.pending = map[uint64]chan protocol.Msg{}
+	channels := c.channels
+	c.channels = map[uint32]*termChannel{}
 	c.mu.Unlock()
 	msg := protocol.Msg{Type: protocol.TypeResult, Error: "device disconnected"}
 	for _, ch := range pending {
@@ -134,6 +157,56 @@ func (c *agentConn) closePending() {
 		default:
 		}
 	}
+	exit := protocol.Msg{Type: protocol.TypeTermExit, Error: "device disconnected"}
+	for _, h := range channels {
+		if h.onControl != nil {
+			h.onControl(exit)
+		}
+	}
+}
+
+func (c *agentConn) binary(channel uint32, payload []byte) {
+	c.mu.Lock()
+	h := c.channels[channel]
+	c.mu.Unlock()
+	if h != nil && h.onBinary != nil {
+		h.onBinary(payload)
+	}
+}
+
+func (c *agentConn) control(m protocol.Msg) {
+	c.mu.Lock()
+	h := c.channels[m.Channel]
+	c.mu.Unlock()
+	if h != nil && h.onControl != nil {
+		h.onControl(m)
+	}
+}
+
+func (c *agentConn) openChannel(h *termChannel) uint32 {
+	id := c.nextChannel.Add(1)
+	c.mu.Lock()
+	c.channels[id] = h
+	c.mu.Unlock()
+	return id
+}
+
+func (c *agentConn) closeChannel(id uint32) {
+	c.mu.Lock()
+	delete(c.channels, id)
+	c.mu.Unlock()
+}
+
+func (c *agentConn) sendJSON(m protocol.Msg) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return c.ws.WriteJSON(m)
+}
+
+func (c *agentConn) sendBinary(channel uint32, payload []byte) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return c.ws.WriteMessage(websocket.BinaryMessage, protocol.EncodeFrame(channel, payload))
 }
 
 func (c *agentConn) call(ctx context.Context, typ string, payload any) (protocol.Msg, error) {
@@ -170,6 +243,37 @@ func (c *agentConn) call(ctx context.Context, typ string, payload any) (protocol
 		}
 		return reply, nil
 	}
+}
+
+func (c *agentConn) callInto(ctx context.Context, typ string, payload, out any) error {
+	reply, err := c.call(ctx, typ, payload)
+	if err != nil {
+		return err
+	}
+	if out != nil && len(reply.Data) > 0 {
+		return json.Unmarshal(reply.Data, out)
+	}
+	return nil
+}
+
+// The exported methods below adapt *agentConn to deviceops.Conn so the
+// gateway and the hub share one implementation of exec, fs, and setup
+// probing (10/16).
+
+func (c *agentConn) Call(ctx context.Context, typ string, payload, out any) error {
+	return c.callInto(ctx, typ, payload, out)
+}
+
+func (c *agentConn) OpenChannel(h *deviceops.Channel) uint32 {
+	return c.openChannel(&termChannel{onBinary: h.OnBinary, onControl: h.OnControl})
+}
+
+func (c *agentConn) CloseChannel(id uint32) { c.closeChannel(id) }
+
+func (c *agentConn) SendJSON(m protocol.Msg) error { return c.sendJSON(m) }
+
+func (c *agentConn) SendBinary(channel uint32, payload []byte) error {
+	return c.sendBinary(channel, payload)
 }
 
 func (g *Gateway) attachConn(id, projectID string, hello protocol.Hello, c *agentConn) {

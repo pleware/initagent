@@ -1,25 +1,66 @@
-import { FormEvent, useCallback, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useMemo, useState, type ComponentType, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import { ArrowClockwiseIcon, KeyIcon, PlugsConnectedIcon, RocketLaunchIcon } from '@phosphor-icons/react'
+import { SimpleSelect } from '@ia/web/components/SimpleSelect'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@ia/web/ui/accordion'
 import { api, timeAgo } from '../api'
 import { usePoll } from '../hooks'
 import type { ApiTokenInfo, Me, Preset, Project, UpdateStatus } from '../types'
 
 export default function SettingsPage({ me }: { me: Me }) {
+  const { t } = useTranslation()
   return (
     <div className="page-shell max-w-4xl">
-      <p className="eyebrow mb-3">Hub controls</p>
-      <h1 className="mb-8 text-3xl font-semibold tracking-[-0.04em] text-zinc-100">Settings</h1>
-      <SoftwareUpdates />
-      <ApiTokens me={me} />
-      <Presets />
-      <McpHelp />
+      <p className="eyebrow mb-3">{t('settings.eyebrow')}</p>
+      <h1 className="mb-8 text-3xl font-semibold tracking-[-0.04em] text-fg">{t('settings.title')}</h1>
+      <Accordion className="gap-3" multiple>
+        <SettingsPanel value="updates" icon={ArrowClockwiseIcon} title={t('settings.updates')}>
+          <SoftwareUpdates />
+        </SettingsPanel>
+        <SettingsPanel value="tokens" icon={KeyIcon} title={t('settings.tokens')}>
+          <ApiTokens me={me} />
+        </SettingsPanel>
+        <SettingsPanel value="presets" icon={RocketLaunchIcon} title={t('settings.presets')}>
+          <Presets />
+        </SettingsPanel>
+        <SettingsPanel value="mcp" icon={PlugsConnectedIcon} title={t('settings.mcp')}>
+          <McpHelp />
+        </SettingsPanel>
+      </Accordion>
     </div>
   )
 }
 
-const cardClass =
-  'surface mb-5 rounded-2xl p-6'
 const inputClass =
   'rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-lime-500'
+
+function SettingsPanel({
+  value,
+  icon: Icon,
+  title,
+  children,
+}: {
+  value: string
+  icon: ComponentType<{ className?: string }>
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <AccordionItem value={value} className="surface flex w-full flex-col overflow-hidden rounded-2xl not-last:border-b-0">
+      <AccordionTrigger className="w-full items-center rounded-none px-5 py-4 hover:bg-fill-5 hover:no-underline">
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-line-3 bg-fill-3 text-fg-soft">
+            <Icon className="size-4" />
+          </span>
+          <span className="text-base font-medium text-fg">{title}</span>
+        </span>
+      </AccordionTrigger>
+      <AccordionContent className="w-full px-5 pb-5">
+        {children}
+      </AccordionContent>
+    </AccordionItem>
+  )
+}
 
 function SoftwareUpdates() {
   const [status, setStatus] = useState<UpdateStatus | null>(null)
@@ -66,18 +107,15 @@ function SoftwareUpdates() {
   }
 
   return (
-    <section className={cardClass}>
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-medium text-zinc-100">Software updates</h2>
-            {status?.updateAvailable && <span className="rounded-full bg-lime-400/10 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-lime-300">Update ready</span>}
-          </div>
-          <p className="max-w-xl text-sm leading-6 text-zinc-400">
-            Stable releases are checksum-verified, tested before replacement, and keep one previous version ready for rollback.
-          </p>
-        </div>
-        <label className="flex shrink-0 items-center gap-3 text-sm text-zinc-300">
+    <div>
+      <div className="flex flex-col gap-4">
+        <p className="max-w-xl text-sm leading-6 text-zinc-400">
+          Stable releases are checksum-verified, tested before replacement, and keep one previous version ready for rollback.
+          {status?.updateAvailable ? (
+            <span className="ml-2 rounded-full bg-lime-400/10 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-lime-300">Update ready</span>
+          ) : null}
+        </p>
+        <label className="flex items-center gap-3 text-sm text-zinc-300">
           <span>Auto-update</span>
           <input
             type="checkbox"
@@ -108,7 +146,7 @@ function SoftwareUpdates() {
         {status?.rollbackVersion && status.managed && <button className="btn-secondary" disabled={!!busy} onClick={() => run('rollback')}>Restore {status.rollbackVersion}</button>}
       </div>
       {status?.lastChecked ? <p className="mt-3 text-[11px] text-zinc-600">Last checked {timeAgo(status.lastChecked)} · managed agents retry automatically and update to the hub release.</p> : null}
-    </section>
+    </div>
   )
 }
 
@@ -218,8 +256,7 @@ function ApiTokens({ me }: { me: Me }) {
   }
 
   return (
-    <section className={cardClass}>
-      <h2 className="mb-1 text-lg font-medium text-zinc-100">API tokens</h2>
+    <div>
       <p className="mb-4 text-sm text-zinc-400">
         For the <code className="text-lime-300">initagent fleet</code> CLI and
         the MCP server — this is how your coding agents get hands on the fleet.
@@ -243,34 +280,28 @@ function ApiTokens({ me }: { me: Me }) {
               required
               className={`${inputClass} flex-1`}
             />
-            <select
+            <SimpleSelect
+              size="default"
               value={orgId}
-              onChange={(e) => {
-                setOrgId(e.target.value)
+              onValueChange={(next) => {
+                setOrgId(next)
                 setProjectId('')
               }}
-              className={inputClass}
+              className="min-w-40"
               aria-label="Organization"
-            >
-              {memberships.map((m) => (
-                <option key={m.orgId} value={m.orgId}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-            <select
+              items={memberships.map((m) => ({ value: m.orgId, label: m.name }))}
+            />
+            <SimpleSelect
+              size="default"
               value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className={inputClass}
+              onValueChange={setProjectId}
+              className="min-w-40"
               aria-label="Project"
-            >
-              <option value="">every project in this organization</option>
-              {narrowable.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              items={[
+                { value: '', label: 'every project in this organization' },
+                ...narrowable.map((p) => ({ value: p.id, label: p.name })),
+              ]}
+            />
           </div>
 
           <fieldset className="rounded-xl border border-zinc-800 p-4">
@@ -386,7 +417,7 @@ function ApiTokens({ me }: { me: Me }) {
           <li className="py-2 text-sm text-zinc-500">No tokens yet.</li>
         )}
       </ul>
-    </section>
+    </div>
   )
 }
 
@@ -418,10 +449,7 @@ function Presets() {
   }
 
   return (
-    <section className={cardClass}>
-      <h2 className="mb-1 text-lg font-medium text-zinc-100">
-        Launch presets
-      </h2>
+    <div>
       <p className="mb-4 text-sm text-zinc-400">
         One-click commands in the Launch dialog. Add your favorite agents.
       </p>
@@ -461,17 +489,14 @@ function Presets() {
           </li>
         ))}
       </ul>
-    </section>
+    </div>
   )
 }
 
 function McpHelp() {
   const origin = location.origin
   return (
-    <section className={cardClass}>
-      <h2 className="mb-1 text-lg font-medium text-zinc-100">
-        Give an agent control of your fleet
-      </h2>
+    <div>
       <p className="mb-4 text-sm text-zinc-400">
         Run a coding agent on any machine with the{' '}
         <code className="text-lime-300">initagent</code> binary and an API token,
@@ -513,6 +538,6 @@ claude mcp add initagent -- initagent mcp`}
           treat the API token like an SSH key. Revoke it above if it leaks.
         </div>
       </div>
-    </section>
+    </div>
   )
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api } from '../api'
 import { usePoll } from '../hooks'
 import type { Device, SetupOverview, SetupTool } from '../types'
@@ -84,18 +85,16 @@ export default function SetupPage() {
         </div>
         <div className="surface flex min-w-72 items-center gap-3 rounded-xl p-3">
           <span className={`h-2 w-2 rounded-full ${selected?.online ? 'bg-lime-300' : 'bg-zinc-700'}`} />
-          <select
+          <SimpleSelect
+            size="default"
             value={deviceId}
-            onChange={(e) => setDeviceId(e.target.value)}
-            className="min-w-0 flex-1 bg-transparent text-sm font-medium text-zinc-100"
+            onValueChange={setDeviceId}
+            className="min-w-0 flex-1"
             aria-label="Device to configure"
-          >
-            {devices.filter((d) => d.online).map((d) => (
-              <option key={d.id} value={d.id} className="bg-zinc-900">
-                {d.name} · {d.os}/{d.arch}
-              </option>
-            ))}
-          </select>
+            items={devices
+              .filter((d) => d.online)
+              .map((d) => ({ value: d.id, label: `${d.name} · ${d.os}/${d.arch}` }))}
+          />
           <button onClick={loadSetup} disabled={refreshing || !deviceId} className="text-xs font-medium text-zinc-500 hover:text-white">
             {refreshing ? 'Checking…' : 'Refresh'}
           </button>

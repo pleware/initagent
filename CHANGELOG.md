@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-08 — Proxy device operations and fan out fleet views across the gateway
 - 2026-09-07 — Vendor Vercel web-design and composition skills for site and ui.
 - 2026-09-07 — Add a WebGL tile lift on the guest login art.
 - 2026-09-07 — Make login art tiles 20px with a 100px lift and fill the pane.

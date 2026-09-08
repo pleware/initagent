@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 	"github.com/pleware/initagent/internal/auth"
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/deviceops"
 	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/protocol"
 	"github.com/pleware/initagent/internal/updater"
@@ -508,8 +508,9 @@ func (s *Server) handleDeleteDevice(w http.ResponseWriter, r *http.Request) {
 
 // --- software updates ---
 
-func (s *Server) handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleUpdateStatus(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	status := s.updates.snapshot()
+	// Hub plane: count the devices this installation holds directly.
 	views, err := s.deviceViews()
 	if err == nil {
 		for _, device := range views {
@@ -519,6 +520,29 @@ func (s *Server) handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
 			status.FleetTotal++
 			if device.AgentVersion == "" || updater.IsNewer(s.opts.Version, device.AgentVersion) {
 				status.FleetOutdated++
+			}
+		}
+	}
+	// Gateway plane: each reachable gateway owns its own devices, so count
+	// those too (16).
+	targets, err := s.gatewayTargets(cred)
+	if err == nil {
+		for _, p := range targets {
+			var gwViews []struct {
+				IsHub        bool   `json:"isHub"`
+				AgentVersion string `json:"agentVersion"`
+			}
+			if s.getGatewayJSON(r.Context(), p, "/api/devices", &gwViews) != nil {
+				continue
+			}
+			for _, d := range gwViews {
+				if d.IsHub {
+					continue
+				}
+				status.FleetTotal++
+				if d.AgentVersion == "" || updater.IsNewer(s.opts.Version, d.AgentVersion) {
+					status.FleetOutdated++
+				}
 			}
 		}
 	}
@@ -580,12 +604,36 @@ func (s *Server) handleUpdateRollback(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
-// deviceConn resolves the path {id} to a live connection or writes an error.
-func (s *Server) deviceConn(w http.ResponseWriter, r *http.Request) *agentConn {
+// resolveLiveDevice returns the hub-registry connection, or the placement to
+// proxy to when the worker lives on the gateway (self-host enroll, 10/16).
+// A false ok means the request was already answered (an error was written)
+// and the caller must stop.
+func (s *Server) resolveLiveDevice(w http.ResponseWriter, r *http.Request, cred authz.Credential) (*agentConn, placement, bool) {
 	id := r.PathValue("id")
-	c := s.registry.get(id)
-	if c == nil {
+	if c := s.registry.get(id); c != nil {
+		return c, placement{}, true
+	}
+	if strings.TrimSpace(s.opts.GatewayURL) == "" {
 		httpError(w, http.StatusServiceUnavailable, "device is offline")
+		return nil, placement{}, false
+	}
+	p, ok := s.gatewayFor(w, r, cred)
+	if !ok {
+		return nil, placement{}, false
+	}
+	return nil, p, true
+}
+
+// liveDevice returns a hub-registry connection, or answers the request via
+// the project gateway when the worker lives there. A nil return means the
+// caller must stop: either an error was written or the gateway answered.
+func (s *Server) liveDevice(w http.ResponseWriter, r *http.Request, cred authz.Credential) *agentConn {
+	c, p, ok := s.resolveLiveDevice(w, r, cred)
+	if !ok {
+		return nil
+	}
+	if c == nil {
+		s.proxyGateway(w, r, p, r.Method, r.URL.RequestURI(), deviceProxyTimeout)
 		return nil
 	}
 	return c
@@ -593,8 +641,8 @@ func (s *Server) deviceConn(w http.ResponseWriter, r *http.Request) *agentConn {
 
 // --- sessions ---
 
-func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
-	c := s.deviceConn(w, r)
+func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	c := s.liveDevice(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -611,8 +659,8 @@ func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, res.Sessions)
 }
 
-func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
-	c := s.deviceConn(w, r)
+func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	c := s.liveDevice(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -631,8 +679,8 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
-func (s *Server) handleKillSession(w http.ResponseWriter, r *http.Request) {
-	c := s.deviceConn(w, r)
+func (s *Server) handleKillSession(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	c := s.liveDevice(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -647,15 +695,10 @@ func (s *Server) handleKillSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
-// shellQuote makes a string safe as a single sh word.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
-}
-
 // handleSessionInput types text into a tmux session (used by MCP/CLI to steer
 // agents without holding a live terminal open).
-func (s *Server) handleSessionInput(w http.ResponseWriter, r *http.Request) {
-	c := s.deviceConn(w, r)
+func (s *Server) handleSessionInput(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	c := s.liveDevice(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -670,13 +713,13 @@ func (s *Server) handleSessionInput(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	cmd := ""
 	if req.Text != "" {
-		cmd = fmt.Sprintf("tmux send-keys -t %s -l %s", shellQuote(name), shellQuote(req.Text))
+		cmd = fmt.Sprintf("tmux send-keys -t %s -l %s", deviceops.ShellQuote(name), deviceops.ShellQuote(req.Text))
 	}
 	if req.Enter {
 		if cmd != "" {
 			cmd += " && "
 		}
-		cmd += fmt.Sprintf("tmux send-keys -t %s Enter", shellQuote(name))
+		cmd += fmt.Sprintf("tmux send-keys -t %s Enter", deviceops.ShellQuote(name))
 	}
 	if cmd == "" {
 		httpError(w, http.StatusBadRequest, "nothing to send")
@@ -695,8 +738,8 @@ func (s *Server) handleSessionInput(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleSessionOutput captures the last N lines of a tmux session's pane.
-func (s *Server) handleSessionOutput(w http.ResponseWriter, r *http.Request) {
-	c := s.deviceConn(w, r)
+func (s *Server) handleSessionOutput(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	c := s.liveDevice(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -705,7 +748,7 @@ func (s *Server) handleSessionOutput(w http.ResponseWriter, r *http.Request) {
 		lines = l
 	}
 	name := r.PathValue("name")
-	cmd := fmt.Sprintf("tmux capture-pane -p -t %s -S -%d", shellQuote(name), lines)
+	cmd := fmt.Sprintf("tmux capture-pane -p -t %s -S -%d", deviceops.ShellQuote(name), lines)
 	res, err := s.execOnDevice(c, cmd, "", 15)
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
@@ -721,20 +764,11 @@ func (s *Server) handleSessionOutput(w http.ResponseWriter, r *http.Request) {
 // --- exec ---
 
 func (s *Server) execOnDevice(c *agentConn, command, cwd string, timeoutSec int) (protocol.ExecResult, error) {
-	// Give the device its own timeout plus slack for the round trip.
-	d := 75 * time.Second
-	if timeoutSec > 0 {
-		d = time.Duration(timeoutSec+15) * time.Second
-	}
-	ctx, cancel := contextWithTimeout(d)
-	defer cancel()
-	var res protocol.ExecResult
-	err := c.requestInto(ctx, protocol.TypeExec, protocol.Exec{Command: command, Cwd: cwd, TimeoutSec: timeoutSec}, &res)
-	return res, err
+	return deviceops.Exec(context.Background(), c, command, cwd, timeoutSec)
 }
 
-func (s *Server) handleExec(w http.ResponseWriter, r *http.Request) {
-	c := s.deviceConn(w, r)
+func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	c := s.liveDevice(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -777,11 +811,13 @@ func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request, cred 
 	for _, d := range devices {
 		nameById[d.Id] = d.Name
 	}
-	conns := s.registry.all()
+
 	var mu sync.Mutex
 	var out []fleetSession
 	var wg sync.WaitGroup
-	for _, c := range conns {
+
+	// Hub plane: fan out the live registry.
+	for _, c := range s.registry.all() {
 		if !visible(c.deviceId) {
 			continue
 		}
@@ -801,6 +837,29 @@ func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request, cred 
 			mu.Unlock()
 		}(c)
 	}
+
+	// Gateway plane: ask every reachable gateway for its project's sessions
+	// and merge. A worker that dialed a gateway rather than the hub lives on
+	// that plane, so the registry above cannot see it (16).
+	targets, err := s.gatewayTargets(cred)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	for _, p := range targets {
+		wg.Add(1)
+		go func(p placement) {
+			defer wg.Done()
+			var rows []fleetSession
+			if err := s.getGatewayJSON(r.Context(), p, "/api/agents", &rows); err != nil {
+				return
+			}
+			mu.Lock()
+			out = append(out, rows...)
+			mu.Unlock()
+		}(p)
+	}
+
 	wg.Wait()
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].DeviceName != out[j].DeviceName {
@@ -970,15 +1029,14 @@ func (s *Server) handleDeleteApiToken(w http.ResponseWriter, r *http.Request, cr
 
 // --- file browser ---
 
-func (s *Server) handleFsList(w http.ResponseWriter, r *http.Request) {
-	c := s.deviceConn(w, r)
+func (s *Server) handleFsList(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	c := s.liveDevice(w, r, cred)
 	if c == nil {
 		return
 	}
 	ctx, cancel := deviceCtx()
 	defer cancel()
-	var res protocol.FsListResult
-	err := c.requestInto(ctx, protocol.TypeFsList, protocol.FsList{Path: r.URL.Query().Get("path")}, &res)
+	res, err := deviceops.ListDir(ctx, c, r.URL.Query().Get("path"))
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
@@ -989,9 +1047,15 @@ func (s *Server) handleFsList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, res)
 }
 
-func (s *Server) handleFsDownload(w http.ResponseWriter, r *http.Request) {
-	c := s.deviceConn(w, r)
+func (s *Server) handleFsDownload(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	c, p, ok := s.resolveLiveDevice(w, r, cred)
+	if !ok {
+		return
+	}
 	if c == nil {
+		// Downloads can exceed the JSON proxy's 1 MiB cap, so this hop
+		// streams unbounded and forwards Content-Disposition.
+		s.proxyGatewayStream(w, r, p, r.Method, r.URL.RequestURI())
 		return
 	}
 	path := r.URL.Query().Get("path")
@@ -999,53 +1063,18 @@ func (s *Server) handleFsDownload(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, "path required")
 		return
 	}
-
-	done := make(chan string, 1)
-	pr, pw := io.Pipe()
-	// Closing the reader when we return (e.g. the download client disconnected)
-	// makes the onBinary pw.Write calls fail fast instead of blocking forever
-	// inside the agent's single read loop, which would otherwise wedge the
-	// entire device connection.
-	defer pr.Close()
-	ch := c.openChannel(&hubChannel{
-		onBinary: func(p []byte) {
-			buf := make([]byte, len(p))
-			copy(buf, p)
-			pw.Write(buf)
-		},
-		onControl: func(m protocol.Msg) {
-			switch m.Type {
-			case protocol.TypeFsEOF:
-				done <- ""
-			case protocol.TypeFsErr, protocol.TypeTermExit:
-				done <- m.Error
-			}
-		},
-	})
-	defer c.closeChannel(ch)
-
-	req, _ := protocol.NewMsg(protocol.TypeFsRead, 0, ch, protocol.FsTransfer{Path: path})
-	if err := c.sendJSON(req); err != nil {
-		httpError(w, http.StatusBadGateway, err.Error())
-		return
-	}
-	go func() {
-		errMsg := <-done
-		if errMsg != "" {
-			pw.CloseWithError(fmt.Errorf("%s", errMsg))
-		} else {
-			pw.Close()
-		}
-	}()
-
 	base := path[strings.LastIndex(path, "/")+1:]
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", base))
 	w.Header().Set("Content-Type", "application/octet-stream")
-	io.Copy(w, pr)
+	if err := deviceops.Download(c, path, w); err != nil {
+		// A failure before the first byte is unreportable once the stream
+		// headers are set; a dropped device surfaces as a truncated download.
+		return
+	}
 }
 
-func (s *Server) handleFsUpload(w http.ResponseWriter, r *http.Request) {
-	c := s.deviceConn(w, r)
+func (s *Server) handleFsUpload(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	c := s.liveDevice(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -1070,56 +1099,8 @@ func (s *Server) handleFsUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	target := strings.TrimRight(dir, "/") + "/" + name
-
-	done := make(chan string, 1)
-	ch := c.openChannel(&hubChannel{
-		onControl: func(m protocol.Msg) {
-			switch m.Type {
-			case protocol.TypeFsEOF:
-				done <- ""
-			case protocol.TypeFsErr, protocol.TypeTermExit:
-				done <- m.Error
-			}
-		},
-	})
-	defer c.closeChannel(ch)
-
-	start, _ := protocol.NewMsg(protocol.TypeFsWrite, 0, ch, protocol.FsTransfer{Path: target})
-	if err := c.sendJSON(start); err != nil {
+	if err := deviceops.Upload(c, target, file); err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
-		return
-	}
-	buf := make([]byte, 64*1024)
-	for {
-		n, rerr := file.Read(buf)
-		if n > 0 {
-			if err := c.sendBinary(ch, buf[:n]); err != nil {
-				// Tell the agent to discard the partial temp file rather than
-				// leaving it until the whole connection drops.
-				c.sendJSON(protocol.Msg{Type: protocol.TypeFsErr, Channel: ch, Error: err.Error()})
-				httpError(w, http.StatusBadGateway, err.Error())
-				return
-			}
-		}
-		if rerr == io.EOF {
-			break
-		}
-		if rerr != nil {
-			c.sendJSON(protocol.Msg{Type: protocol.TypeFsErr, Channel: ch, Error: rerr.Error()})
-			httpError(w, http.StatusInternalServerError, rerr.Error())
-			return
-		}
-	}
-	c.sendJSON(protocol.Msg{Type: protocol.TypeFsEOF, Channel: ch})
-
-	select {
-	case errMsg := <-done:
-		if errMsg != "" {
-			httpError(w, http.StatusBadGateway, errMsg)
-			return
-		}
-	case <-time.After(60 * time.Second):
-		httpError(w, http.StatusGatewayTimeout, "device did not confirm upload")
 		return
 	}
 	writeJSON(w, map[string]string{"path": target})

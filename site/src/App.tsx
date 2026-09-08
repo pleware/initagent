@@ -8,6 +8,7 @@ import { Developers } from "./components/Developers";
 import { Hardware } from "./components/Hardware";
 import { NotFound } from "./components/NotFound";
 import { currentPath, ROUTES } from "./lib/routes";
+import { displayName } from "../../web/brand.ts";
 
 function pageFor(path: string): ReactNode {
   switch (path) {
@@ -51,7 +52,7 @@ export default function App() {
       [ROUTES.developers]: t("titles.developers"),
       [ROUTES.hardware]: t("titles.hardware"),
     };
-    document.title = titles[path] ?? "initagent";
+    document.title = titles[path] ?? displayName;
   }, [path, t]);
 
   return (

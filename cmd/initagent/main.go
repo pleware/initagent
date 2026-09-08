@@ -19,6 +19,7 @@ import (
 	"github.com/pleware/initagent/internal/agent"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/fleet"
+	"github.com/pleware/initagent/internal/gateway"
 	"github.com/pleware/initagent/internal/hub"
 	"github.com/pleware/initagent/internal/mcp"
 	"github.com/pleware/initagent/internal/offering"
@@ -143,7 +144,7 @@ func cmdServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	addr := fs.String("addr", ":4200", "listen address (ignored when --tls-domain is set)")
 	dataDir := fs.String("data-dir", "", "data directory (default ~/"+brand.ConfigDir+")")
-	gatewayURL := fs.String("gateway-url", "", "project gateway URL for enroll (required to add workers)")
+	gatewayURL := fs.String("gateway-url", "", "project gateway URL for enroll (self-host serve starts a companion on 127.0.0.1:4201 when empty)")
 	databaseURL := fs.String("database-url", os.Getenv(brand.EnvDatabaseURL), "Postgres connection string; empty = SQLite under --data-dir")
 	offeringFlag := fs.String("offering", "", "hub offering: selfhost or hosted (default: "+brand.OfferingFile+" in --data-dir, else selfhost)")
 	tlsDomain := fs.String("tls-domain", "", "enable automatic HTTPS (Let's Encrypt) for this domain; serves :443 + :80")
@@ -172,6 +173,26 @@ func cmdServe(args []string) error {
 	}
 	log.Printf("offering %s", kind)
 
+	ctx := signalContext()
+	listen, gwURL, startCompanion := offering.CompanionGateway(kind, *gatewayURL)
+	if startCompanion {
+		companion, err := gateway.Open(gateway.Options{
+			DataDir:   resolvedDir,
+			Addr:      listen,
+			Version:   version,
+			PublicURL: gwURL,
+			HubSecret: os.Getenv(brand.EnvGatewaySecret),
+		})
+		if err != nil {
+			return err
+		}
+		defer companion.Close()
+		if _, err := companion.Start(ctx, listen); err != nil {
+			return fmt.Errorf("self-host companion gateway: %w", err)
+		}
+		log.Printf("self-host gateway listening on %s", gwURL)
+	}
+
 	srv, err := hub.NewServer(hub.Options{
 		Addr:           *addr,
 		DataDir:        resolvedDir,
@@ -180,7 +201,7 @@ func cmdServe(args []string) error {
 		TLSDomain:      *tlsDomain,
 		TLSEmail:       *tlsEmail,
 		UI:             uiFS(),
-		GatewayURL:     *gatewayURL,
+		GatewayURL:     gwURL,
 		GatewaySecret:  os.Getenv(brand.EnvGatewaySecret),
 		DatabaseURL:    *databaseURL,
 		Offering:       kind,
@@ -191,7 +212,7 @@ func cmdServe(args []string) error {
 	if err != nil {
 		return err
 	}
-	return srv.Run(signalContext())
+	return srv.Run(ctx)
 }
 
 func cmdAgent(args []string) error {

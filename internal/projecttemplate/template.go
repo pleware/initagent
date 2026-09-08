@@ -3,7 +3,7 @@
 // A template is a human label over fields the project already stores: the
 // delivery contract, whether a repo is required, and which capability.Task
 // values a worker must declare. It is not a project.kind column. Milestone 0
-// ships one live template (software); the others appear as coming soon.
+// ships two live templates (software, later); the others appear as coming soon.
 package projecttemplate
 
 import (
@@ -18,6 +18,7 @@ type ID string
 
 const (
 	Software  ID = "software"
+	Later     ID = "later"
 	Website   ID = "website"
 	Video     ID = "video"
 	Song      ID = "song"
@@ -42,6 +43,14 @@ var catalogue = []Template{
 		Live:          true,
 		Contract:      capability.ContractChange,
 		NeedsRepo:     true,
+		RequiredTasks: []capability.Task{capability.TextGeneration},
+	},
+	{
+		ID:            Later,
+		Label:         "I'll decide later",
+		Live:          true,
+		Contract:      capability.ContractChange,
+		NeedsRepo:     false,
 		RequiredTasks: []capability.Task{capability.TextGeneration},
 	},
 	{

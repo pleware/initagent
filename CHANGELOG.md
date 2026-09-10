@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-10 — Unify where-to-commit into one generic cascade rule (mani.yaml is the source)
 - 2026-09-10 — Purge spent secrets and delete idle free projects on a clock.
 - 2026-09-10 — Plant the shared cascade/ rules
 - 2026-09-10 — Keep finished task streams on the hub so hosted plans can purge them.

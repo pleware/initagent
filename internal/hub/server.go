@@ -240,6 +240,7 @@ func (s *Server) Run(ctx context.Context) error {
 	go s.runEmbeddedAgent(runCtx)
 	go s.recoverSelfhostWorker(runCtx)
 	go s.runMailOutbox(runCtx)
+	go s.runTaskOutputPurge(runCtx)
 
 	if s.opts.TLSDomain != "" {
 		err := s.runTLS(runCtx)

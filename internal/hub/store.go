@@ -149,7 +149,16 @@ CREATE TABLE IF NOT EXISTS org_invites (
 	used_at     INTEGER NOT NULL DEFAULT 0,
 	created_at  INTEGER NOT NULL
 );
-CREATE INDEX IF NOT EXISTS org_invites_org ON org_invites(org_id);
+	CREATE INDEX IF NOT EXISTS org_invites_org ON org_invites(org_id);
+CREATE TABLE IF NOT EXISTS task_outputs (
+	task_id     TEXT PRIMARY KEY,
+	org_id      TEXT NOT NULL,
+	project_id  TEXT NOT NULL,
+	stdout      TEXT NOT NULL DEFAULT '',
+	stderr      TEXT NOT NULL DEFAULT '',
+	created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS task_outputs_org_created ON task_outputs(org_id, created_at);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -276,7 +285,16 @@ CREATE TABLE IF NOT EXISTS org_invites (
 	used_at     BIGINT NOT NULL DEFAULT 0,
 	created_at  BIGINT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS org_invites_org ON org_invites(org_id);
+	CREATE INDEX IF NOT EXISTS org_invites_org ON org_invites(org_id);
+CREATE TABLE IF NOT EXISTS task_outputs (
+	task_id     TEXT PRIMARY KEY,
+	org_id      TEXT NOT NULL,
+	project_id  TEXT NOT NULL,
+	stdout      TEXT NOT NULL DEFAULT '',
+	stderr      TEXT NOT NULL DEFAULT '',
+	created_at  BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS task_outputs_org_created ON task_outputs(org_id, created_at);
 `
 
 // OpenStore opens the hub store on a SQLite file (self-host / OSS path).
@@ -327,6 +345,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureOrgInvites(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring org invites: %w", err)
+	}
+	if err := s.ensureTaskOutputs(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring task outputs: %w", err)
 	}
 	if err := s.ensureAccountLocale(); err != nil {
 		db.Close()

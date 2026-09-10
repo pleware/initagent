@@ -55,7 +55,7 @@ export const PLAN_BY_SLUG: Record<PlanSlug, PlanConfig> = {
       "workersPerProject": 3,
       "people": 0,
       "idleDays": 0,
-      "logDays": 0
+      "logDays": 14
     }
   },
   "team": {
@@ -71,7 +71,7 @@ export const PLAN_BY_SLUG: Record<PlanSlug, PlanConfig> = {
       "workersPerProject": 5,
       "people": 0,
       "idleDays": 0,
-      "logDays": 0
+      "logDays": 14
     }
   },
   "enterprise": {
@@ -87,7 +87,7 @@ export const PLAN_BY_SLUG: Record<PlanSlug, PlanConfig> = {
       "workersPerProject": 0,
       "people": 0,
       "idleDays": 0,
-      "logDays": 0
+      "logDays": 90
     }
   }
 };

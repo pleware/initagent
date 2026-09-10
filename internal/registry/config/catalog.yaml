@@ -31,7 +31,7 @@ config:
         workersPerProject: 3
         people: 0
         idleDays: 0
-        logDays: 0
+        logDays: 14
     team:
       selfServe: true
       charge:
@@ -44,7 +44,7 @@ config:
         workersPerProject: 5
         people: 0
         idleDays: 0
-        logDays: 0
+        logDays: 14
     enterprise:
       selfServe: false
       charge:
@@ -55,4 +55,4 @@ config:
         workersPerProject: 0
         people: 0
         idleDays: 0
-        logDays: 0
+        logDays: 90

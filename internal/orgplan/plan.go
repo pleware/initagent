@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/registry/config"
@@ -163,6 +164,15 @@ func Caps(kind offering.Kind, id ID) Limits {
 		return Default().Limits
 	}
 	return p.Limits
+}
+
+// LogCutoff is the newest created_at that a purge may delete at `now`.
+// A logDays of 0 means keep forever (ok is false).
+func LogCutoff(now time.Time, logDays int) (cutoff time.Time, ok bool) {
+	if logDays <= 0 {
+		return time.Time{}, false
+	}
+	return now.Add(-time.Duration(logDays) * 24 * time.Hour), true
 }
 
 // Allows reports whether count is within limit. A limit of 0 means no cap.

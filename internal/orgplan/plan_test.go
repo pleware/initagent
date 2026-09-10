@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/pleware/initagent/internal/offering"
 )
@@ -55,8 +56,8 @@ func TestCatalogueLocksFreeCaps(t *testing.T) {
 	if !ok {
 		t.Fatal("starter missing")
 	}
-	if starter.Limits.Projects != 2 || starter.Limits.WorkersPerProject != 3 {
-		t.Fatalf("starter caps = %+v, want 2 projects / 3 workers per project", starter.Limits)
+	if starter.Limits.Projects != 2 || starter.Limits.WorkersPerProject != 3 || starter.Limits.LogDays != 14 {
+		t.Fatalf("starter caps = %+v, want 2 projects / 3 workers per project / 14 log days", starter.Limits)
 	}
 	if starter.Charge != (Charge{Kind: ChargeUSD, USD: PersonUSD(), PerPerson: true}) || PersonUSD() != 5 {
 		t.Fatalf("starter charge = %+v, want $%d per person", starter.Charge, PersonUSD())
@@ -65,15 +66,18 @@ func TestCatalogueLocksFreeCaps(t *testing.T) {
 	if !ok {
 		t.Fatal("team missing")
 	}
-	if team.Limits.Projects != 5 || team.Limits.WorkersPerProject != 5 {
-		t.Fatalf("team caps = %+v, want 5 projects / 5 workers per project", team.Limits)
+	if team.Limits.Projects != 5 || team.Limits.WorkersPerProject != 5 || team.Limits.LogDays != 14 {
+		t.Fatalf("team caps = %+v, want 5 projects / 5 workers per project / 14 log days", team.Limits)
 	}
 	if team.Charge != (Charge{Kind: ChargeUSD, USD: PersonUSD(), PerPerson: true}) {
 		t.Fatalf("team charge = %+v, want $%d per person", team.Charge, PersonUSD())
 	}
 	ent, ok := Lookup(string(Enterprise))
-	if !ok || ent.ThemeFamily != ThemeEnterprise || ent.Charge.Kind != ChargeContact || ent.Limits != Unlimited {
+	if !ok || ent.ThemeFamily != ThemeEnterprise || ent.Charge.Kind != ChargeContact {
 		t.Fatalf("enterprise = %+v", ent)
+	}
+	if ent.Limits.Projects != 0 || ent.Limits.People != 0 || ent.Limits.LogDays != 90 {
+		t.Fatalf("enterprise limits = %+v, want no walls except 90 log days", ent.Limits)
 	}
 }
 
@@ -147,8 +151,9 @@ func TestCaps(t *testing.T) {
 	if team.Projects != 5 || team.WorkersPerProject != 5 {
 		t.Fatalf("hosted team = %+v", team)
 	}
-	if Caps(offering.Hosted, Enterprise) != Unlimited {
-		t.Fatal("hosted enterprise must be unlimited")
+	ent := Caps(offering.Hosted, Enterprise)
+	if ent.Projects != 0 || ent.People != 0 || ent.LogDays != 90 {
+		t.Fatalf("hosted enterprise = %+v, want no walls except 90 log days", ent)
 	}
 	if Caps(offering.Selfhost, Free) != Unlimited {
 		t.Fatal("selfhost must ignore plan walls")
@@ -156,6 +161,22 @@ func TestCaps(t *testing.T) {
 	unknown := Caps(offering.Hosted, ID("hobby"))
 	if unknown != Caps(offering.Hosted, Free) {
 		t.Fatalf("unknown hosted id = %+v, want free (fail closed)", unknown)
+	}
+}
+
+func TestLogCutoff(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
+	if _, ok := LogCutoff(now, 0); ok {
+		t.Fatal("0 log days must keep forever")
+	}
+	got, ok := LogCutoff(now, 7)
+	if !ok {
+		t.Fatal("7 log days must have a cutoff")
+	}
+	want := now.Add(-7 * 24 * time.Hour)
+	if !got.Equal(want) {
+		t.Fatalf("cutoff = %s, want %s", got, want)
 	}
 }
 

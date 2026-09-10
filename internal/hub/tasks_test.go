@@ -119,6 +119,40 @@ func TestGetTaskProxy(t *testing.T) {
 	}
 }
 
+func TestCreateTaskPersistsOutputForLaterGet(t *testing.T) {
+	fake := &fakeGateway{view: map[string]any{
+		"id": "tsk-keep", "state": "done", "command": "echo hi",
+		"exitCode": 0, "stdout": "hi\n", "stderr": "note\n",
+	}}
+	gateway := httptest.NewServer(fake)
+	t.Cleanup(gateway.Close)
+
+	srv, ts, token := newTaskHub(t, gateway.URL)
+	_, org := seedOwner(t, srv.store)
+	project, err := srv.store.CreateProject(org, "app", "", "", gateway.URL, "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	created := authedRequest(t, http.MethodPost, ts.URL+"/api/tasks?project="+project.Id, []byte(`{"command":"echo hi"}`), token)
+	if created.StatusCode != http.StatusOK {
+		t.Fatalf("create status = %d", created.StatusCode)
+	}
+
+	fake.view = map[string]any{"id": "tsk-keep", "state": "done", "exitCode": 0}
+	got := authedRequest(t, http.MethodGet, ts.URL+"/api/tasks/tsk-keep?project="+project.Id, nil, token)
+	if got.StatusCode != http.StatusOK {
+		t.Fatalf("get status = %d", got.StatusCode)
+	}
+	var view map[string]any
+	if err := json.NewDecoder(got.Body).Decode(&view); err != nil {
+		t.Fatal(err)
+	}
+	if view["stdout"] != "hi\n" || view["stderr"] != "note\n" {
+		t.Fatalf("get after persist = %+v", view)
+	}
+}
+
 func TestCreateTaskRequiresGatewayURL(t *testing.T) {
 	_, ts, token := newTaskHub(t, "")
 

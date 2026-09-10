@@ -48,6 +48,7 @@ const (
 	Event   Kind = "evt"
 	Mail    Kind = "eml"
 	Reset   Kind = "rst"
+	Invite  Kind = "inv"
 
 	Member    Kind = "mbr"
 	Persona   Kind = "psn"
@@ -95,6 +96,7 @@ var entities = map[Kind]string{
 	Event:   "initagent.hub.event",
 	Mail:    "initagent.hub.mail",
 	Reset:   "initagent.hub.password_reset",
+	Invite:  "initagent.hub.org_invite",
 
 	Member:         "initagent.project.member",
 	Persona:        "initagent.project.persona",

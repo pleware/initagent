@@ -139,6 +139,17 @@ CREATE TABLE IF NOT EXISTS password_resets (
 	created_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS password_resets_account ON password_resets(account_id);
+CREATE TABLE IF NOT EXISTS org_invites (
+	id          TEXT PRIMARY KEY,
+	org_id      TEXT NOT NULL,
+	email       TEXT NOT NULL,
+	role        TEXT NOT NULL,
+	token_hash  TEXT NOT NULL UNIQUE,
+	expires_at  INTEGER NOT NULL,
+	used_at     INTEGER NOT NULL DEFAULT 0,
+	created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS org_invites_org ON org_invites(org_id);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -255,6 +266,17 @@ CREATE TABLE IF NOT EXISTS password_resets (
 	created_at  BIGINT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS password_resets_account ON password_resets(account_id);
+CREATE TABLE IF NOT EXISTS org_invites (
+	id          TEXT PRIMARY KEY,
+	org_id      TEXT NOT NULL,
+	email       TEXT NOT NULL,
+	role        TEXT NOT NULL,
+	token_hash  TEXT NOT NULL UNIQUE,
+	expires_at  BIGINT NOT NULL,
+	used_at     BIGINT NOT NULL DEFAULT 0,
+	created_at  BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS org_invites_org ON org_invites(org_id);
 `
 
 // OpenStore opens the hub store on a SQLite file (self-host / OSS path).
@@ -301,6 +323,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensurePasswordResets(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring password resets: %w", err)
+	}
+	if err := s.ensureOrgInvites(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring org invites: %w", err)
 	}
 	if err := s.ensureAccountLocale(); err != nil {
 		db.Close()

@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api, timeAgo } from '../api'
 import DataTable from '../components/DataTable'
-import type { Me, OrgMember } from '../types'
+import { HubError } from '../components/PlanWall'
+import type { Me, OrgInvite, OrgMember } from '../types'
 
 // An organization's own people, managed by its owner or admin (draft 25).
 //
@@ -26,7 +27,12 @@ export default function PeoplePage({
   const memberships = me.orgs ?? []
   const [orgId, setOrgId] = useState(memberships[0]?.orgId ?? '')
   const [members, setMembers] = useState<OrgMember[] | null>(null)
+  const [invites, setInvites] = useState<OrgInvite[]>([])
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState('member')
+  const [inviteLink, setInviteLink] = useState('')
   const [error, setError] = useState('')
+  const [inviteError, setInviteError] = useState<unknown>(null)
   const [busy, setBusy] = useState('')
 
   const current = memberships.find((m) => m.orgId === orgId)
@@ -37,16 +43,23 @@ export default function PeoplePage({
   const load = useCallback(async () => {
     if (!orgId) {
       setMembers([])
+      setInvites([])
       return
     }
     try {
       setMembers(await api.get<OrgMember[]>(`/api/orgs/${orgId}/members`))
+      if (canManage) {
+        setInvites(await api.get<OrgInvite[]>(`/api/orgs/${orgId}/invites`))
+      } else {
+        setInvites([])
+      }
       setError('')
     } catch (err) {
       setMembers([])
+      setInvites([])
       setError(err instanceof Error ? err.message : t('admin.loadFailed'))
     }
-  }, [orgId, t])
+  }, [orgId, canManage, t])
 
   useEffect(() => {
     load()
@@ -86,6 +99,48 @@ export default function PeoplePage({
       setError(err instanceof Error ? err.message : t('people.removeFailed'))
     } finally {
       setBusy('')
+    }
+  }
+
+  const sendInvite = async () => {
+    setInviteError(null)
+    setInviteLink('')
+    setBusy('invite')
+    try {
+      const created = await api.post<{ link: string }>(`/api/orgs/${orgId}/invites`, {
+        email: inviteEmail,
+        role: inviteRole,
+      })
+      setInviteEmail('')
+      setInviteRole('member')
+      setInviteLink(created.link)
+      await load()
+    } catch (err) {
+      setInviteError(err)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const revokeInvite = async (invite: OrgInvite) => {
+    if (!window.confirm(t('people.confirmRevoke', { email: invite.email }))) return
+    setBusy(invite.id)
+    setInviteError(null)
+    try {
+      await api.del(`/api/orgs/${orgId}/invites/${invite.id}`)
+      await load()
+    } catch (err) {
+      setInviteError(err)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const copyLink = async (link: string) => {
+    try {
+      await navigator.clipboard.writeText(link)
+    } catch {
+      window.prompt(t('people.copyPrompt'), link)
     }
   }
 
@@ -214,9 +269,99 @@ export default function PeoplePage({
         ]}
       />
 
-      <p className="mt-6 text-xs leading-5 text-zinc-600">
-        {t('people.inviteMissing')}
-      </p>
+      {canManage && (
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold text-zinc-100">{t('people.inviteTitle')}</h2>
+          <p className="mt-1 text-sm text-zinc-400">{t('people.inviteHint')}</p>
+          <form
+            className="mt-4 flex flex-wrap items-end gap-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              void sendInvite()
+            }}
+          >
+            <label className="min-w-56 flex-1 text-sm text-zinc-300">
+              {t('people.email')}
+              <input
+                type="email"
+                required
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+              />
+            </label>
+            <label className="text-sm text-zinc-300">
+              {t('people.role')}
+              <div className="mt-1">
+                <SimpleSelect
+                  value={inviteRole}
+                  onValueChange={setInviteRole}
+                  aria-label={t('people.role')}
+                  items={roles.map((role) => ({ value: role, label: role }))}
+                />
+              </div>
+            </label>
+            <button type="submit" disabled={busy === 'invite'} className="btn-primary">
+              {busy === 'invite' ? t('common.loading') : t('people.sendInvite')}
+            </button>
+          </form>
+          <div className="mt-4">
+            <HubError error={inviteError} fallback={t('people.inviteFailed')} />
+          </div>
+          {inviteLink && (
+            <p className="mt-3 text-sm text-zinc-300">
+              {t('people.inviteLinkOnce')}{' '}
+              <button
+                type="button"
+                onClick={() => void copyLink(inviteLink)}
+                className="underline underline-offset-2 hover:text-zinc-100"
+              >
+                {t('people.copyLink')}
+              </button>
+            </p>
+          )}
+          {invites.length > 0 && (
+            <DataTable
+              rows={invites}
+              rowKey={(inv) => inv.id}
+              empty={null}
+              columns={[
+                {
+                  header: t('people.email'),
+                  cell: (inv) => <span className="text-zinc-200">{inv.email}</span>,
+                },
+                {
+                  header: t('people.role'),
+                  cell: (inv) => <span className="text-zinc-400">{inv.role}</span>,
+                },
+                {
+                  header: t('people.expires'),
+                  cell: (inv) => (
+                    <span className="text-zinc-500">
+                      {new Date(inv.expiresAt * 1000).toLocaleDateString()}
+                    </span>
+                  ),
+                },
+                {
+                  header: '',
+                  srHeader: t('people.actions'),
+                  width: 'w-28',
+                  cell: (inv) => (
+                    <button
+                      type="button"
+                      onClick={() => void revokeInvite(inv)}
+                      disabled={busy === inv.id}
+                      className="text-xs text-zinc-500 hover:text-rose-400"
+                    >
+                      {t('people.revoke')}
+                    </button>
+                  ),
+                },
+              ]}
+            />
+          )}
+        </section>
+      )}
     </div>
   )
 }

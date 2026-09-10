@@ -77,6 +77,17 @@ export interface OrgMember {
   createdAt: number
 }
 
+// OrgInvite is a pending invitation as the People screen lists it.
+// The one-time secret is never here; only create returns the link.
+export interface OrgInvite {
+  id: string
+  orgId: string
+  email: string
+  role: string
+  expiresAt: number
+  createdAt: number
+}
+
 // Membership is the same relation from the signed-in person's side: which
 // organizations are mine, and what am I in them.
 export type { PlanSlug } from './lib/org-plans.gen'

@@ -62,6 +62,28 @@ func AuthorizeRoleChange(actor Actor, org OrgState, target string, newRole Role)
 	return nil
 }
 
+// AuthorizeInvite decides whether actor may mint an invitation that will
+// join the org at role.
+//
+// Invites are an organization act, not a project act: the People roster
+// and the hosted people wall both sit on the org (`08`, `26`, `48`). A
+// project invite would be a second door into the same seat.
+//
+// Only an owner may invite another owner — the same rule as promoting
+// someone who is already a member. An admin may invite admins and members.
+func AuthorizeInvite(actor Actor, org OrgState, role Role) error {
+	if rank[role] == 0 {
+		return ErrRoleUnknown
+	}
+	if !actor.Can(AdminOrg, org.ID) {
+		return ErrForbidden
+	}
+	if role == RoleOwner && actor.Role(org.ID) != RoleOwner {
+		return ErrOwnerOnly
+	}
+	return nil
+}
+
 // AuthorizeRemoval decides whether actor may remove target from org.
 //
 // Leaving on your own is allowed without administering anything — a member

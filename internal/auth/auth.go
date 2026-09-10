@@ -43,6 +43,8 @@ var (
 	ErrNotClaimed     = errors.New("hub has no owner yet")
 	ErrEmailTaken     = errors.New("email already registered")
 	ErrResetToken     = errors.New("reset token is invalid or expired")
+	ErrInviteToken    = errors.New("invite token is invalid or expired")
+	ErrAlreadyMember  = errors.New("already a member of this organization")
 	ErrLocale         = errors.New("locale is not supported")
 )
 

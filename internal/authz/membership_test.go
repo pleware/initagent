@@ -195,6 +195,56 @@ func TestAuthorizeRemoval(t *testing.T) {
 	}
 }
 
+func TestAuthorizeInvite(t *testing.T) {
+	soleOwner := map[string]Role{"acc-own": RoleOwner, "acc-adm": RoleAdmin, "acc-mem": RoleMember}
+
+	cases := []struct {
+		name  string
+		actor Actor
+		role  Role
+		want  error
+	}{
+		{
+			name: "an owner invites a member",
+			actor: actorIn("acc-own", RoleOwner), role: RoleMember, want: nil,
+		},
+		{
+			name: "an admin invites a member",
+			actor: actorIn("acc-adm", RoleAdmin), role: RoleMember, want: nil,
+		},
+		{
+			name: "an admin invites an admin",
+			actor: actorIn("acc-adm", RoleAdmin), role: RoleAdmin, want: nil,
+		},
+		{
+			name: "an owner invites an owner",
+			actor: actorIn("acc-own", RoleOwner), role: RoleOwner, want: nil,
+		},
+		{
+			name: "an admin cannot invite an owner",
+			actor: actorIn("acc-adm", RoleAdmin), role: RoleOwner, want: ErrOwnerOnly,
+		},
+		{
+			name: "a member cannot invite",
+			actor: actorIn("acc-mem", RoleMember), role: RoleMember, want: ErrForbidden,
+		},
+		{
+			name: "a stranger cannot invite",
+			actor: Actor{Account: "acc-x"}, role: RoleMember, want: ErrForbidden,
+		},
+		{
+			name: "an unknown role never reaches the store",
+			actor: actorIn("acc-own", RoleOwner), role: Role("superuser"), want: ErrRoleUnknown,
+		},
+	}
+	for _, c := range cases {
+		err := AuthorizeInvite(c.actor, org(soleOwner), c.role)
+		if !errors.Is(err, c.want) {
+			t.Errorf("%s: error = %v; want %v", c.name, err, c.want)
+		}
+	}
+}
+
 // A legacy operator session carries no account id. An empty target must not
 // match it into a "removing myself" shortcut that skips the permission check.
 func TestEmptyAccountIsNotSelfRemoval(t *testing.T) {

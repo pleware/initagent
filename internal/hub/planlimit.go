@@ -47,6 +47,15 @@ func planLimitMessage(wall string, limit int) string {
 	}
 }
 
+func writePlanLimitErr(w http.ResponseWriter, err error) bool {
+	var pe planLimitError
+	if !errors.As(err, &pe) {
+		return false
+	}
+	writePlanLimit(w, pe.Wall, pe.Limit)
+	return true
+}
+
 func writePlanLimit(w http.ResponseWriter, wall string, limit int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusConflict)

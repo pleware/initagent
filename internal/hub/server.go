@@ -366,6 +366,8 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/register", s.handleRegister)
 	m.HandleFunc("POST /api/password/forgot", s.handlePasswordForgot)
 	m.HandleFunc("POST /api/password/reset", s.handlePasswordReset)
+	m.HandleFunc("GET /api/invite", s.handleInvitePeek)
+	m.HandleFunc("POST /api/invite/redeem", s.handleInviteRedeem)
 	m.HandleFunc("POST /api/logout", s.handleLogout)
 	m.HandleFunc("GET /api/me", s.handleMe)
 	m.HandleFunc("PATCH /api/me", s.requireSession(s.handlePatchMe))
@@ -440,6 +442,9 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/orgs/{id}/members", s.requireCredential(s.handleListOrgMembers))
 	m.HandleFunc("PATCH /api/orgs/{id}/members/{accountId}", s.requireCredential(s.handleSetOrgMemberRole))
 	m.HandleFunc("DELETE /api/orgs/{id}/members/{accountId}", s.requireCredential(s.handleRemoveOrgMember))
+	m.HandleFunc("GET /api/orgs/{id}/invites", s.requireCredential(s.handleListOrgInvites))
+	m.HandleFunc("POST /api/orgs/{id}/invites", s.requireCredential(s.handleCreateOrgInvite))
+	m.HandleFunc("DELETE /api/orgs/{id}/invites/{inviteId}", s.requireCredential(s.handleRevokeOrgInvite))
 
 	// Web UI (embedded SPA) at everything else.
 	if s.opts.UI != nil {

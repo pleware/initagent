@@ -14,6 +14,7 @@ import CodingPage from './pages/CodingPage'
 import TasksPage from './pages/TasksPage'
 import AdminPage from './pages/AdminPage'
 import PeoplePage from './pages/PeoplePage'
+import AcceptInvite from './pages/AcceptInvite'
 import type { Me } from './types'
 import i18n from './i18n/config'
 import { resolveLocale } from '../../web/locale.ts'
@@ -80,6 +81,15 @@ export default function App() {
           }
         />
         <Route
+          path="/invite"
+          element={
+            <AcceptInvite
+              passwordMinLength={me.passwordMinLength}
+              onSuccess={refresh}
+            />
+          }
+        />
+        <Route
           path="*"
           element={
             <Login
@@ -97,6 +107,16 @@ export default function App() {
 
   return (
     <Routes>
+      <Route
+        path="/invite"
+        element={
+          <AcceptInvite
+            passwordMinLength={me.passwordMinLength}
+            defaultEmail={me.email}
+            onSuccess={refresh}
+          />
+        }
+      />
       <Route element={<Layout me={me} />}>
         <Route path="/" element={<Navigate to="/code" replace />} />
         <Route path="/code" element={<CodingPage me={me} onMeChanged={refresh} />} />

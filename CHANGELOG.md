@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-10 — Plant the generated leave-alone Cursor rule.
 - 2026-09-08 — rules: add constraints gate pointer and track .cursor/rules
 - 2026-09-08 — Pin CI/release Node to 22 (max, not 24)
 - 2026-09-08 — Fix UI build and gateway WebSocket welcome write

@@ -54,4 +54,8 @@ export default defineConfig({
       '/install': 'http://localhost:4200',
     },
   },
+  preview: {
+    port: 4174,
+    strictPort: true,
+  },
 })

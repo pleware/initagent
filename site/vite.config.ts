@@ -60,4 +60,8 @@ export default defineConfig({
     // index.css imports theme tokens from ../internal/brand/themes.
     fs: { allow: [".."] },
   },
+  preview: {
+    port: 4173,
+    strictPort: true,
+  },
 });

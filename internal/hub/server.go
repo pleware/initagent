@@ -241,6 +241,8 @@ func (s *Server) Run(ctx context.Context) error {
 	go s.recoverSelfhostWorker(runCtx)
 	go s.runMailOutbox(runCtx)
 	go s.runTaskOutputPurge(runCtx)
+	go s.runSpentSecretPurge(runCtx)
+	go s.runIdleProjectRetention(runCtx)
 
 	if s.opts.TLSDomain != "" {
 		err := s.runTLS(runCtx)
@@ -407,6 +409,7 @@ func (s *Server) routes() {
 	m.HandleFunc("DELETE /api/projects/{id}", s.requireCredential(s.handleDeleteProject))
 	m.HandleFunc("POST /api/projects/{id}/devices", s.requireCredential(s.handleAttachProjectDevice))
 	m.HandleFunc("DELETE /api/projects/{id}/devices/{deviceId}", s.requireCredential(s.handleDetachProjectDevice))
+	m.HandleFunc("POST /api/projects/{id}/activity", s.requireCredential(s.handleProjectActivity))
 	m.HandleFunc("POST /api/projects/{id}/exec", s.requireCredential(s.handleProjectExec))
 	m.HandleFunc("POST /api/tasks", s.requireFleet(authz.CreateTask, s.handleCreateTask))
 	m.HandleFunc("GET /api/tasks/{id}", s.requireFleet(authz.ReadTask, s.handleGetTask))

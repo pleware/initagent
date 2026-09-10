@@ -259,6 +259,7 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, cre
 		httpError(w, http.StatusNotFound, "project not found")
 		return
 	}
+	s.stampProjectActivity(project.Id)
 	writeJSON(w, project)
 }
 
@@ -340,6 +341,15 @@ func (s *Server) handleDetachProjectDevice(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, project)
 }
 
+func (s *Server) handleProjectActivity(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	project, ok := s.projectFor(w, r.PathValue("id"), cred, authz.ReadProject)
+	if !ok {
+		return
+	}
+	s.stampProjectActivity(project.Id)
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
 func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	project, ok := s.projectFor(w, r.PathValue("id"), cred, authz.DeleteProject)
 	if !ok {
@@ -389,6 +399,7 @@ func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, cred 
 			return
 		}
 		_ = s.store.TouchProject(project.Id)
+		s.stampProjectActivity(project.Id)
 		writeJSON(w, result)
 		return
 	}
@@ -400,6 +411,7 @@ func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, cred 
 		httpError(w, http.StatusServiceUnavailable, "project device is offline")
 		return
 	}
+	s.stampProjectActivity(project.Id)
 	s.proxyGatewayJSON(w, r, placement{projectID: project.Id, gatewayURL: target},
 		http.MethodPost, "/api/devices/"+project.DeviceId+"/exec", deviceProxyTimeout,
 		protocol.Exec{Command: input.Command, Cwd: project.Path, TimeoutSec: timeoutSec})

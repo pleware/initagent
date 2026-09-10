@@ -46,6 +46,15 @@ export default function CodingPage({
   }, [])
 
   usePoll(load, 12_000)
+  usePoll(
+    useCallback(() => {
+      if (!projectId) return
+      void api.post<{ ok: boolean }>(`/api/projects/${projectId}/activity`, {}).catch(() => {
+        /* keep the last live clock */
+      })
+    }, [projectId]),
+    60 * 60 * 1000,
+  )
   useHubEvents((event) => {
     if (event.type === 'device.online' || event.type === 'device.offline') load()
   })

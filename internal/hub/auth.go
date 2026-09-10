@@ -245,6 +245,7 @@ func (s *Server) requireAt(c authz.Capability, at func(*http.Request, authz.Cred
 		}
 		for _, b := range bounds {
 			if cred.Can(c, b.org, b.project) {
+				s.stampTokenGrant(cred)
 				next(w, r, cred)
 				return
 			}

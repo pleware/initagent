@@ -78,8 +78,10 @@ CREATE TABLE IF NOT EXISTS projects (
 	template_id  TEXT NOT NULL DEFAULT '',
 	repo_remote  TEXT NOT NULL DEFAULT '',
 	repo_host    TEXT NOT NULL DEFAULT '',
-	created_at   INTEGER NOT NULL,
-	updated_at   INTEGER NOT NULL
+	created_at      INTEGER NOT NULL,
+	updated_at      INTEGER NOT NULL,
+	activity_at     INTEGER NOT NULL DEFAULT 0,
+	idle_warned_at  INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
 CREATE TABLE IF NOT EXISTS accounts (
@@ -214,8 +216,10 @@ CREATE TABLE IF NOT EXISTS projects (
 	template_id  TEXT NOT NULL DEFAULT '',
 	repo_remote  TEXT NOT NULL DEFAULT '',
 	repo_host    TEXT NOT NULL DEFAULT '',
-	created_at   BIGINT NOT NULL,
-	updated_at   BIGINT NOT NULL
+	created_at      BIGINT NOT NULL,
+	updated_at      BIGINT NOT NULL,
+	activity_at     BIGINT NOT NULL DEFAULT 0,
+	idle_warned_at  BIGINT NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
 CREATE TABLE IF NOT EXISTS accounts (
@@ -325,6 +329,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureProjectBoardingColumns(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring project boarding columns: %w", err)
+	}
+	if err := s.ensureProjectActivityColumns(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring project activity columns: %w", err)
 	}
 	if err := s.ensureOrgPlanColumn(); err != nil {
 		db.Close()
@@ -472,6 +480,24 @@ func (s *Store) ensureProjectBoardingColumns() error {
 		return nil
 	}
 	_, err := s.db.Exec(`ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_device_id_fkey`)
+	return err
+}
+
+// ensureProjectActivityColumns adds the idle-delete clock to a live
+// projects table. CREATE TABLE IF NOT EXISTS will not add them, and
+// existing hosted rows must start the 60-day window from create, not
+// from the upgrade instant (26).
+func (s *Store) ensureProjectActivityColumns() error {
+	decl := "INTEGER NOT NULL DEFAULT 0"
+	if s.db.Dialect() == store.Postgres {
+		decl = "BIGINT NOT NULL DEFAULT 0"
+	}
+	for _, col := range []string{"activity_at", "idle_warned_at"} {
+		if err := s.ensureColumn("projects", col, decl); err != nil {
+			return err
+		}
+	}
+	_, err := s.db.Exec(`UPDATE projects SET activity_at = created_at WHERE activity_at = 0`)
 	return err
 }
 
@@ -1268,14 +1294,22 @@ func (s *Store) ListDevices() ([]Device, error) {
 }
 
 func (s *Store) UpdateDeviceOnConnect(id, hostname, osName, arch string) error {
+	now := time.Now()
 	_, err := s.db.Exec(`UPDATE devices SET hostname = ?, os = ?, arch = ?, last_seen = ? WHERE id = ?`,
-		hostname, osName, arch, time.Now().Unix(), id)
-	return err
+		hostname, osName, arch, now.Unix(), id)
+	if err != nil {
+		return err
+	}
+	return s.touchProjectsForDevice(id, now)
 }
 
 func (s *Store) TouchDevice(id string) error {
-	_, err := s.db.Exec(`UPDATE devices SET last_seen = ? WHERE id = ?`, time.Now().Unix(), id)
-	return err
+	now := time.Now()
+	_, err := s.db.Exec(`UPDATE devices SET last_seen = ? WHERE id = ?`, now.Unix(), id)
+	if err != nil {
+		return err
+	}
+	return s.touchProjectsForDevice(id, now)
 }
 
 func (s *Store) RenameDevice(id, name string) error {
@@ -1377,10 +1411,10 @@ func (s *Store) CreateProject(orgId, name, deviceId, path, gatewayURL, templateI
 		return nil, err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`INSERT INTO projects (`+projectColumns+`)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	if _, err := tx.Exec(`INSERT INTO projects (`+projectColumns+`, activity_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.Id, p.Name, p.OrgId, p.GatewayURL, p.DeviceId, p.Path,
-		p.TemplateId, p.RepoRemote, p.RepoHost, p.CreatedAt, p.UpdatedAt); err != nil {
+		p.TemplateId, p.RepoRemote, p.RepoHost, p.CreatedAt, p.UpdatedAt, now); err != nil {
 		return nil, err
 	}
 	if deviceId != "" {
@@ -1502,6 +1536,9 @@ func (s *Store) DeleteProject(id string) error {
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec(`DELETE FROM project_devices WHERE project_id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM task_outputs WHERE project_id = ?`, id); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM projects WHERE id = ?`, id); err != nil {
@@ -1707,6 +1744,20 @@ func (s *Store) CreateEnrollToken(ttl time.Duration) (string, error) {
 	_, err := s.db.Exec(`INSERT INTO enroll_tokens (token_hash, created_at, expires_at) VALUES (?, ?, ?)`,
 		hashToken(token), now.Unix(), now.Add(ttl).Unix())
 	return token, err
+}
+
+// PurgeEnrollTokens deletes used or expired hub enroll rows older than
+// auth.SpentRetainFor. A live unused token is kept. Legacy single-box
+// enroll still writes this table; the gateway store has its own purge.
+func (s *Store) PurgeEnrollTokens(now time.Time) (int64, error) {
+	cutoff := now.Add(-auth.SpentRetainFor).Unix()
+	res, err := s.db.Exec(`DELETE FROM enroll_tokens
+		WHERE expires_at <= ?
+		   OR (used = 1 AND created_at <= ?)`, cutoff, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 // ConsumeEnrollToken atomically validates and burns a token.

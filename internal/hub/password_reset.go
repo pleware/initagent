@@ -98,6 +98,20 @@ func (s *Store) countMail() (int, error) {
 	return n, err
 }
 
+// PurgePasswordResets deletes used or expired reset rows older than
+// auth.SpentRetainFor. A live unused token (used_at = 0, expires_at
+// still in the future) is kept.
+func (s *Store) PurgePasswordResets(now time.Time) (int64, error) {
+	cutoff := now.Add(-auth.SpentRetainFor).Unix()
+	res, err := s.db.Exec(`DELETE FROM password_resets
+		WHERE (used_at != 0 AND used_at <= ?)
+		   OR (used_at = 0 AND expires_at <= ?)`, cutoff, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func (s *Store) ensurePasswordResets() error {
 	expiresAt := "INTEGER NOT NULL"
 	usedAt := "INTEGER NOT NULL DEFAULT 0"

@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-10 — Purge spent secrets and delete idle free projects on a clock.
 - 2026-09-10 — Plant the shared cascade/ rules
 - 2026-09-10 — Keep finished task streams on the hub so hosted plans can purge them.
 - 2026-09-10 — Drop the leftover composition-patterns AGENTS.md dump.

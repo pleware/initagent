@@ -34,3 +34,9 @@ func TestResetTTL(t *testing.T) {
 		t.Fatalf("ResetTTL = %s, want 1 hour", ResetTTL)
 	}
 }
+
+func TestSpentRetainFor(t *testing.T) {
+	if SpentRetainFor != 30*24*time.Hour {
+		t.Fatalf("SpentRetainFor = %s, want 30 days", SpentRetainFor)
+	}
+}

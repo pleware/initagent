@@ -159,6 +159,63 @@ func TestPasswordResetUnknownToken(t *testing.T) {
 	}
 }
 
+func TestPurgePasswordResetsAfterRetainFor(t *testing.T) {
+	s := testStore(t)
+	hash, err := auth.HashPassword("correct-horse-battery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, _, err := s.ClaimHub("ops@example.com", hash, "default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if err := s.CreatePasswordReset(account.Id, "used-old", now, now.Add(auth.ResetTTL)); err != nil {
+		t.Fatal(err)
+	}
+	old := now.Add(-auth.SpentRetainFor).Unix()
+	if _, err := s.db.Exec(`UPDATE password_resets SET used_at = ?, expires_at = ?, created_at = ? WHERE token_hash = ?`,
+		old, old, old, "used-old"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CreatePasswordReset(account.Id, "used-new", now, now.Add(auth.ResetTTL)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`UPDATE password_resets SET used_at = ? WHERE token_hash = ?`, now.Unix(), "used-new"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CreatePasswordReset(account.Id, "live", now, now.Add(auth.ResetTTL)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO password_resets (id, account_id, token_hash, expires_at, used_at, created_at)
+		VALUES (?, ?, ?, ?, 0, ?)`, "rst-expired-old", account.Id, "expired-old", old, old); err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := s.PurgePasswordResets(now)
+	if err != nil || n != 2 {
+		t.Fatalf("purged %d, %v", n, err)
+	}
+	if got, err := s.countPasswordResetsByHash("used-old"); err != nil || got != 0 {
+		t.Fatalf("old used still there: %d %v", got, err)
+	}
+	if got, err := s.countPasswordResetsByHash("expired-old"); err != nil || got != 0 {
+		t.Fatalf("old expired still there: %d %v", got, err)
+	}
+	if got, err := s.countPasswordResetsByHash("used-new"); err != nil || got != 1 {
+		t.Fatalf("recent used dropped: %d %v", got, err)
+	}
+	if got, err := s.countPasswordResetsByHash("live"); err != nil || got != 1 {
+		t.Fatalf("live unused dropped: %d %v", got, err)
+	}
+}
+
+func (s *Store) countPasswordResetsByHash(tokenHash string) (int, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM password_resets WHERE token_hash = ?`, tokenHash).Scan(&n)
+	return n, err
+}
+
 func TestOpenStoreCreatesPasswordResets(t *testing.T) {
 	s := testStore(t)
 	ok, err := s.hasTable("password_resets")

@@ -180,6 +180,39 @@ func TestLogCutoff(t *testing.T) {
 	}
 }
 
+func TestIdleCutoff(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
+	if IdleWarningLeadDays != 14 {
+		t.Fatalf("IdleWarningLeadDays = %d, want 14", IdleWarningLeadDays)
+	}
+	if _, ok := IdleCutoff(now, 0); ok {
+		t.Fatal("0 idle days must skip the job")
+	}
+	got, ok := IdleCutoff(now, 60)
+	if !ok {
+		t.Fatal("60 idle days must have a cutoff")
+	}
+	want := now.Add(-60 * 24 * time.Hour)
+	if !got.Equal(want) {
+		t.Fatalf("idle cutoff = %s, want %s", got, want)
+	}
+	warn, ok := IdleWarningCutoff(now, 60)
+	if !ok {
+		t.Fatal("60 idle days must warn")
+	}
+	wantWarn := now.Add(-46 * 24 * time.Hour)
+	if !warn.Equal(wantWarn) {
+		t.Fatalf("warn cutoff = %s, want %s (60-14)", warn, wantWarn)
+	}
+	if _, ok := IdleWarningCutoff(now, 0); ok {
+		t.Fatal("0 idle days must not warn")
+	}
+	if _, ok := IdleWarningCutoff(now, IdleWarningLeadDays); ok {
+		t.Fatal("idleDays equal to the lead must not invent a warning window")
+	}
+}
+
 func TestAllows(t *testing.T) {
 	t.Parallel()
 	if !Allows(2, 2) || Allows(3, 2) {

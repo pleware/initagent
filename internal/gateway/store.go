@@ -34,6 +34,11 @@ var (
 // EnrollTTL is how long a minted enroll token can be exchanged.
 const EnrollTTL = 15 * time.Minute
 
+// EnrollRetainFor is how long a used or expired enroll token stays on
+// disk. Same window as auth.SpentRetainFor / mailer.RetainFor. Live
+// unused tokens are not deleted.
+const EnrollRetainFor = 30 * 24 * time.Hour
+
 // Project is our project on this gateway. The id is the same prj- the hub
 // minted — not an alias and not a foreign tool project (fpr-).
 type Project struct {

@@ -76,6 +76,52 @@ func TestEnrollTokenExpiry(t *testing.T) {
 	}
 }
 
+func TestPurgeEnrollTokensAfterRetainFor(t *testing.T) {
+	s := testStore(t)
+	keep, err := s.CreateEnrollToken(time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dropUsed, err := s.CreateEnrollToken(time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.ConsumeEnrollToken(dropUsed); err != nil || !ok {
+		t.Fatalf("consume used: %v %v", ok, err)
+	}
+	dropExpired, err := s.CreateEnrollToken(-time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	old := now.Add(-auth.SpentRetainFor).Unix()
+	for _, token := range []string{dropUsed, dropExpired} {
+		if _, err := s.db.Exec(`UPDATE enroll_tokens SET created_at = ?, expires_at = ? WHERE token_hash = ?`,
+			old, old, hashToken(token)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n, err := s.PurgeEnrollTokens(now)
+	if err != nil || n != 2 {
+		t.Fatalf("purged %d, %v", n, err)
+	}
+	if got, err := s.countEnrollByHash(hashToken(keep)); err != nil || got != 1 {
+		t.Fatalf("live unused dropped: %d %v", got, err)
+	}
+	if got, err := s.countEnrollByHash(hashToken(dropUsed)); err != nil || got != 0 {
+		t.Fatalf("old used still there: %d %v", got, err)
+	}
+	if got, err := s.countEnrollByHash(hashToken(dropExpired)); err != nil || got != 0 {
+		t.Fatalf("old expired still there: %d %v", got, err)
+	}
+}
+
+func (s *Store) countEnrollByHash(tokenHash string) (int, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM enroll_tokens WHERE token_hash = ?`, tokenHash).Scan(&n)
+	return n, err
+}
+
 func TestAdminAccount(t *testing.T) {
 	s := testStore(t)
 	n, err := s.CountAccounts()

@@ -78,6 +78,13 @@ func TestStorePostgresSmoke(t *testing.T) {
 	if got, _ := s.ProjectById(proj.Id); got == nil {
 		t.Fatal("ProjectById returned nil for a fresh project")
 	}
+	idle, err := s.projectIdle(proj.Id)
+	if err != nil || idle.ActivityAt == 0 {
+		t.Fatalf("CreateProject activity_at = %+v %v", idle, err)
+	}
+	if err := s.SaveTaskOutput(TaskOutput{TaskID: "tsk-smoke-" + strconv.FormatInt(uniq, 10), OrgID: org.Id, ProjectID: proj.Id, Stdout: "hi"}); err != nil {
+		t.Fatalf("SaveTaskOutput: %v", err)
+	}
 
 	enroll, err := s.CreateEnrollToken(time.Minute)
 	if err != nil {
@@ -200,6 +207,25 @@ func TestStorePostgresSmoke(t *testing.T) {
 	if err != nil || n != 1 {
 		t.Fatalf("PurgeMailOutbox = (%d, %v), want 1", n, err)
 	}
+
+	if err := s.CreatePasswordReset(account.Id, "smoke-reset-"+strconv.FormatInt(uniq, 10), time.Now(), time.Now().Add(time.Hour)); err != nil {
+		t.Fatalf("CreatePasswordReset: %v", err)
+	}
+	if _, err := s.db.Exec(`UPDATE password_resets SET used_at = ?, expires_at = ?, created_at = ? WHERE account_id = ?`,
+		old, old, old, account.Id); err != nil {
+		t.Fatalf("backdate password reset: %v", err)
+	}
+	n, err = s.PurgePasswordResets(time.Now())
+	if err != nil || n < 1 {
+		t.Fatalf("PurgePasswordResets = (%d, %v), want >= 1", n, err)
+	}
+	if _, err := s.db.Exec(`UPDATE enroll_tokens SET created_at = ?, expires_at = ?`, old, old); err != nil {
+		t.Fatalf("backdate enroll: %v", err)
+	}
+	n, err = s.PurgeEnrollTokens(time.Now())
+	if err != nil || n < 1 {
+		t.Fatalf("PurgeEnrollTokens = (%d, %v), want >= 1", n, err)
+	}
 }
 
 func TestOpenStorePostgresMigratesLegacyProjectsTable(t *testing.T) {
@@ -233,7 +259,7 @@ func TestOpenStorePostgresMigratesLegacyProjectsTable(t *testing.T) {
 		t.Fatalf("OpenStorePostgres on a pre-org projects table: %v", err)
 	}
 	t.Cleanup(func() { _ = s.Close() })
-	for _, col := range []string{"org_id", "gateway_url"} {
+	for _, col := range []string{"org_id", "gateway_url", "activity_at", "idle_warned_at"} {
 		ok, err := s.hasColumn("projects", col)
 		if err != nil || !ok {
 			t.Fatalf("column %s after reopen: ok=%v err=%v", col, ok, err)

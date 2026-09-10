@@ -108,6 +108,59 @@ func TestEnrollConsumesTokenOnce(t *testing.T) {
 	}
 }
 
+func TestEnrollRetainFor(t *testing.T) {
+	if EnrollRetainFor != 30*24*time.Hour {
+		t.Fatalf("EnrollRetainFor = %s, want 30 days", EnrollRetainFor)
+	}
+}
+
+func TestPurgeEnrollTokensAfterRetainFor(t *testing.T) {
+	g := openTest(t, "")
+	ctx := t.Context()
+	keep, err := g.Store().CreateEnrollToken(ctx, g.Project().ID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dropUsed, err := g.Store().CreateEnrollToken(ctx, g.Project().ID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := g.Store().ConsumeEnrollToken(ctx, dropUsed); err != nil || !ok {
+		t.Fatalf("consume used: %v %v", ok, err)
+	}
+	dropExpired, err := g.Store().CreateEnrollToken(ctx, g.Project().ID, -time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	old := now.Add(-EnrollRetainFor).Unix()
+	for _, token := range []string{dropUsed, dropExpired} {
+		if _, err := g.Store().db.Exec(`UPDATE enroll_tokens SET created_at = ?, expires_at = ? WHERE token_hash = ?`,
+			old, old, hashToken(token)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n, err := g.Store().PurgeEnrollTokens(ctx, now)
+	if err != nil || n != 2 {
+		t.Fatalf("purged %d, %v", n, err)
+	}
+	if got, err := countGatewayEnroll(g.Store(), hashToken(keep)); err != nil || got != 1 {
+		t.Fatalf("live unused dropped: %d %v", got, err)
+	}
+	if got, err := countGatewayEnroll(g.Store(), hashToken(dropUsed)); err != nil || got != 0 {
+		t.Fatalf("old used still there: %d %v", got, err)
+	}
+	if got, err := countGatewayEnroll(g.Store(), hashToken(dropExpired)); err != nil || got != 0 {
+		t.Fatalf("old expired still there: %d %v", got, err)
+	}
+}
+
+func countGatewayEnroll(s *Store, tokenHash string) (int, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM enroll_tokens WHERE token_hash = ?`, tokenHash).Scan(&n)
+	return n, err
+}
+
 func TestEnrollRejectsExpiredToken(t *testing.T) {
 	g := openTest(t, "")
 	token, err := g.Store().CreateEnrollToken(context.Background(), g.Project().ID, -time.Second)

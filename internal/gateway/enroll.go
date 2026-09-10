@@ -74,3 +74,18 @@ func (s *Store) ConsumeEnrollToken(ctx context.Context, token string) (projectID
 	}
 	return projectID, true, nil
 }
+
+// PurgeEnrollTokens deletes used or expired enroll rows older than
+// EnrollRetainFor. A live unused token is kept.
+func (s *Store) PurgeEnrollTokens(ctx context.Context, now time.Time) (int64, error) {
+	cutoff := unixTime(now.Add(-EnrollRetainFor))
+	res, err := s.db.ExecContext(ctx, `
+		DELETE FROM enroll_tokens
+		WHERE expires_at <= ?
+		   OR (used = 1 AND created_at <= ?)
+	`, cutoff, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -318,7 +319,32 @@ func (g *Gateway) Start(ctx context.Context, addr string) (string, error) {
 		defer cancel()
 		_ = srv.Shutdown(shut)
 	}()
+	go g.runEnrollPurge(ctx)
 	return "http://" + g.addr, nil
+}
+
+func (g *Gateway) runEnrollPurge(ctx context.Context) {
+	tick := time.NewTicker(time.Hour)
+	defer tick.Stop()
+	purgeOnce := func() {
+		n, err := g.store.PurgeEnrollTokens(context.Background(), time.Now())
+		if err != nil {
+			log.Printf("enroll token purge: %v", err)
+			return
+		}
+		if n > 0 {
+			log.Printf("enroll tokens: purged %d spent or expired rows older than %s", n, EnrollRetainFor)
+		}
+	}
+	purgeOnce()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+			purgeOnce()
+		}
+	}
 }
 
 // Serve listens on addr until ctx is cancelled.

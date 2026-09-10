@@ -175,6 +175,28 @@ func LogCutoff(now time.Time, logDays int) (cutoff time.Time, ok bool) {
 	return now.Add(-time.Duration(logDays) * 24 * time.Hour), true
 }
 
+// IdleWarningLeadDays is how long before the idle delete a warning
+// mail is queued. Fourteen days so the letter can arrive and they
+// still have two weeks (26).
+const IdleWarningLeadDays = 14
+
+// IdleCutoff is the newest activity_at that the idle job may delete at
+// `now`. An idleDays of 0 means the job skips that org (ok is false).
+func IdleCutoff(now time.Time, idleDays int) (cutoff time.Time, ok bool) {
+	return LogCutoff(now, idleDays)
+}
+
+// IdleWarningCutoff is the newest activity_at that still queues a
+// warning. There is no warning window when idleDays is 0 or not
+// longer than the lead (ok is false) — those orgs either keep
+// forever or only delete.
+func IdleWarningCutoff(now time.Time, idleDays int) (cutoff time.Time, ok bool) {
+	if idleDays <= 0 || IdleWarningLeadDays >= idleDays {
+		return time.Time{}, false
+	}
+	return now.Add(-time.Duration(idleDays-IdleWarningLeadDays) * 24 * time.Hour), true
+}
+
 // Allows reports whether count is within limit. A limit of 0 means no cap.
 func Allows(count, limit int) bool {
 	return limit == 0 || count <= limit

@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-10 — Unify scratch-scripts into one generic cascade rule
 - 2026-09-10 — Unify workspace-manifest into one generic cascade rule
 - 2026-09-10 — Unify where-to-commit into one generic cascade rule (mani.yaml is the source)
 - 2026-09-10 — Purge spent secrets and delete idle free projects on a clock.

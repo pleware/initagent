@@ -1,4 +1,4 @@
-import { HUB } from "./site";
+import { openAppHref } from "./cta";
 import {
   PERSON_USD,
   PLAN_BY_SLUG,
@@ -99,7 +99,7 @@ export const PLANS: PlanCard[] = PLAN_ORDER.map((id) => {
     period: copy.period,
     featured: copy.featured,
     cta: copy.cta,
-    href: HUB,
+    href: openAppHref("en"),
     items: itemsOf(id, cfg, copy.extra),
   };
 });

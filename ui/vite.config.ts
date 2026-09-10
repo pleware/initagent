@@ -51,6 +51,7 @@ export default defineConfig({
         target: 'http://localhost:4200',
         ws: true,
       },
+      '/r': 'http://localhost:4200',
       '/install': 'http://localhost:4200',
     },
   },

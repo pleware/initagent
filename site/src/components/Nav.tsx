@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { GithubLogo, List, X, Eye } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
-import { HUB, REPO } from "../lib/site";
+import { REPO } from "../lib/site";
 import { NAV, ROUTES, navIsCurrent } from "../lib/routes";
+import { openAppHref, selfHostHref } from "../lib/cta";
 import { displayName } from "../../../web/brand.ts";
-import { withLangParam } from "../../../web/locale.ts";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import LanguageSwitcher from "./LanguageSwitcher";
 
@@ -12,7 +12,8 @@ export function Nav({ path }: { path: string }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const { t, i18n } = useTranslation();
-  const hub = withLangParam(HUB, i18n.resolvedLanguage || i18n.language);
+  const hub = openAppHref(i18n.resolvedLanguage || i18n.language);
+  const selfHost = selfHostHref();
 
   useEffect(() => {
     const sentinel = document.getElementById("nav-sentinel");
@@ -71,7 +72,7 @@ export function Nav({ path }: { path: string }) {
               {t("nav.github")}
             </a>
             <a
-              href={ROUTES.developers}
+              href={selfHost}
               className="rounded-control px-3 py-2 text-[13.5px] text-fg-muted transition-colors hover:bg-shell hover:text-fg"
             >
               {t("nav.selfHost")}
@@ -120,7 +121,7 @@ export function Nav({ path }: { path: string }) {
                 {t("nav.github")}
               </a>
               <a
-                href={ROUTES.developers}
+                href={selfHost}
                 onClick={() => setOpen(false)}
                 className="rounded-control px-2 py-3 text-[15px] text-fg-muted hover:bg-shell hover:text-fg"
               >

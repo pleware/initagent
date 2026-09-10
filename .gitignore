@@ -51,3 +51,6 @@ coverage
 .agentize/
 opencode.json
 .omo/
+
+# agentize-generated rules: per-instance, never commit.
+.cursor/rules/agentize.auto.generated*

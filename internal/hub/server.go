@@ -375,6 +375,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/me", s.handleMe)
 	m.HandleFunc("PATCH /api/me", s.requireSession(s.handlePatchMe))
 	m.HandleFunc("GET /api/plans", s.handleListPlans)
+	m.HandleFunc("GET /r/cta/{which}", s.handleCTA)
 	m.HandleFunc("POST /api/enroll", s.handleEnroll)
 	m.HandleFunc("GET /install/", s.installer.ServeScript)
 	m.HandleFunc("GET /api/agent-binary", s.installer.ServeBinary)
@@ -442,6 +443,7 @@ func (s *Server) routes() {
 	// in hand rather than repeated here.
 	m.HandleFunc("GET /api/admin/accounts", s.requireCredential(s.handleListAccounts))
 	m.HandleFunc("GET /api/admin/orgs", s.requireCredential(s.handleListAllOrgs))
+	m.HandleFunc("GET /api/admin/kpis", s.requireCredential(s.handleAdminKPIs))
 	m.HandleFunc("PATCH /api/orgs/{id}", s.requireCredential(s.handleRenameOrg))
 	m.HandleFunc("GET /api/orgs/{id}/members", s.requireCredential(s.handleListOrgMembers))
 	m.HandleFunc("PATCH /api/orgs/{id}/members/{accountId}", s.requireCredential(s.handleSetOrgMemberRole))

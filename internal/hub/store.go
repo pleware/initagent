@@ -161,6 +161,16 @@ CREATE TABLE IF NOT EXISTS task_outputs (
 	created_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS task_outputs_org_created ON task_outputs(org_id, created_at);
+CREATE TABLE IF NOT EXISTS funnel_events (
+	id          TEXT PRIMARY KEY,
+	kind        TEXT NOT NULL,
+	occurred_at INTEGER NOT NULL,
+	org_id      TEXT NOT NULL DEFAULT '',
+	account_id  TEXT NOT NULL DEFAULT '',
+	project_id  TEXT NOT NULL DEFAULT '',
+	device_id   TEXT NOT NULL DEFAULT '',
+	wall        TEXT NOT NULL DEFAULT ''
+);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -299,6 +309,16 @@ CREATE TABLE IF NOT EXISTS task_outputs (
 	created_at  BIGINT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS task_outputs_org_created ON task_outputs(org_id, created_at);
+CREATE TABLE IF NOT EXISTS funnel_events (
+	id          TEXT PRIMARY KEY,
+	kind        TEXT NOT NULL,
+	occurred_at BIGINT NOT NULL,
+	org_id      TEXT NOT NULL DEFAULT '',
+	account_id  TEXT NOT NULL DEFAULT '',
+	project_id  TEXT NOT NULL DEFAULT '',
+	device_id   TEXT NOT NULL DEFAULT '',
+	wall        TEXT NOT NULL DEFAULT ''
+);
 `
 
 // OpenStore opens the hub store on a SQLite file (self-host / OSS path).
@@ -357,6 +377,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureTaskOutputs(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring task outputs: %w", err)
+	}
+	if err := s.ensureFunnelEvents(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring funnel events: %w", err)
 	}
 	if err := s.ensureAccountLocale(); err != nil {
 		db.Close()

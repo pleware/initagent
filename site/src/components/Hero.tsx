@@ -1,13 +1,11 @@
 import { ArrowRight } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
-import { HUB } from "../lib/site";
-import { ROUTES } from "../lib/routes";
-import { withLangParam } from "../../../web/locale.ts";
+import { openAppHref, selfHostHref } from "../lib/cta";
 import { Screenshot } from "./Screenshot";
 
 export function Hero() {
   const { t, i18n } = useTranslation();
-  const hub = withLangParam(HUB, i18n.resolvedLanguage || i18n.language);
+  const hub = openAppHref(i18n.resolvedLanguage || i18n.language);
 
   return (
     <section id="top" className="relative overflow-hidden pt-24 pb-20">
@@ -53,7 +51,7 @@ export function Hero() {
               />
             </a>
             <a
-              href={ROUTES.developers}
+              href={selfHostHref()}
               className="flex items-center gap-2 rounded-control border border-line-2 bg-sidebar px-5 py-3 text-[14.5px] font-medium whitespace-nowrap text-fg transition-colors duration-150 hover:border-fg-subtle hover:bg-shell active:scale-[0.98]"
             >
               {t("hero.selfHost")}

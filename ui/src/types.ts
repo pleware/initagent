@@ -58,6 +58,48 @@ export interface Account {
   createdAt: number
 }
 
+// KPISnapshot is GET /api/admin/kpis — the hosted funnel, not telemetry.
+export interface KPISnapshot {
+  acquisition: {
+    ctaOpenApp: number
+    ctaSelfHost: number
+    signups: number
+    inviteRedeems: number
+    signupRate?: number
+  }
+  activation: {
+    orgsWithProject: number
+    orgsWithWorker: number
+    orgsWithTask: number
+    projectRate?: number
+    workerRate?: number
+    taskRate?: number
+    timeToValueHours?: number
+  }
+  hygiene: {
+    planLimitHits: number
+    idleWarned: number
+    idleDeleted: number
+  }
+  retention: {
+    d7Eligible: number
+    d7Returned: number
+    d7Rate?: number
+    d30Eligible: number
+    d30Returned: number
+    d30Rate?: number
+  }
+  conversion: {
+    paidOrgs: number
+    convertedRate?: number
+    timeToPayAvailable: boolean
+    mrrAvailable: boolean
+  }
+  cost: {
+    onlineWorkers: number
+  }
+}
+
 // Org is a customer organization. `members` is the roster size, which is as
 // far as the platform surface sees into an org it is not a member of.
 export interface Org {

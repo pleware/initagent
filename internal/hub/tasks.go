@@ -12,6 +12,7 @@ import (
 
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/brand"
+	"github.com/pleware/initagent/internal/funnel"
 )
 
 // taskProxyTimeout gives the gateway time to run a one-shot exec (60s cap)
@@ -49,6 +50,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request, cred a
 	if status == http.StatusOK {
 		s.rememberTaskOutput(p, body)
 		s.stampProjectActivity(p.projectID)
+		s.recordTaskFinished(p, cred.Actor.Account)
 	}
 	writeGatewayCopy(w, status, ct, body)
 }
@@ -69,6 +71,21 @@ func (s *Server) handleGetTask(w http.ResponseWriter, r *http.Request, cred auth
 		body = s.overlayTaskOutput(body)
 	}
 	writeGatewayCopy(w, status, ct, body)
+}
+
+func (s *Server) recordTaskFinished(p placement, accountID string) {
+	orgID := ""
+	if p.projectID != "" {
+		if project, err := s.store.ProjectById(p.projectID); err == nil && project != nil {
+			orgID = project.OrgId
+		}
+	}
+	s.recordEvent(funnel.Event{
+		Kind:      funnel.KindTaskFinished,
+		OrgID:     orgID,
+		AccountID: accountID,
+		ProjectID: p.projectID,
+	})
 }
 
 func (s *Server) rememberTaskOutput(p placement, body []byte) {

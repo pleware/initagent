@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pleware/initagent/internal/authz"
+	"github.com/pleware/initagent/internal/funnel"
 	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/projecttemplate"
 	"github.com/pleware/initagent/internal/protocol"
@@ -184,13 +185,13 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, cre
 		forbid(w, authz.ErrForbidden)
 		return
 	}
-	if s.refuseAnotherProject(w, orgId) {
+	if s.refuseAnotherProject(w, orgId, cred.Actor.Account) {
 		return
 	}
 	if !s.validateProjectDevice(w, input.DeviceId) {
 		return
 	}
-	if s.refuseAnotherMachine(w, orgId, "", input.DeviceId) {
+	if s.refuseAnotherMachine(w, orgId, "", cred.Actor.Account, input.DeviceId) {
 		return
 	}
 	remote, host, message := repoFields(input.RepoRemote)
@@ -202,6 +203,21 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, cre
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	s.recordEvent(funnel.Event{
+		Kind:      funnel.KindProjectCreated,
+		OrgID:     orgId,
+		AccountID: cred.Actor.Account,
+		ProjectID: project.Id,
+	})
+	if input.DeviceId != "" {
+		s.recordEvent(funnel.Event{
+			Kind:      funnel.KindDeviceEnrolled,
+			OrgID:     orgId,
+			AccountID: cred.Actor.Account,
+			ProjectID: project.Id,
+			DeviceID:  input.DeviceId,
+		})
 	}
 	project = s.bindSelfhostWorker(r.Context(), project)
 	w.WriteHeader(http.StatusCreated)
@@ -239,7 +255,7 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, cre
 	if !s.validateProjectDevice(w, deviceId) {
 		return
 	}
-	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, deviceId) {
+	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, cred.Actor.Account, deviceId) {
 		return
 	}
 	remote, host := existing.RepoRemote, existing.RepoHost
@@ -283,7 +299,7 @@ func (s *Server) handleAttachProjectDevice(w http.ResponseWriter, r *http.Reques
 	if !s.validateProjectDevice(w, deviceId) {
 		return
 	}
-	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, deviceId) {
+	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, cred.Actor.Account, deviceId) {
 		return
 	}
 	added, err := s.store.AttachProjectDevice(existing.Id, deviceId)
@@ -301,6 +317,13 @@ func (s *Server) handleAttachProjectDevice(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if added {
+		s.recordEvent(funnel.Event{
+			Kind:      funnel.KindDeviceEnrolled,
+			OrgID:     existing.OrgId,
+			AccountID: cred.Actor.Account,
+			ProjectID: existing.Id,
+			DeviceID:  deviceId,
+		})
 		w.WriteHeader(http.StatusCreated)
 	}
 	writeJSON(w, project)

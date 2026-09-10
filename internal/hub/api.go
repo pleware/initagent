@@ -15,6 +15,7 @@ import (
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/deviceops"
+	"github.com/pleware/initagent/internal/funnel"
 	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/protocol"
 	"github.com/pleware/initagent/internal/updater"
@@ -143,6 +144,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusUnauthorized, "wrong email or password")
 		return
 	}
+	s.recordEvent(funnel.Event{Kind: funnel.KindLogin, AccountID: account.Id})
 	s.issueSession(w, r, account.Id)
 	writeJSON(w, map[string]bool{"ok": true})
 }
@@ -179,7 +181,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		httpError(w, registerStatus(err), err.Error())
 		return
 	}
-	account, _, err := s.store.RegisterCustomer(creds.Email, creds.PasswordHash, creds.OrgName, creds.Locale)
+	account, org, err := s.store.RegisterCustomer(creds.Email, creds.PasswordHash, creds.OrgName, creds.Locale)
 	if err != nil {
 		if errors.Is(err, auth.ErrEmailTaken) {
 			httpError(w, http.StatusConflict, err.Error())
@@ -188,6 +190,11 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	orgID := ""
+	if org != nil {
+		orgID = org.Id
+	}
+	s.recordEvent(funnel.Event{Kind: funnel.KindSignup, OrgID: orgID, AccountID: account.Id})
 	s.issueSession(w, r, account.Id)
 	writeJSON(w, map[string]bool{"ok": true})
 }

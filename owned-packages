@@ -19,3 +19,4 @@
 ./internal/orgplan
 ./internal/registry/config
 ./internal/mailer
+./internal/funnel

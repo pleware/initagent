@@ -9,6 +9,7 @@ import (
 
 	"github.com/pleware/initagent/internal/auth"
 	"github.com/pleware/initagent/internal/authz"
+	"github.com/pleware/initagent/internal/funnel"
 	"github.com/pleware/initagent/internal/mailer"
 )
 
@@ -107,7 +108,7 @@ func (s *Server) handleInviteRedeem(w http.ResponseWriter, r *http.Request) {
 
 	account, err := s.store.AcceptOrgInvite(tokenHash, email, passwordHash, req.Locale, existingID, now)
 	if err != nil {
-		if writePlanLimitErr(w, err) {
+		if s.reportPlanLimit(w, err, preview.OrgId, existingID, "") {
 			return
 		}
 		if errors.Is(err, auth.ErrInviteToken) {
@@ -120,6 +121,13 @@ func (s *Server) handleInviteRedeem(w http.ResponseWriter, r *http.Request) {
 		}
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
+	}
+	if existingID == "" {
+		s.recordEvent(funnel.Event{
+			Kind:      funnel.KindInviteRedeem,
+			OrgID:     preview.OrgId,
+			AccountID: account.Id,
+		})
 	}
 	s.issueSession(w, r, account.Id)
 	writeJSON(w, map[string]bool{"ok": true})
@@ -176,7 +184,7 @@ func (s *Server) handleCreateOrgInvite(w http.ResponseWriter, r *http.Request, c
 	now := time.Now()
 	inv, err := s.store.CreateOrgInvite(orgID, email, hashToken(secret), role, now, now.Add(auth.InviteTTL))
 	if err != nil {
-		if writePlanLimitErr(w, err) {
+		if s.reportPlanLimit(w, err, orgID, cred.Actor.Account, "") {
 			return
 		}
 		if errors.Is(err, auth.ErrAlreadyMember) {

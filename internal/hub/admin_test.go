@@ -183,7 +183,7 @@ func TestAdminSurfacesRefuseAnonymous(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, path := range []string{"/api/admin/accounts", "/api/admin/orgs", "/api/orgs/" + org.Id + "/members"} {
+	for _, path := range []string{"/api/admin/accounts", "/api/admin/orgs", "/api/admin/kpis", "/api/orgs/" + org.Id + "/members"} {
 		resp := requestJSON(t, f.ts, anon, http.MethodGet, path, nil)
 		if resp.StatusCode != 401 {
 			t.Errorf("GET %s without a session: %d, want 401", path, resp.StatusCode)

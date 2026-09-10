@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/pleware/initagent/internal/authz"
+	"github.com/pleware/initagent/internal/funnel"
 	"github.com/pleware/initagent/internal/mailer"
 	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/orgplan"
@@ -140,6 +141,11 @@ func (s *Server) retainIdleProjects(ctx context.Context, now time.Time) (warned,
 				if err := s.store.DeleteProject(p.ID); err != nil {
 					return warned, deleted, err
 				}
+				s.recordEvent(funnel.Event{
+					Kind:      funnel.KindIdleDeleted,
+					OrgID:     org.Id,
+					ProjectID: p.ID,
+				})
 				deleted++
 				continue
 			}
@@ -151,6 +157,11 @@ func (s *Server) retainIdleProjects(ctx context.Context, now time.Time) (warned,
 				if err := s.store.MarkProjectIdleWarned(p.ID, now); err != nil {
 					return warned, deleted, err
 				}
+				s.recordEvent(funnel.Event{
+					Kind:      funnel.KindIdleWarned,
+					OrgID:     org.Id,
+					ProjectID: p.ID,
+				})
 				warned++
 			}
 		}

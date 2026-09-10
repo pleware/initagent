@@ -30,6 +30,7 @@ type InvitePreview struct {
 	OrgName   string `json:"orgName"`
 	Role      string `json:"role"`
 	ExpiresAt int64  `json:"expiresAt"`
+	OrgId     string `json:"-"`
 }
 
 // CreateOrgInvite stores a hashed one-time secret. A second unused invite
@@ -107,10 +108,10 @@ func (s *Store) RevokeOrgInvite(orgID, inviteID string, now time.Time) (bool, er
 // expired is (nil, nil).
 func (s *Store) PeekInvite(tokenHash string, now time.Time) (*InvitePreview, error) {
 	var preview InvitePreview
-	err := s.db.QueryRow(`SELECT i.email, o.name, i.role, i.expires_at
+	err := s.db.QueryRow(`SELECT i.org_id, i.email, o.name, i.role, i.expires_at
 		FROM org_invites i JOIN orgs o ON o.id = i.org_id
 		WHERE i.token_hash = ? AND i.used_at = 0 AND i.expires_at > ?`,
-		tokenHash, now.Unix()).Scan(&preview.Email, &preview.OrgName, &preview.Role, &preview.ExpiresAt)
+		tokenHash, now.Unix()).Scan(&preview.OrgId, &preview.Email, &preview.OrgName, &preview.Role, &preview.ExpiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

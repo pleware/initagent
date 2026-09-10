@@ -82,7 +82,7 @@ func (s *Server) orgCaps(orgId string) (orgplan.Limits, error) {
 	return orgplan.Caps(s.opts.Offering, orgplan.ID(org.Plan)), nil
 }
 
-func (s *Server) refuseAnotherProject(w http.ResponseWriter, orgId string) bool {
+func (s *Server) refuseAnotherProject(w http.ResponseWriter, orgId, accountId string) bool {
 	caps, err := s.orgCaps(orgId)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
@@ -96,11 +96,12 @@ func (s *Server) refuseAnotherProject(w http.ResponseWriter, orgId string) bool 
 	if orgplan.AllowsAnother(n, caps.Projects) {
 		return false
 	}
+	s.hitPlanLimit(orgId, accountId, "", "projects")
 	writePlanLimit(w, "projects", caps.Projects)
 	return true
 }
 
-func (s *Server) refuseAnotherMachine(w http.ResponseWriter, orgId, projectId, nextDevice string) bool {
+func (s *Server) refuseAnotherMachine(w http.ResponseWriter, orgId, projectId, accountId, nextDevice string) bool {
 	nextDevice = strings.TrimSpace(nextDevice)
 	if nextDevice == "" {
 		return false
@@ -128,6 +129,7 @@ func (s *Server) refuseAnotherMachine(w http.ResponseWriter, orgId, projectId, n
 	if orgplan.AllowsAnother(n, caps.WorkersPerProject) {
 		return false
 	}
+	s.hitPlanLimit(orgId, accountId, projectId, "machines")
 	writePlanLimit(w, "machines", caps.WorkersPerProject)
 	return true
 }

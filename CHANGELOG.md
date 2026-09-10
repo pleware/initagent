@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-10 — Drop the leftover composition-patterns AGENTS.md dump.
 - 2026-09-10 — Let an owner invite a second person into an existing organization.
 - 2026-09-10 — Pin Vite preview ports for site and cockpit.
 - 2026-09-10 — Plant the generated leave-alone Cursor rule.

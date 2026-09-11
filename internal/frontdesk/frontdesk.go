@@ -127,11 +127,13 @@ func Open(opts Options) (*Desk, error) {
 	// The local caller is the person at this box, which is the desk's own
 	// conversation. A second person is a second credential, and that arrives
 	// through the relay rather than through this address.
+	trace := deskseam.NewTrace(deskseam.TraceConfig{Now: opts.Now})
 	socket, err := deskseam.NewListener(deskseam.ListenConfig{
 		Views:        views,
 		Answerer:     runner,
 		Token:        seam.Token,
 		Conversation: desk.DefaultConversation,
+		Trace:        trace,
 	})
 	if err != nil {
 		return nil, err
@@ -143,7 +145,9 @@ func Open(opts Options) (*Desk, error) {
 	}
 
 	mux := http.NewServeMux()
+	mux.Handle("GET "+deskseam.LogsPath, http.HandlerFunc(socket.ServeLogs))
 	mux.Handle(deskseam.Path, socket)
+	trace.Record("info", "desk listening on ws://"+listener.Addr().String()+deskseam.Path)
 	return &Desk{
 		runner:   runner,
 		views:    views,

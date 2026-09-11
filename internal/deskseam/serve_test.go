@@ -109,6 +109,28 @@ func TestDispatchHandsAnUtteranceOnToBeAnswered(t *testing.T) {
 	}
 }
 
+func TestDispatchWritesTheUtteranceOntoTheOperatorRing(t *testing.T) {
+	view, err := newTestViews(t).Bind("desk:local", DefaultTestConversation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trace := NewTrace(TraceConfig{})
+	socket, err := NewSocket(SocketConfig{View: view, Answerer: &stubAnswerer{}, Trace: trace})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := frame(t, "desk:local", "cmd-1", CommandUtterance, map[string]any{
+		"utteranceId": "utt-1", "text": "cześć", "source": "typed",
+	})
+	if intent := socket.Dispatch(raw); intent.Answer == nil {
+		t.Fatal("want a turn")
+	}
+	dump := trace.Dump()
+	if len(dump.Lines) != 1 || !strings.Contains(dump.Lines[0].Text, "utt-1") {
+		t.Fatalf("trace = %+v", dump)
+	}
+}
+
 func TestDispatchAttributesTheAnswerToTheCommandItArrivedOn(t *testing.T) {
 	socket, log, _ := newTestSocket(t)
 	raw := frame(t, log.Stream(), "cmd-7", CommandUtterance, map[string]any{

@@ -3,6 +3,7 @@ package deskseam
 import (
 	"context"
 	"fmt"
+	"unicode/utf8"
 
 	"github.com/pleware/initagent/internal/desk"
 )
@@ -43,6 +44,8 @@ type SocketConfig struct {
 	View *View
 	// Answerer runs a turn.
 	Answerer Answerer
+	// Trace is the operator ring. Nil is fine.
+	Trace *Trace
 }
 
 // Socket is the seam's inbound half: it reads commands and decides.
@@ -53,6 +56,7 @@ type SocketConfig struct {
 type Socket struct {
 	view     *View
 	answerer Answerer
+	trace    *Trace
 }
 
 // NewSocket refuses a socket that cannot answer or cannot replay.
@@ -63,7 +67,7 @@ func NewSocket(cfg SocketConfig) (*Socket, error) {
 	case cfg.Answerer == nil:
 		return nil, fmt.Errorf("%w: socket needs somebody to answer", ErrSeam)
 	}
-	return &Socket{view: cfg.View, answerer: cfg.Answerer}, nil
+	return &Socket{view: cfg.View, answerer: cfg.Answerer, trace: cfg.Trace}, nil
 }
 
 // Stream is the stream this socket numbers events on. A connection sends it
@@ -80,11 +84,13 @@ func (s *Socket) Dispatch(raw []byte) Intent {
 	case InboundMalformed:
 		// Nothing to answer to: a frame without a command id has no surface
 		// the glass could resolve a refusal onto.
+		noteTrace(s.trace, "warn", "desk: dropped malformed frame: %s", inbound.Detail)
 		return Intent{}
 	case InboundUnrecognised:
 		// A verb this build does not speak is tolerated, because deploys are
 		// producer-first — the glass may be ahead of the connector. Silence is
 		// the documented outcome for a command nobody answers.
+		noteTrace(s.trace, "warn", "desk: unrecognised command %q", inbound.Header.Kind)
 		return Intent{}
 	case InboundInvalid:
 		s.view.delivery.Refuse(inbound.Header.CmdID, desk.Failure{
@@ -120,6 +126,7 @@ func (s *Socket) Dispatch(raw []byte) Intent {
 		// somebody else's and be answered inside her transcript
 		// (docs/DESK-SCOPES.md).
 		spoken.Conversation = s.view.conv
+		noteTrace(s.trace, "info", "desk: utterance %s queued (%d chars)", spoken.ID, utf8.RuneCountInString(spoken.Text))
 		return Intent{Answer: &spoken}
 	}
 	// Unreachable today: ParseCommand classifies only those two verbs as

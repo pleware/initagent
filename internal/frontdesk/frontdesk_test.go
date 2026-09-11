@@ -231,6 +231,54 @@ func TestADeskThatIsNotOursRefusesTheConnection(t *testing.T) {
 	}
 }
 
+// TestTheOperatorLogRequiresTheSameToken keeps the dump behind the local
+// secret: guessing the port is not enough to read what she typed.
+func TestTheOperatorLogRequiresTheSameToken(t *testing.T) {
+	t.Parallel()
+	d := serving(t, Options{Config: configured(t, nil)})
+
+	resp, err := http.Get("http://" + d.Addr() + deskseam.LogsPath)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", resp.StatusCode)
+	}
+}
+
+// TestTheOperatorLogShowsTheDeskIsListening is the hop the back-office pane
+// polls: the same token as the websocket, and a line that says the port is
+// ours, so "nothing happened" is no longer an empty column.
+func TestTheOperatorLogShowsTheDeskIsListening(t *testing.T) {
+	t.Parallel()
+	d := serving(t, Options{Config: configured(t, nil)})
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+d.Addr()+deskseam.LogsPath, nil)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+testToken)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	var dump deskseam.TraceDump
+	if err := json.NewDecoder(resp.Body).Decode(&dump); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if dump.V != deskseam.Version || len(dump.Lines) == 0 {
+		t.Fatalf("dump = %+v, want at least the listening line", dump)
+	}
+	if !strings.Contains(dump.Lines[0].Text, "listening") {
+		t.Fatalf("first line %q, want listening", dump.Lines[0].Text)
+	}
+}
+
 // TestAPathThatIsNotTheSeamIs404 is the mount, not the seam: one route, so a
 // typo in the glass's URL fails loudly instead of hanging.
 func TestAPathThatIsNotTheSeamIs404(t *testing.T) {

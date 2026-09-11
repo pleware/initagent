@@ -3,8 +3,8 @@ package deskseam
 import (
 	"context"
 	"crypto/subtle"
+	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -28,6 +28,10 @@ var upgrader = websocket.Upgrader{
 // One route, because the seam is one socket: a second path would be a second
 // contract for the glass to learn.
 const Path = "/desk"
+
+// LogsPath is the operator ring. It is not a second seam: the glass still
+// owns the websocket, and this dump is what the back-office pane polls.
+const LogsPath = Path + "/logs"
 
 const (
 	// writeDeadline is how long one frame may take to leave, matching the
@@ -94,6 +98,10 @@ type ListenConfig struct {
 	//
 	// Empty is desk.DefaultConversation, which is the person at this machine.
 	Conversation desk.ConversationID
+
+	// Trace is the operator ring the back-office pane polls. Nil is fine:
+	// stdout still gets the same lines, the dump just has nothing to say.
+	Trace *Trace
 }
 
 // Listener is the connector's local half of the seam: one WebSocket per
@@ -110,6 +118,7 @@ type Listener struct {
 	answerer Answerer
 	token    string
 	conv     desk.ConversationID
+	trace    *Trace
 }
 
 // NewListener refuses a listener that cannot serve or cannot tell who is
@@ -128,6 +137,7 @@ func NewListener(cfg ListenConfig) (*Listener, error) {
 		answerer: cfg.Answerer,
 		token:    cfg.Token,
 		conv:     cfg.Conversation,
+		trace:    cfg.Trace,
 	}, nil
 }
 
@@ -151,7 +161,7 @@ func (l *Listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
-	socket, err := NewSocket(SocketConfig{View: view, Answerer: l.answerer})
+	socket, err := NewSocket(SocketConfig{View: view, Answerer: l.answerer, Trace: l.trace})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -161,6 +171,19 @@ func (l *Listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return // Upgrade has already answered the request.
 	}
 	Talk(ws, socket, view)
+}
+
+// ServeLogs dumps the operator ring. Same token as the websocket, so a page
+// on the open web that guessed the port still cannot read what she said.
+func (l *Listener) ServeLogs(w http.ResponseWriter, r *http.Request) {
+	if !l.admits(r) {
+		http.Error(w, "desk: unknown token", http.StatusUnauthorized)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(l.trace.Dump()); err != nil {
+		noteTrace(l.trace, "error", "desk: logs encode: %v", err)
+	}
 }
 
 // admits compares the presented token in constant time.
@@ -192,6 +215,7 @@ func Talk(ws *websocket.Conn, socket *Socket, view *View) {
 
 	reader := view.Feed().Subscribe()
 	defer reader.Close()
+	noteTrace(socket.trace, "info", "desk: stream %s connected", view.Log().Stream())
 
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
@@ -209,11 +233,11 @@ func Talk(ws *websocket.Conn, socket *Socket, view *View) {
 		case <-ctx.Done():
 			return
 		case <-reader.Ready():
-			if !writeEvents(ws, reader.Drain()) {
+			if !writeEvents(ws, reader.Drain(), socket.trace) {
 				return
 			}
 		case events := <-replays:
-			if !writeEvents(ws, events) {
+			if !writeEvents(ws, events, socket.trace) {
 				return
 			}
 		case <-ping.C:
@@ -226,14 +250,14 @@ func Talk(ws *websocket.Conn, socket *Socket, view *View) {
 }
 
 // writeEvents sends what was queued and reports whether the connection lived.
-func writeEvents(ws *websocket.Conn, events []Event) bool {
+func writeEvents(ws *websocket.Conn, events []Event, trace *Trace) bool {
 	for _, event := range events {
 		raw, err := event.Encode()
 		if err != nil {
 			// Our own defect, and nothing the glass could do with it. It does
 			// not cost the connection: the numbering continues, and the glass
 			// closes the gap with a resync.
-			log.Printf("desk: %v", err)
+			noteTrace(trace, "error", "desk: %v", err)
 			continue
 		}
 		ws.SetWriteDeadline(time.Now().Add(writeDeadline))
@@ -303,8 +327,10 @@ func answerTurns(ctx context.Context, socket *Socket, turns <-chan desk.Utteranc
 			if err := socket.Answer(ctx, spoken); err != nil {
 				// Already a fact on her stream: the desk records the failure
 				// before returning. This line is the connector's own log.
-				log.Printf("desk: utterance %s: %v", spoken.ID, err)
+				noteTrace(socket.trace, "error", "desk: utterance %s: %v", spoken.ID, err)
+				continue
 			}
+			noteTrace(socket.trace, "info", "desk: utterance %s answered", spoken.ID)
 		}
 	}
 }

@@ -2,6 +2,8 @@
 
 ## Unreleased — product
 
+- 2026-09-11 — deskseam: keep an operator ring and serve it at GET /desk/logs
+- 2026-09-11 — deskseam: operator ring at GET /desk/logs (same token as the seam)
 - 2026-09-11 — desk: open a local seam from YAML, and accept OPENAI_API_KEY
 - 2026-09-11 — deskseam: fan out to connections, and answer a command the desk refuses
 - 2026-09-11 — Add internal/deskseam: the desk seam vocabulary the connector speaks

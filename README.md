@@ -128,8 +128,10 @@ The front desk (`initagent desk`) reads `~/.initagent/desk.yaml` when that
 file exists — copy [`desk.example.yaml`](desk.example.yaml) and fill in the
 local token and the provider key. Comments in that example are English and
 Polish. `INITAGENT_DESK_CONFIG` points at another path. Environment
-variables override the file; neither belongs on a flag. Operator steps
-(Polish) live in the parent workspace `docs/CONFIGURATION.md`.
+variables override the file; neither belongs on a flag. The same token
+admits `GET /desk/logs`, an operator ring the glass back-office pane
+polls — not a second conversation stream. Operator steps (Polish) live
+in the parent workspace `docs/CONFIGURATION.md`.
 
 A hub with no owner prints a one-time bootstrap token when it starts, and
 writes the same value to `bootstrap-token` in its data directory. The

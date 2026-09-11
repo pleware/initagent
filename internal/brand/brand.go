@@ -13,6 +13,8 @@
 // applied to the cockpit or the site.
 package brand
 
+import "strings"
+
 const (
 	// Name is the machine name: binary stem, GitHub, hostnames, env.
 	Name = "initagent"
@@ -115,7 +117,33 @@ const (
 	// X-Forwarded-For header the hub may use as the client address. Empty
 	// means the connection address, which is the self-host default (`26`).
 	EnvTrustedProxies = EnvPrefix + "TRUSTED_PROXIES"
+
+	// EnvDeskChat, EnvDeskSTT and EnvDeskTTS bind one front-desk role to a
+	// provider and a model, written `provider/model`. An unset role leaves
+	// the desk without it — the connector still serves devices and MCP, so a
+	// missing voice must not stop it starting (`53`).
+	EnvDeskChat = EnvPrefix + "DESK_CHAT"
+	EnvDeskSTT  = EnvPrefix + "DESK_STT"
+	EnvDeskTTS  = EnvPrefix + "DESK_TTS"
+
+	// EnvDeskProviderPrefix begins a provider entry. After it comes the
+	// provider id — uppercased, dashes as underscores — then one field:
+	// SHAPE, BASE_URL, API_PATH or SECRET_KIND. The value of the key itself
+	// is never here; SECRET_KIND names it (`41`, `24`).
+	EnvDeskProviderPrefix = EnvPrefix + "DESK_PROVIDER_"
+
+	// EnvAPIKeySuffix ends the variable holding one provider key. Never a
+	// flag: a flag lands in ps output and shell history.
+	EnvAPIKeySuffix = "_API_KEY"
 )
+
+// EnvAPIKey names the environment variable holding the value for a named
+// secret kind, e.g. "openai" becomes INITAGENT_OPENAI_API_KEY. The kind is
+// configuration and travels freely; only this variable holds the secret, and
+// a `sec-` row replaces it later without renaming anything else (`24`, `41`).
+func EnvAPIKey(secretKind string) string {
+	return EnvPrefix + strings.ToUpper(strings.ReplaceAll(secretKind, "-", "_")) + EnvAPIKeySuffix
+}
 
 // Service identities. Renaming these breaks upgrades of an already-installed
 // connector, so they change in one commit rather than gradually.

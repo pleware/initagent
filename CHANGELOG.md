@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-11 — desk: seams, env configuration and retry policy for the desk loop
 - 2026-09-10 — Record the hosted funnel so Administration can count acquisition before Stripe.
 - 2026-09-10 — Rename generated rules to agentize.auto.generated.*; stop committing them (per-instance)
 - 2026-09-10 — Unify scratch-scripts into one generic cascade rule

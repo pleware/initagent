@@ -5,6 +5,7 @@
 ./internal/registry/ai/capability
 ./internal/registry/db/kinds
 ./internal/completion
+./internal/desk
 ./internal/deviceops
 ./internal/store
 ./internal/scheduler

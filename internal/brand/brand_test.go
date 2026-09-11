@@ -90,3 +90,23 @@ func TestReleaseAsset(t *testing.T) {
 		t.Fatalf("ReleaseAsset = %q, want %q", got, want)
 	}
 }
+
+// TestEnvAPIKey locks the derivation an operator has to type. A secret kind
+// is configuration and travels in bug reports; only the variable this names
+// holds the value, so getting the name wrong looks like a missing key.
+func TestEnvAPIKey(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		kind string
+		want string
+	}{
+		{"openai", brand.EnvPrefix + "OPENAI_API_KEY"},
+		{"azure-openai", brand.EnvPrefix + "AZURE_OPENAI_API_KEY"},
+		{"elevenlabs", brand.EnvPrefix + "ELEVENLABS_API_KEY"},
+	}
+	for _, tc := range cases {
+		if got := brand.EnvAPIKey(tc.kind); got != tc.want {
+			t.Errorf("EnvAPIKey(%q) = %q, want %q", tc.kind, got, tc.want)
+		}
+	}
+}

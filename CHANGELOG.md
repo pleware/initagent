@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-11 — Answer a desk turn over the openai dialect
 - 2026-09-11 — Check Go and shell files out with LF
 - 2026-09-11 — authz: gofmt the invite table
 - 2026-09-11 — desk: seams, env configuration and retry policy for the desk loop

@@ -205,35 +205,35 @@ func TestAuthorizeInvite(t *testing.T) {
 		want  error
 	}{
 		{
-			name: "an owner invites a member",
+			name:  "an owner invites a member",
 			actor: actorIn("acc-own", RoleOwner), role: RoleMember, want: nil,
 		},
 		{
-			name: "an admin invites a member",
+			name:  "an admin invites a member",
 			actor: actorIn("acc-adm", RoleAdmin), role: RoleMember, want: nil,
 		},
 		{
-			name: "an admin invites an admin",
+			name:  "an admin invites an admin",
 			actor: actorIn("acc-adm", RoleAdmin), role: RoleAdmin, want: nil,
 		},
 		{
-			name: "an owner invites an owner",
+			name:  "an owner invites an owner",
 			actor: actorIn("acc-own", RoleOwner), role: RoleOwner, want: nil,
 		},
 		{
-			name: "an admin cannot invite an owner",
+			name:  "an admin cannot invite an owner",
 			actor: actorIn("acc-adm", RoleAdmin), role: RoleOwner, want: ErrOwnerOnly,
 		},
 		{
-			name: "a member cannot invite",
+			name:  "a member cannot invite",
 			actor: actorIn("acc-mem", RoleMember), role: RoleMember, want: ErrForbidden,
 		},
 		{
-			name: "a stranger cannot invite",
+			name:  "a stranger cannot invite",
 			actor: Actor{Account: "acc-x"}, role: RoleMember, want: ErrForbidden,
 		},
 		{
-			name: "an unknown role never reaches the store",
+			name:  "an unknown role never reaches the store",
 			actor: actorIn("acc-own", RoleOwner), role: Role("superuser"), want: ErrRoleUnknown,
 		},
 	}

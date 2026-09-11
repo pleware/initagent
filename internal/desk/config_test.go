@@ -94,6 +94,29 @@ func TestUnboundRolesStartTheDeskAnyway(t *testing.T) {
 	}
 }
 
+// TestVendorAPIKeyBindsTheRole is the laptop that already exported
+// OPENAI_API_KEY and should not have to duplicate it as INITAGENT_OPENAI_API_KEY.
+func TestVendorAPIKeyBindsTheRole(t *testing.T) {
+	t.Parallel()
+	env := map[string]string{
+		"INITAGENT_DESK_PROVIDER_OPENAI_SHAPE":       "openai",
+		"INITAGENT_DESK_PROVIDER_OPENAI_SECRET_KIND": "openai",
+		"INITAGENT_DESK_CHAT":                        "openai/gpt-4o-mini",
+		"OPENAI_API_KEY":                             "sk-from-vendor-env",
+	}
+	cfg, err := LoadConfig(env)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	chat, ok := cfg.Binding(RoleChat)
+	if !ok {
+		t.Fatal("chat is unbound with OPENAI_API_KEY set")
+	}
+	if chat.Provider.Key != "sk-from-vendor-env" {
+		t.Errorf("key = %q, want sk-from-vendor-env", chat.Provider.Key)
+	}
+}
+
 // TestMissingKeySilencesTheRole follows the mailer precedent: a key is
 // operations catching up, not a malformed file.
 func TestMissingKeySilencesTheRole(t *testing.T) {
@@ -316,6 +339,81 @@ func TestMalformedRefusesToStart(t *testing.T) {
 	}
 }
 
+// TestTheSeamIsClosedUntilSomebodyMintsAToken is the safe default: a desk
+// nobody can reach beats a desk every process on the box may join.
+func TestTheSeamIsClosedUntilSomebodyMintsAToken(t *testing.T) {
+	t.Parallel()
+	cfg, err := LoadConfig(map[string]string{})
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg.Seam().Open() {
+		t.Error("the seam is open with no token")
+	}
+	if cfg.Seam().Addr != DefaultSeamAddr {
+		t.Errorf("addr = %q, want the default %q", cfg.Seam().Addr, DefaultSeamAddr)
+	}
+}
+
+// TestASeamTokenOpensTheDeskAtAnAddress covers the two settings together,
+// because either alone is a desk that does not answer.
+func TestASeamTokenOpensTheDeskAtAnAddress(t *testing.T) {
+	t.Parallel()
+	cfg, err := LoadConfig(map[string]string{
+		"INITAGENT_DESK_SEAM_ADDR":  "localhost:4300",
+		"INITAGENT_DESK_SEAM_TOKEN": "sec-desk-token",
+	})
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if !cfg.Seam().Open() {
+		t.Fatal("the seam is closed with a token set")
+	}
+	if cfg.Seam().Addr != "localhost:4300" {
+		t.Errorf("addr = %q, want the value that was set", cfg.Seam().Addr)
+	}
+	if cfg.Seam().Token != "sec-desk-token" {
+		t.Errorf("token = %q, want the value that was set", cfg.Seam().Token)
+	}
+}
+
+// TestOnlyALoopbackAddressIsAccepted is the decision, not a preference. The
+// seam's own Origin check cannot tell a phone on the Wi-Fi from the glass on
+// this box, so the address is where that is settled: a device off this machine
+// joins through the hub as a relay (workspace docs/DESK-SCOPES.md).
+func TestOnlyALoopbackAddressIsAccepted(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		addr string
+		want bool
+	}{
+		{"127.0.0.1:4202", true},
+		{"localhost:4202", true},
+		{"[::1]:4202", true},
+		{"127.0.0.1:0", true},
+		{"0.0.0.0:4202", false},
+		{"192.168.1.10:4202", false},
+		{":4202", false},
+		{"4202", false},
+		{"127.0.0.1", false},
+		{"127.0.0.1:", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.addr, func(t *testing.T) {
+			t.Parallel()
+			cfg, err := LoadConfig(map[string]string{"INITAGENT_DESK_SEAM_ADDR": tc.addr})
+			switch {
+			case tc.want && err != nil:
+				t.Fatalf("LoadConfig(%q) = %v, want it accepted", tc.addr, err)
+			case tc.want && cfg.Seam().Addr != tc.addr:
+				t.Errorf("addr = %q, want %q", cfg.Seam().Addr, tc.addr)
+			case !tc.want && !errors.Is(err, ErrConfig):
+				t.Fatalf("LoadConfig(%q) = %v, want ErrConfig", tc.addr, err)
+			}
+		})
+	}
+}
+
 // TestUnrelatedEnvironmentIsIgnored keeps the strict check scoped: a box has
 // hundreds of variables and none of the others are ours to judge.
 func TestUnrelatedEnvironmentIsIgnored(t *testing.T) {
@@ -333,6 +431,8 @@ func TestUnrelatedEnvironmentIsIgnored(t *testing.T) {
 
 // TestLoadConfigFromEnvReadsTheProcess covers the package's only edge.
 func TestLoadConfigFromEnvReadsTheProcess(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", t.TempDir())
 	t.Setenv("INITAGENT_DESK_PROVIDER_OPENAI_SHAPE", "openai")
 	t.Setenv("INITAGENT_DESK_PROVIDER_OPENAI_SECRET_KIND", "openai")
 	t.Setenv("INITAGENT_OPENAI_API_KEY", "sk-from-process")

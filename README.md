@@ -124,6 +124,13 @@ when `--gateway-url` is empty, so the first project can enroll this
 machine. Pass `--gateway-url` to point at a gateway you already run
 with `initagent gateway`.
 
+The front desk (`initagent desk`) reads `~/.initagent/desk.yaml` when that
+file exists — copy [`desk.example.yaml`](desk.example.yaml) and fill in the
+local token and the provider key. Comments in that example are English and
+Polish. `INITAGENT_DESK_CONFIG` points at another path. Environment
+variables override the file; neither belongs on a flag. Operator steps
+(Polish) live in the parent workspace `docs/CONFIGURATION.md`.
+
 A hub with no owner prints a one-time bootstrap token when it starts, and
 writes the same value to `bootstrap-token` in its data directory. The
 Linux, macOS, and Windows installers wait for that file after starting the

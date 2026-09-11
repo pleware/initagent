@@ -10,7 +10,8 @@ import (
 	"unicode/utf8"
 )
 
-// MaxThreadLines bounds one staff member's conversation thread.
+// MaxThreadLines bounds what one staff member has heard inside one
+// conversation (docs/DESK-SCOPES.md).
 //
 // A working day's tail, not a memory: cross-day recall of what was discussed
 // is deliberately not built (docs/DESK-CONVERSATION.md §12), and an unbounded
@@ -147,9 +148,13 @@ func (Failed) fact()            {}
 // the wire: delivery to the glass has its own sequence numbers, gap detection
 // and resume (draft 53), and a turn that already happened must not be undone
 // because a window is closed. Implementations must be safe for concurrent
-// use — the desk serialises replies, not the log.
+// use — the desk serialises replies inside one conversation, not across them.
+//
+// Every fact belongs to exactly one conversation, and it is recorded with it.
+// Without that the connector could not tell whose fact it is, and one person's
+// transcript would reach another person's screen (docs/DESK-SCOPES.md).
 type Facts interface {
-	Record(Fact)
+	Record(conv ConversationID, fact Fact)
 }
 
 // Persona is who a staff member is at the moment she answers: the hub's
@@ -187,10 +192,23 @@ const (
 // Utterance is what a person said once — one press-and-release, or one
 // textarea submit. ID is minted where the words were captured and is reused
 // on every re-delivery, which is the only reason a duplicate is recognisable.
+//
+// The turn key derives from ID alone, so ID must be unique across the desk
+// and not merely inside one device: two devices numbering their own
+// utterances from one would make the second person's sentence look like a
+// re-delivery of the first person's and be silently dropped. Carrying the
+// origin is the connector's job, not the caller's promise
+// (docs/DESK-SCOPES.md).
 type Utterance struct {
 	ID     UtteranceID
 	Text   string
 	Source UtteranceSource
+
+	// Conversation is whose talk this belongs to. The zero value is the
+	// desk's only conversation, which is what one person at one desk means.
+	// It is attached by the connector from the connection, never read from
+	// what the caller sent (see ConversationID).
+	Conversation ConversationID
 }
 
 func (u Utterance) validate() error {
@@ -221,7 +239,9 @@ type RunnerConfig struct {
 	Model string
 
 	// Floor is who holds the voice before anybody has spoken. The floor is
-	// never empty (docs/DESK-CONVERSATION.md §2), so this is required.
+	// never empty (docs/DESK-CONVERSATION.md §2), so this is required. Every
+	// conversation opens with it, so it is the desk's setting rather than one
+	// person's state.
 	Floor StaffID
 
 	// Claims defaults to a fresh store. A Runner without one would duplicate
@@ -234,8 +254,8 @@ type RunnerConfig struct {
 
 // Runner turns an utterance into facts.
 //
-// It owns the floor and serialises turns, because "one mouth" cannot be
-// enforced by a caller that might be holding two copies of who has the
+// It owns the conversations and serialises turns, because "one mouth" cannot
+// be enforced by a caller that might be holding two copies of who has the
 // voice: two half sentences from one person is noise, not a busy desk. Audio
 // and surfaces are not serialised here — a chart appearing while somebody
 // talks is normal — and the mouth itself is the speaker's problem.
@@ -244,9 +264,17 @@ type RunnerConfig struct {
 // from there, so the same runner serves a local WebSocket, a test, and
 // whatever replaces the transport later.
 type Runner struct {
-	mu       sync.Mutex
-	floor    Floor
-	threads  map[StaffID][]Line
+	// mu guards the conversation map and nothing else. Serialising a turn is
+	// each conversation's own job, or the second person would wait for the
+	// first person's provider (docs/DESK-SCOPES.md).
+	mu sync.Mutex
+
+	// conversations is keyed by an id the connector attaches, so its size is
+	// bounded by the conversations the desk admitted rather than by anything
+	// a caller can name.
+	conversations map[ConversationID]*conversation
+
+	opening  StaffID
 	roster   Roster
 	chat     Chat
 	personas Personas
@@ -284,8 +312,12 @@ func NewRunner(cfg RunnerConfig) (*Runner, error) {
 	}
 
 	return &Runner{
-		floor:    NewFloor(cfg.Floor, now()),
-		threads:  make(map[StaffID][]Line),
+		// The desk's own conversation exists from the start, so a floor can
+		// be read before anybody has spoken.
+		conversations: map[ConversationID]*conversation{
+			DefaultConversation: newConversation(DefaultConversation, cfg.Floor, now()),
+		},
+		opening:  cfg.Floor,
 		roster:   cfg.Roster,
 		chat:     cfg.Chat,
 		personas: cfg.Personas,
@@ -297,11 +329,31 @@ func NewRunner(cfg RunnerConfig) (*Runner, error) {
 	}, nil
 }
 
-// Floor reports who hears the next sentence.
-func (r *Runner) Floor() Floor {
+// Floor reports who hears the next sentence in one conversation. A
+// conversation nobody has opened yet answers with the desk's opening floor,
+// and reading does not start one.
+func (r *Runner) Floor(conv ConversationID) Floor {
+	r.mu.Lock()
+	c, open := r.conversations[conv]
+	r.mu.Unlock()
+
+	if !open {
+		return NewFloor(r.opening, r.now())
+	}
+	return c.currentFloor()
+}
+
+// conversationFor returns one person's state, opening it on her first words.
+func (r *Runner) conversationFor(conv ConversationID) *conversation {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.floor
+
+	c, ok := r.conversations[conv]
+	if !ok {
+		c = newConversation(conv, r.opening, r.now())
+		r.conversations[conv] = c
+	}
+	return c
 }
 
 // Answer resolves who was addressed and answers as them.
@@ -313,19 +365,26 @@ func (r *Runner) Floor() Floor {
 // Segments are independent. "Adam zrób to, Ania zrób tamto" is two requests
 // to two people, so one failing does not cancel the other, and both failures
 // come back joined.
+//
+// Two conversations are answered at the same time; two sentences into the
+// same conversation are not, because one person hears one reply at a time.
 func (r *Runner) Answer(ctx context.Context, u Utterance) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if err := u.validate(); err != nil {
-		r.fail("", err)
+		r.fail(u.Conversation, "", err)
 		return err
 	}
 
-	addressing := ResolveAddressing(u.Text, r.floor, r.roster)
+	// After validation, so words nobody could act on do not open a
+	// conversation.
+	c := r.conversationFor(u.Conversation)
+
+	c.ear.Lock()
+	defer c.ear.Unlock()
+
+	addressing := ResolveAddressing(u.Text, c.currentFloor(), r.roster)
 	switch addressing.Kind {
 	case AddressedUnclear:
-		r.facts.Record(AddressingUnclear{
+		r.facts.Record(c.id, AddressingUnclear{
 			Utterance:  u.ID,
 			Candidates: addressing.Candidates,
 			Text:       u.Text,
@@ -334,32 +393,32 @@ func (r *Runner) Answer(ctx context.Context, u Utterance) error {
 	case AddressedSummon:
 		// Summoning carries no work: it moves the floor and nothing else, or
 		// "Aniu?" would book a commitment nobody asked for.
-		r.moveFloor(addressing)
+		r.moveFloor(c, addressing)
 		return nil
 	}
 
 	// The floor moves first. Addressing succeeded even if answering does not,
-	// and a provider outage must not leave the desk pointed at whoever spoke
-	// last time.
-	r.moveFloor(addressing)
+	// and a provider outage must not leave her conversation pointed at
+	// whoever spoke last time.
+	r.moveFloor(c, addressing)
 
 	var failures error
 	for _, segment := range addressing.Segments {
 		if err := ctx.Err(); err != nil {
 			return errors.Join(failures, err)
 		}
-		failures = errors.Join(failures, r.turn(ctx, u, segment))
+		failures = errors.Join(failures, r.turn(ctx, c, u, segment))
 	}
 	return failures
 }
 
 // turn runs one segment under its own claim.
-func (r *Runner) turn(ctx context.Context, u Utterance, segment Segment) error {
-	turn := NewTurnID(u.ID, segment.Index)
+func (r *Runner) turn(ctx context.Context, c *conversation, u Utterance, segment Segment) error {
+	turn := NewTurnID(u.Conversation, u.ID, segment.Index)
 
 	outcome, err := r.claims.Claim(turn, segment.Text, r.now())
 	if err != nil {
-		r.fail(turn, err)
+		r.fail(c.id, turn, err)
 		return err
 	}
 	if outcome != ClaimGranted {
@@ -369,21 +428,21 @@ func (r *Runner) turn(ctx context.Context, u Utterance, segment Segment) error {
 		return nil
 	}
 
-	r.facts.Record(TurnOpened{
+	r.facts.Record(c.id, TurnOpened{
 		Turn:      turn,
 		Staff:     segment.Staff,
 		Utterance: u.ID,
 		Index:     segment.Index,
 		Text:      segment.Text,
 	})
-	r.remember(segment.Staff, Line{From: LineFromPerson, Text: segment.Text})
+	c.remember(segment.Staff, Line{From: LineFromPerson, Text: segment.Text})
 
-	spoken, err := r.say(ctx, turn, segment)
+	spoken, err := r.say(ctx, c, turn, segment)
 	if err == nil {
 		return r.claims.Settle(turn, r.now())
 	}
 
-	r.fail(turn, err)
+	r.fail(c.id, turn, err)
 	if spoken == 0 {
 		// Nothing reached the scene, so nothing needs replaying and the same
 		// utterance may be asked again.
@@ -397,7 +456,7 @@ func (r *Runner) turn(ctx context.Context, u Utterance, segment Segment) error {
 
 // say asks the provider and publishes the reply, retrying only while nothing
 // has been said yet. It reports how many pieces reached the log.
-func (r *Runner) say(ctx context.Context, turn TurnID, segment Segment) (int, error) {
+func (r *Runner) say(ctx context.Context, c *conversation, turn TurnID, segment Segment) (int, error) {
 	persona, err := r.personas.Persona(ctx, segment.Staff)
 	if err != nil {
 		return 0, err
@@ -406,12 +465,12 @@ func (r *Runner) say(ctx context.Context, turn TurnID, segment Segment) (int, er
 	req := ChatRequest{
 		Model:    r.model,
 		Brief:    persona.Brief,
-		Lines:    r.thread(segment.Staff),
+		Lines:    c.thread(segment.Staff),
 		MaxWords: persona.MaxWords,
 	}
 
 	for attempt := 1; ; attempt++ {
-		spoken, err := r.stream(ctx, turn, segment.Staff, req)
+		spoken, err := r.stream(ctx, c, turn, segment.Staff, req)
 		switch {
 		case err == nil:
 			return spoken, nil
@@ -430,7 +489,7 @@ func (r *Runner) say(ctx context.Context, turn TurnID, segment Segment) (int, er
 }
 
 // stream publishes one attempt's deltas.
-func (r *Runner) stream(ctx context.Context, turn TurnID, staff StaffID, req ChatRequest) (int, error) {
+func (r *Runner) stream(ctx context.Context, c *conversation, turn TurnID, staff StaffID, req ChatRequest) (int, error) {
 	stream, err := r.chat.Turn(ctx, req)
 	if err != nil {
 		return 0, err
@@ -440,7 +499,7 @@ func (r *Runner) stream(ctx context.Context, turn TurnID, staff StaffID, req Cha
 	var reply string
 	for delta, err := range stream {
 		if err != nil {
-			r.remember(staff, Line{From: LineFromStaff, Text: reply})
+			c.remember(staff, Line{From: LineFromStaff, Text: reply})
 			return spoken, err
 		}
 		if delta.Text == "" {
@@ -450,49 +509,23 @@ func (r *Runner) stream(ctx context.Context, turn TurnID, staff StaffID, req Cha
 		}
 		reply += delta.Text
 		spoken++
-		r.facts.Record(Said{Turn: turn, Staff: staff, Text: delta.Text})
+		r.facts.Record(c.id, Said{Turn: turn, Staff: staff, Text: delta.Text})
 	}
 
-	r.remember(staff, Line{From: LineFromStaff, Text: reply})
-	r.facts.Record(Said{Turn: turn, Staff: staff, Final: true})
+	c.remember(staff, Line{From: LineFromStaff, Text: reply})
+	r.facts.Record(c.id, Said{Turn: turn, Staff: staff, Final: true})
 	return spoken, nil
-}
-
-// thread copies a staff member's lines, so a request being built cannot see
-// the next turn's edits.
-func (r *Runner) thread(staff StaffID) []Line {
-	lines := r.threads[staff]
-	if len(lines) == 0 {
-		return nil
-	}
-	out := make([]Line, len(lines))
-	copy(out, lines)
-	return out
-}
-
-// remember appends to a staff member's thread, keeping the most recent lines.
-// An empty line is dropped: a turn that failed before the first word said
-// nothing, and a blank line in the thread reads as her ignoring the person.
-func (r *Runner) remember(staff StaffID, line Line) {
-	if line.Text == "" {
-		return
-	}
-	lines := append(r.threads[staff], line)
-	if len(lines) > MaxThreadLines {
-		lines = lines[len(lines)-MaxThreadLines:]
-	}
-	r.threads[staff] = lines
 }
 
 // moveFloor publishes a move only when the holder or the reason changed, so a
 // second sentence to the same person is not a stream of identical facts.
-func (r *Runner) moveFloor(addressing Addressing) {
-	next, changed := r.floor.Move(addressing, r.now())
+func (r *Runner) moveFloor(c *conversation, addressing Addressing) {
+	next, changed := c.currentFloor().Move(addressing, r.now())
 	if !changed {
 		return
 	}
-	r.floor = next
-	r.facts.Record(FloorMoved{Staff: next.Holder, Reason: next.Reason})
+	c.setFloor(next)
+	r.facts.Record(c.id, FloorMoved{Staff: next.Holder, Reason: next.Reason})
 }
 
 // fail records a failure the desk can say out loud.
@@ -500,11 +533,11 @@ func (r *Runner) moveFloor(addressing Addressing) {
 // A cancelled turn is not one of them: cutting somebody off is a person
 // interrupting (docs/DESK-CONVERSATION.md §6), and an apology for it would be
 // the desk treating a normal act as a fault.
-func (r *Runner) fail(turn TurnID, err error) {
+func (r *Runner) fail(conv ConversationID, turn TurnID, err error) {
 	if errors.Is(err, context.Canceled) {
 		return
 	}
-	r.facts.Record(Failed{Turn: turn, Failure: failureOf(err)})
+	r.facts.Record(conv, Failed{Turn: turn, Failure: failureOf(err)})
 }
 
 // failureOf maps an error onto the seam's closed set of codes.

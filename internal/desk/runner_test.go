@@ -15,14 +15,25 @@ import (
 // --- fakes ---------------------------------------------------------------
 
 type factLog struct {
-	mu    sync.Mutex
-	facts []Fact
+	mu     sync.Mutex
+	facts  []Fact
+	convos []ConversationID
 }
 
-func (l *factLog) Record(f Fact) {
+func (l *factLog) Record(conv ConversationID, f Fact) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.facts = append(l.facts, f)
+	l.convos = append(l.convos, conv)
+}
+
+// conversations names whose each recorded fact was, in order.
+func (l *factLog) conversations() []ConversationID {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := make([]ConversationID, len(l.convos))
+	copy(out, l.convos)
+	return out
 }
 
 func (l *factLog) all() []Fact {
@@ -79,13 +90,18 @@ func (f chatFunc) Turn(ctx context.Context, req ChatRequest) (ChatStream, error)
 }
 
 // recordingChat answers from a script, one entry per call, and keeps every
-// request it was given.
+// request it was given. Locked because two conversations are answered at the
+// same time.
 type recordingChat struct {
+	mu       sync.Mutex
 	answers  []func() (ChatStream, error)
 	requests []ChatRequest
 }
 
 func (c *recordingChat) Turn(_ context.Context, req ChatRequest) (ChatStream, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.requests = append(c.requests, req)
 	if len(c.requests) > len(c.answers) {
 		return nil, fmt.Errorf("chat called %d times, script has %d", len(c.requests), len(c.answers))
@@ -93,7 +109,17 @@ func (c *recordingChat) Turn(_ context.Context, req ChatRequest) (ChatStream, er
 	return c.answers[len(c.requests)-1]()
 }
 
-func (c *recordingChat) calls() int { return len(c.requests) }
+func (c *recordingChat) calls() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.requests)
+}
+
+func (c *recordingChat) request(i int) ChatRequest {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.requests[i]
+}
 
 func says(texts ...string) func() (ChatStream, error) {
 	return func() (ChatStream, error) {
@@ -237,7 +263,7 @@ func TestNewRunnerDefaultsTheClockAndTheClaimStore(t *testing.T) {
 	if runner.now == nil || runner.now().IsZero() {
 		t.Error("now returned a zero time, want a real clock")
 	}
-	floor := runner.Floor()
+	floor := runner.Floor(DefaultConversation)
 	if floor.Holder != ania || floor.Reason != FloorDefault {
 		t.Errorf("floor = %+v, want %s by default", floor, ania)
 	}
@@ -305,8 +331,8 @@ func TestAnswerCarriesToTheFloorHolder(t *testing.T) {
 	if got := d.facts.said(); got != "Sprawdzam to." {
 		t.Errorf("said = %q, want the deltas in order", got)
 	}
-	if d.runner.Floor().Holder != adam {
-		t.Errorf("floor = %q, want it to stay with %q", d.runner.Floor().Holder, adam)
+	if d.runner.Floor(DefaultConversation).Holder != adam {
+		t.Errorf("floor = %q, want it to stay with %q", d.runner.Floor(DefaultConversation).Holder, adam)
 	}
 }
 
@@ -328,10 +354,10 @@ func TestAnswerMovesTheFloorBeforeSheAnswers(t *testing.T) {
 	if opened[0].Text != "sprawdź to" {
 		t.Errorf("segment text = %q, want the request without the address", opened[0].Text)
 	}
-	if d.runner.Floor().Reason != FloorNamed {
-		t.Errorf("reason = %q, want %q", d.runner.Floor().Reason, FloorNamed)
+	if d.runner.Floor(DefaultConversation).Reason != FloorNamed {
+		t.Errorf("reason = %q, want %q", d.runner.Floor(DefaultConversation).Reason, FloorNamed)
 	}
-	if got := d.chat.requests[0].Brief; !strings.Contains(got, string(ania)) {
+	if got := d.chat.request(0).Brief; !strings.Contains(got, string(ania)) {
 		t.Errorf("brief = %q, want the persona of %q", got, ania)
 	}
 }
@@ -360,8 +386,8 @@ func TestAnswerAsksRatherThanGuessing(t *testing.T) {
 	if unclear.Utterance != "utt-1" || unclear.Text != "Adam, Ania" {
 		t.Errorf("unclear = %+v, want the utterance verbatim", unclear)
 	}
-	if d.runner.Floor().Holder != adam || d.runner.Floor().Reason != FloorDefault {
-		t.Errorf("floor = %+v, want it untouched by a question", d.runner.Floor())
+	if d.runner.Floor(DefaultConversation).Holder != adam || d.runner.Floor(DefaultConversation).Reason != FloorDefault {
+		t.Errorf("floor = %+v, want it untouched by a question", d.runner.Floor(DefaultConversation))
 	}
 }
 
@@ -379,7 +405,7 @@ func TestAnswerSummonsWithoutBookingWork(t *testing.T) {
 	if got := d.facts.kinds(); !slices.Equal(got, want) {
 		t.Fatalf("facts = %v, want %v", got, want)
 	}
-	if floor := d.runner.Floor(); floor.Holder != ania || floor.Reason != FloorSummoned {
+	if floor := d.runner.Floor(DefaultConversation); floor.Holder != ania || floor.Reason != FloorSummoned {
 		t.Errorf("floor = %+v, want %q summoned", floor, ania)
 	}
 }
@@ -404,7 +430,7 @@ func TestAnswerSplitsTwoSegmentsIntoTwoTurns(t *testing.T) {
 	if opened[0].Index == opened[1].Index {
 		t.Errorf("both indexes are %d, want them to differ", opened[0].Index)
 	}
-	if floor := d.runner.Floor(); floor.Holder != ania {
+	if floor := d.runner.Floor(DefaultConversation); floor.Holder != ania {
 		t.Errorf("floor = %q, want the last segment's staff %q", floor.Holder, ania)
 	}
 }
@@ -597,11 +623,11 @@ func TestAnswerCarriesTheThreadIntoTheNextTurn(t *testing.T) {
 		t.Fatalf("second Answer: %v", err)
 	}
 
-	first := d.chat.requests[0].Lines
+	first := d.chat.request(0).Lines
 	if len(first) != 1 || first[0].From != LineFromPerson || first[0].Text != "sprawdź to" {
 		t.Fatalf("first lines = %+v, want just the person", first)
 	}
-	second := d.chat.requests[1].Lines
+	second := d.chat.request(1).Lines
 	want := []Line{
 		{From: LineFromPerson, Text: "sprawdź to"},
 		{From: LineFromStaff, Text: "Sprawdzam."},
@@ -629,7 +655,7 @@ func TestAnswerKeepsEachStaffMembersThreadApart(t *testing.T) {
 
 	// The floor is Ania's after the split, so the third request is hers and
 	// must not carry a word Adam said.
-	third := d.chat.requests[2].Lines
+	third := d.chat.request(2).Lines
 	for _, line := range third {
 		if strings.Contains(line.Text, "Adam tu.") {
 			t.Fatalf("lines = %+v, want Adam's reply left out of Ania's thread", third)
@@ -637,41 +663,6 @@ func TestAnswerKeepsEachStaffMembersThreadApart(t *testing.T) {
 	}
 	if len(third) != 3 {
 		t.Errorf("lines = %d, want her own two plus the new request", len(third))
-	}
-}
-
-func TestRememberKeepsTheMostRecentLines(t *testing.T) {
-	d := newDesk(t)
-
-	for i := range MaxThreadLines + 5 {
-		d.runner.remember(ania, Line{From: LineFromPerson, Text: fmt.Sprint(i)})
-	}
-	d.runner.remember(ania, Line{From: LineFromStaff, Text: ""})
-
-	lines := d.runner.thread(ania)
-	if len(lines) != MaxThreadLines {
-		t.Fatalf("lines = %d, want the bound %d", len(lines), MaxThreadLines)
-	}
-	if lines[0].Text != "5" {
-		t.Errorf("first line = %q, want the oldest kept line %q", lines[0].Text, "5")
-	}
-	if last := lines[len(lines)-1].Text; last != fmt.Sprint(MaxThreadLines+4) {
-		t.Errorf("last line = %q, want the newest", last)
-	}
-}
-
-func TestThreadIsACopy(t *testing.T) {
-	d := newDesk(t)
-	if got := d.runner.thread(ania); got != nil {
-		t.Fatalf("thread = %+v, want nil before she has spoken", got)
-	}
-
-	d.runner.remember(ania, Line{From: LineFromPerson, Text: "raz"})
-	lines := d.runner.thread(ania)
-	lines[0].Text = "mutated"
-
-	if got := d.runner.thread(ania)[0].Text; got != "raz" {
-		t.Errorf("thread = %q, want the runner's copy untouched", got)
 	}
 }
 

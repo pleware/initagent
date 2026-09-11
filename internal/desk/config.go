@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net"
 	"net/url"
-	"os"
 	"slices"
 	"strings"
 
@@ -84,13 +84,41 @@ type Silence struct {
 	Reason   SilenceReason
 }
 
+// DefaultSeamAddr is where the desk's local seam listens when nothing says.
+// It sits beside the hub (4200) and the gateway (4201) in the binder's
+// docs/LOCAL-PORTS.md, and it is a loopback address on purpose.
+const DefaultSeamAddr = "127.0.0.1:4202"
+
+// Seam is how a caller on this box reaches the desk.
+//
+// Address and token, and nothing about who the caller is: a remote device
+// (a phone) reaches the same desk through the hub as a relay, so this listener
+// never faces the network and never grows a login of its own
+// (workspace docs/DESK-SCOPES.md).
+type Seam struct {
+	// Addr is the loopback address to listen on.
+	Addr string
+
+	// Token is what a caller presents. Empty means the seam stays closed —
+	// an empty token would admit every process on the box, and a desk that
+	// cannot be reached is a smaller failure than one anybody may join.
+	Token string
+}
+
+// Open reports whether the desk may be reached at all.
+func (s Seam) Open() bool { return s.Token != "" }
+
 // Config is the desk's half of what this box was told. Personality, voice
 // identity and the fleet stay hub rows; this is the inventory that renders
 // them.
 type Config struct {
 	bindings map[Role]Binding
 	silences []Silence
+	seam     Seam
 }
+
+// Seam is the local address and token, defaults applied.
+func (c Config) Seam() Seam { return c.seam }
 
 // Binding returns the binding for a role, and whether the role can answer.
 func (c Config) Binding(role Role) (Binding, bool) {
@@ -135,19 +163,6 @@ var roleEnv = map[Role]string{
 	RoleTTS:  brand.EnvDeskTTS,
 }
 
-// LoadConfigFromEnv reads the process environment. It is the only edge in
-// this package; everything it decides is decided by LoadConfig.
-func LoadConfigFromEnv() (Config, error) {
-	environ := os.Environ()
-	env := make(map[string]string, len(environ))
-	for _, entry := range environ {
-		if key, value, ok := strings.Cut(entry, "="); ok {
-			env[key] = value
-		}
-	}
-	return LoadConfig(env)
-}
-
 // LoadConfig turns an environment snapshot into a desk configuration.
 //
 // Malformed refuses to start. A role nobody bound, or a bound role whose key
@@ -162,7 +177,12 @@ func LoadConfig(env map[string]string) (Config, error) {
 		return Config{}, err
 	}
 
-	cfg := Config{bindings: make(map[Role]Binding, len(Roles))}
+	seam, err := parseSeam(env)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cfg := Config{bindings: make(map[Role]Binding, len(Roles)), seam: seam}
 	for _, role := range Roles {
 		spec := strings.TrimSpace(env[roleEnv[role]])
 		if spec == "" {
@@ -186,6 +206,41 @@ func LoadConfig(env map[string]string) (Config, error) {
 	return cfg, nil
 }
 
+// parseSeam reads the local seam's address and token.
+//
+// A non-loopback address is refused rather than corrected. Binding the desk to
+// a LAN interface would put one person's transcript on the network without the
+// hub having authenticated anybody, and it would do it quietly — the seam's own
+// Origin check cannot tell a phone on the Wi-Fi from the glass on this box.
+func parseSeam(env map[string]string) (Seam, error) {
+	seam := Seam{
+		Addr:  strings.TrimSpace(env[brand.EnvDeskSeamAddr]),
+		Token: strings.TrimSpace(env[brand.EnvDeskSeamToken]),
+	}
+	if seam.Addr == "" {
+		seam.Addr = DefaultSeamAddr
+	}
+	host, port, err := net.SplitHostPort(seam.Addr)
+	if err != nil || port == "" {
+		return Seam{}, fmt.Errorf("%w: %s must be host:port, got %q", ErrConfig, brand.EnvDeskSeamAddr, seam.Addr)
+	}
+	if !loopback(host) {
+		return Seam{}, fmt.Errorf("%w: %s is %q, and the desk seam listens on loopback only — a device off this box joins through the hub",
+			ErrConfig, brand.EnvDeskSeamAddr, seam.Addr)
+	}
+	return seam, nil
+}
+
+// loopback reports whether a host part names this machine and nothing else.
+// An empty host is every interface, which is the mistake this exists to catch.
+func loopback(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 // bindRole resolves one `provider/model` value.
 func bindRole(role Role, spec string, providers map[string]Provider, env map[string]string) (Binding, error) {
 	name, model, ok := strings.Cut(spec, "/")
@@ -205,7 +260,7 @@ func bindRole(role Role, spec string, providers map[string]Provider, env map[str
 			ErrConfig, roleEnv[role], name, brand.EnvDeskProviderPrefix, envSegment(name))
 	}
 	if provider.SecretKind != "" {
-		provider.Key = strings.TrimSpace(env[brand.EnvAPIKey(provider.SecretKind)])
+		provider.Key = brand.LookupAPIKey(env, provider.SecretKind)
 	}
 	return Binding{Role: role, Provider: provider, Model: model}, nil
 }
@@ -275,7 +330,11 @@ func completeProvider(p *Provider) error {
 // rejectUnknownKeys stops the process over a variable we do not read. A
 // mistyped role name is otherwise a desk that is quietly deaf.
 func rejectUnknownKeys(env map[string]string) error {
-	known := map[string]bool{}
+	known := map[string]bool{
+		brand.EnvDeskConfig:    true,
+		brand.EnvDeskSeamAddr:  true,
+		brand.EnvDeskSeamToken: true,
+	}
 	for _, name := range roleEnv {
 		known[name] = true
 	}

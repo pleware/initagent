@@ -64,25 +64,37 @@ type DeliveryConfig struct {
 	Unclear string
 }
 
+// validate checks everything about a delivery that does not depend on a log.
+//
+// It is separate so a desk serving several streams can refuse a bad
+// configuration when it opens rather than when somebody first connects: a
+// misspelled question is a mistake in a file, not an event in a conversation.
+func (cfg DeliveryConfig) validate() error {
+	if len(cfg.Names) == 0 {
+		return fmt.Errorf("%w: delivery needs a name for each staff member", ErrSeam)
+	}
+	for staff, name := range cfg.Names {
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("%w: staff %q has no name to be shown by", ErrSeam, staff)
+		}
+	}
+	if cfg.Unclear != "" && !strings.Contains(cfg.Unclear, "%s") {
+		return fmt.Errorf("%w: the unclear question has nowhere to put the names", ErrSeam)
+	}
+	return nil
+}
+
 // NewDelivery refuses a delivery that cannot say who is speaking.
 func NewDelivery(cfg DeliveryConfig) (*Delivery, error) {
 	if cfg.Log == nil {
 		return nil, fmt.Errorf("%w: delivery needs a log", ErrSeam)
 	}
-	if len(cfg.Names) == 0 {
-		return nil, fmt.Errorf("%w: delivery needs a name for each staff member", ErrSeam)
-	}
-	for staff, name := range cfg.Names {
-		if strings.TrimSpace(name) == "" {
-			return nil, fmt.Errorf("%w: staff %q has no name to be shown by", ErrSeam, staff)
-		}
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
 	unclear := cfg.Unclear
 	if unclear == "" {
 		unclear = DefaultUnclearPrompt
-	}
-	if !strings.Contains(unclear, "%s") {
-		return nil, fmt.Errorf("%w: the unclear question has nowhere to put the names", ErrSeam)
 	}
 	return &Delivery{
 		log:     cfg.Log,

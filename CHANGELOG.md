@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-11 — desk: open a local seam from YAML, and accept OPENAI_API_KEY
 - 2026-09-11 — deskseam: fan out to connections, and answer a command the desk refuses
 - 2026-09-11 — Add internal/deskseam: the desk seam vocabulary the connector speaks
 - 2026-09-11 — gateway: stop the timeout test racing its own setup

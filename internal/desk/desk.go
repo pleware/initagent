@@ -87,6 +87,9 @@ type ChatDelta struct {
 type ChatStream = iter.Seq2[ChatDelta, error]
 
 // Chat answers a person.
+//
+// Implementations must be safe for concurrent use: two conversations are two
+// people talking at the same time, and each is answered as it arrives.
 type Chat interface {
 	Turn(ctx context.Context, req ChatRequest) (ChatStream, error)
 }

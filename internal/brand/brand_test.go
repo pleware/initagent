@@ -29,12 +29,16 @@ func TestExportedIdentity(t *testing.T) {
 		{"GatewayDBFile", brand.GatewayDBFile, "gateway.db"},
 		{"ConnectorConfigFile", brand.ConnectorConfigFile, "connector.json"},
 		{"FleetConfigFile", brand.FleetConfigFile, "fleet.json"},
+		{"DeskConfigFile", brand.DeskConfigFile, "desk.yaml"},
 		{"OfferingFile", brand.OfferingFile, "offering"},
+		{"EnvDeskConfig", brand.EnvDeskConfig, "INITAGENT_DESK_CONFIG"},
 		{"ClaimTokenFile", brand.ClaimTokenFile, "bootstrap-token"},
 		{"EnvOffering", brand.EnvOffering, "INITAGENT_OFFERING"},
 		{"EnvResendAPIKey", brand.EnvResendAPIKey, "INITAGENT_RESEND_API_KEY"},
 		{"EnvMailFrom", brand.EnvMailFrom, "INITAGENT_MAIL_FROM"},
 		{"EnvTrustedProxies", brand.EnvTrustedProxies, "INITAGENT_TRUSTED_PROXIES"},
+		{"EnvDeskSeamAddr", brand.EnvDeskSeamAddr, "INITAGENT_DESK_SEAM_ADDR"},
+		{"EnvDeskSeamToken", brand.EnvDeskSeamToken, "INITAGENT_DESK_SEAM_TOKEN"},
 		{"TokenPrefix", brand.TokenPrefix, "iagt_"},
 		{"SessionCookie", brand.SessionCookie, "initagent_auth"},
 		{"EnvPrefix", brand.EnvPrefix, "INITAGENT_"},
@@ -108,5 +112,39 @@ func TestEnvAPIKey(t *testing.T) {
 		if got := brand.EnvAPIKey(tc.kind); got != tc.want {
 			t.Errorf("EnvAPIKey(%q) = %q, want %q", tc.kind, got, tc.want)
 		}
+	}
+}
+
+func TestEnvAPIKeyAliasIsTheVendorName(t *testing.T) {
+	t.Parallel()
+	if got := brand.EnvAPIKeyAlias("openai"); got != "OPENAI_API_KEY" {
+		t.Errorf("EnvAPIKeyAlias(openai) = %q, want OPENAI_API_KEY", got)
+	}
+	if got := brand.EnvAPIKeyAlias("azure-openai"); got != "AZURE_OPENAI_API_KEY" {
+		t.Errorf("EnvAPIKeyAlias(azure-openai) = %q, want AZURE_OPENAI_API_KEY", got)
+	}
+}
+
+func TestLookupAPIKeyPrefersThePrefixedName(t *testing.T) {
+	t.Parallel()
+	got := brand.LookupAPIKey(map[string]string{
+		brand.EnvAPIKey("openai"):      "from-prefixed",
+		brand.EnvAPIKeyAlias("openai"): "from-alias",
+	}, "openai")
+	if got != "from-prefixed" {
+		t.Errorf("LookupAPIKey = %q, want from-prefixed", got)
+	}
+}
+
+func TestLookupAPIKeyFallsBackToTheVendorName(t *testing.T) {
+	t.Parallel()
+	got := brand.LookupAPIKey(map[string]string{
+		brand.EnvAPIKeyAlias("openai"): "from-alias",
+	}, "openai")
+	if got != "from-alias" {
+		t.Errorf("LookupAPIKey = %q, want from-alias", got)
+	}
+	if got := brand.LookupAPIKey(map[string]string{}, "openai"); got != "" {
+		t.Errorf("LookupAPIKey empty env = %q, want empty", got)
 	}
 }

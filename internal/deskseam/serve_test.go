@@ -23,13 +23,26 @@ func (s *stubAnswerer) Answer(_ context.Context, spoken desk.Utterance) error {
 
 func newTestSocket(t *testing.T) (*Socket, *Log, *stubAnswerer) {
 	t.Helper()
-	delivery, log := newTestDelivery(t)
-	answerer := &stubAnswerer{}
-	socket, err := NewSocket(SocketConfig{Log: log, Delivery: delivery, Answerer: answerer})
+	socket, view, answerer := newTestSocketOf(t, "desk:local", DefaultTestConversation)
+	return socket, view.Log(), answerer
+}
+
+// DefaultTestConversation is whose talk a test socket serves, so a test that
+// does not care about several people does not have to name one.
+const DefaultTestConversation desk.ConversationID = "person"
+
+func newTestSocketOf(t *testing.T, stream StreamID, conv desk.ConversationID) (*Socket, *View, *stubAnswerer) {
+	t.Helper()
+	view, err := newTestViews(t).Bind(stream, conv)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return socket, log, answerer
+	answerer := &stubAnswerer{}
+	socket, err := NewSocket(SocketConfig{View: view, Answerer: answerer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return socket, view, answerer
 }
 
 // frame writes a command the way the glass would.
@@ -49,15 +62,17 @@ func frame(t *testing.T, stream StreamID, cmd CommandID, kind string, payload an
 }
 
 func TestNewSocketRefusesASocketThatCannotAnswer(t *testing.T) {
-	delivery, log := newTestDelivery(t)
+	view, err := newTestViews(t).Bind("desk:local", DefaultTestConversation)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, tc := range []struct {
 		name   string
 		cfg    SocketConfig
 		detail string
 	}{
-		{"no log", SocketConfig{Delivery: delivery, Answerer: &stubAnswerer{}}, "needs a log"},
-		{"no delivery", SocketConfig{Log: log, Answerer: &stubAnswerer{}}, "needs a delivery"},
-		{"nobody to answer", SocketConfig{Log: log, Delivery: delivery}, "somebody to answer"},
+		{"no stream", SocketConfig{Answerer: &stubAnswerer{}}, "the stream it serves"},
+		{"nobody to answer", SocketConfig{View: view}, "somebody to answer"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, err := NewSocket(tc.cfg); err == nil || !strings.Contains(err.Error(), tc.detail) {
@@ -101,7 +116,7 @@ func TestDispatchAttributesTheAnswerToTheCommandItArrivedOn(t *testing.T) {
 	})
 	socket.Dispatch(raw)
 
-	socket.delivery.Record(desk.TurnOpened{Turn: "trn-1", Staff: "psn-ania", Utterance: "utt-1"})
+	socket.view.Delivery().Record(desk.TurnOpened{Turn: "trn-1", Staff: "psn-ania", Utterance: "utt-1"})
 	if got := log.Since(0)[0].InReplyTo; got != "cmd-7" {
 		t.Fatalf("inReplyTo = %q, want the command she is answering", got)
 	}

@@ -30,6 +30,9 @@
 /docs/
 /backlog.md
 
+# Local desk YAML (copy desk.example.yaml). Secrets live here.
+/desk.yaml
+
 # Local dev data
 /tmp/
 *.db

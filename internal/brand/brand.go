@@ -13,7 +13,10 @@
 // applied to the cockpit or the site.
 package brand
 
-import "strings"
+import (
+	"cmp"
+	"strings"
+)
 
 const (
 	// Name is the machine name: binary stem, GitHub, hostnames, env.
@@ -47,6 +50,11 @@ const (
 
 	// FleetConfigFile is the fleet CLI config inside ConfigDir.
 	FleetConfigFile = "fleet.json"
+
+	// DeskConfigFile is the front-desk YAML inside ConfigDir. Optional:
+	// missing means environment only. A present file is configuration, and
+	// the process environment overrides every field.
+	DeskConfigFile = "desk.yaml"
 
 	// OfferingFile names the hub offering token inside ConfigDir.
 	// Missing means selfhost. Values: hosted | selfhost. No secrets.
@@ -132,6 +140,21 @@ const (
 	// is never here; SECRET_KIND names it (`41`, `24`).
 	EnvDeskProviderPrefix = EnvPrefix + "DESK_PROVIDER_"
 
+	// EnvDeskConfig is an explicit path to the desk YAML. Unset means
+	// ~/ConfigDir/DeskConfigFile when that file exists. Set and missing
+	// is a configuration error, not a silent fallback to env-only.
+	EnvDeskConfig = EnvPrefix + "DESK_CONFIG"
+
+	// EnvDeskSeamAddr is where the desk's local seam listens. Loopback only:
+	// a remote device reaches the desk through the hub as a relay, so this
+	// number never faces the network (workspace docs/DESK-SCOPES.md).
+	EnvDeskSeamAddr = EnvPrefix + "DESK_SEAM_ADDR"
+
+	// EnvDeskSeamToken is what a caller presents to join the desk on that
+	// address. Unset closes the seam rather than opening it to anything on
+	// the box. Never a flag, for the same reason as a provider key.
+	EnvDeskSeamToken = EnvPrefix + "DESK_SEAM_TOKEN"
+
 	// EnvAPIKeySuffix ends the variable holding one provider key. Never a
 	// flag: a flag lands in ps output and shell history.
 	EnvAPIKeySuffix = "_API_KEY"
@@ -142,7 +165,24 @@ const (
 // configuration and travels freely; only this variable holds the secret, and
 // a `sec-` row replaces it later without renaming anything else (`24`, `41`).
 func EnvAPIKey(secretKind string) string {
-	return EnvPrefix + strings.ToUpper(strings.ReplaceAll(secretKind, "-", "_")) + EnvAPIKeySuffix
+	return EnvPrefix + EnvAPIKeyAlias(secretKind)
+}
+
+// EnvAPIKeyAlias is the unprefixed name operators already have on the
+// machine — OPENAI_API_KEY for kind openai. Lookup tries EnvAPIKey first,
+// then this, so a filled INITAGENT_* still wins and a laptop that only
+// exported the vendor name does not need a second copy.
+func EnvAPIKeyAlias(secretKind string) string {
+	return strings.ToUpper(strings.ReplaceAll(secretKind, "-", "_")) + EnvAPIKeySuffix
+}
+
+// LookupAPIKey reads the value for a secret kind from an env snapshot.
+// Empty means the key has not arrived; a Silence, not a refusal.
+func LookupAPIKey(env map[string]string, secretKind string) string {
+	return cmp.Or(
+		strings.TrimSpace(env[EnvAPIKey(secretKind)]),
+		strings.TrimSpace(env[EnvAPIKeyAlias(secretKind)]),
+	)
 }
 
 // Service identities. Renaming these breaks upgrades of an already-installed

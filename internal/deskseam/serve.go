@@ -33,11 +33,14 @@ type Intent struct {
 
 // SocketConfig is what a Socket needs. Every field is required.
 type SocketConfig struct {
-	// Log numbers events and holds what a resync replays.
-	Log *Log
-	// Delivery attributes an answer to the command it arrived on, and answers
-	// a command the desk refuses.
-	Delivery *Delivery
+	// View is this connection's stream: what numbers its events, what a
+	// resync replays from, and whose conversation it belongs to.
+	//
+	// Deliberately the whole view rather than a log and a delivery separately.
+	// The conversation has to come from the connection, and passing the parts
+	// would leave a caller free to pair one person's log with another person's
+	// conversation.
+	View *View
 	// Answerer runs a turn.
 	Answerer Answerer
 }
@@ -48,28 +51,25 @@ type SocketConfig struct {
 // from a WebSocket, a test, or whatever replaces the transport, which is the
 // only reason the decision can be tested without one.
 type Socket struct {
-	log      *Log
-	delivery *Delivery
+	view     *View
 	answerer Answerer
 }
 
 // NewSocket refuses a socket that cannot answer or cannot replay.
 func NewSocket(cfg SocketConfig) (*Socket, error) {
 	switch {
-	case cfg.Log == nil:
-		return nil, fmt.Errorf("%w: socket needs a log to replay from", ErrSeam)
-	case cfg.Delivery == nil:
-		return nil, fmt.Errorf("%w: socket needs a delivery", ErrSeam)
+	case cfg.View == nil:
+		return nil, fmt.Errorf("%w: socket needs the stream it serves", ErrSeam)
 	case cfg.Answerer == nil:
 		return nil, fmt.Errorf("%w: socket needs somebody to answer", ErrSeam)
 	}
-	return &Socket{log: cfg.Log, delivery: cfg.Delivery, answerer: cfg.Answerer}, nil
+	return &Socket{view: cfg.View, answerer: cfg.Answerer}, nil
 }
 
 // Stream is the stream this socket numbers events on. A connection sends it
 // back on every command, and a command naming another stream is not ours.
 func (s *Socket) Stream() StreamID {
-	return s.log.Stream()
+	return s.view.log.Stream()
 }
 
 // Dispatch decides what one raw frame asks for.
@@ -87,34 +87,39 @@ func (s *Socket) Dispatch(raw []byte) Intent {
 		// the documented outcome for a command nobody answers.
 		return Intent{}
 	case InboundInvalid:
-		s.delivery.Refuse(inbound.Header.CmdID, desk.Failure{
+		s.view.delivery.Refuse(inbound.Header.CmdID, desk.Failure{
 			Code:    desk.FailureInvalidRequest,
 			Message: inbound.Detail,
 		})
 		return Intent{}
 	}
 
-	if inbound.Header.Stream != s.log.Stream() {
+	if inbound.Header.Stream != s.view.log.Stream() {
 		// A command for another stream is not ours to run. Refusing rather
 		// than ignoring, because a glass talking to the wrong connector would
 		// otherwise wait on a turn nobody is running.
-		s.delivery.Refuse(inbound.Header.CmdID, desk.Failure{
+		s.view.delivery.Refuse(inbound.Header.CmdID, desk.Failure{
 			Code:    desk.FailureInvalidRequest,
-			Message: fmt.Sprintf("command is for stream %q, this desk is %q", inbound.Header.Stream, s.log.Stream()),
+			Message: fmt.Sprintf("command is for stream %q, this desk is %q", inbound.Header.Stream, s.view.log.Stream()),
 		})
 		return Intent{}
 	}
 
 	switch inbound.Header.Kind {
 	case CommandResync:
-		return Intent{Replay: s.log.Since(inbound.FromSeq)}
+		return Intent{Replay: s.view.log.Since(inbound.FromSeq)}
 	case CommandUtterance:
 		// Attributed before the turn runs, so the surface she opens carries
 		// the command it answers. desk.utterance is not repeatable: without
 		// the attribution an in-flight command stays unresolved and waits for
 		// a person.
-		s.delivery.Attribute(inbound.Spoken.ID, inbound.Header.CmdID)
+		s.view.delivery.Attribute(inbound.Spoken.ID, inbound.Header.CmdID)
 		spoken := inbound.Spoken
+		// Whose sentence this is comes from the connection, never from the
+		// payload. A caller that could name its own conversation could name
+		// somebody else's and be answered inside her transcript
+		// (docs/DESK-SCOPES.md).
+		spoken.Conversation = s.view.conv
 		return Intent{Answer: &spoken}
 	}
 	// Unreachable today: ParseCommand classifies only those two verbs as

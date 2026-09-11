@@ -10,21 +10,27 @@ import (
 func TestNewTurnIDIsAPureFunctionOfTheIntention(t *testing.T) {
 	const utterance = UtteranceID("utt-7f3a")
 
-	first := NewTurnID(utterance, 0)
-	if got := NewTurnID(utterance, 0); got != first {
+	first := NewTurnID(DefaultConversation, utterance, 0)
+	if got := NewTurnID(DefaultConversation, utterance, 0); got != first {
 		t.Errorf("the same utterance and segment gave %q then %q", first, got)
 	}
 	// Property 4: no clock and no random source. A second call after time has
 	// visibly passed must still land on the same key.
 	time.Sleep(2 * time.Millisecond)
-	if got := NewTurnID(utterance, 0); got != first {
+	if got := NewTurnID(DefaultConversation, utterance, 0); got != first {
 		t.Errorf("the key moved with the clock: %q then %q", first, got)
 	}
-	if got := NewTurnID(utterance, 1); got == first {
+	if got := NewTurnID(DefaultConversation, utterance, 1); got == first {
 		t.Error("a different segment must be a different turn")
 	}
-	if got := NewTurnID("utt-7f3b", 0); got == first {
+	if got := NewTurnID(DefaultConversation, "utt-7f3b", 0); got == first {
 		t.Error("a different utterance must be a different turn")
+	}
+	// Two devices may number their own utterances from one. The same words
+	// from another person are another turn, or hers would be dropped as a
+	// re-delivery of his.
+	if got := NewTurnID("phone", utterance, 0); got == first {
+		t.Error("a different conversation must be a different turn")
 	}
 	if len(first) != turnIDChars {
 		t.Errorf("id %q is %d chars, want %d", first, len(first), turnIDChars)
@@ -39,17 +45,20 @@ func TestNewTurnIDIsAPureFunctionOfTheIntention(t *testing.T) {
 func TestNewTurnIDSeparatesItsFields(t *testing.T) {
 	// Without length-prefixed fields ("ab", 1) and ("a", 11) would hash the
 	// same bytes, and two utterances would share one claim.
-	if NewTurnID("ab", 1) == NewTurnID("a", 11) {
+	if NewTurnID(DefaultConversation, "ab", 1) == NewTurnID(DefaultConversation, "a", 11) {
 		t.Error("fields run together in the digest")
 	}
-	if NewTurnID("", 0) == NewTurnID("0", 0) {
+	if NewTurnID(DefaultConversation, "", 0) == NewTurnID(DefaultConversation, "0", 0) {
 		t.Error("an empty utterance collides with a named one")
+	}
+	if NewTurnID("a", "b", 0) == NewTurnID("ab", "", 0) {
+		t.Error("the conversation runs into the utterance in the digest")
 	}
 }
 
 func TestTurnClaimsGrantsATurnOnce(t *testing.T) {
 	claims := NewTurnClaims()
-	turn := NewTurnID("utt-1", 0)
+	turn := NewTurnID(DefaultConversation, "utt-1", 0)
 	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
 
 	outcome, err := claims.Claim(turn, "sprawdź to", now)
@@ -77,7 +86,7 @@ func TestTurnClaimsGrantsATurnOnce(t *testing.T) {
 
 func TestTurnClaimsRefusesTheSameTurnWithDifferentText(t *testing.T) {
 	claims := NewTurnClaims()
-	turn := NewTurnID("utt-2", 0)
+	turn := NewTurnID(DefaultConversation, "utt-2", 0)
 	now := time.Now()
 
 	if _, err := claims.Claim(turn, "sprawdź to", now); err != nil {
@@ -112,7 +121,7 @@ func TestTurnClaimsRefusesAnEmptyTurn(t *testing.T) {
 
 func TestTurnClaimsSettleNeedsAClaim(t *testing.T) {
 	claims := NewTurnClaims()
-	turn := NewTurnID("utt-3", 0)
+	turn := NewTurnID(DefaultConversation, "utt-3", 0)
 	now := time.Now()
 
 	if err := claims.Settle(turn, now); !errors.Is(err, ErrTurnUnclaimed) {
@@ -133,7 +142,7 @@ func TestTurnClaimsSettleNeedsAClaim(t *testing.T) {
 
 func TestTurnClaimsReleaseFreesATurnThatNeverRan(t *testing.T) {
 	claims := NewTurnClaims()
-	turn := NewTurnID("utt-4", 0)
+	turn := NewTurnID(DefaultConversation, "utt-4", 0)
 	now := time.Now()
 
 	if _, err := claims.Claim(turn, "zrób to", now); err != nil {
@@ -160,16 +169,16 @@ func TestTurnClaimsReleaseFreesATurnThatNeverRan(t *testing.T) {
 		t.Fatalf("claim after releasing a settled turn = %q, %v; want replay", outcome, err)
 	}
 
-	claims.Release(NewTurnID("utt-never", 0))
+	claims.Release(NewTurnID(DefaultConversation, "utt-never", 0))
 }
 
 func TestTurnClaimsPruneKeepsWhatIsStillRunning(t *testing.T) {
 	claims := NewTurnClaims()
 	now := time.Date(2026, 9, 11, 13, 0, 0, 0, time.UTC)
 
-	stale := NewTurnID("utt-stale", 0)
-	fresh := NewTurnID("utt-fresh", 0)
-	running := NewTurnID("utt-running", 0)
+	stale := NewTurnID(DefaultConversation, "utt-stale", 0)
+	fresh := NewTurnID(DefaultConversation, "utt-fresh", 0)
+	running := NewTurnID(DefaultConversation, "utt-running", 0)
 
 	for turn, at := range map[TurnID]time.Time{
 		stale:   now.Add(-2 * TurnClaimRetention),
@@ -207,7 +216,7 @@ func TestTurnClaimsPruneKeepsWhatIsStillRunning(t *testing.T) {
 
 func TestTurnClaimsGrantATurnToExactlyOneAttempt(t *testing.T) {
 	claims := NewTurnClaims()
-	turn := NewTurnID("utt-race", 0)
+	turn := NewTurnID(DefaultConversation, "utt-race", 0)
 	now := time.Now()
 
 	const attempts = 32

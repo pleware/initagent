@@ -7,6 +7,7 @@
 ./internal/completion
 ./internal/desk
 ./internal/deskseam
+./internal/frontdesk
 ./internal/deviceops
 ./internal/store
 ./internal/scheduler

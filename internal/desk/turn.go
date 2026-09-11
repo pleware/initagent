@@ -49,13 +49,19 @@ var ErrTurnUnclaimed = fmt.Errorf("%w: turn was never claimed", ErrRequest)
 // A direct utterance with two segments becomes two turns rather than one turn
 // with two names, because a half-delivered utterance must be retryable
 // without double-booking the segment that already landed. The key is a pure
-// function of the intention: same utterance and same segment is always the
-// same turn, a different segment is always a different turn, and there is no
-// clock and no random source in it.
-func NewTurnID(utterance UtteranceID, index int) TurnID {
+// function of the intention: same conversation, same utterance and same
+// segment is always the same turn, any of the three differing is always a
+// different turn, and there is no clock and no random source in it.
+//
+// The conversation is part of the intention and not decoration. Two devices
+// numbering their own utterances from one would otherwise produce the same
+// key, and the second person's sentence would be recognised as a re-delivery
+// of the first person's and silently dropped (docs/DESK-SCOPES.md).
+func NewTurnID(conv ConversationID, utterance UtteranceID, index int) TurnID {
 	h := sha256.New()
 	h.Write([]byte(turnDomain))
 	// Length-prefixed fields, so ("ab", 1) and ("a", 11) cannot hash alike.
+	writeField(h, string(conv))
 	writeField(h, string(utterance))
 	writeField(h, strconv.Itoa(index))
 	return TurnID(hex.EncodeToString(h.Sum(nil))[:turnIDChars])

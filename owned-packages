@@ -5,9 +5,9 @@
 ./internal/registry/ai/capability
 ./internal/registry/db/kinds
 ./internal/completion
-./internal/desk
-./internal/deskseam
-./internal/frontdesk
+./internal/gdesk
+./internal/gdeskseam
+./internal/gdeskfront
 ./internal/deviceops
 ./internal/store
 ./internal/scheduler

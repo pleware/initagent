@@ -30,7 +30,8 @@
 /docs/
 /backlog.md
 
-# Local desk YAML (copy desk.example.yaml). Secrets live here.
+# Local glass-desk YAML (copy gdesk.example.yaml). Secrets live here.
+/gdesk.yaml
 /desk.yaml
 
 # Local dev data
@@ -46,6 +47,7 @@ coverage
 # OS / editor
 .DS_Store
 *.log
+*.code-workspace
 .cursor/*
 !.cursor/rules/
 !.cursor/rules/**

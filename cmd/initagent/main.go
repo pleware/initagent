@@ -42,7 +42,7 @@ Usage:
   {{bin}} serve --tls-domain d.com --tls-email you@d.com   Run the hub with automatic HTTPS (Let's Encrypt)
   {{bin}} gateway [--addr :4201] [--data-dir ~/{{cfg}}] [--project prj-…] [--public-url URL]
                                                              Run the project gateway (enroll + tasks)
-  {{bin}} desk                                            Run the front desk (local voice seam for the glass)
+  {{bin}} gdesk                                           Run the glass desk (local voice seam for the glass)
   {{bin}} agent enroll --hub URL --token TOKEN            Enroll this device with a hub
   {{bin}} agent run                                       Run the device agent (foreground)
   {{bin}} agent install-service                           Install + start the agent as a service
@@ -73,8 +73,11 @@ func main() {
 		err = cmdServe(os.Args[2:])
 	case "gateway":
 		err = cmdGateway(os.Args[2:])
-	case "desk":
-		err = cmdDesk(os.Args[2:])
+	// "desk" is the name this had before the glass desk became the gdesk
+	// context (workspace draft 05). Still accepted: a rename is not a reason
+	// for somebody's shortcut to stop working.
+	case "gdesk", "desk":
+		err = cmdGdesk(os.Args[2:])
 	case "agent":
 		err = cmdAgent(os.Args[2:])
 	case "fleet":

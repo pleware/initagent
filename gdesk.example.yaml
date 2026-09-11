@@ -1,0 +1,50 @@
+# Glass-desk configuration. Copy to ~/.initagent/gdesk.yaml and fill in
+# the token and the provider key. `initagent gdesk` reads that path when
+# INITAGENT_GDESK_CONFIG is unset. The process environment overrides every
+# field, and a flag is still refused — a flag lands in `ps` and history.
+#
+# Konfiguracja biurka. Skopiuj do ~/.initagent/gdesk.yaml i uzupełnij
+# token oraz klucz dostawcy. `initagent gdesk` czyta tę ścieżkę, gdy
+# INITAGENT_GDESK_CONFIG nie jest ustawione. Zmienne procesu nadpisują
+# każde pole. Flaga jest nadal zabroniona — ląduje w `ps` i w historii.
+#
+# Shape matches draft 41: a provider entry is not a secret. The value sits
+# under `secrets`, named by `secret_kind`, so the rest of this file can be
+# pasted into a bug report.
+# Zgodnie z draftem 41: wpis dostawcy nie jest sekretem. Wartość leży
+# pod `secrets`, nazwana przez `secret_kind`, więc resztę pliku można
+# wkleić do zgłoszenia błędu.
+
+seam:
+  # Loopback only. A device off this box joins through the hub as a relay.
+  # Tylko loopback. Urządzenie spoza tej maszyny dochodzi przez hub (przekaźnik).
+  addr: 127.0.0.1:4202
+  # Empty keeps the seam closed. The glass and `initagent gdesk` must agree.
+  # On a laptop mint TEST_DEVELOP_SEAM_<hex> — the prefix names the job
+  # (SEAM = local glass, not a hub iagt_ token, not OpenAI).
+  # Puste zamyka szew. Szkło i `initagent gdesk` muszą mieć ten sam token.
+  # Na laptopie: TEST_DEVELOP_SEAM_<hex> — przedrostek mówi, do czego jest
+  # (SEAM = lokalne szkło, nie token huba iagt_, nie OpenAI).
+  token: ""
+
+roles:
+  # provider/model. Chat is enough for the typed textarea. Voice is later.
+  # dostawca/model. Czat wystarczy na pole tekstowe. Głos przyjdzie później.
+  chat: openai/gpt-4o-mini
+  # stt: openai/whisper-1
+  # tts: openai/gpt-4o-mini-tts
+
+providers:
+  - id: openai
+    shape: openai
+    secret_kind: openai
+    # base_url: https://api.openai.com/v1   # default for this shape / domyślne dla tego kształtu
+    # api_path: /chat/completions           # default for this shape / domyślne dla tego kształtu
+
+# Local values only. Named by secret_kind. Leave empty to use the process
+# env: INITAGENT_<KIND>_API_KEY, then the vendor name (OPENAI_API_KEY).
+# Tylko wartości lokalne. Nazwane przez secret_kind. Puste = klucz ze
+# środowiska: najpierw INITAGENT_<KIND>_API_KEY, potem nazwa dostawcy
+# (OPENAI_API_KEY). Nie commituj wypełnionej kopii.
+secrets:
+  openai: ""

@@ -51,10 +51,16 @@ const (
 	// FleetConfigFile is the fleet CLI config inside ConfigDir.
 	FleetConfigFile = "fleet.json"
 
-	// DeskConfigFile is the front-desk YAML inside ConfigDir. Optional:
+	// GdeskConfigFile is the glass-desk YAML inside ConfigDir. Optional:
 	// missing means environment only. A present file is configuration, and
 	// the process environment overrides every field.
-	DeskConfigFile = "desk.yaml"
+	GdeskConfigFile = "gdesk.yaml"
+
+	// LegacyDeskConfigFile is the name that file had before the desk became
+	// the `gdesk` context (workspace draft 05). Read when GdeskConfigFile is
+	// absent: a developer's home directory is not a place to break, and the
+	// file holds a token that cannot be regenerated from anywhere else.
+	LegacyDeskConfigFile = "desk.yaml"
 
 	// OfferingFile names the hub offering token inside ConfigDir.
 	// Missing means selfhost. Values: hosted | selfhost. No secrets.
@@ -126,34 +132,43 @@ const (
 	// means the connection address, which is the self-host default (`26`).
 	EnvTrustedProxies = EnvPrefix + "TRUSTED_PROXIES"
 
-	// EnvDeskChat, EnvDeskSTT and EnvDeskTTS bind one front-desk role to a
+	// EnvGdeskChat, EnvGdeskSTT and EnvGdeskTTS bind one glass-desk role to a
 	// provider and a model, written `provider/model`. An unset role leaves
 	// the desk without it — the connector still serves devices and MCP, so a
 	// missing voice must not stop it starting (`53`).
-	EnvDeskChat = EnvPrefix + "DESK_CHAT"
-	EnvDeskSTT  = EnvPrefix + "DESK_STT"
-	EnvDeskTTS  = EnvPrefix + "DESK_TTS"
+	EnvGdeskChat = EnvPrefix + "GDESK_CHAT"
+	EnvGdeskSTT  = EnvPrefix + "GDESK_STT"
+	EnvGdeskTTS  = EnvPrefix + "GDESK_TTS"
 
-	// EnvDeskProviderPrefix begins a provider entry. After it comes the
+	// EnvGdeskProviderPrefix begins a provider entry. After it comes the
 	// provider id — uppercased, dashes as underscores — then one field:
 	// SHAPE, BASE_URL, API_PATH or SECRET_KIND. The value of the key itself
 	// is never here; SECRET_KIND names it (`41`, `24`).
-	EnvDeskProviderPrefix = EnvPrefix + "DESK_PROVIDER_"
+	EnvGdeskProviderPrefix = EnvPrefix + "GDESK_PROVIDER_"
 
-	// EnvDeskConfig is an explicit path to the desk YAML. Unset means
-	// ~/ConfigDir/DeskConfigFile when that file exists. Set and missing
+	// EnvGdeskConfig is an explicit path to the glass-desk YAML. Unset means
+	// ~/ConfigDir/GdeskConfigFile when that file exists. Set and missing
 	// is a configuration error, not a silent fallback to env-only.
-	EnvDeskConfig = EnvPrefix + "DESK_CONFIG"
+	EnvGdeskConfig = EnvPrefix + "GDESK_CONFIG"
 
-	// EnvDeskSeamAddr is where the desk's local seam listens. Loopback only:
+	// EnvGdeskSeamAddr is where the desk's local seam listens. Loopback only:
 	// a remote device reaches the desk through the hub as a relay, so this
-	// number never faces the network (workspace docs/DESK-SCOPES.md).
-	EnvDeskSeamAddr = EnvPrefix + "DESK_SEAM_ADDR"
+	// number never faces the network (workspace docs/GDESK-SCOPES.md).
+	EnvGdeskSeamAddr = EnvPrefix + "GDESK_SEAM_ADDR"
 
-	// EnvDeskSeamToken is what a caller presents to join the desk on that
+	// EnvGdeskSeamToken is what a caller presents to join the desk on that
 	// address. Unset closes the seam rather than opening it to anything on
 	// the box. Never a flag, for the same reason as a provider key.
-	EnvDeskSeamToken = EnvPrefix + "DESK_SEAM_TOKEN"
+	EnvGdeskSeamToken = EnvPrefix + "GDESK_SEAM_TOKEN"
+
+	// GdeskEnvPrefix is what every glass-desk variable above begins with.
+	GdeskEnvPrefix = EnvPrefix + "GDESK_"
+
+	// LegacyGdeskEnvPrefix is what every variable above began with before the
+	// desk became the `gdesk` context. A caller still exporting one is
+	// honoured — see gdesk.AliasLegacyEnv — because the alternative is a
+	// working box going silent on an upgrade with nothing to point at.
+	LegacyGdeskEnvPrefix = EnvPrefix + "DESK_"
 
 	// EnvAPIKeySuffix ends the variable holding one provider key. Never a
 	// flag: a flag lands in ps output and shell history.

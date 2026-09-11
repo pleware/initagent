@@ -124,14 +124,19 @@ when `--gateway-url` is empty, so the first project can enroll this
 machine. Pass `--gateway-url` to point at a gateway you already run
 with `initagent gateway`.
 
-The front desk (`initagent desk`) reads `~/.initagent/desk.yaml` when that
-file exists — copy [`desk.example.yaml`](desk.example.yaml) and fill in the
+The glass desk (`initagent gdesk`) reads `~/.initagent/gdesk.yaml` when that
+file exists — copy [`gdesk.example.yaml`](gdesk.example.yaml) and fill in the
 local token and the provider key. Comments in that example are English and
-Polish. `INITAGENT_DESK_CONFIG` points at another path. Environment
+Polish. `INITAGENT_GDESK_CONFIG` points at another path. Environment
 variables override the file; neither belongs on a flag. The same token
-admits `GET /desk/logs`, an operator ring the glass back-office pane
+admits `GET /gdesk/logs`, an operator ring the glass back-office pane
 polls — not a second conversation stream. Operator steps (Polish) live
 in the parent workspace `docs/CONFIGURATION.md`.
+
+The older names still work: `initagent desk`, `~/.initagent/desk.yaml` and
+`INITAGENT_DESK_*` are read when the current ones are absent. The `g` is
+there because a coder also has a desk — one is where a person walks up to
+the glass, the other is a task on a worker.
 
 A hub with no owner prints a one-time bootstrap token when it starts, and
 writes the same value to `bootstrap-token` in its data directory. The

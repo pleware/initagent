@@ -1,0 +1,235 @@
+package deskseam
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/pleware/initagent/internal/desk"
+)
+
+// stubAnswerer stands in for the runner, which waits on a provider.
+type stubAnswerer struct {
+	heard []desk.Utterance
+	err   error
+}
+
+func (s *stubAnswerer) Answer(_ context.Context, spoken desk.Utterance) error {
+	s.heard = append(s.heard, spoken)
+	return s.err
+}
+
+func newTestSocket(t *testing.T) (*Socket, *Log, *stubAnswerer) {
+	t.Helper()
+	delivery, log := newTestDelivery(t)
+	answerer := &stubAnswerer{}
+	socket, err := NewSocket(SocketConfig{Log: log, Delivery: delivery, Answerer: answerer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return socket, log, answerer
+}
+
+// frame writes a command the way the glass would.
+func frame(t *testing.T, stream StreamID, cmd CommandID, kind string, payload any) []byte {
+	t.Helper()
+	raw, err := json.Marshal(map[string]any{
+		"v":       Version,
+		"cmdId":   cmd,
+		"stream":  stream,
+		"kind":    kind,
+		"payload": payload,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+func TestNewSocketRefusesASocketThatCannotAnswer(t *testing.T) {
+	delivery, log := newTestDelivery(t)
+	for _, tc := range []struct {
+		name   string
+		cfg    SocketConfig
+		detail string
+	}{
+		{"no log", SocketConfig{Delivery: delivery, Answerer: &stubAnswerer{}}, "needs a log"},
+		{"no delivery", SocketConfig{Log: log, Answerer: &stubAnswerer{}}, "needs a delivery"},
+		{"nobody to answer", SocketConfig{Log: log, Delivery: delivery}, "somebody to answer"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := NewSocket(tc.cfg); err == nil || !strings.Contains(err.Error(), tc.detail) {
+				t.Fatalf("err = %v, want it to mention %q", err, tc.detail)
+			}
+		})
+	}
+}
+
+func TestStreamIsTheOneTheLogNumbers(t *testing.T) {
+	socket, log, _ := newTestSocket(t)
+	if socket.Stream() != log.Stream() {
+		t.Fatalf("stream = %q, want %q", socket.Stream(), log.Stream())
+	}
+}
+
+func TestDispatchHandsAnUtteranceOnToBeAnswered(t *testing.T) {
+	socket, log, _ := newTestSocket(t)
+	raw := frame(t, log.Stream(), "cmd-1", CommandUtterance, map[string]any{
+		"utteranceId": "utt-1",
+		"text":        "sprawdź opony",
+		"source":      "typed",
+	})
+
+	intent := socket.Dispatch(raw)
+	if intent.Answer == nil {
+		t.Fatal("want an utterance to answer")
+	}
+	if intent.Answer.ID != "utt-1" || intent.Answer.Text != "sprawdź opony" {
+		t.Fatalf("answer = %+v", *intent.Answer)
+	}
+	if intent.Replay != nil {
+		t.Fatalf("replay = %+v, want an utterance to say nothing back yet", intent.Replay)
+	}
+}
+
+func TestDispatchAttributesTheAnswerToTheCommandItArrivedOn(t *testing.T) {
+	socket, log, _ := newTestSocket(t)
+	raw := frame(t, log.Stream(), "cmd-7", CommandUtterance, map[string]any{
+		"utteranceId": "utt-1", "text": "cześć", "source": "typed",
+	})
+	socket.Dispatch(raw)
+
+	socket.delivery.Record(desk.TurnOpened{Turn: "trn-1", Staff: "psn-ania", Utterance: "utt-1"})
+	if got := log.Since(0)[0].InReplyTo; got != "cmd-7" {
+		t.Fatalf("inReplyTo = %q, want the command she is answering", got)
+	}
+}
+
+func TestDispatchReplaysFromWhereTheGlassStopped(t *testing.T) {
+	socket, log, _ := newTestSocket(t)
+	for range 3 {
+		log.Append(EventSurfaceAppended, surfaceAppended{ID: "sur-1"}, "")
+	}
+	// fromSeq is the first event wanted, inclusive - the glass filters with
+	// `seq >= fromSeq` (initagent-hud app/src/seam/fake-connector.ts), so
+	// answering from after it would silently lose one fact.
+	raw := frame(t, log.Stream(), "cmd-1", CommandResync, map[string]any{"fromSeq": 2})
+
+	intent := socket.Dispatch(raw)
+	if intent.Answer != nil {
+		t.Fatal("a resync asks for facts, not for a turn")
+	}
+	if got := seqsOf(intent.Replay); len(got) != 2 || got[0] != 2 {
+		t.Fatalf("replay = %v, want seq 2 onward", got)
+	}
+}
+
+func TestDispatchSaysNothingBackToAFrameItCannotIdentify(t *testing.T) {
+	socket, log, _ := newTestSocket(t)
+
+	intent := socket.Dispatch([]byte("{"))
+	if intent.Answer != nil || intent.Replay != nil {
+		t.Fatalf("intent = %+v", intent)
+	}
+	if got := log.Since(0); len(got) != 0 {
+		t.Fatalf("events = %v, want no refusal a glass could not place", seqsOf(got))
+	}
+}
+
+func TestDispatchToleratesAVerbThisBuildDoesNotSpeak(t *testing.T) {
+	socket, log, _ := newTestSocket(t)
+	raw := frame(t, log.Stream(), "cmd-1", "desk.interrupt", map[string]any{})
+
+	intent := socket.Dispatch(raw)
+	if intent.Answer != nil || intent.Replay != nil {
+		t.Fatalf("intent = %+v", intent)
+	}
+	if got := log.Since(0); len(got) != 0 {
+		t.Fatalf("events = %v, want silence rather than a refusal - deploys are producer-first", seqsOf(got))
+	}
+}
+
+func TestDispatchRefusesACommandNobodyCanActOn(t *testing.T) {
+	socket, log, _ := newTestSocket(t)
+	raw := frame(t, log.Stream(), "cmd-1", CommandUtterance, map[string]any{
+		"utteranceId": "utt-1", "text": "   ", "source": "typed",
+	})
+
+	intent := socket.Dispatch(raw)
+	if intent.Answer != nil {
+		t.Fatal("want no turn for words nobody said")
+	}
+	events := log.Since(0)
+	if len(events) != 1 || events[0].Kind != EventSurfaceOpened {
+		t.Fatalf("events = %+v", events)
+	}
+	if events[0].InReplyTo != "cmd-1" {
+		t.Fatalf("inReplyTo = %q, want the refusal to answer the command", events[0].InReplyTo)
+	}
+	surface := payloadOf(t, events[0])["surface"].(map[string]any)
+	if surface["id"] != "sur-cmd-1" {
+		t.Fatalf("id = %v, want it keyed on the command", surface["id"])
+	}
+	if surface["label"] != RefusalLabel {
+		t.Fatalf("label = %v, want the refusal not to come from her", surface["label"])
+	}
+	view := surface["view"].(map[string]any)
+	failure := view["failure"].(map[string]any)
+	if view["kind"] != "failed" || failure["code"] != "INVALID_REQUEST" {
+		t.Fatalf("view = %+v", view)
+	}
+	if !strings.Contains(failure["message"].(string), "no words") {
+		t.Fatalf("message = %v", failure["message"])
+	}
+}
+
+func TestDispatchRefusesACommandForAnotherDesk(t *testing.T) {
+	socket, log, _ := newTestSocket(t)
+	raw := frame(t, "str-somebody-else", "cmd-1", CommandUtterance, map[string]any{
+		"utteranceId": "utt-1", "text": "cześć", "source": "typed",
+	})
+
+	intent := socket.Dispatch(raw)
+	if intent.Answer != nil {
+		t.Fatal("want no turn for a command aimed elsewhere")
+	}
+	events := log.Since(0)
+	if len(events) != 1 {
+		t.Fatalf("events = %+v, want a refusal so the glass is not left waiting", events)
+	}
+	failure := payloadOf(t, events[0])["surface"].(map[string]any)["view"].(map[string]any)["failure"].(map[string]any)
+	if !strings.Contains(failure["message"].(string), "str-somebody-else") {
+		t.Fatalf("message = %v, want it to name the stream asked for", failure["message"])
+	}
+}
+
+func TestAnswerPassesTheTurnOnAndReportsWhatWentWrong(t *testing.T) {
+	socket, _, answerer := newTestSocket(t)
+	answerer.err = errors.New("provider said no")
+
+	err := socket.Answer(context.Background(), desk.Utterance{ID: "utt-1", Text: "cześć"})
+	if err == nil || !strings.Contains(err.Error(), "provider said no") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(answerer.heard) != 1 || answerer.heard[0].ID != "utt-1" {
+		t.Fatalf("heard = %+v", answerer.heard)
+	}
+}
+
+func TestRefuseIgnoresACommandWithNoId(t *testing.T) {
+	delivery, log := newTestDelivery(t)
+	delivery.Refuse("", desk.Failure{Code: desk.FailureInternal})
+	if got := log.Since(0); len(got) != 0 {
+		t.Fatalf("events = %v, want nothing to key a surface on", seqsOf(got))
+	}
+}
+
+func TestRecordSaysNothingAboutAFailureWithNoTurn(t *testing.T) {
+	delivery, log := newTestDelivery(t)
+	delivery.Record(desk.Failed{Failure: desk.Failure{Code: desk.FailureInvalidRequest}})
+	if got := log.Since(0); len(got) != 0 {
+		t.Fatalf("events = %v, want no patch to a surface the glass never saw", seqsOf(got))
+	}
+}

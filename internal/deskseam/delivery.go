@@ -19,6 +19,11 @@ const SpeechSlot SlotID = "speech"
 // choosing between.
 const DefaultUnclearPrompt = "Do kogo mówisz — %s?"
 
+// RefusalLabel is who a refusal comes from. Neither staff member said it, so
+// labelling it with a name would put words in her mouth. Not configurable
+// until something needs it to be.
+const RefusalLabel = "Biurko"
+
 // maxAttributions bounds the utterance-to-command memory. An utterance older
 // than the last few dozen no longer needs answering: the glass has either
 // resolved it or asked a person about it long ago.
@@ -189,16 +194,48 @@ func (d *Delivery) ask(fact desk.AddressingUnclear) {
 }
 
 func (d *Delivery) failed(fact desk.Failed) {
+	if fact.Turn == "" {
+		// A failure before any turn opened has no surface to patch, and
+		// patching "sur-" would name a surface the glass never saw. That
+		// failure belongs to the command the words arrived on, and Refuse is
+		// what answers it — with an id the glass can resolve.
+		return
+	}
 	d.log.Append(EventSurfacePatched, surfacePatched{
-		ID: surfaceForTurn(fact.Turn),
-		View: failedView{
-			Kind: "failed",
-			Failure: failureSpec{
-				Code:    string(fact.Failure.Code),
-				Message: fact.Failure.Message,
-			},
-		},
+		ID:   surfaceForTurn(fact.Turn),
+		View: viewOf(fact.Failure),
 	}, "")
+}
+
+// Refuse answers a command the desk will not act on.
+//
+// A command needs an answer even when it is nonsense, because the two the
+// glass sends are not repeatable: an unanswered `desk.utterance` becomes
+// unresolved and waits for a person. So a refusal opens its own surface,
+// keyed on the command rather than on a turn that never existed.
+func (d *Delivery) Refuse(cmd CommandID, failure desk.Failure) {
+	if cmd == "" {
+		// Nothing to answer, and nothing to key a surface on.
+		return
+	}
+	d.log.Append(EventSurfaceOpened, surfaceOpened{Surface: surfaceSpec{
+		ID:        SurfaceID("sur-" + string(cmd)),
+		Label:     RefusalLabel,
+		View:      viewOf(failure),
+		Placement: placementSpec{At: "focus"},
+		Attention: "primary",
+		Chrome:    "bordered",
+	}}, cmd)
+}
+
+func viewOf(failure desk.Failure) failedView {
+	return failedView{
+		Kind: "failed",
+		Failure: failureSpec{
+			Code:    string(failure.Code),
+			Message: failure.Message,
+		},
+	}
 }
 
 func (d *Delivery) name(staff desk.StaffID) string {

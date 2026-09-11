@@ -408,7 +408,10 @@ func TestRunQueuedEmptyCommandFails(t *testing.T) {
 func TestRunQueuedTimeoutFails(t *testing.T) {
 	g := openTest(t, "")
 	deviceID, _, _ := connectAgentWS(t, g)
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	// The budget also covers claiming the task, which is a database write. Too
+	// short and a loaded runner spends it before the device is ever asked, so
+	// RunQueued returns the deadline instead of a task it never started.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	if _, err := g.Store().Enqueue(context.Background(), scheduler.Task{
 		ProjectID: g.Project().ID,

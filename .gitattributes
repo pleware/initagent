@@ -1,0 +1,14 @@
+# Go files check out with LF on every platform.
+#
+# core.autocrlf=true is the Windows default, and it makes `gofmt -l` report
+# every checked-out .go file as unformatted — so the owned format gate is red
+# before anyone has edited anything. A gate that is always red is a gate
+# nobody reads: that is how an unformatted test table survived eight pushes
+# to main before CI was believed.
+#
+# The blobs in git are already LF. This only fixes what lands in the working
+# copy, and gofmt itself only ever writes LF.
+*.go text eol=lf
+
+# Shell scripts must be LF to run at all, on the box and in CI.
+*.sh text eol=lf

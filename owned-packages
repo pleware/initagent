@@ -6,6 +6,7 @@
 ./internal/registry/db/kinds
 ./internal/completion
 ./internal/desk
+./internal/deskseam
 ./internal/deviceops
 ./internal/store
 ./internal/scheduler

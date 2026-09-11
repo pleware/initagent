@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-11 — Add internal/deskseam: the desk seam vocabulary the connector speaks
 - 2026-09-11 — gateway: stop the timeout test racing its own setup
 - 2026-09-11 — desk: turn an utterance into a streamed answer
 - 2026-09-11 — desk: resolve who was addressed, and claim a turn once

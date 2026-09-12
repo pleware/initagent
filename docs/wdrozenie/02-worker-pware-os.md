@@ -39,12 +39,24 @@ Sama maszyna nie dołącza niczego i pozostaje jedną konfiguracją.
 wsl --install -d Ubuntu
 ```
 
-Po instalacji zrestartuj maszynę i dokończ pierwsze uruchomienie Ubuntu
-(użytkownik + hasło). Sprawdź, że to WSL2:
+Potem **restart Windows, nie Ubuntu**. `wsl --install` włącza funkcje systemu
+(VirtualMachinePlatform), a Windows tego nie dokończy bez restartu. To jest
+pierwszy z dwóch „restartów" w tej instrukcji i dotyczy **hosta**.
+
+Po restarcie Ubuntu zwykle samo otwiera konsolę i prosi o **użytkownika
+i hasło Linuksa** — to pierwsze uruchomienie dystrybucji, nie kolejny restart.
+Jeśli okno się nie pojawi: `wsl -d Ubuntu` z PowerShella albo „Ubuntu" z menu
+Start.
+
+Sprawdź, że dystrybucja pracuje w trybie WSL2:
 
 ```powershell
 wsl -l -v
 ```
+
+W całej instrukcji „restart" znaczy **restart Windows albo `wsl --shutdown`
+z PowerShella**. W środku Ubuntu nie ma czego restartować — drugi taki moment
+jest w kroku 2, po zmianie `/etc/wsl.conf`.
 
 ## Krok 2 — systemd w WSL (dla Dockera)
 
@@ -57,7 +69,8 @@ w otwartym oknie. Włącz systemd w dystrybucji, w pliku `/etc/wsl.conf`:
 systemd=true
 ```
 
-Potem z PowerShella `wsl --shutdown`, wejdź ponownie i sprawdź:
+Potem z PowerShella `wsl --shutdown` (to restart dystrybucji, nie Windows),
+wejdź ponownie i sprawdź:
 
 ```sh
 systemctl status docker

@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-12 — wdrozenie: say which machine the restart means
 - 2026-09-12 — cockpit: open a project without waiting on devices
 - 2026-09-12 — cockpit: open a project without waiting on /api/devices
 - 2026-09-12 — docs: several workers on a box means containers, not a second account

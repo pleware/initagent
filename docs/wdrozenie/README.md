@@ -1,76 +1,58 @@
 # Wdrożenie workera — instrukcja dla partnera wdrożeniowego
 
-Ta instrukcja jest dla partnera, który na maszynie klienta ma **podłączyć
-workera** do huba initAgent. Nie opisuje stawiania huba: hub stoi na
+Jak podłączyć **workera** do huba initAgent na maszynie klienta. Hub stoi na
 `app.initagent.dev` i nie jest częścią tej instalacji.
 
-Wybierz jedną z dwóch ścieżek:
-
-| Ścieżka | Kiedy ją wybierasz | Dokument |
+| Ścieżka | Kiedy | Dokument |
 | --- | --- | --- |
-| **1. Instalacja domyślna** | jedna maszyna (Windows, Linux albo macOS) ma być jednym workerem | [`01-worker-windows.md`](01-worker-windows.md) |
-| **2. PWare OS jako worker** | na jednej maszynie ma działać kilka workerów — **wyłącznie w kontenerach** (Docker w WSL albo na VPS), obrazy zostają w WSL | [`02-worker-pware-os.md`](02-worker-pware-os.md) |
+| **1. Domyślna** | jedna maszyna = jeden worker | [`01-worker-windows.md`](01-worker-windows.md) |
+| **2. PWare OS** | kilka workerów na jednej maszynie — **tylko kontenery** (Docker w WSL albo na VPS) | [`02-worker-pware-os.md`](02-worker-pware-os.md) |
 
-Tryb zwykły to **jedna konfiguracja na maszynę**. Kilka workerów na jednej
-maszynie uruchamiamy tylko jako kontenery — tak brzmi decyzja produktu, nie
-nasze uproszczenie.
+## Komendy w skrócie
 
-Obie ścieżki kończą się tym samym: maszyna (albo środowisko) pojawia się
-w hubie jako online i wykonuje zadanie. Różnią się tym, ile środowisk
-uruchamiasz i gdzie.
+`<ADRES>` i `<TOKEN>` to adres i jednorazowy token z panelu — nie wpisuj ich
+z pamięci; token wygasa po 15 minutach.
+
+| Komenda | Po co | Gdzie |
+| --- | --- | --- |
+| `irm <ADRES>/install/<TOKEN>.ps1 \| iex` | dołącza workera (Windows) | cz. 1 |
+| `curl -fsSL <ADRES>/install/<TOKEN>.sh \| sh` | dołącza workera (Linux/kontener) | cz. 2 |
+| `wsl --install -d Ubuntu` | zakłada WSL2 + Ubuntu | cz. 2 |
+| `wsl --shutdown` | restart dystrybucji po zmianie `/etc/wsl.conf` | cz. 2 |
+| `wsl -l -v` | lista dystrybucji / tryb WSL | cz. 2 |
+| `systemctl status docker` | czy Docker w WSL wstaje sam | cz. 2 |
+| `docker run --hostname dell-worker-01 …` | kontener o jawnej nazwie = worker | cz. 2 |
+| `initagent fleet devices` | lista urządzeń (weryfikacja) | obie |
+| `initagent fleet run <DEVICE> -- initagent version` | smoke test | obie |
+| `wsl --unregister Ubuntu` | **kasuje** dystrybucję i całą jej zawartość | cz. 2 |
 
 ## Słownik
 
-- **worker** — maszyna albo środowisko z uruchomionym connector'em. W hubie to
-  jedno urządzenie z identyfikatorem `dev-`.
-- **hub** — panel i API na `app.initagent.dev`. Tu wybierasz projekt klienta
-  i stąd bierzesz komendę wdrożenia.
-- **token dołączenia** — **jednorazowy, wygasa po 15 minutach**. Jest wbudowany
-  w komendę, więc **sama komenda jest sekretem**: nie wklejaj jej do czatu
-  zespołowego ani do zgłoszenia, a jeśli wyciekła — wygeneruj nową.
-- W komendach zobaczysz słowo `agent` (`initagent agent enroll`). To ten sam
-  komponent, który produkt nazywa **workerem**; instrukcja trzyma się słowa
-  „worker", bo tak mówi interfejs („Worker połączony") i dokumentacja.
+- **worker** — maszyna albo środowisko z connector'em; w hubie to jedno
+  urządzenie `dev-`.
+- **hub** — panel i API na `app.initagent.dev`; stąd bierzesz komendę.
+- **token dołączenia** — jednorazowy, **wygasa po 15 minutach**, wbudowany
+  w komendę — więc **komenda jest sekretem**.
+- W komendach zobaczysz `agent` (`initagent agent enroll`) — to ten sam
+  komponent, co worker; interfejs mówi „Worker połączony".
 
-## Czego potrzebujesz przed startem
+## Zanim zaczniesz
 
 - konto na `app.initagent.dev` z dostępem do projektu klienta,
-- dostęp do maszyny docelowej (konsola, RDP albo SSH),
-- 15 minut na wklejenie komendy, zanim token wygaśnie — komenda powstaje
-  w momencie pokazania jej w panelu.
-
-## Nazwa workera — ustal ją, zanim dołączysz
-
-Nazwę w panelu agent bierze z **hostname'a środowiska**, w którym się dołącza
-— nie ma flagi `--name`. Domyślnie więc worker w WSL pokaże nazwę komputera
-Windows, a worker w kontenerze losowy identyfikator. Przy kilku workerach na
-jednej maszynie dostaniesz kilka razy to samo i nie odróżnisz ich w panelu.
-
-Dlatego nazwij środowisko **przed** dołączeniem, po ludzku: producent plus
-numer, np. `dell-worker-01`, `lenovo-worker-02`. Konwencję widać potem w
-panelu i w `initagent fleet devices`.
-
-Jak to zrobić na konkretnej platformie: część 1,
-[`01-worker-windows.md`](01-worker-windows.md) (jedna maszyna), część 2,
-[`02-worker-pware-os.md`](02-worker-pware-os.md) (kilka środowisk) — tam jest
-też `Krok 0` w całości poświęcony nazwie.
-
-Nazwę da się zmienić po fakcie: nazwa urządzenia to osobne pole od hostname'a,
-a hub ma `PATCH /api/devices/{id}`. W panelu nie ma dziś na to przycisku, więc
-taniej jest nazwać od razu.
+- dostęp do maszyny (konsola, RDP, SSH),
+- nazwa workera: agent bierze ją z **hostname'a** środowiska, więc ustal ją
+  przed dołączeniem (`dell-worker-01`) — mechanika w każdej części. Hub umie
+  ją zmienić po fakcie (`PATCH /api/devices/{id}`), ale panel nie ma na to
+  przycisku.
 
 ## Czego ta instrukcja świadomie nie ustala
 
-Trzy pytania produktu są jeszcze otwarte i dotykają tej instrukcji wprost.
-Nie zgadujemy ich tutaj; są opisane w draftach i linkowane na końcu każdej
-części:
-
-1. jak identyfikowana jest **fizyczna maszyna**, gdy na jednym hoście stoi
-   kilka kontenerów: hub musi wiedzieć, że to jedna maszyna, a nie trzy,
-2. **co worker może sięgnąć** — urządzenie, gniazdo connectora, sieć firmowa —
-   oraz jaki ma sufit zasobów. Mechanizm dla kilku workerów jest wybrany
-   (kontener, na rzecz izolacji); otwarty jest zakres, nie wybór,
+1. jak hub rozpoznaje **fizyczną maszynę**, gdy stoi na niej kilka kontenerów,
+2. **co worker może sięgnąć** (urządzenie, gniazdo connectora, sieć firmowa)
+   i jaki ma sufit zasobów,
 3. czy jedna maszyna może obsługiwać projekty **różnych organizacji**.
 
-Język: polski. Wersja angielska dojdzie później; [`README.md`](../../README.md)
-repo opisuje po angielsku instalację samego huba.
+Otwarte w draftach; linkowane na końcu każdej części.
+
+Język: polski. [`README.md`](../../README.md) repo opisuje po angielsku
+instalację samego huba.

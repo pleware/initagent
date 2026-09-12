@@ -1,270 +1,142 @@
 # 2. PWare OS jako worker na Windows (WSL + Docker)
 
-Ścieżka dla sytuacji, w której na **jednej** maszynie ma pracować **kilka**
-workerów, każde we własnym środowisku, a obrazy mają zostać w WSL — nie
-w Windows.
-
-**Kształt tej ścieżki jest decyzją produktu:** kilka workerów na jednej
-maszynie uruchamiamy **tylko w kontenerach** (Docker w WSL albo na VPS), a tryb
-zwykły to jedna konfiguracja na maszynę. Czego ta decyzja nie rozstrzyga —
-zakresu dostępu workera, sufitu zasobów i identyfikacji hosta — jest wypisane
-na końcu.
+Kilka workerów na jednej maszynie. **Kształt to decyzja produktu:** tylko
+kontenery (Docker w WSL albo na VPS); tryb zwykły to jedna konfiguracja na
+maszynę. Czego to nie rozstrzyga — na końcu.
 
 ## Jak to wygląda
 
 ```
-Maszyna (Windows z WSL2, albo VPS)
-└── Docker Engine (obrazy i wolumeny zostają tutaj)
-    ├── kontener 1 → worker A  (własna komenda, własny token, własny dev-)
-    ├── kontener 2 → worker B
-    └── kontener 3 → worker C
-                        ↓
-              hub app.initagent.dev
+Windows
+└── WSL2
+    └── Ubuntu (dystrybucja)
+        └── Docker Engine (obrazy zostają w WSL)
+            ├── kontener 1 → worker A   (własny token, własny dev-)
+            ├── kontener 2 → worker B
+            └── kontener 3 → worker C
+                               ↓
+                     hub app.initagent.dev
 ```
 
-Na Windows Docker siedzi **w WSL**, bo tam ma zostać to, co waży — obrazy
-i warstwy. Na VPS jest po prostu na hoście. W obu wypadkach workerem jest
-**kontener**, bo w nim uruchamiasz komendę dołączenia i tam trafiają zadania.
-Sama maszyna nie dołącza niczego i pozostaje jedną konfiguracją.
+Na VPS jest tak samo, bez WSL: Docker prosto na hoście. Workerem jest zawsze
+**kontener** — w nim uruchamiasz komendę dołączenia; sama maszyna nie dołącza
+niczego i pozostaje jedną konfiguracją.
 
 ## Wymagania
 
-- Windows 10 (2004+) albo 11, z włączoną wirtualizacją,
-- uprawnienia administratora przy instalacji WSL (dalej już nie),
-- konto w hubie z dostępem do projektu klienta.
+Windows 10 (2004+)/11 z wirtualizacją, admin przy instalacji WSL (dalej już
+nie), konto w hubie.
 
-## Krok 0 — nazwij środowisko, zanim je dołączysz
+## Krok 0 — nazwij środowisko
 
-Agent bierze nazwę z **hostname'a** środowiska, w którym się dołącza (flagi
-`--name` nie ma). Domyślnie w WSL to nazwa komputera Windows, a w kontenerze
-losowy identyfikator — czyli przy trzech workerach na jednej maszynie
-zobaczysz trzy razy to samo. Nazwij je **przed** dołączeniem:
+Agent bierze nazwę z **hostname'a** (flagi `--name` nie ma). Kontener:
+`docker run --hostname dell-worker-01 …`. Dystrybucja WSL: trwale w
+`/etc/wsl.conf`:
 
-- **kontener Docker** — hostname nadajesz przy tworzeniu:
+```ini
+[network]
+hostname = dell-worker-01
+```
 
-  ```sh
-  docker run --hostname dell-worker-01 -d <obraz> <polecenie>
-  ```
+potem `wsl --shutdown`. (`hostnamectl` bez systemd nie działa, a sam
+`/etc/hostname` przepada po restarcie.) Konwencja: `dell-worker-01`,
+`lenovo-worker-02`. Etykieta dystrybucji w `wsl -l -v` (`Ubuntu`) to inna
+rzecz — na hub nie wpływa.
 
-- **dystrybucja WSL** — trwale przez `/etc/wsl.conf` (WSL tego pilnuje):
-
-  ```ini
-  [network]
-  hostname = dell-worker-01
-  ```
-
-  Potem `wsl --shutdown` z PowerShella i wejdź ponownie. `hostnamectl` w WSL
-  bez systemd nie zadziała, a sam wpis w `/etc/hostname` przepada po restarcie
-  dystrybucji.
-
-Konwencja: producent plus numer — `dell-worker-01`, `lenovo-worker-02`.
-Nazwa jest widoczna w panelu i w `initagent fleet devices`.
-
-**Nazwa dystrybucji to inna rzecz niż nazwa workera.** W `wsl -l -v` dystrybucja
-z tej instrukcji nazywa się `Ubuntu` i to jest tylko etykieta u Ciebie w
-PowerShellu — na hub nie wpływa. Zmiana tej etykiety to eksport i import
-(`wsl --export` → `wsl --unregister` → `wsl --import <nazwa> <katalog> <plik>`),
-więc rób to tylko jeśli naprawdę chcesz inny wpis na liście.
-
-Nazwę urządzenia w hubie da się zmienić po fakcie — to osobne pole od
-hostname'a, hub ma `PATCH /api/devices/{id}` — ale w panelu nie ma na to
-przycisku, więc taniej jest nazwać od razu.
-
-## Krok 1 — WSL2
+## Krok 1 — WSL2 + Ubuntu
 
 ```powershell
 wsl --install -d Ubuntu
 ```
 
-Potem **restart Windows, nie Ubuntu**. `wsl --install` włącza funkcje systemu
-(VirtualMachinePlatform), a Windows tego nie dokończy bez restartu. To jest
-pierwszy z dwóch „restartów" w tej instrukcji i dotyczy **hosta**.
-
-Po restarcie Ubuntu zwykle samo otwiera konsolę i prosi o **użytkownika
-i hasło Linuksa** — to pierwsze uruchomienie dystrybucji, nie kolejny restart.
-Jeśli okno się nie pojawi: `wsl -d Ubuntu` z PowerShella albo „Ubuntu" z menu
-Start.
-
-Sprawdź, że dystrybucja pracuje w trybie WSL2:
-
-```powershell
-wsl -l -v
-```
-
-W całej instrukcji „restart" znaczy **restart Windows albo `wsl --shutdown`
-z PowerShella**. W środku Ubuntu nie ma czego restartować — drugi taki moment
-jest w kroku 2, po zmianie `/etc/wsl.conf`.
+Potem **restart Windows** (nie Ubuntu) — `wsl --install` włącza
+VirtualMachinePlatform. Po restarcie Ubuntu prosi o użytkownika i hasło
+Linuksa (to pierwsze uruchomienie, nie restart); jeśli okno się nie pojawi:
+`wsl -d Ubuntu`. Sprawdź tryb: `wsl -l -v` (wersja „2").
 
 ## Krok 2 — systemd w WSL (dla Dockera)
 
-Tu nie chodzi o workera — ten siedzi w kontenerze — tylko o to, żeby Docker
-w WSL wstawał sam po restarcie maszyny. Bez systemd trzeba go podnosić ręcznie
-w otwartym oknie. Włącz systemd w dystrybucji, w pliku `/etc/wsl.conf`:
+Żeby Docker w WSL wstawał sam po restarcie maszyny. W `/etc/wsl.conf` dopisz:
 
 ```ini
 [boot]
 systemd=true
 ```
 
-Potem z PowerShella `wsl --shutdown` (to restart dystrybucji, nie Windows),
-wejdź ponownie i sprawdź:
-
-```sh
-systemctl status docker
-```
-
-Gdyby workerem miała być jednak sama dystrybucja, a nie kontener, to jest
-właśnie to miejsce, w którym `agent install-service` założy jednostkę
-`initagent-connector.service`, a `loginctl enable-linger "$USER"` utrzyma ją
-bez otwartej sesji. To jednak ścieżka dla **jednego** workera — dla kilku
-kontenery, jak niżej.
+potem `wsl --shutdown` z PowerShella (restart **dystrybucji**, nie Windows)
+i sprawdź `systemctl status docker`.
 
 ## Krok 3 — Docker w WSL
 
-Docker instalujesz **w środku dystrybucji**, nie w Windows:
-
 ```sh
 sudo apt-get update && sudo apt-get install -y docker.io
-sudo usermod -aG docker "$USER"   # potem wyloguj/zaloguj się w WSL
+sudo usermod -aG docker "$USER"   # wyloguj/zaloguj się w WSL
 docker run --rm hello-world
 ```
 
-Świadomie: **obrazy, wolumeny i warstwy zostają w WSL**. Nie przenoś ich na
-dysk Windows i nie stawiaj Dockera Desktop obok — trzymanie obrazów po stronie
-WSL jest tym, po co ta ścieżka istnieje.
+Obrazy i wolumeny zostają w WSL — nie przenoś ich na Windows, nie stawiaj
+Dockera Desktop obok.
 
-## Krok 4 — jedno środowisko = jeden kontener
+## Krok 4 — kontener na workera
 
-**Kilku workerów na jednej maszynie robimy wyłącznie w kontenerach.** Tak brzmi
-decyzja produktu (`initagent-workspace/drafts/10.DRAFT.ENROLL-AND-WORKERS.md`):
-Docker — na VPS albo w WSL — jest jedynym kształtem, który publikujemy dla
-kilku workerów na jednej maszynie. Tryb zwykły (instalacja natywna, część 1)
-to **jedna konfiguracja na maszynę**, i druga komenda wklejona w tym samym
-miejscu nadpisze pierwszą — to zachowanie zamierzone, nie usterka do obejścia.
+Dla każdego środowiska:
 
-Dla każdego kontenera:
-
-1. W hubie: projekt → **Add device** → **skopiuj komendę dla Linux/macOS**
-   (`.sh`). Każdy kontener dostaje **własną** komendę: token jest
-   jednorazowy i wygasa po 15 minutach.
-2. Uruchom ją **wewnątrz kontenera** — nie na maszynie i nie w dystrybucji
-   WSL obok:
+1. W hubie: **Add device** → **Linux/macOS** → skopiuj komendę (`.sh`).
+   Każdy kontener dostaje własną — token jest jednorazowy, 15 minut.
+2. Uruchom ją **wewnątrz kontenera**:
 
 ```sh
 curl -fsSL <ADRES>/install/<TOKEN>.sh | sh
 ```
 
-**Uwaga o usłudze w kontenerze.** Na Linuksie skrypt kończy się
-`agent install-service`, a to znaczy „jednostka systemd". Minimalny kontener
-systemd nie ma — wtedy nie używaj `install-service`, tylko uruchom
-`initagent agent run` jako proces główny kontenera (albo weź obraz z systemd).
+Minimalny kontener nie ma systemd, a skrypt kończy się `agent
+install-service` — wtedy użyj `initagent agent run` jako procesu głównego
+kontenera (albo obrazu z systemd). Druga komenda w tym samym kontenerze
+**nadpisuje credential pierwszego** — kontener na workera, nie dwa w jednym.
 
-### Jeden kontener = jedno środowisko
-
-Konfiguracja workera i nazwa jego usługi siedzą w katalogu domowym konta
-(`~/.initagent/connector.json`) oraz w nazwie jednostki. **Druga komenda
-wklejona w tym samym kontenerze nadpisze credential pierwszego workera** —
-a przy wspólnym sockecie tmux jeden worker może zobaczyć i zabić terminale
-drugiego. Dlatego **kontener na workera**, nie dwa workery w jednym.
-
-Hub pokazuje to jako osobne urządzenia `dev-`, dzielące jeden host. Jak
-identyfikowany jest sam host, jest jeszcze otwarte (punkt 3 na końcu).
-
-**Czego w tej ścieżce nie robimy:** kilku workerów jako kilku kont użytkownika
-w jednej dystrybucji WSL. To działa — osobny katalog domowy daje osobny
-config, osobną usługę i osobny socket — ale jest obejściem dla programisty
-przy klawiaturze, a nie odpowiedzią, którą dajemy partnerowi. Tak jest to
-zapisane w `drafts/10`: jeden OS user na projekt zostaje dozwolonym
-workaroundem, natomiast udokumentowanym kształtem wielu workerów jest
-kontener.
+Czego tu **nie** robimy: kilku workerów jako kilku kont WSL w jednej
+dystrybucji — to działa, ale jest obejściem dla programisty, nie odpowiedzią
+dla partnera (`drafts/10`).
 
 ## Krok 5 — weryfikacja
 
-Dla **każdego** środowiska osobno, jak w części 1, krok 4: wyślij zadanie
-z panelu (albo `initagent fleet run <DEVICE> -- initagent version`). Trzy
-środowiska na maszynie to trzy wpisy `dev-` w projekcie i trzy wyniki do
-sprawdzenia.
+Dla każdego środowiska osobno: zadanie z panelu albo
+`initagent fleet run <DEVICE> -- initagent version`. Trzy kontenery = trzy
+wpisy `dev-` i trzy wyniki do sprawdzenia.
 
 ## Utrzymanie
 
-- **Restart Windows:** WSL nie wstaje sam. Worker podniesie się, gdy
-  dystrybucja zostanie uruchomiona (dlatego linger z kroku 2 i zadanie
-  uruchamiane przy logowaniu).
-- **Dysk:** plik `.vhdx` dystrybucji rośnie i nie oddaje miejsca bez
-  `wsl --shutdown` + kompaktowania. Obrazy Docker to zwykle główny
-  konsument — pilnuj tego przed wdrożeniem u klienta.
-- **Kopie/obrazy:** trzymaj je w WSL, ale rób kopię tego, co nieodtwarzalne
-  (wolumeny z danymi), bo odtworzenie kontenera to nie odtworzenie danych.
-- **Aktualizacje:** przez mechanizm produktu (drenaż → wymiana → start
-  jednostki), nie przez ręczną podmianę binarki.
-- **Odinstalowanie:** `systemctl --user disable --now initagent-connector`,
-  usuń `~/.initagent`. Wpis urządzenia w hubie zostaje — produkt nie ma
-  jeszcze ścieżki odłączenia (otwarty punkt w `drafts/10`).
+- **Restart Windows:** WSL nie wstaje sam; worker podniesie się, gdy dystrybucja ruszy.
+- **Dysk:** `.vhdx` rośnie i nie oddaje miejsca bez `wsl --shutdown` +
+  kompaktowania; pilnuj obrazów.
+- **Kopie:** odtworzenie kontenera ≠ odtworzenie danych — rób kopie wolumenów.
+- **Aktualizacje:** mechanizm produktu; nie podmieniaj binarki ręcznie.
 
-## Odinstalowanie środowiska: usunięcie Ubuntu z WSL
+## Odinstalowanie: usunięcie Ubuntu z WSL
 
-Kolejność ma znaczenie. `wsl --unregister` **kasuje dystrybucję razem z
-wszystkim, co w niej jest** — kontenery, obrazy, wolumeny i pliki w katalogu
-domowym. Kosza nie ma, więc najpierw to, co chcesz zachować.
+`wsl --unregister` **kasuje dystrybucję z całą zawartością** — kontenery,
+obrazy, wolumeny, pliki domowe. Kosza nie ma.
 
-1. **Zatrzymaj workery.** Dla każdego środowiska osobno:
+1. `docker rm -f <kontener>` — dla każdego środowiska,
+2. `wsl --shutdown` (z PowerShella),
+3. `wsl --unregister Ubuntu`,
+4. `wsl -l -v` — sprawdź; jeśli Ubuntu było domyślną, `wsl --set-default <inna>`,
+5. **wpis w hubie zostaje** jako offline — usuń go `DELETE /api/devices/{id}`
+   (przycisku w panelu nie ma).
 
-   ```sh
-   docker rm -f <kontener>
-   ```
+Na VPS bez WSL: `docker rm -f` + `docker rmi`.
 
-2. **Zatrzymaj WSL** (z PowerShella):
+## Czego ta instrukcja nie ustala
 
-   ```powershell
-   wsl --shutdown
-   ```
+Otwarte w draftach, nie zgadywane tutaj:
 
-3. **Usuń dystrybucję.** To jest „odinstalowanie Ubuntu z WSL":
+1. **zakres dostępu** — co worker może sięgnąć (urządzenie, gniazdo connectora,
+   sieć firmowa) — `pware-os-workspace`, `docs/PWARE-OS-EXAMPLE-MACHINE.md` § *Workers*;
+2. **sufit zasobów** — desk jest wrażliwy na opóźnienia, build nie — j.w.;
+3. **rozpoznanie hosta** — kilka `dev-` dzielących jedną maszynę —
+   `initagent-workspace`, `drafts/10`;
+4. **tenancy** — czy jedna maszyna może obsługiwać projekty różnych organizacji — j.w.;
+5. **nazewnictwo** — czy `dev-` to maszyna, czy środowisko — `drafts/05`.
 
-   ```powershell
-   wsl --unregister Ubuntu
-   ```
-
-4. **Sprawdź**, że zniknęła z listy:
-
-   ```powershell
-   wsl -l -v
-   ```
-
-   Jeśli `Ubuntu` było dystrybucją domyślną, ustaw inną (`wsl --set-default
-   <nazwa>`), bo samo `wsl` bez argumentu odwoła się do nieistniejącej.
-
-5. **Wpis w hubie zostaje.** Maszyna zniknęła, urządzenie nie — będzie widoczne
-   jako offline. Produkt nie ma jeszcze ścieżki „odłącz workera"; wpis usuwa
-   `DELETE /api/devices/{id}` (w panelu nie ma dziś przycisku).
-
-Na VPS jest tak samo, tylko bez WSL: `docker rm -f` dla kontenerów i
-`docker rmi` dla obrazów — nie ma tam dystrybucji do wyrejestrowania.
-
-## Czego ta instrukcja nie ustala (i to jest ważne)
-
-Kształt jest rozstrzygnięty — kontenery. Otwarte jest to, co worker może, ile
-mu wolno i jak hub widzi samą maszynę:
-
-1. **Co worker może sięgnąć.** Urządzenie (kamera, drukarka, PLC), gniazdo
-   connectora, sieć firmowa. Mechanizm dla wielu workerów jest wybrany na
-   rzecz izolacji, więc pytanie nie brzmi już „kontener czy nie", tylko
-   „jaki zakres". — `pware-os-workspace`,
-   `docs/PWARE-OS-EXAMPLE-MACHINE.md`, sekcja *Workers* i jej `Open`.
-2. **Kto nadzoruje workery i jaki mają sufit zasobów.** Desk (rozmowa
-   z człowiekiem) jest wrażliwy na opóźnienia; build nie. Bez wyraźnego sufitu
-   workery potrafią „szarpnąć" interfejsem. — jak wyżej.
-3. **Identyfikacja fizycznej maszyny.** Kilka kontenerów na jednej maszynie to
-   kilka wpisów `dev-` dzielących jeden host: hub musi wiedzieć, że to jedna
-   maszyna, a nie trzy. — `initagent-workspace`,
-   `drafts/10.DRAFT.ENROLL-AND-WORKERS.md`.
-4. **Czy jedna maszyna może obsługiwać projekty różnych organizacji.**
-   Wdrożeniowiec trzymający kilku klientów na jednej maszynie trafia w to
-   od razu. — jak wyżej.
-5. **Nazewnictwo: worker to maszyna czy środowisko.** Skoro workerem jest
-   kontener, a host jest osobno, to rozstrzygnięcie przesądza, co nazywa `dev-`.
-   — `initagent-workspace`, `drafts/05.DRAFT.NAMING-ONTOLOGY.md`.
-
-Dopóki 1–3 nie są rozstrzygnięte, traktuj tę ścieżkę jako **sprawdzoną
-w praktyce, ale nie jako kontrakt**: zakres dostępu workera, jego sufit
-zasobów i sposób, w jaki hub rozpoznaje host, mogą się zmienić.
+Dopóki 1–3 nie są rozstrzygnięte: ścieżka jest sprawdzona w praktyce, nie
+kontraktem.

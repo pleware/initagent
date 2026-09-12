@@ -54,6 +54,27 @@ func TestThePageDoesNotKnowWhereTheDesktopIs(t *testing.T) {
 	}
 }
 
+// TestThePageHasAWordForEveryStateTheDeskReports is the drift guard for the
+// service table's last column. A state Go sends and the page cannot translate
+// renders as a machine word in a Polish table; a word the page keeps for a state
+// Go stopped sending is a row nobody will ever see.
+func TestThePageHasAWordForEveryStateTheDeskReports(t *testing.T) {
+	t.Parallel()
+
+	page := body(t, rendered(t))
+	for _, state := range gdeskseam.ServiceStates {
+		// The page's map has bare keys, so a translated state is followed by a
+		// colon. Adding a state to the seam therefore fails here until the page
+		// has a word for it.
+		if !strings.Contains(page, state+":") {
+			t.Errorf("the page has no word for %q", state)
+		}
+	}
+	if !strings.Contains(page, `id="services"`) {
+		t.Fatal("the page has nowhere to put the service list")
+	}
+}
+
 // TestThePageIsToldWhatTheSeamDecided is the drift guard: every value here has
 // one owning definition in Go, and a page that hard-coded any of them would
 // keep working until the day the seam moved.

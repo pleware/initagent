@@ -76,14 +76,84 @@ func TestTheConsoleLearnsWhereTheDesktopIsFromItsHandshake(t *testing.T) {
 	}
 }
 
-func TestAClientWithNoOriginIsNotAPeer(t *testing.T) {
+// TestAClientWithNoAddressStillCounts is the difference between the two
+// questions the dump answers. "Where is the desktop" needs an address and only
+// a browser has one; "how many callers are on this port" counts the shell's own
+// client, a test and a CLI too, or the number under-reports the desk.
+func TestAClientWithNoAddressStillCounts(t *testing.T) {
 	t.Parallel()
 	listener, server := listenerWithLogs(t)
 
 	dialFrom(t, server, "gdesk:local", "")
 
-	if peers := peersInDump(t, listener); len(peers) != 0 {
-		t.Fatalf("peers = %#v, want none: the shell's own client has no page", peers)
+	peers := peersInDump(t, listener)
+	if len(peers) != 1 || peers[0].Origin != "" {
+		t.Fatalf("peers = %#v, want one connection with no address", peers)
+	}
+	if got := listener.Clients(); got != 1 {
+		t.Fatalf("Clients() = %d, want 1", got)
+	}
+}
+
+// TestAnAddressTheDeskWouldNotOfferIsDroppedAndTheCallerStillCounts keeps the
+// two apart in the one case that matters: a caller that claimed something this
+// desk must never hand back as a link.
+func TestAnAddressTheDeskWouldNotOfferIsDroppedAndTheCallerStillCounts(t *testing.T) {
+	t.Parallel()
+	listener := listenerOnly(t)
+
+	listener.peers.note("gdesk:local", "javascript:alert(1)")
+
+	peers := listener.peers.list()
+	if len(peers) != 1 || peers[0].Origin != "" {
+		t.Fatalf("peers = %#v, want one counted connection with no address", peers)
+	}
+}
+
+// TestADeskWithNoInventoryReportsNone is the nil case: a listener nobody handed
+// a service list to answers without one rather than crashing a poll.
+func TestADeskWithNoInventoryReportsNone(t *testing.T) {
+	t.Parallel()
+	listener, _ := listenerWithLogs(t)
+
+	if dump := dumpOf(t, listener); len(dump.Services) != 0 {
+		t.Fatalf("services = %#v, want none", dump.Services)
+	}
+}
+
+// TestTheInventoryIsReadWhenTheDumpIsTaken is why Services is a function: a
+// list read once at boot would report a client count and a silence from
+// whenever the desk started.
+func TestTheInventoryIsReadWhenTheDumpIsTaken(t *testing.T) {
+	t.Parallel()
+	views := newTestViews(t)
+	conv := gdesk.ConversationID("cnv-inventory")
+	asked := 0
+	listener, err := NewListener(ListenConfig{
+		Views:        views,
+		Answerer:     &echoAnswerer{views: views, conv: conv},
+		Token:        testToken,
+		Conversation: conv,
+		Services: func() []Service {
+			asked++
+			return []Service{{Name: "gdesk seam", Where: "127.0.0.1:4202/gdesk", State: ServiceListening}}
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	first := dumpOf(t, listener)
+	second := dumpOf(t, listener)
+
+	if asked != 2 {
+		t.Fatalf("inventory asked %d times, want one per dump", asked)
+	}
+	if len(first.Services) != 1 || first.Services[0].Name != "gdesk seam" {
+		t.Fatalf("services = %#v", first.Services)
+	}
+	if len(second.Services) != 1 {
+		t.Fatalf("second dump lost the inventory: %#v", second.Services)
 	}
 }
 
@@ -123,7 +193,30 @@ func dialFrom(t *testing.T, server *httptest.Server, stream StreamID, origin str
 	return ws
 }
 
+// listenerOnly is a desk with no socket to dial, for a question about the book
+// itself rather than about a connection.
+func listenerOnly(t *testing.T) *Listener {
+	t.Helper()
+	views := newTestViews(t)
+	conv := gdesk.ConversationID("cnv-book")
+	listener, err := NewListener(ListenConfig{
+		Views:        views,
+		Answerer:     &echoAnswerer{views: views, conv: conv},
+		Token:        testToken,
+		Conversation: conv,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return listener
+}
+
 func peersInDump(t *testing.T, listener *Listener) []Peer {
+	t.Helper()
+	return dumpOf(t, listener).Peers
+}
+
+func dumpOf(t *testing.T, listener *Listener) TraceDump {
 	t.Helper()
 	r := httptest.NewRequest(http.MethodGet, LogsPath+"?token="+testToken, nil)
 	w := httptest.NewRecorder()
@@ -135,5 +228,5 @@ func peersInDump(t *testing.T, listener *Listener) []Peer {
 	if err := json.Unmarshal(w.Body.Bytes(), &dump); err != nil {
 		t.Fatalf("dump is not JSON: %v", err)
 	}
-	return dump.Peers
+	return dump
 }

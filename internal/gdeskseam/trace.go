@@ -35,14 +35,16 @@ type TraceLine struct {
 // TraceDump is what GET /gdesk/logs returns: the ring, plus who is on the seam
 // from a browser.
 //
-// Peers is not the ring's business and the ring does not fill it — the listener
-// does, on the way out, because it is the half of the desk that saw the
-// handshake. It is here rather than on a route of its own for the reason given
-// at ServeLogs.
+// Neither Peers nor Services is the ring's business, and the ring fills
+// neither: the listener adds them on the way out, because it is the half of the
+// desk that saw the handshake and the half the assembly hands its inventory to.
+// They are here rather than on routes of their own for the reason given at
+// ServeLogs.
 type TraceDump struct {
-	V     int         `json:"v"`
-	Lines []TraceLine `json:"lines"`
-	Peers []Peer      `json:"peers,omitempty"`
+	V        int         `json:"v"`
+	Lines    []TraceLine `json:"lines"`
+	Peers    []Peer      `json:"peers,omitempty"`
+	Services []Service   `json:"services,omitempty"`
 }
 
 // tracked is one kept line plus the instant it was recorded. The instant is

@@ -145,7 +145,15 @@ the URL *fragment*, which a browser never sends to a server; that line is a
 secret, so a pasted startup log is a desk handed over. The page holds no
 key of its own and stores nothing beyond the tab it is open in.
 
-Its header also links to the desktop page when a browser is on the seam. That
+Above the log it lists what this box runs: every route this process holds with
+the address it took, how many callers are on the seam right now, and one row per
+desk role saying where its provider is or why it is silent. A row is either
+evidence or marked `declared` — local sensing (the camera process on a PWare OS
+box) is listed that way because the facts it writes have no reader in this
+connector yet. Omitting it would make the list read as complete; showing it as
+running would be a lie with an afternoon's cost.
+
+The header also links to the desktop page when a browser is on the seam. That
 address is not configured anywhere: a browser states the origin its page came
 from on every handshake, so the desk reports the origin of a live connection
 and forgets it when the socket closes — nothing here knows a development port,

@@ -69,6 +69,8 @@ type Options struct {
 type Desk struct {
 	runner   *gdesk.Runner
 	views    *gdeskseam.Views
+	socket   *gdeskseam.Listener
+	config   gdesk.Config
 	listener net.Listener
 	token    string
 	server   *http.Server
@@ -127,6 +129,13 @@ func Open(opts Options) (*Desk, error) {
 		return nil, err
 	}
 
+	// The desk is named before the listener because the listener asks it what
+	// this box runs, and the answer has to be taken when the console polls
+	// rather than now: a role's silence and a client count both change while
+	// the process lives. Every field Services reads is set below, before the
+	// port is ever answered.
+	desk := &Desk{runner: runner, views: views, config: opts.Config, token: seam.Token}
+
 	// The local caller is the person at this box, which is the desk's own
 	// conversation. A second person is a second credential, and that arrives
 	// through the relay rather than through this address.
@@ -137,10 +146,12 @@ func Open(opts Options) (*Desk, error) {
 		Token:        seam.Token,
 		Conversation: gdesk.DefaultConversation,
 		Trace:        trace,
+		Services:     desk.Services,
 	})
 	if err != nil {
 		return nil, err
 	}
+	desk.socket = socket
 
 	listener, err := net.Listen("tcp", seam.Addr)
 	if err != nil {
@@ -159,13 +170,9 @@ func Open(opts Options) (*Desk, error) {
 	mux.Handle("GET "+gdeskconsole.Path, console)
 	mux.Handle(gdeskseam.Path, socket)
 	trace.Record("info", "gdesk listening on ws://"+listener.Addr().String()+gdeskseam.Path)
-	return &Desk{
-		runner:   runner,
-		views:    views,
-		listener: listener,
-		token:    seam.Token,
-		server:   &http.Server{Handler: mux},
-	}, nil
+	desk.listener = listener
+	desk.server = &http.Server{Handler: mux}
+	return desk, nil
 }
 
 // Addr is where the glass connects. Known before Serve, because Open already

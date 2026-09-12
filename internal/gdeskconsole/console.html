@@ -77,6 +77,56 @@
         border-bottom: 1px dotted currentColor;
       }
 
+      table.services {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+        font-size: 11px;
+      }
+
+      table.services th {
+        padding: 2px 10px 3px 0;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-weight: 500;
+        text-align: left;
+      }
+
+      table.services td {
+        padding: 2px 10px 2px 0;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+        word-break: break-all;
+      }
+
+      table.services td.number {
+        text-align: right;
+        padding-right: 14px;
+        white-space: nowrap;
+      }
+
+      table.services td.word {
+        white-space: nowrap;
+      }
+
+      /* The state is a colour and a word, never a colour alone: this table is
+         read by somebody who is already looking for something wrong. */
+      tr.listening td.word {
+        color: var(--good);
+      }
+
+      tr.outbound td.word {
+        color: var(--accent);
+      }
+
+      tr.silent td.word {
+        color: var(--muted);
+      }
+
+      tr.declared td.word {
+        color: var(--warn);
+      }
+
       .state.up {
         color: var(--good);
       }
@@ -264,7 +314,24 @@
         </ol>
       </section>
 
-      <section class="col logs" aria-label="Logi łącznika">
+      <section class="col logs" aria-label="Usługi i logi łącznika">
+        <h2>Usługi tego pudełka</h2>
+        <table class="services">
+          <thead>
+            <tr>
+              <th scope="col">usługa</th>
+              <th scope="col">gdzie</th>
+              <th scope="col">połączenia</th>
+              <th scope="col">stan</th>
+            </tr>
+          </thead>
+          <tbody id="services">
+            <tr class="empty">
+              <td colspan="4">Biurko jeszcze nie odpowiedziało.</td>
+            </tr>
+          </tbody>
+        </table>
+
         <h2>Logi łącznika</h2>
         <p class="hint" id="logs-hint">ostatnie zdarzenia</p>
         <ol id="sys">
@@ -292,6 +359,7 @@
 
       const state = document.getElementById('state')
       const peer = document.getElementById('peer')
+      const services = document.getElementById('services')
       const gate = document.getElementById('gate')
       const gateWhy = document.getElementById('gate-why')
       const tokenBox = document.getElementById('token')
@@ -556,6 +624,75 @@
         peer.hidden = false
       }
 
+      // The four states the desk can report. A word beside the colour, because
+      // whoever reads this table is already looking for something wrong — and
+      // `declared` in particular has to say out loud that nothing is running.
+      const SERVICE_STATE = {
+        listening: 'słucha',
+        outbound: 'wychodzące',
+        silent: 'milczy',
+        declared: 'zapowiedziane',
+      }
+
+      let servicesShown = ''
+
+      function td(text, className) {
+        const cell = document.createElement('td')
+        cell.textContent = text
+        if (className) cell.className = className
+        return cell
+      }
+
+      // Rebuilt only when it changed. The dump arrives every second, and a table
+      // that replaces its own rows on a timer cannot be selected or copied.
+      // who names the callers on the seam, for the row that counts them. "2" is
+      // the answer to the question asked; "who" is the question straight after
+      // it, and the dump already carries the names.
+      function who(list) {
+        return (Array.isArray(list) ? list : [])
+          .map((p) => (p?.origin ? p.stream + ' (' + p.origin + ')' : String(p?.stream ?? '')))
+          .filter(Boolean)
+          .join(', ')
+      }
+
+      function showServices(list, whenEmpty, peers) {
+        const rows = Array.isArray(list) ? list : []
+        const callers = who(peers)
+        const key = whenEmpty + callers + JSON.stringify(rows)
+        if (key === servicesShown) return
+        servicesShown = key
+        services.replaceChildren()
+        if (rows.length === 0) {
+          const empty = document.createElement('tr')
+          empty.className = 'empty'
+          const cell = td(whenEmpty)
+          cell.colSpan = 4
+          empty.append(cell)
+          services.append(empty)
+          return
+        }
+        for (const service of rows) {
+          const row = document.createElement('tr')
+          const reported = String(service.state ?? '')
+          const counted = typeof service.clients === 'number'
+          row.className = reported
+          // The note is why a row looks the way it does — a model, a missing
+          // binding, who produces facts nothing reads yet. A row that counts
+          // callers also names them: they are the ones on that port.
+          const title = [service.note, counted ? callers : ''].filter(Boolean).join(' — ')
+          if (title) row.title = title
+          row.append(
+            td(String(service.name ?? '')),
+            td(service.where ? String(service.where) : '—'),
+            // A dash, not a zero: an HTTP route holds nobody between requests,
+            // and a zero would read as a service nobody uses.
+            td(counted ? String(service.clients) : '—', 'number'),
+            td(SERVICE_STATE[reported] ?? reported, 'word'),
+          )
+          services.append(row)
+        }
+      }
+
       async function pollLogs() {
         if (!token) return
         try {
@@ -566,10 +703,13 @@
           const dump = await response.json()
           for (const entry of dump.lines ?? []) sysLine(entry)
           showPeers(dump.peers)
+          showServices(dump.services, 'Biurko nie wymienia żadnych usług.', dump.peers)
         } catch {
           // The desk is down or restarting; the socket says so louder. The link
-          // goes with it: a desktop with no desk behind it opens onto nothing.
+          // and the table go with it — a stale port list reads as a running
+          // desk, which is the one reading that must not be wrong here.
           peer.hidden = true
+          showServices([], 'Biurko nie odpowiada.')
         }
       }
 

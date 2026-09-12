@@ -102,6 +102,13 @@ type ListenConfig struct {
 	// Trace is the operator ring the console polls. Nil is fine: stdout still
 	// gets the same lines, the dump just has nothing to say.
 	Trace *Trace
+
+	// Services is asked, on every dump, what this box runs.
+	//
+	// A function and not a value because a list read at boot would be a
+	// snapshot: a role can be silent, a client count changes by the second.
+	// Nil is a desk that reports no inventory, which is what a test wants.
+	Services func() []Service
 }
 
 // Listener is the connector's local half of the seam: one WebSocket per
@@ -119,6 +126,7 @@ type Listener struct {
 	token    string
 	conv     gdesk.ConversationID
 	trace    *Trace
+	services func() []Service
 	peers    peers
 }
 
@@ -139,6 +147,7 @@ func NewListener(cfg ListenConfig) (*Listener, error) {
 		token:    cfg.Token,
 		conv:     cfg.Conversation,
 		trace:    cfg.Trace,
+		services: cfg.Services,
 	}, nil
 }
 
@@ -179,14 +188,19 @@ func (l *Listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	Talk(ws, socket, view)
 }
 
-// ServeLogs dumps the operator ring, and who is on the seam from a browser.
-// Same token as the websocket, so a page on the open web that guessed the port
-// still cannot read what she said.
+// Clients is how many callers are on the seam. It is what the console puts
+// against the port, and it is a live number: a caller that closed its socket is
+// already gone from it.
+func (l *Listener) Clients() int { return l.peers.count() }
+
+// ServeLogs dumps the operator ring, who is on the seam, and what this box
+// runs. Same token as the websocket, so a page on the open web that guessed the
+// port still cannot read what she said.
 //
-// The peers ride along here rather than on a route of their own because the
-// console already polls this one every second: a second endpoint would be a
-// second thing to authenticate and a second thing to keep in step, for a
-// question that is only ever asked beside "what has the desk been doing".
+// All three ride along here rather than on routes of their own because the
+// console already polls this one every second: another endpoint would be
+// another thing to authenticate and another thing to keep in step, for
+// questions that are only ever asked beside "what has the desk been doing".
 func (l *Listener) ServeLogs(w http.ResponseWriter, r *http.Request) {
 	if !l.admits(r) {
 		http.Error(w, "gdesk: unknown token", http.StatusUnauthorized)
@@ -194,6 +208,9 @@ func (l *Listener) ServeLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	dump := l.trace.Dump()
 	dump.Peers = l.peers.list()
+	if l.services != nil {
+		dump.Services = l.services()
+	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(dump); err != nil {
 		noteTrace(l.trace, "error", "gdesk: logs encode: %v", err)

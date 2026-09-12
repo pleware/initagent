@@ -1,9 +1,10 @@
 // Package gdeskfront opens one front desk on this box.
 //
-// Three packages, three jobs, and this is the only one that knows all of
-// them: `gdesk` is the vocabulary and the provider inventory, `gdeskseam` is
-// the wire the glass reads, and `gdeskfront` is the assembly — configuration
-// in, a listening socket out.
+// Four packages, four jobs, and this is the only one that knows all of them:
+// `gdesk` is the vocabulary and the provider inventory, `gdeskseam` is the wire
+// the glass reads, `gdeskconsole` is the service hatch for whoever maintains
+// the box, and `gdeskfront` is the assembly — configuration in, a listening
+// socket out.
 //
 // It exists so the wiring is testable. A binary that built a runner, a set of
 // views and a listener inline would put every startup refusal — no key, a
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/pleware/initagent/internal/gdesk"
+	"github.com/pleware/initagent/internal/gdeskconsole"
 	"github.com/pleware/initagent/internal/gdeskseam"
 )
 
@@ -68,6 +70,7 @@ type Desk struct {
 	runner   *gdesk.Runner
 	views    *gdeskseam.Views
 	listener net.Listener
+	token    string
 	server   *http.Server
 }
 
@@ -144,14 +147,23 @@ func Open(opts Options) (*Desk, error) {
 		return nil, fmt.Errorf("gdesk seam cannot listen on %s: %w", seam.Addr, err)
 	}
 
+	// The service hatch. Rendered before the port is answered, so a page this
+	// build broke refuses the desk instead of waiting for somebody to open it.
+	console, err := gdeskconsole.NewPage()
+	if err != nil {
+		return nil, err
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("GET "+gdeskseam.LogsPath, http.HandlerFunc(socket.ServeLogs))
+	mux.Handle("GET "+gdeskconsole.Path, console)
 	mux.Handle(gdeskseam.Path, socket)
 	trace.Record("info", "gdesk listening on ws://"+listener.Addr().String()+gdeskseam.Path)
 	return &Desk{
 		runner:   runner,
 		views:    views,
 		listener: listener,
+		token:    seam.Token,
 		server:   &http.Server{Handler: mux},
 	}, nil
 }
@@ -164,6 +176,14 @@ func (d *Desk) Addr() string { return d.listener.Addr().String() }
 // route, so the assembly is what can say it — a caller that pastes together a
 // host and a path is a second copy of that decision.
 func (d *Desk) URL() string { return "ws://" + d.Addr() + gdeskseam.Path }
+
+// ConsoleURL is the service hatch, credential included, for a caller that
+// prints it where an operator can click it.
+//
+// The assembly says it for the same reason it says URL: it chose the route and
+// it holds the token, so a caller pasting the two together would be a second
+// copy of both decisions. It is a secret — see gdeskconsole.Link.
+func (d *Desk) ConsoleURL() string { return gdeskconsole.Link(d.Addr(), d.token) }
 
 // Runner is the conversation loop, for a caller that also feeds it from
 // somewhere other than the socket — the audio path, later.

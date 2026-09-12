@@ -38,6 +38,10 @@ func cmdGdesk(args []string) error {
 	defer d.Close()
 
 	fmt.Println("gdesk listening on", d.URL())
+	// The hatch, credential included, because that is what makes it one click
+	// rather than three steps. It is a secret on a line: a startup log pasted
+	// somewhere is this desk handed over.
+	fmt.Println("  console:", d.ConsoleURL())
 	for _, s := range cfg.Silences() {
 		fmt.Printf("  silent: %s (%s)\n", s.Role, s.Reason)
 	}

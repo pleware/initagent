@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/pleware/initagent/internal/gdesk"
+	"github.com/pleware/initagent/internal/gdeskconsole"
 	"github.com/pleware/initagent/internal/gdeskseam"
 )
 
@@ -279,8 +280,51 @@ func TestTheOperatorLogShowsTheDeskIsListening(t *testing.T) {
 	}
 }
 
-// TestAPathThatIsNotTheSeamIs404 is the mount, not the seam: one route, so a
-// typo in the glass's URL fails loudly instead of hanging.
+// TestTheHatchOpensWithoutTheGlass is the console's whole reason for being
+// here: the page comes from the connector, so it is readable when the glass is
+// broken, the shell is stopped, or no dev server is running at all.
+func TestTheHatchOpensWithoutTheGlass(t *testing.T) {
+	t.Parallel()
+	d := serving(t, Options{Config: configured(t, nil)})
+
+	resp, err := http.Get("http://" + d.Addr() + gdeskconsole.Path)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Content-Type"); !strings.HasPrefix(got, "text/html") {
+		t.Errorf("Content-Type = %q, want HTML", got)
+	}
+}
+
+// TestTheConsoleLinkNamesThisDeskAndItsKey is why the assembly says the link:
+// it is the only place that holds both halves.
+func TestTheConsoleLinkNamesThisDeskAndItsKey(t *testing.T) {
+	t.Parallel()
+	d := serving(t, Options{Config: configured(t, nil)})
+
+	link := d.ConsoleURL()
+	if !strings.Contains(link, d.Addr()) {
+		t.Errorf("console link %q does not name this desk (%s)", link, d.Addr())
+	}
+	if !strings.Contains(link, testToken) {
+		t.Errorf("console link %q carries no key, so it opens nothing", link)
+	}
+	address, _, ok := strings.Cut(link, "#")
+	if !ok {
+		t.Fatalf("console link %q has no fragment", link)
+	}
+	// The key rides in the fragment, which a browser does not send.
+	if strings.Contains(address, testToken) {
+		t.Errorf("console link %q puts the key in the request", link)
+	}
+}
+
+// TestAPathThatIsNotTheSeamIs404 is the mount, not the seam: three routes and
+// nothing else, so a typo in the glass's URL fails loudly instead of hanging.
 func TestAPathThatIsNotTheSeamIs404(t *testing.T) {
 	t.Parallel()
 	d := serving(t, Options{Config: configured(t, nil)})

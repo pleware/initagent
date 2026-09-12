@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-12 — gdesk: serve the operator console from the connector
 - 2026-09-12 — Ignore agentize-generated rules and skills (agentize.auto.generated*).
 - 2026-09-12 — gdeskseam: bound the operator ring by age as well as by count
 - 2026-09-12 — gdeskseam: name the envelope version in the log instead of shrugging

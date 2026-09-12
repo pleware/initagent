@@ -129,12 +129,21 @@ file exists — copy [`gdesk.example.yaml`](gdesk.example.yaml) and fill in the
 local token and the provider key. Comments in that example are English and
 Polish. `INITAGENT_GDESK_CONFIG` points at another path. Environment
 variables override the file; neither belongs on a flag. The same token
-admits `GET /gdesk/logs`, an operator ring the glass back-office pane
-polls — not a second conversation stream. It keeps the last ten minutes,
-and no more than eighty lines of them: a count alone leaves an hour on
-screen on a desk nobody is talking to. Anything that has to survive is in
-the process log, which still gets every line. Operator steps (Polish) live
-in the parent workspace `docs/CONFIGURATION.md`.
+admits `GET /gdesk/logs`, an operator ring — not a second conversation
+stream. It keeps the last ten minutes, and no more than eighty lines of
+them: a count alone leaves an hour on screen on a desk nobody is talking
+to. Anything that has to survive is in the process log, which still gets
+every line. Operator steps (Polish) live in the parent workspace
+`docs/CONFIGURATION.md`.
+
+`gdesk` also serves its own service hatch on the same address: a plain page
+at `/console` for whoever maintains the box. It connects to the seam as its
+own stream, so a sentence typed there reaches the desk directly and the
+answer is drawn on the glass — which means the hatch works when the glass is
+broken, stopped, or not installed. Startup prints the link with the token in
+the URL *fragment*, which a browser never sends to a server; that line is a
+secret, so a pasted startup log is a desk handed over. The page holds no
+key of its own and stores nothing beyond the tab it is open in.
 
 The older names still work: `initagent desk`, `~/.initagent/desk.yaml` and
 `INITAGENT_DESK_*` are read when the current ones are absent. The `g` is

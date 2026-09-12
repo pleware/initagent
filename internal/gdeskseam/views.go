@@ -11,7 +11,7 @@ import (
 // Views is one desk as several people see it.
 //
 // A stream is one connection's numbered view; a conversation is the person
-// (docs/DESK-SCOPES.md). Each stream keeps its own log, so each device detects
+// (docs/GDESK-SCOPES.md). Each stream keeps its own log, so each device detects
 // its own gaps and resumes on its own, and a fact reaches only the streams
 // bound to the conversation it belongs to.
 //

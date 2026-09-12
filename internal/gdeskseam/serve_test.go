@@ -150,7 +150,7 @@ func TestDispatchReplaysFromWhereTheGlassStopped(t *testing.T) {
 		log.Append(EventSurfaceAppended, surfaceAppended{ID: "sur-1"}, "")
 	}
 	// fromSeq is the first event wanted, inclusive - the glass filters with
-	// `seq >= fromSeq` (initagent-hud app/src/seam/fake-connector.ts), so
+	// `seq >= fromSeq` (initagent-glass app/src/seam/fake-connector.ts), so
 	// answering from after it would silently lose one fact.
 	raw := frame(t, log.Stream(), "cmd-1", CommandResync, map[string]any{"fromSeq": 2})
 

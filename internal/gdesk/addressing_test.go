@@ -131,7 +131,7 @@ func TestNewRosterFoldsEveryForm(t *testing.T) {
 	}
 }
 
-// TestResolveAddressingRoutes is the table from DESK-CONVERSATION §3 plus the
+// TestResolveAddressingRoutes is the table from GDESK-CONVERSATION §3 plus the
 // shapes speech adds to it.
 func TestResolveAddressingRoutes(t *testing.T) {
 	cases := []struct {

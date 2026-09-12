@@ -1,9 +1,9 @@
 // Package gdeskseam carries desk facts to the glass over the seam the glass
 // already speaks.
 //
-// The contract lives in the glass (`initagent-hud`,
+// The contract lives in the glass (`initagent-glass`,
 // `app/src/seam/contract.ts`) because the glass owns no verbs and the
-// connector owns `product:desk-seam`: one side writes the shapes down, the
+// connector owns `product:gdesk-seam`: one side writes the shapes down, the
 // other mirrors them. Nothing here invents a message the glass has to guess
 // at, and nothing here is a second implementation of the loop — the
 // conversation is `internal/desk`, this is the wire it is heard over.
@@ -28,7 +28,7 @@ import (
 // would make the glass refuse facts it could have read.
 //
 // It moved to 2 when the desk became the `gdesk` context (workspace draft 05),
-// because a glass still saying `desk.utterance` would be answered
+// because a glass still saying `gdesk.utterance` would be answered
 // `unrecognised` — the rollout rule working as designed, and on a monitor that
 // reads as a sentence going nowhere. Refusing the envelope makes the mismatch
 // a message instead of a silence.

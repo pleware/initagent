@@ -1,9 +1,9 @@
 // Package gdeskfront opens one front desk on this box.
 //
 // Three packages, three jobs, and this is the only one that knows all of
-// them: `desk` is the vocabulary and the provider inventory, `deskseam` is the
-// wire the glass reads, and `frontdesk` is the assembly — configuration in,
-// a listening socket out.
+// them: `gdesk` is the vocabulary and the provider inventory, `gdeskseam` is
+// the wire the glass reads, and `gdeskfront` is the assembly — configuration
+// in, a listening socket out.
 //
 // It exists so the wiring is testable. A binary that built a runner, a set of
 // views and a listener inline would put every startup refusal — no key, a
@@ -13,7 +13,7 @@
 // The desk it opens is one person's: the caller holding the local token is the
 // person at this box, and a device somewhere else joins the same desk through
 // the hub as a relay rather than through this port
-// (workspace docs/DESK-SCOPES.md).
+// (workspace docs/GDESK-SCOPES.md).
 package gdeskfront
 
 import (
@@ -32,7 +32,7 @@ import (
 // or no token for the local seam. It is a distinct error because the connector
 // still serves devices and MCP without a desk, so a caller decides whether to
 // carry on rather than being handed a generic configuration failure.
-var ErrClosed = errors.New("frontdesk: not configured")
+var ErrClosed = errors.New("gdeskfront: not configured")
 
 // shutdownGrace is how long an open connection has to finish after the
 // process is asked to stop. Long enough for a reply in flight to land, short

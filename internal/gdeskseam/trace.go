@@ -22,7 +22,7 @@ type TraceLine struct {
 	Text  string `json:"text"`
 }
 
-// TraceDump is what GET /desk/logs returns.
+// TraceDump is what GET /gdesk/logs returns.
 type TraceDump struct {
 	V     int         `json:"v"`
 	Lines []TraceLine `json:"lines"`

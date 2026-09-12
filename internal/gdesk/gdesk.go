@@ -1,6 +1,6 @@
 // Package gdesk is the conversation seam for the front desk: the interfaces
 // Adam and Ania speak through, and the configuration that binds each of them
-// to a provider (drafts 53, 41, and workspace docs/DESK-CONVERSATION.md §10).
+// to a provider (drafts 53, 41, and workspace docs/GDESK-CONVERSATION.md §10).
 //
 // It runs on the connector, on the box — never in the Electron shell. The
 // shell owns the microphone and the speaker, which are devices; keys are

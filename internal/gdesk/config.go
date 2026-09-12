@@ -94,7 +94,7 @@ const DefaultSeamAddr = "127.0.0.1:4202"
 // Address and token, and nothing about who the caller is: a remote device
 // (a phone) reaches the same desk through the hub as a relay, so this listener
 // never faces the network and never grows a login of its own
-// (workspace docs/DESK-SCOPES.md).
+// (workspace docs/GDESK-SCOPES.md).
 type Seam struct {
 	// Addr is the loopback address to listen on.
 	Addr string

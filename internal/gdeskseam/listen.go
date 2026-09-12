@@ -110,7 +110,7 @@ type ListenConfig struct {
 // Whose conversation a connection belongs to comes from the token it presents,
 // never from the message it sends — a caller that could name its own
 // conversation could name somebody else's and be answered inside her
-// transcript (docs/DESK-SCOPES.md). A second person therefore does not arrive
+// transcript (docs/GDESK-SCOPES.md). A second person therefore does not arrive
 // as a second token here. She arrives through the hub as a relay, over the
 // link the connector already dials outward, and the hub says who she is.
 type Listener struct {

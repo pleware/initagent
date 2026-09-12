@@ -7,7 +7,7 @@ import (
 
 // ConversationID names one person's ongoing talk at the desk.
 //
-// It is the scope of the floor and of the transcripts (docs/DESK-SCOPES.md).
+// It is the scope of the floor and of the transcripts (docs/GDESK-SCOPES.md).
 // Neither belongs to the desk: with one shared floor, one person says "Aniu"
 // and the next person's unnamed sentence reaches Ania because the desk
 // remembered somebody else's addressee — no error, and nothing in a log. With
@@ -33,7 +33,7 @@ const DefaultConversation ConversationID = ""
 // who she last addressed, and what each staff member has heard from her.
 //
 // Staff, their personas and their commitments are deliberately absent. One
-// Ania serves the whole desk (docs/DESK-SCOPES.md), so putting her here would
+// Ania serves the whole desk (docs/GDESK-SCOPES.md), so putting her here would
 // give each person a private copy of a person.
 type conversation struct {
 	// id is carried so a fact can be recorded with whose it is, without every
@@ -55,7 +55,7 @@ type conversation struct {
 }
 
 // newConversation opens one with the floor already held, because the floor is
-// never empty (docs/DESK-CONVERSATION.md §2).
+// never empty (docs/GDESK-CONVERSATION.md §2).
 func newConversation(id ConversationID, holder StaffID, now time.Time) *conversation {
 	return &conversation{
 		id:      id,

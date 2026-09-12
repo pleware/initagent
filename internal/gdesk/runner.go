@@ -11,16 +11,16 @@ import (
 )
 
 // MaxThreadLines bounds what one staff member has heard inside one
-// conversation (docs/DESK-SCOPES.md).
+// conversation (docs/GDESK-SCOPES.md).
 //
 // A working day's tail, not a memory: cross-day recall of what was discussed
-// is deliberately not built (docs/DESK-CONVERSATION.md §12), and an unbounded
+// is deliberately not built (docs/GDESK-CONVERSATION.md §12), and an unbounded
 // thread makes every later turn slower and more expensive than the one before
 // it while adding nothing a person at the desk would notice.
 const MaxThreadLines = 40
 
 // FailureCode is the seam's closed set of failure codes. These cross to the
-// glass verbatim (initagent-hud app/src/seam/contract.ts DESK_FAILURE_CODES),
+// glass verbatim (initagent-glass app/src/seam/contract.ts GDESK_FAILURE_CODES),
 // so a code added here without adding it there is a fact the glass will count
 // as unrecognised.
 type FailureCode string
@@ -152,7 +152,7 @@ func (Failed) fact()            {}
 //
 // Every fact belongs to exactly one conversation, and it is recorded with it.
 // Without that the connector could not tell whose fact it is, and one person's
-// transcript would reach another person's screen (docs/DESK-SCOPES.md).
+// transcript would reach another person's screen (docs/GDESK-SCOPES.md).
 type Facts interface {
 	Record(conv ConversationID, fact Fact)
 }
@@ -198,7 +198,7 @@ const (
 // utterances from one would make the second person's sentence look like a
 // re-delivery of the first person's and be silently dropped. Carrying the
 // origin is the connector's job, not the caller's promise
-// (docs/DESK-SCOPES.md).
+// (docs/GDESK-SCOPES.md).
 type Utterance struct {
 	ID     UtteranceID
 	Text   string
@@ -239,7 +239,7 @@ type RunnerConfig struct {
 	Model string
 
 	// Floor is who holds the voice before anybody has spoken. The floor is
-	// never empty (docs/DESK-CONVERSATION.md §2), so this is required. Every
+	// never empty (docs/GDESK-CONVERSATION.md §2), so this is required. Every
 	// conversation opens with it, so it is the desk's setting rather than one
 	// person's state.
 	Floor StaffID
@@ -266,7 +266,7 @@ type RunnerConfig struct {
 type Runner struct {
 	// mu guards the conversation map and nothing else. Serialising a turn is
 	// each conversation's own job, or the second person would wait for the
-	// first person's provider (docs/DESK-SCOPES.md).
+	// first person's provider (docs/GDESK-SCOPES.md).
 	mu sync.Mutex
 
 	// conversations is keyed by an id the connector attaches, so its size is
@@ -531,7 +531,7 @@ func (r *Runner) moveFloor(c *conversation, addressing Addressing) {
 // fail records a failure the desk can say out loud.
 //
 // A cancelled turn is not one of them: cutting somebody off is a person
-// interrupting (docs/DESK-CONVERSATION.md §6), and an apology for it would be
+// interrupting (docs/GDESK-CONVERSATION.md §6), and an apology for it would be
 // the desk treating a normal act as a fault.
 func (r *Runner) fail(conv ConversationID, turn TurnID, err error) {
 	if errors.Is(err, context.Canceled) {

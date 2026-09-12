@@ -380,7 +380,7 @@ func TestASeamTokenOpensTheDeskAtAnAddress(t *testing.T) {
 // TestOnlyALoopbackAddressIsAccepted is the decision, not a preference. The
 // seam's own Origin check cannot tell a phone on the Wi-Fi from the glass on
 // this box, so the address is where that is settled: a device off this machine
-// joins through the hub as a relay (workspace docs/DESK-SCOPES.md).
+// joins through the hub as a relay (workspace docs/GDESK-SCOPES.md).
 func TestOnlyALoopbackAddressIsAccepted(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

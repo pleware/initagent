@@ -9,7 +9,7 @@ import (
 )
 
 // Limits are the desk's bounds, spoken rather than implied
-// (DESK-CONVERSATION §5). An unbounded desk promises everything and delivers
+// (GDESK-CONVERSATION §5). An unbounded desk promises everything and delivers
 // a queue nobody can see.
 const (
 	// MaxStaff is the fixed pair (`53`). A roster turns addressing into

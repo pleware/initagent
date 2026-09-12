@@ -116,7 +116,7 @@ func (s *Socket) Dispatch(raw []byte) Intent {
 		return Intent{Replay: s.view.log.Since(inbound.FromSeq)}
 	case CommandUtterance:
 		// Attributed before the turn runs, so the surface she opens carries
-		// the command it answers. desk.utterance is not repeatable: without
+		// the command it answers. gdesk.utterance is not repeatable: without
 		// the attribution an in-flight command stays unresolved and waits for
 		// a person.
 		s.view.delivery.Attribute(inbound.Spoken.ID, inbound.Header.CmdID)
@@ -124,7 +124,7 @@ func (s *Socket) Dispatch(raw []byte) Intent {
 		// Whose sentence this is comes from the connection, never from the
 		// payload. A caller that could name its own conversation could name
 		// somebody else's and be answered inside her transcript
-		// (docs/DESK-SCOPES.md).
+		// (docs/GDESK-SCOPES.md).
 		spoken.Conversation = s.view.conv
 		noteTrace(s.trace, "info", "gdesk: utterance %s queued (%d chars)", spoken.ID, utf8.RuneCountInString(spoken.Text))
 		return Intent{Answer: &spoken}

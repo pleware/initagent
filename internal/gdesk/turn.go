@@ -56,7 +56,7 @@ var ErrTurnUnclaimed = fmt.Errorf("%w: turn was never claimed", ErrRequest)
 // The conversation is part of the intention and not decoration. Two devices
 // numbering their own utterances from one would otherwise produce the same
 // key, and the second person's sentence would be recognised as a re-delivery
-// of the first person's and silently dropped (docs/DESK-SCOPES.md).
+// of the first person's and silently dropped (docs/GDESK-SCOPES.md).
 func NewTurnID(conv ConversationID, utterance UtteranceID, index int) TurnID {
 	h := sha256.New()
 	h.Write([]byte(turnDomain))

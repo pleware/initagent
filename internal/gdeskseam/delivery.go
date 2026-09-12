@@ -222,7 +222,7 @@ func (d *Delivery) failed(fact gdesk.Failed) {
 // Refuse answers a command the desk will not act on.
 //
 // A command needs an answer even when it is nonsense, because the two the
-// glass sends are not repeatable: an unanswered `desk.utterance` becomes
+// glass sends are not repeatable: an unanswered `gdesk.utterance` becomes
 // unresolved and waits for a person. So a refusal opens its own surface,
 // keyed on the command rather than on a turn that never existed.
 func (d *Delivery) Refuse(cmd CommandID, failure gdesk.Failure) {

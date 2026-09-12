@@ -34,7 +34,7 @@ type Person struct {
 	// Brief is who she is, already prose. It stands in for the hub's Big Five
 	// baseline plus the mood offset, which is why this package renders nothing:
 	// when the hub serves it, this field is filled from there instead
-	// (workspace docs/DESK-CONVERSATION.md §10).
+	// (workspace docs/GDESK-CONVERSATION.md §10).
 	Brief string
 
 	// MaxWords bounds one reply. Zero means defaultMaxWords.

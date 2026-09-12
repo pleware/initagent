@@ -40,7 +40,7 @@ func (s *Server) handleInvitePeek(w http.ResponseWriter, r *http.Request) {
 
 // handleInviteRedeem joins the holder of a live secret to the org.
 //
-// A new address mints an `acc-` without a second org (`08`). An existing
+// A new address mints an `account-` without a second org (`08`). An existing
 // address attaches membership; the password must match that account and
 // is not re-floored. The email on the invite is a hint, not a credential:
 // redeem body's email is who joins.

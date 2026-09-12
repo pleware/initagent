@@ -82,7 +82,7 @@ func TestStorePostgresSmoke(t *testing.T) {
 	if err != nil || idle.ActivityAt == 0 {
 		t.Fatalf("CreateProject activity_at = %+v %v", idle, err)
 	}
-	if err := s.SaveTaskOutput(TaskOutput{TaskID: "tsk-smoke-" + strconv.FormatInt(uniq, 10), OrgID: org.Id, ProjectID: proj.Id, Stdout: "hi"}); err != nil {
+	if err := s.SaveTaskOutput(TaskOutput{TaskID: "task-smoke-" + strconv.FormatInt(uniq, 10), OrgID: org.Id, ProjectID: proj.Id, Stdout: "hi"}); err != nil {
 		t.Fatalf("SaveTaskOutput: %v", err)
 	}
 

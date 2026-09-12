@@ -32,8 +32,8 @@ func TestRolesIsWeakestFirst(t *testing.T) {
 }
 
 func TestCanAtInstallationBoundary(t *testing.T) {
-	operator := Actor{Account: "acc-1", Platform: true}
-	customer := Actor{Account: "acc-2", Orgs: map[string]Role{"org-1": RoleOwner}}
+	operator := Actor{Account: "account-1", Platform: true}
+	customer := Actor{Account: "account-2", Orgs: map[string]Role{"org-1": RoleOwner}}
 
 	cases := []struct {
 		name  string
@@ -61,7 +61,7 @@ func TestCanAtInstallationBoundary(t *testing.T) {
 func TestCanInsideOrg(t *testing.T) {
 	const org = "org-1"
 	actor := func(r Role) Actor {
-		return Actor{Account: "acc-1", Orgs: map[string]Role{org: r}}
+		return Actor{Account: "account-1", Orgs: map[string]Role{org: r}}
 	}
 
 	cases := []struct {
@@ -95,7 +95,7 @@ func TestCanInsideOrg(t *testing.T) {
 		}
 	}
 
-	stranger := Actor{Account: "acc-9"}
+	stranger := Actor{Account: "account-9"}
 	if stranger.Can(ReadOrg, org) {
 		t.Error("a non-member can read an org")
 	}
@@ -116,7 +116,7 @@ func TestCanInsideOrg(t *testing.T) {
 // put you inside a customer's organization (25), and 09 has not decided that
 // it should.
 func TestPlatformAdminIsNotAnOrgMember(t *testing.T) {
-	operator := Actor{Account: "acc-1", Platform: true}
+	operator := Actor{Account: "account-1", Platform: true}
 	for _, c := range []Capability{ReadOrg, AdminOrg, DeleteOrg, ReadProject, CreateProject, DeleteProject} {
 		if operator.Can(c, "org-customer") {
 			t.Errorf("platform admin was granted %q inside a customer org", c)
@@ -125,13 +125,13 @@ func TestPlatformAdminIsNotAnOrgMember(t *testing.T) {
 
 	// A self-hosted operator holds both, because claiming mints them a real
 	// owner membership rather than relying on the platform flag.
-	both := Actor{Account: "acc-1", Platform: true, Orgs: map[string]Role{"org-1": RoleOwner}}
+	both := Actor{Account: "account-1", Platform: true, Orgs: map[string]Role{"org-1": RoleOwner}}
 	if !both.Can(DeleteOrg, "org-1") || !both.Can(AdminAccounts, "") {
 		t.Error("an operator who owns the first org should hold both surfaces")
 	}
 }
 
-// A hub claimed before accounts existed has no `acc-` behind its session. It
+// A hub claimed before accounts existed has no `account-` behind its session. It
 // is still the operator, and it is still nobody's org member.
 func TestSoleOrg(t *testing.T) {
 	if got := (Actor{}).SoleOrg(); got != "" {

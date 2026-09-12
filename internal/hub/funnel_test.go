@@ -37,7 +37,7 @@ func TestFunnelFactsFromLiveRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := s.SaveTaskOutput(TaskOutput{
-		TaskID: "tsk-1", OrgID: org.Id, ProjectID: project.Id,
+		TaskID: "task-1", OrgID: org.Id, ProjectID: project.Id,
 	}); err != nil {
 		t.Fatal(err)
 	}

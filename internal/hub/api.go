@@ -928,7 +928,7 @@ func (s *Server) handleDeletePreset(w http.ResponseWriter, r *http.Request) {
 // --- API tokens ---
 
 // errNoSubject refuses to mint on a hub whose only credential is the legacy
-// operator password. A token needs an `acc-` to act as, and inventing one
+// operator password. A token needs an `account-` to act as, and inventing one
 // here would attribute a machine's actions to a person who does not exist.
 const errNoSubject = "claim this hub with an email and password before minting tokens"
 

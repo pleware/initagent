@@ -19,10 +19,10 @@ func (g *recordingGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	g.project = r.Header.Get("X-Initagent-Project")
 	g.secret = r.Header.Get("Authorization")
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{"id": "tsk-1", "state": "done"})
+	_ = json.NewEncoder(w).Encode(map[string]any{"id": "task-1", "state": "done"})
 }
 
-// addProject inserts a project row placed on gatewayURL and returns its prj-.
+// addProject inserts a project row placed on gatewayURL and returns its project-.
 //
 // They all land in the hub's own organization, which is the one the token
 // from newTaskHub is bound to. Placement is the axis under test in this file;
@@ -103,7 +103,7 @@ func TestSoleProjectNeedsNoQueryParameter(t *testing.T) {
 	}
 }
 
-// An unknown prj- answers 404 rather than falling back to the flag, so a
+// An unknown project- answers 404 rather than falling back to the flag, so a
 // typo cannot silently run somewhere else.
 func TestUnknownProjectIsNotFound(t *testing.T) {
 	gw := &recordingGateway{}
@@ -113,7 +113,7 @@ func TestUnknownProjectIsNotFound(t *testing.T) {
 	srv, ts, token := newTaskHub(t, gwTS.URL)
 	addProject(t, srv, "one", gwTS.URL)
 
-	resp := authedRequest(t, http.MethodPost, ts.URL+"/api/tasks?project=prj-doesnotexist",
+	resp := authedRequest(t, http.MethodPost, ts.URL+"/api/tasks?project=project-doesnotexist",
 		[]byte(`{"command":"echo hi"}`), token)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)

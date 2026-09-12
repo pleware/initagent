@@ -23,13 +23,13 @@ type placement struct {
 const projectParam = "project"
 
 var (
-	errProjectRequired = errBadRequest("project is required when this hub has more than one project (?project=prj-…)")
+	errProjectRequired = errBadRequest("project is required when this hub has more than one project (?project=project-…)")
 	errNoProject       = errBadRequest("this hub has no project yet")
 )
 
 // resolveProject picks the project a gateway-bound request acts on.
 //
-// The shape matches resolveProjectOrg deliberately: an explicit prj- wins, a
+// The shape matches resolveProjectOrg deliberately: an explicit project- wins, a
 // hub with one readable project — self-host, and the free plan — can omit it,
 // and two projects without one is a 400 rather than a guess. Guessing here
 // would run a contractor's command against the wrong company's machine.

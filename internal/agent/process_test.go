@@ -76,7 +76,7 @@ func TestRunSendKeysRejectsBadNonce(t *testing.T) {
 
 func TestRunSendKeysRecoversDoneFile(t *testing.T) {
 	dir := t.TempDir()
-	runID := "tsk-recover"
+	runID := "task-recover"
 	if err := completion.WriteDone(dir, runID, 4); err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestRunSendKeysRecoversDoneFile(t *testing.T) {
 
 func TestProcessCommandWritesDoneFile(t *testing.T) {
 	dir := t.TempDir()
-	runID := "tsk-write"
+	runID := "task-write"
 	a := &Agent{runsDir: dir}
 	res := a.processCommand(protocol.ProcessStart{Command: "exit 3", TimeoutSec: 10, RunID: runID})
 	if res.ExitCode != 3 {
@@ -113,7 +113,7 @@ func TestProcessCommandWritesDoneFile(t *testing.T) {
 
 func TestProcessCommandRecoversDoneFile(t *testing.T) {
 	dir := t.TempDir()
-	runID := "tsk-again"
+	runID := "task-again"
 	if err := completion.WriteDone(dir, runID, 8); err != nil {
 		t.Fatal(err)
 	}

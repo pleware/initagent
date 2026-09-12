@@ -44,12 +44,15 @@ type Person struct {
 // DefaultStaff is the pair the product ships with.
 //
 // Two people, fixed at gdesk.MaxStaff, and both are ours: talking to the desk
-// must not feel like talking to a service. They are personas, so the id is
-// `psn-` (workspace drafts/05).
+// must not feel like talking to a service. The id is `staff-`: they were
+// written as personas before the being had a noun of his own, and
+// initagent.hub.staff is now the entity these two are (workspace drafts/05).
+// A `persona-` is the project-side actor a task is attributed to, which is a
+// different thing.
 func DefaultStaff() []Person {
 	return []Person{
 		{
-			ID:        "psn-ania",
+			ID:        "staff-ania",
 			Display:   "Ania",
 			Names:     []string{"ania", "anka"},
 			Vocatives: []string{"aniu", "anko"},
@@ -60,7 +63,7 @@ func DefaultStaff() []Person {
 				"code unless it was asked for.",
 		},
 		{
-			ID:        "psn-adam",
+			ID:        "staff-adam",
 			Display:   "Adam",
 			Names:     []string{"adam"},
 			Vocatives: []string{"adamie"},

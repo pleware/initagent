@@ -133,14 +133,14 @@ func TestEnsureProjectIsIdempotent(t *testing.T) {
 		t.Fatalf("second = %+v, first = %+v", second, first)
 	}
 	if _, err := g.Store().EnsureProject(ctx, "not-a-project", "x"); err == nil {
-		t.Fatal("expected a bad prj- to be refused")
+		t.Fatal("expected a bad project- to be refused")
 	}
 }
 
 func TestBadProjectHeaderIsRefused(t *testing.T) {
 	g := openTest(t, "")
 	rec := httptest.NewRecorder()
-	g.Handler().ServeHTTP(rec, asProject(http.MethodGet, "/api/devices", "tsk-wrongkind", nil))
+	g.Handler().ServeHTTP(rec, asProject(http.MethodGet, "/api/devices", "task-wrongkind", nil))
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rec.Code)
 	}
@@ -208,7 +208,7 @@ func TestAnotherProjectsWorkerIsNotPicked(t *testing.T) {
 	}
 }
 
-// Naming another project's dev- explicitly must not reach that machine.
+// Naming another project's device- explicitly must not reach that machine.
 func TestNamedForeignDeviceIsRefused(t *testing.T) {
 	g := openTest(t, "")
 	ts := httptest.NewServer(g.Handler())
@@ -254,7 +254,7 @@ func TestClaimDoesNotCrossProjects(t *testing.T) {
 	}
 }
 
-// A tsk- from another project answers 404 rather than the row, so task ids
+// A task- from another project answers 404 rather than the row, so task ids
 // are not readable across the projects sharing this process.
 func TestForeignTaskIsNotFound(t *testing.T) {
 	g := openTest(t, "")
@@ -346,7 +346,7 @@ func TestControlRoutesRequireTheSecret(t *testing.T) {
 		{http.MethodPost, "/api/enroll-tokens"},
 		{http.MethodGet, "/api/devices"},
 		{http.MethodPost, "/api/tasks"},
-		{http.MethodGet, "/api/tasks/tsk-1"},
+		{http.MethodGet, "/api/tasks/task-1"},
 	}
 	for _, c := range controls {
 		missing := httptest.NewRecorder()

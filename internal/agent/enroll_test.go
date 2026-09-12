@@ -16,7 +16,7 @@ func TestEnrollToWritesConfig(t *testing.T) {
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]string{
-			"deviceId": "dev-test", "deviceToken": "tok-test",
+			"deviceId": "device-test", "deviceToken": "token-test",
 		})
 	}))
 	t.Cleanup(ts.Close)
@@ -26,7 +26,7 @@ func TestEnrollToWritesConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.DeviceId != "dev-test" || cfg.Token != "tok-test" || cfg.HubURL != ts.URL {
+	if cfg.DeviceId != "device-test" || cfg.Token != "token-test" || cfg.HubURL != ts.URL {
 		t.Fatalf("cfg = %+v", cfg)
 	}
 	loaded, err := LoadConfigFrom(path)

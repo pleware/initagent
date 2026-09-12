@@ -15,7 +15,7 @@ import (
 const InviteTTL = 7 * 24 * time.Hour
 
 // InviteTokenBytes is the entropy behind the secret in the invite link.
-// The row is `inv-`; only a SHA-256 of this value is stored.
+// The row is `org_invite-`; only a SHA-256 of this value is stored.
 const InviteTokenBytes = 32
 
 // NewInviteToken mints the one-time secret that goes in the invite link.

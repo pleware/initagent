@@ -10,7 +10,7 @@ import (
 // than the person who issued it.
 //
 // Draft 09 requires three axes on every credential: a subject, a boundary and
-// a verb set. The subject lives on the Actor — a token names the `acc-` it
+// a verb set. The subject lives on the Actor — a token names the `account-` it
 // acts as — and the other two live here. A credential scoped to verbs but not
 // to a boundary is still fleet-wide execution with extra steps, which is the
 // mistake this type exists to make unrepresentable.
@@ -20,7 +20,7 @@ type Grant struct {
 	// cannot accidentally mean "everywhere".
 	Org string
 
-	// Project narrows the boundary to a single `prj-`. Empty means every
+	// Project narrows the boundary to a single `project-`. Empty means every
 	// project in Org, which is what a tenant-wide token looks like.
 	Project string
 

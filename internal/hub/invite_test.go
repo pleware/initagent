@@ -33,7 +33,7 @@ func TestInviteSelfHostCreateRedeemNewPerson(t *testing.T) {
 	if !strings.Contains(created.Link, "/invite?token=") {
 		t.Fatalf("link = %q", created.Link)
 	}
-	if !strings.HasPrefix(created.Id, "inv-") {
+	if !strings.HasPrefix(created.Id, "org_invite-") {
 		t.Fatalf("id = %q", created.Id)
 	}
 

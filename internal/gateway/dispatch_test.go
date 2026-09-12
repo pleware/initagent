@@ -365,7 +365,7 @@ func TestCreateTaskOfflineDevice(t *testing.T) {
 
 func TestCreateTaskBadDeviceID(t *testing.T) {
 	g := openTest(t, "")
-	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(`{"command":"true","deviceId":"tsk-nope"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(`{"command":"true","deviceId":"task-nope"}`))
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -375,7 +375,7 @@ func TestCreateTaskBadDeviceID(t *testing.T) {
 
 func TestGetTaskNotFound(t *testing.T) {
 	g := openTest(t, "")
-	req := httptest.NewRequest(http.MethodGet, "/api/tasks/tsk-01900000-0000-7000-8000-000000000000", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/tasks/task-01900000-0000-7000-8000-000000000000", nil)
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {

@@ -25,9 +25,9 @@ func TestSnapshotFromRatesAndMedianTTV(t *testing.T) {
 	day := 24 * time.Hour
 	facts := Facts{
 		Accounts: []AccountFact{
-			{ID: "acc-old", CreatedAt: now.Add(-20 * day)},
-			{ID: "acc-new", CreatedAt: now.Add(-2 * day)},
-			{ID: "acc-ops", CreatedAt: now.Add(-40 * day), IsAdmin: true},
+			{ID: "account-old", CreatedAt: now.Add(-20 * day)},
+			{ID: "account-new", CreatedAt: now.Add(-2 * day)},
+			{ID: "account-ops", CreatedAt: now.Add(-40 * day), IsAdmin: true},
 		},
 		Orgs: []OrgFact{
 			{
@@ -54,8 +54,8 @@ func TestSnapshotFromRatesAndMedianTTV(t *testing.T) {
 		{Kind: KindPlanLimitHit},
 		{Kind: KindIdleWarned},
 		{Kind: KindIdleDeleted},
-		{Kind: KindLogin, AccountID: "acc-old", OccurredAt: now.Add(-10 * day)},
-		{Kind: KindLogin, AccountID: "acc-ops", OccurredAt: now},
+		{Kind: KindLogin, AccountID: "account-old", OccurredAt: now.Add(-10 * day)},
+		{Kind: KindLogin, AccountID: "account-ops", OccurredAt: now},
 	}
 	snap := SnapshotFrom(facts, events, now)
 
@@ -102,9 +102,9 @@ func TestMedianHoursEvenCount(t *testing.T) {
 func TestD30Return(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)
-	acc := AccountFact{ID: "acc-1", CreatedAt: now.Add(-40 * 24 * time.Hour)}
+	acc := AccountFact{ID: "account-1", CreatedAt: now.Add(-40 * 24 * time.Hour)}
 	events := []Event{{
-		Kind: KindLogin, AccountID: "acc-1",
+		Kind: KindLogin, AccountID: "account-1",
 		OccurredAt: now.Add(-5 * 24 * time.Hour),
 	}}
 	snap := SnapshotFrom(Facts{Accounts: []AccountFact{acc}}, events, now)
@@ -117,8 +117,8 @@ func TestLoginBeforeCutoffIsNotAReturn(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)
 	created := now.Add(-20 * 24 * time.Hour)
-	snap := SnapshotFrom(Facts{Accounts: []AccountFact{{ID: "acc-1", CreatedAt: created}}}, []Event{{
-		Kind: KindLogin, AccountID: "acc-1", OccurredAt: created.Add(2 * 24 * time.Hour),
+	snap := SnapshotFrom(Facts{Accounts: []AccountFact{{ID: "account-1", CreatedAt: created}}}, []Event{{
+		Kind: KindLogin, AccountID: "account-1", OccurredAt: created.Add(2 * 24 * time.Hour),
 	}}, now)
 	if snap.Retention.D7Eligible != 1 || snap.Retention.D7Returned != 0 {
 		t.Fatalf("early login must not count as D7: %+v", snap.Retention)

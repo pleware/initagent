@@ -188,7 +188,7 @@ func TestPurgePasswordResetsAfterRetainFor(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO password_resets (id, account_id, token_hash, expires_at, used_at, created_at)
-		VALUES (?, ?, ?, ?, 0, ?)`, "rst-expired-old", account.Id, "expired-old", old, old); err != nil {
+		VALUES (?, ?, ?, ?, 0, ?)`, "password_reset-expired-old", account.Id, "expired-old", old, old); err != nil {
 		t.Fatal(err)
 	}
 

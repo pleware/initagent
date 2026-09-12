@@ -188,7 +188,7 @@ func (d *Delivery) ask(fact gdesk.AddressingUnclear) {
 		names = append(names, d.name(candidate))
 	}
 	surface := surfaceOpened{Surface: surfaceSpec{
-		ID:    SurfaceID("sur-" + string(fact.Utterance)),
+		ID:    SurfaceID("surface-" + string(fact.Utterance)),
 		Label: strings.Join(names, " / "),
 		View: panelView{
 			Kind: "panel",
@@ -208,7 +208,7 @@ func (d *Delivery) ask(fact gdesk.AddressingUnclear) {
 func (d *Delivery) failed(fact gdesk.Failed) {
 	if fact.Turn == "" {
 		// A failure before any turn opened has no surface to patch, and
-		// patching "sur-" would name a surface the glass never saw. That
+		// patching "surface-" would name a surface the glass never saw. That
 		// failure belongs to the command the words arrived on, and Refuse is
 		// what answers it — with an id the glass can resolve.
 		return
@@ -231,7 +231,7 @@ func (d *Delivery) Refuse(cmd CommandID, failure gdesk.Failure) {
 		return
 	}
 	d.log.Append(EventSurfaceOpened, surfaceOpened{Surface: surfaceSpec{
-		ID:        SurfaceID("sur-" + string(cmd)),
+		ID:        SurfaceID("surface-" + string(cmd)),
 		Label:     RefusalLabel,
 		View:      viewOf(failure),
 		Placement: placementSpec{At: "focus"},
@@ -266,7 +266,7 @@ func (d *Delivery) replyTo(utterance gdesk.UtteranceID) CommandID {
 }
 
 func surfaceForTurn(turn gdesk.TurnID) SurfaceID {
-	return SurfaceID("sur-" + string(turn))
+	return SurfaceID("surface-" + string(turn))
 }
 
 type textBlock struct {

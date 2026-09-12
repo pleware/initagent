@@ -14,7 +14,7 @@ func TestFleetAgentsAsksGateway(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`[{"name":"term-1","kind":"shell","deviceId":"dev-gw","deviceName":"gwbox"}]`))
+		_, _ = w.Write([]byte(`[{"name":"term-1","kind":"shell","deviceId":"device-gw","deviceName":"gwbox"}]`))
 	}))
 	t.Cleanup(gw.Close)
 

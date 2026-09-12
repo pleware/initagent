@@ -390,7 +390,7 @@ func TestDeviceByIDAndBadID(t *testing.T) {
 	if err != nil || got == nil || got.ID != did {
 		t.Fatalf("got %+v %v", got, err)
 	}
-	if _, err := g.Store().DeviceByID(ctx, "tsk-nope"); err == nil {
+	if _, err := g.Store().DeviceByID(ctx, "task-nope"); err == nil {
 		t.Fatal("expected bad id")
 	}
 	missing, err := id.New(id.Device)

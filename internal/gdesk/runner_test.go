@@ -226,7 +226,7 @@ func TestNewRunnerRefusesADeskThatCannotAnswer(t *testing.T) {
 		{"no personas", "no personas", func(c *RunnerConfig) { c.Personas = nil }},
 		{"no facts", "no fact log", func(c *RunnerConfig) { c.Facts = nil }},
 		{"no model", "no chat model", func(c *RunnerConfig) { c.Model = "" }},
-		{"floor off the roster", "not on the roster", func(c *RunnerConfig) { c.Floor = "dsk-nobody" }},
+		{"floor off the roster", "not on the roster", func(c *RunnerConfig) { c.Floor = "staff-nobody" }},
 	}
 
 	for _, tc := range cases {

@@ -128,7 +128,7 @@ func TestEncodeWritesTheEnvelopeAndPayloadInOneObject(t *testing.T) {
 			Kind:      EventSurfaceAppended,
 			InReplyTo: "c1",
 		},
-		Payload: surfaceAppended{ID: "sur-1", Slot: SpeechSlot, Chunk: "cześć"},
+		Payload: surfaceAppended{ID: "surface-1", Slot: SpeechSlot, Chunk: "cześć"},
 	}
 	raw, err := event.Encode()
 	if err != nil {
@@ -148,7 +148,7 @@ func TestEncodeWritesTheEnvelopeAndPayloadInOneObject(t *testing.T) {
 	if !ok {
 		t.Fatalf("payload = %#v", got["payload"])
 	}
-	if payload["id"] != "sur-1" || payload["slot"] != "speech" || payload["chunk"] != "cześć" {
+	if payload["id"] != "surface-1" || payload["slot"] != "speech" || payload["chunk"] != "cześć" {
 		t.Fatalf("payload = %+v", payload)
 	}
 	if _, present := payload["done"]; present {

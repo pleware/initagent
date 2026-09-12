@@ -11,7 +11,7 @@ import (
 )
 
 // Enqueue inserts a queued task for a bound project. An empty ID is minted
-// as tsk-. The state is forced to queued — callers do not pick a starting
+// as task-. The state is forced to queued — callers do not pick a starting
 // state.
 func (s *Store) Enqueue(ctx context.Context, task scheduler.Task) (scheduler.Task, error) {
 	if !id.Is(id.Project, task.ProjectID) {
@@ -57,7 +57,7 @@ func (s *Store) Enqueue(ctx context.Context, task scheduler.Task) (scheduler.Tas
 	return task, nil
 }
 
-// Task loads one task by tsk-.
+// Task loads one task by task-.
 func (s *Store) Task(ctx context.Context, taskID string) (scheduler.Task, error) {
 	if !id.Is(id.Task, taskID) {
 		return scheduler.Task{}, fmt.Errorf("%w: %s", ErrBadTaskID, taskID)

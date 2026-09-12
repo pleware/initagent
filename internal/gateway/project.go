@@ -10,7 +10,7 @@ import (
 	"github.com/pleware/initagent/internal/id"
 )
 
-// BindProject records the shared prj- on this gateway. Calling it again
+// BindProject records the shared project- on this gateway. Calling it again
 // with the same id updates the advertised address — the first project is
 // started by hand, and the listen address can change between restarts.
 func (s *Store) BindProject(ctx context.Context, projectID, address string) (Project, error) {
@@ -51,7 +51,7 @@ func (s *Store) EnsureProject(ctx context.Context, projectID, address string) (P
 	return s.BindProject(ctx, projectID, address)
 }
 
-// Project loads a bound project by the shared prj-.
+// Project loads a bound project by the shared project-.
 func (s *Store) Project(ctx context.Context, projectID string) (Project, error) {
 	if !id.Is(id.Project, projectID) {
 		return Project{}, fmt.Errorf("%w: %s", ErrBadProjectID, projectID)

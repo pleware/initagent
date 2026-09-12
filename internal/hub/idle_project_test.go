@@ -88,13 +88,13 @@ func TestDeleteProjectDropsTaskOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SaveTaskOutput(TaskOutput{TaskID: "tsk-1", OrgID: org.Id, ProjectID: p.Id, Stdout: "hi"}); err != nil {
+	if err := s.SaveTaskOutput(TaskOutput{TaskID: "task-1", OrgID: org.Id, ProjectID: p.Id, Stdout: "hi"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.DeleteProject(p.Id); err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.TaskOutputByID("tsk-1")
+	got, err := s.TaskOutputByID("task-1")
 	if err != nil || got != nil {
 		t.Fatalf("task output after delete = (%v, %v), want gone", got, err)
 	}

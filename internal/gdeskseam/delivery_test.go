@@ -10,7 +10,7 @@ import (
 )
 
 func testNames() map[gdesk.StaffID]string {
-	return map[gdesk.StaffID]string{"psn-ania": "Ania", "psn-adam": "Adam"}
+	return map[gdesk.StaffID]string{"staff-ania": "Ania", "staff-adam": "Adam"}
 }
 
 func newTestDelivery(t *testing.T) (*Delivery, *Log) {
@@ -48,7 +48,7 @@ func TestNewDeliveryRefusesADeliveryThatCannotName(t *testing.T) {
 	}{
 		{"no log", DeliveryConfig{Names: testNames()}, "needs a log"},
 		{"no names", DeliveryConfig{Log: newTestLog(t, 0, nil)}, "needs a name for each"},
-		{"a blank name", DeliveryConfig{Log: newTestLog(t, 0, nil), Names: map[gdesk.StaffID]string{"psn-ania": " "}}, "no name to be shown by"},
+		{"a blank name", DeliveryConfig{Log: newTestLog(t, 0, nil), Names: map[gdesk.StaffID]string{"staff-ania": " "}}, "no name to be shown by"},
 		{"a question with nowhere for the names", DeliveryConfig{Log: newTestLog(t, 0, nil), Names: testNames(), Unclear: "kto?"}, "nowhere to put the names"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -76,15 +76,15 @@ func TestNewDeliveryKeepsItsOwnCopyOfTheNames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	delete(names, "psn-ania")
-	if got := delivery.name("psn-ania"); got != "Ania" {
+	delete(names, "staff-ania")
+	if got := delivery.name("staff-ania"); got != "Ania" {
 		t.Fatalf("name = %q, want the caller's later edit not to rename her", got)
 	}
 }
 
 func TestRecordOpensASurfaceInHerName(t *testing.T) {
 	delivery, log := newTestDelivery(t)
-	delivery.Record(gdesk.TurnOpened{Turn: "trn-1", Staff: "psn-ania", Utterance: "utt-1", Text: "sprawdź to"})
+	delivery.Record(gdesk.TurnOpened{Turn: "turn-1", Staff: "staff-ania", Utterance: "utt-1", Text: "sprawdź to"})
 
 	events := log.Since(0)
 	if len(events) != 1 || events[0].Kind != EventSurfaceOpened {
@@ -95,7 +95,7 @@ func TestRecordOpensASurfaceInHerName(t *testing.T) {
 	if !ok {
 		t.Fatalf("payload = %+v", payload)
 	}
-	if surface["id"] != "sur-trn-1" {
+	if surface["id"] != "surface-turn-1" {
 		t.Fatalf("id = %v, want it derived from the turn", surface["id"])
 	}
 	if surface["label"] != "Ania" {
@@ -127,8 +127,8 @@ func TestRecordOpensASurfaceInHerName(t *testing.T) {
 
 func TestRecordAppendsEachPieceSheSays(t *testing.T) {
 	delivery, log := newTestDelivery(t)
-	delivery.Record(gdesk.Said{Turn: "trn-1", Staff: "psn-ania", Text: "sprawdzam"})
-	delivery.Record(gdesk.Said{Turn: "trn-1", Staff: "psn-ania", Text: " opony"})
+	delivery.Record(gdesk.Said{Turn: "turn-1", Staff: "staff-ania", Text: "sprawdzam"})
+	delivery.Record(gdesk.Said{Turn: "turn-1", Staff: "staff-ania", Text: " opony"})
 
 	events := log.Since(0)
 	if len(events) != 2 {
@@ -142,7 +142,7 @@ func TestRecordAppendsEachPieceSheSays(t *testing.T) {
 		if payload["chunk"] != want {
 			t.Fatalf("chunk %d = %v, want %q", i, payload["chunk"], want)
 		}
-		if payload["id"] != "sur-trn-1" || payload["slot"] != "speech" {
+		if payload["id"] != "surface-turn-1" || payload["slot"] != "speech" {
 			t.Fatalf("payload = %+v", payload)
 		}
 	}
@@ -150,8 +150,8 @@ func TestRecordAppendsEachPieceSheSays(t *testing.T) {
 
 func TestRecordClosesTheSlotWithoutRepeatingHerLastWords(t *testing.T) {
 	delivery, log := newTestDelivery(t)
-	delivery.Record(gdesk.Said{Turn: "trn-1", Staff: "psn-ania", Text: "gotowe"})
-	delivery.Record(gdesk.Said{Turn: "trn-1", Staff: "psn-ania", Final: true})
+	delivery.Record(gdesk.Said{Turn: "turn-1", Staff: "staff-ania", Text: "gotowe"})
+	delivery.Record(gdesk.Said{Turn: "turn-1", Staff: "staff-ania", Final: true})
 
 	events := log.Since(0)
 	if len(events) != 2 {
@@ -168,7 +168,7 @@ func TestRecordClosesTheSlotWithoutRepeatingHerLastWords(t *testing.T) {
 
 func TestRecordSplitsALineTooLongForTheGlass(t *testing.T) {
 	delivery, log := newTestDelivery(t)
-	delivery.Record(gdesk.Said{Turn: "trn-1", Text: strings.Repeat("a", MaxChunkChars+1)})
+	delivery.Record(gdesk.Said{Turn: "turn-1", Text: strings.Repeat("a", MaxChunkChars+1)})
 
 	events := log.Since(0)
 	if len(events) != 2 {
@@ -185,7 +185,7 @@ func TestRecordAsksWhoWasMeant(t *testing.T) {
 	delivery, log := newTestDelivery(t)
 	delivery.Record(gdesk.AddressingUnclear{
 		Utterance:  "utt-1",
-		Candidates: []gdesk.StaffID{"psn-ania", "psn-adam"},
+		Candidates: []gdesk.StaffID{"staff-ania", "staff-adam"},
 		Text:       "sprawdź to",
 	})
 
@@ -194,7 +194,7 @@ func TestRecordAsksWhoWasMeant(t *testing.T) {
 		t.Fatalf("events = %+v", events)
 	}
 	surface := payloadOf(t, events[0])["surface"].(map[string]any)
-	if surface["id"] != "sur-utt-1" {
+	if surface["id"] != "surface-utt-1" {
 		t.Fatalf("id = %v, want it derived from the utterance", surface["id"])
 	}
 	if surface["label"] != "Ania / Adam" {
@@ -214,7 +214,7 @@ func TestRecordAsksWhoWasMeant(t *testing.T) {
 func TestRecordTurnsTheSurfaceIntoTheSeamsFailureView(t *testing.T) {
 	delivery, log := newTestDelivery(t)
 	delivery.Record(gdesk.Failed{
-		Turn:    "trn-1",
+		Turn:    "turn-1",
 		Failure: gdesk.Failure{Code: gdesk.FailureUpstreamFailed, Message: "provider said no"},
 	})
 
@@ -223,7 +223,7 @@ func TestRecordTurnsTheSurfaceIntoTheSeamsFailureView(t *testing.T) {
 		t.Fatalf("events = %+v", events)
 	}
 	payload := payloadOf(t, events[0])
-	if payload["id"] != "sur-trn-1" {
+	if payload["id"] != "surface-turn-1" {
 		t.Fatalf("id = %v", payload["id"])
 	}
 	view := payload["view"].(map[string]any)
@@ -238,7 +238,7 @@ func TestRecordTurnsTheSurfaceIntoTheSeamsFailureView(t *testing.T) {
 
 func TestRecordSaysNothingAboutTheFloor(t *testing.T) {
 	delivery, log := newTestDelivery(t)
-	delivery.Record(gdesk.FloorMoved{Staff: "psn-adam", Reason: gdesk.FloorNamed})
+	delivery.Record(gdesk.FloorMoved{Staff: "staff-adam", Reason: gdesk.FloorNamed})
 
 	if got := log.Since(0); len(got) != 0 {
 		t.Fatalf("events = %+v, want none - the glass draws no floor", got)
@@ -248,8 +248,8 @@ func TestRecordSaysNothingAboutTheFloor(t *testing.T) {
 func TestRecordAnswersTheCommandTheUtteranceArrivedOn(t *testing.T) {
 	delivery, log := newTestDelivery(t)
 	delivery.Attribute("utt-1", "cmd-1")
-	delivery.Record(gdesk.TurnOpened{Turn: "trn-1", Staff: "psn-ania", Utterance: "utt-1"})
-	delivery.Record(gdesk.Said{Turn: "trn-1", Text: "robi się"})
+	delivery.Record(gdesk.TurnOpened{Turn: "turn-1", Staff: "staff-ania", Utterance: "utt-1"})
+	delivery.Record(gdesk.Said{Turn: "turn-1", Text: "robi się"})
 
 	events := log.Since(0)
 	if events[0].InReplyTo != "cmd-1" {
@@ -262,7 +262,7 @@ func TestRecordAnswersTheCommandTheUtteranceArrivedOn(t *testing.T) {
 
 func TestRecordCarriesNoAnswerForAnUtteranceItWasNotToldAbout(t *testing.T) {
 	delivery, log := newTestDelivery(t)
-	delivery.Record(gdesk.TurnOpened{Turn: "trn-1", Staff: "psn-ania", Utterance: "utt-9"})
+	delivery.Record(gdesk.TurnOpened{Turn: "turn-1", Staff: "staff-ania", Utterance: "utt-9"})
 
 	if got := log.Since(0)[0].InReplyTo; got != "" {
 		t.Fatalf("inReplyTo = %q, want nothing invented", got)
@@ -307,18 +307,18 @@ func TestAttributeForgetsTheOldestPastItsCeiling(t *testing.T) {
 
 func TestRecordLabelsAStrangerWithWhatItHas(t *testing.T) {
 	delivery, log := newTestDelivery(t)
-	delivery.Record(gdesk.TurnOpened{Turn: "trn-1", Staff: "psn-nobody"})
+	delivery.Record(gdesk.TurnOpened{Turn: "turn-1", Staff: "staff-nobody"})
 
 	surface := payloadOf(t, log.Since(0)[0])["surface"].(map[string]any)
-	if surface["label"] != "psn-nobody" {
+	if surface["label"] != "staff-nobody" {
 		t.Fatalf("label = %v, want the id rather than an empty label", surface["label"])
 	}
 }
 
 func TestRecordIgnoresAFactItHasNoSurfaceFor(t *testing.T) {
 	delivery, log := newTestDelivery(t)
-	delivery.Record(gdesk.FloorMoved{Staff: "psn-ania"})
-	delivery.Record(gdesk.Said{Turn: "trn-1", Text: "cześć"})
+	delivery.Record(gdesk.FloorMoved{Staff: "staff-ania"})
+	delivery.Record(gdesk.Said{Turn: "turn-1", Text: "cześć"})
 
 	if got := log.Since(0); len(got) != 1 {
 		t.Fatalf("events = %+v, want only the spoken piece", seqsOf(got))

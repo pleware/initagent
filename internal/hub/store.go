@@ -676,7 +676,7 @@ func (s *Store) SetSetting(key, value string) error {
 
 // --- accounts ---
 
-// Account is a person who can sign in to the hub (`acc-`, draft 08). It
+// Account is a person who can sign in to the hub (`account-`, draft 08). It
 // replaces upstream's anonymous password setting, where "logged in" meant
 // "knew a secret" with no identity to attribute anything to.
 //
@@ -949,7 +949,7 @@ func (s *Store) AccountByEmail(email string) (*Account, error) {
 	return s.account(`WHERE email = ?`, email)
 }
 
-// AccountById is the lookup behind a session: the cookie carries an `acc-`
+// AccountById is the lookup behind a session: the cookie carries an `account-`
 // and every request resolves it to the person acting.
 func (s *Store) AccountById(accountId string) (*Account, error) {
 	return s.account(`WHERE id = ?`, accountId)

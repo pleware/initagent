@@ -76,12 +76,12 @@ func TestSilentAndFake(t *testing.T) {
 		t.Fatalf("Silent: %q %v", id, err)
 	}
 	f := &Fake{}
-	got, err := f.Send(t.Context(), Message{ID: "eml-1", To: "a@b.c"})
-	if err != nil || got != "fake-eml-1" || len(f.Sent) != 1 {
+	got, err := f.Send(t.Context(), Message{ID: "mail-1", To: "a@b.c"})
+	if err != nil || got != "fake-mail-1" || len(f.Sent) != 1 {
 		t.Fatalf("Fake: %q %v sent=%d", got, err, len(f.Sent))
 	}
 	f.Err = errors.New("boom")
-	if _, err := f.Send(t.Context(), Message{ID: "eml-2"}); err == nil {
+	if _, err := f.Send(t.Context(), Message{ID: "mail-2"}); err == nil {
 		t.Fatal("Fake should return Err")
 	}
 }

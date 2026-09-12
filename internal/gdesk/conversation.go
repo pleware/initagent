@@ -22,11 +22,11 @@ type ConversationID string
 // DefaultConversation is the desk's only conversation.
 //
 // The empty value is not a placeholder for a real identifier. While one person
-// talks there is one conversation, and minting an id for it would spend a
-// prefix the registry has not accepted yet (05.DRAFT.NAMING-ONTOLOGY.md, where
-// `cnv-` is proposed and six desk prefixes are still unregistered). Naming it
-// becomes necessary at the same moment a second person may talk, which is also
-// when the connector starts attaching one.
+// talks there is one conversation, and an id for it would be a name nothing
+// reads. The prefix is registered — initagent.gdesk.conversation mints
+// `conversation-` — so naming it is a decision about need rather than about
+// vocabulary. It becomes necessary at the same moment a second person may
+// talk, which is also when the connector starts attaching one.
 const DefaultConversation ConversationID = ""
 
 // conversation is what belongs to one person talking rather than to the desk:

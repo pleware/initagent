@@ -304,7 +304,7 @@ func (g *Gateway) connFor(id string) *agentConn {
 }
 
 // connForProject returns the socket only when the device belongs to
-// projectID. Without the check a caller naming another project's dev- would
+// projectID. Without the check a caller naming another project's device- would
 // reach that machine, which is the isolation guarantee in 01.
 func (g *Gateway) connForProject(projectID, id string) *agentConn {
 	g.mu.Lock()

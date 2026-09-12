@@ -76,7 +76,7 @@ func authedRequest(t *testing.T, method, url string, body []byte, token string) 
 
 func TestCreateTaskProxyForwardsBody(t *testing.T) {
 	fake := &fakeGateway{view: map[string]any{
-		"id": "tsk-1", "state": "done", "command": "echo hi",
+		"id": "task-1", "state": "done", "command": "echo hi",
 		"exitCode": 0, "reason": "exec", "stdout": "hi\n",
 	}}
 	gateway := httptest.NewServer(fake)
@@ -104,24 +104,24 @@ func TestCreateTaskProxyForwardsBody(t *testing.T) {
 }
 
 func TestGetTaskProxy(t *testing.T) {
-	fake := &fakeGateway{view: map[string]any{"id": "tsk-9", "state": "failed", "exitCode": 1}}
+	fake := &fakeGateway{view: map[string]any{"id": "task-9", "state": "failed", "exitCode": 1}}
 	gateway := httptest.NewServer(fake)
 	t.Cleanup(gateway.Close)
 
 	_, ts, token := newTaskHub(t, gateway.URL)
 
-	resp := authedRequest(t, http.MethodGet, ts.URL+"/api/tasks/tsk-9", nil, token)
+	resp := authedRequest(t, http.MethodGet, ts.URL+"/api/tasks/task-9", nil, token)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)
 	}
-	if fake.path != "/api/tasks/tsk-9" {
-		t.Fatalf("proxy path = %q, want /api/tasks/tsk-9", fake.path)
+	if fake.path != "/api/tasks/task-9" {
+		t.Fatalf("proxy path = %q, want /api/tasks/task-9", fake.path)
 	}
 }
 
 func TestCreateTaskPersistsOutputForLaterGet(t *testing.T) {
 	fake := &fakeGateway{view: map[string]any{
-		"id": "tsk-keep", "state": "done", "command": "echo hi",
+		"id": "task-keep", "state": "done", "command": "echo hi",
 		"exitCode": 0, "stdout": "hi\n", "stderr": "note\n",
 	}}
 	gateway := httptest.NewServer(fake)
@@ -139,8 +139,8 @@ func TestCreateTaskPersistsOutputForLaterGet(t *testing.T) {
 		t.Fatalf("create status = %d", created.StatusCode)
 	}
 
-	fake.view = map[string]any{"id": "tsk-keep", "state": "done", "exitCode": 0}
-	got := authedRequest(t, http.MethodGet, ts.URL+"/api/tasks/tsk-keep?project="+project.Id, nil, token)
+	fake.view = map[string]any{"id": "task-keep", "state": "done", "exitCode": 0}
+	got := authedRequest(t, http.MethodGet, ts.URL+"/api/tasks/task-keep?project="+project.Id, nil, token)
 	if got.StatusCode != http.StatusOK {
 		t.Fatalf("get status = %d", got.StatusCode)
 	}

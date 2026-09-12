@@ -9,8 +9,8 @@ import (
 func newTestViews(t *testing.T) *Views {
 	t.Helper()
 	views, err := NewViews(ViewsConfig{Names: map[gdesk.StaffID]string{
-		"psn-ania": "Ania",
-		"psn-adam": "Adam",
+		"staff-ania": "Ania",
+		"staff-adam": "Adam",
 	}})
 	if err != nil {
 		t.Fatalf("NewViews: %v", err)
@@ -28,7 +28,7 @@ func TestAMisspelledQuestionIsRefusedBeforeAnybodyConnects(t *testing.T) {
 	// The alternative is a desk that opens, serves, and then fails on the
 	// first sentence nobody could attribute.
 	_, err := NewViews(ViewsConfig{
-		Names:   map[gdesk.StaffID]string{"psn-ania": "Ania"},
+		Names:   map[gdesk.StaffID]string{"staff-ania": "Ania"},
 		Unclear: "Do kogo mówisz?",
 	})
 	if err == nil {
@@ -50,7 +50,7 @@ func TestBindingTheSameStreamTwiceKeepsItsHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Bind: %v", err)
 	}
-	views.Record("phone", gdesk.TurnOpened{Turn: "trn-1", Staff: "psn-ania", Utterance: "utt-1"})
+	views.Record("phone", gdesk.TurnOpened{Turn: "turn-1", Staff: "staff-ania", Utterance: "utt-1"})
 
 	// A dropped connection comes back as the same stream, and the events it
 	// missed must still be there to replay.
@@ -93,8 +93,8 @@ func TestAFactReachesOnlyItsOwnConversation(t *testing.T) {
 		t.Fatalf("Bind: %v", err)
 	}
 
-	views.Record("phone", gdesk.TurnOpened{Turn: "trn-1", Staff: "psn-ania", Utterance: "utt-1"})
-	views.Record("phone", gdesk.Said{Turn: "trn-1", Staff: "psn-ania", Text: "hasło to jeden dwa trzy"})
+	views.Record("phone", gdesk.TurnOpened{Turn: "turn-1", Staff: "staff-ania", Utterance: "utt-1"})
+	views.Record("phone", gdesk.Said{Turn: "turn-1", Staff: "staff-ania", Text: "hasło to jeden dwa trzy"})
 
 	if got := mine.Log().Seq(); got != 2 {
 		t.Errorf("my seq = %d, want both events", got)
@@ -112,13 +112,13 @@ func TestEveryDeviceOfOnePersonIsNumberedOnItsOwn(t *testing.T) {
 	}
 	// She walks to the desk and opens the glass, mid-conversation, so this
 	// stream starts at one while the phone is already further along.
-	views.Record("person", gdesk.TurnOpened{Turn: "trn-1", Staff: "psn-ania", Utterance: "utt-1"})
+	views.Record("person", gdesk.TurnOpened{Turn: "turn-1", Staff: "staff-ania", Utterance: "utt-1"})
 
 	glass, err := views.Bind("stream-glass", "person")
 	if err != nil {
 		t.Fatalf("Bind: %v", err)
 	}
-	views.Record("person", gdesk.Said{Turn: "trn-1", Staff: "psn-ania", Text: "robi się"})
+	views.Record("person", gdesk.Said{Turn: "turn-1", Staff: "staff-ania", Text: "robi się"})
 
 	if got := phone.Log().Seq(); got != 2 {
 		t.Errorf("phone seq = %d, want both events", got)
@@ -138,7 +138,7 @@ func TestAFactNobodyIsWatchingGoesNowhere(t *testing.T) {
 		t.Fatalf("Bind: %v", err)
 	}
 
-	views.Record("nobody-here", gdesk.Said{Turn: "trn-1", Text: "cześć"})
+	views.Record("nobody-here", gdesk.Said{Turn: "turn-1", Text: "cześć"})
 
 	if got := watching.Log().Seq(); got != 0 {
 		t.Errorf("seq = %d, want the fact to have reached nobody", got)
@@ -154,7 +154,7 @@ func TestAViewCarriesTheFeedItsConnectionReads(t *testing.T) {
 
 	reader := view.Feed().Subscribe()
 	defer reader.Close()
-	view.Delivery().Record(gdesk.Said{Turn: "trn-1", Text: "cześć"})
+	view.Delivery().Record(gdesk.Said{Turn: "turn-1", Text: "cześć"})
 
 	if got := len(reader.Drain()); got != 1 {
 		t.Errorf("drained %d events, want the one just delivered", got)

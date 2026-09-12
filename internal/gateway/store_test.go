@@ -33,7 +33,7 @@ func openTest(t *testing.T, projectID string) *Gateway {
 func TestOpenMintsSharedProjectID(t *testing.T) {
 	g := openTest(t, "")
 	if !id.Is(id.Project, g.Project().ID) {
-		t.Fatalf("bound id %q is not a prj-", g.Project().ID)
+		t.Fatalf("bound id %q is not a project-", g.Project().ID)
 	}
 	if g.Project().Address != "127.0.0.1:4201" {
 		t.Fatalf("address = %q", g.Project().Address)
@@ -66,7 +66,7 @@ func TestOpenRebindsAddress(t *testing.T) {
 }
 
 func TestOpenRejectsForeignProjectID(t *testing.T) {
-	_, err := Open(Options{DataDir: t.TempDir(), ProjectID: "tsk-not-a-project"})
+	_, err := Open(Options{DataDir: t.TempDir(), ProjectID: "task-not-a-project"})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -206,7 +206,7 @@ func TestStoreAfterClose(t *testing.T) {
 	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: prj}); err == nil {
 		t.Fatal("Enqueue after close")
 	}
-	if _, _, err := g.Store().Claim(ctx, prj, "dev-closed", time.Minute); err == nil {
+	if _, _, err := g.Store().Claim(ctx, prj, "device-closed", time.Minute); err == nil {
 		t.Fatal("Claim after close")
 	}
 }
@@ -300,7 +300,7 @@ func TestEnqueueAndGetTask(t *testing.T) {
 		t.Fatalf("Enqueue: %v", err)
 	}
 	if !id.Is(id.Task, got.ID) {
-		t.Fatalf("task id %q is not a tsk-", got.ID)
+		t.Fatalf("task id %q is not a task-", got.ID)
 	}
 	if got.State != scheduler.TaskQueued {
 		t.Fatalf("state = %q, want queued", got.State)
@@ -330,10 +330,10 @@ func TestEnqueueRequiresBoundProject(t *testing.T) {
 func TestEnqueueRejectsBadIDs(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: "dev-nope"}); err == nil {
+	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: "device-nope"}); err == nil {
 		t.Fatal("expected bad project id")
 	}
-	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: g.Project().ID, ID: "prj-as-task"}); err == nil {
+	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: g.Project().ID, ID: "project-as-task"}); err == nil {
 		t.Fatal("expected bad task id")
 	}
 }
@@ -504,7 +504,7 @@ func TestSetStateMissingTask(t *testing.T) {
 
 func TestTaskRejectsBadID(t *testing.T) {
 	g := openTest(t, "")
-	if _, err := g.Store().Task(context.Background(), "prj-wrong"); err == nil {
+	if _, err := g.Store().Task(context.Background(), "project-wrong"); err == nil {
 		t.Fatal("expected error")
 	}
 }

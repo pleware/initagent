@@ -20,11 +20,11 @@ func TestOwners(t *testing.T) {
 		want    int
 	}{
 		{"empty", nil, 0},
-		{"one owner", map[string]Role{"acc-1": RoleOwner}, 1},
+		{"one owner", map[string]Role{"account-1": RoleOwner}, 1},
 		{"two owners and a member", map[string]Role{
-			"acc-1": RoleOwner, "acc-2": RoleOwner, "acc-3": RoleMember,
+			"account-1": RoleOwner, "account-2": RoleOwner, "account-3": RoleMember,
 		}, 2},
-		{"no owner at all", map[string]Role{"acc-1": RoleAdmin}, 0},
+		{"no owner at all", map[string]Role{"account-1": RoleAdmin}, 0},
 	}
 	for _, c := range cases {
 		if got := org(c.members).Owners(); got != c.want {
@@ -34,8 +34,8 @@ func TestOwners(t *testing.T) {
 }
 
 func TestAuthorizeRoleChange(t *testing.T) {
-	soleOwner := map[string]Role{"acc-own": RoleOwner, "acc-adm": RoleAdmin, "acc-mem": RoleMember}
-	twoOwners := map[string]Role{"acc-own": RoleOwner, "acc-own2": RoleOwner, "acc-mem": RoleMember}
+	soleOwner := map[string]Role{"account-own": RoleOwner, "account-adm": RoleAdmin, "account-mem": RoleMember}
+	twoOwners := map[string]Role{"account-own": RoleOwner, "account-own2": RoleOwner, "account-mem": RoleMember}
 
 	cases := []struct {
 		name    string
@@ -47,75 +47,75 @@ func TestAuthorizeRoleChange(t *testing.T) {
 	}{
 		{
 			name:  "an admin promotes a member to admin",
-			actor: actorIn("acc-adm", RoleAdmin), members: soleOwner,
-			target: "acc-mem", newRole: RoleAdmin, want: nil,
+			actor: actorIn("account-adm", RoleAdmin), members: soleOwner,
+			target: "account-mem", newRole: RoleAdmin, want: nil,
 		},
 		{
 			name:  "an owner promotes a member to owner",
-			actor: actorIn("acc-own", RoleOwner), members: soleOwner,
-			target: "acc-mem", newRole: RoleOwner, want: nil,
+			actor: actorIn("account-own", RoleOwner), members: soleOwner,
+			target: "account-mem", newRole: RoleOwner, want: nil,
 		},
 		{
 			name:  "setting the role somebody already holds is a no-op",
-			actor: actorIn("acc-adm", RoleAdmin), members: soleOwner,
-			target: "acc-mem", newRole: RoleMember, want: nil,
+			actor: actorIn("account-adm", RoleAdmin), members: soleOwner,
+			target: "account-mem", newRole: RoleMember, want: nil,
 		},
 		{
 			name:  "an unknown role never reaches the store",
-			actor: actorIn("acc-own", RoleOwner), members: soleOwner,
-			target: "acc-mem", newRole: Role("superuser"), want: ErrRoleUnknown,
+			actor: actorIn("account-own", RoleOwner), members: soleOwner,
+			target: "account-mem", newRole: Role("superuser"), want: ErrRoleUnknown,
 		},
 		{
 			name:  "a plain member cannot change roles",
-			actor: actorIn("acc-mem", RoleMember), members: soleOwner,
-			target: "acc-adm", newRole: RoleMember, want: ErrForbidden,
+			actor: actorIn("account-mem", RoleMember), members: soleOwner,
+			target: "account-adm", newRole: RoleMember, want: ErrForbidden,
 		},
 		{
 			name:  "a stranger to the org cannot change roles",
-			actor: Actor{Account: "acc-x"}, members: soleOwner,
-			target: "acc-mem", newRole: RoleAdmin, want: ErrForbidden,
+			actor: Actor{Account: "account-x"}, members: soleOwner,
+			target: "account-mem", newRole: RoleAdmin, want: ErrForbidden,
 		},
 		{
 			// Permission is checked before existence, so this stays
 			// ErrForbidden rather than telling an outsider who is a member.
 			name:  "a stranger asking about a non-member still gets forbidden",
-			actor: Actor{Account: "acc-x"}, members: soleOwner,
-			target: "acc-nobody", newRole: RoleAdmin, want: ErrForbidden,
+			actor: Actor{Account: "account-x"}, members: soleOwner,
+			target: "account-nobody", newRole: RoleAdmin, want: ErrForbidden,
 		},
 		{
 			name:  "the target has to be a member already",
-			actor: actorIn("acc-adm", RoleAdmin), members: soleOwner,
-			target: "acc-nobody", newRole: RoleMember, want: ErrNotMember,
+			actor: actorIn("account-adm", RoleAdmin), members: soleOwner,
+			target: "account-nobody", newRole: RoleMember, want: ErrNotMember,
 		},
 		{
 			name:  "an admin cannot promote anyone to owner",
-			actor: actorIn("acc-adm", RoleAdmin), members: soleOwner,
-			target: "acc-mem", newRole: RoleOwner, want: ErrOwnerOnly,
+			actor: actorIn("account-adm", RoleAdmin), members: soleOwner,
+			target: "account-mem", newRole: RoleOwner, want: ErrOwnerOnly,
 		},
 		{
 			name:  "an admin cannot promote themselves to owner",
-			actor: actorIn("acc-adm", RoleAdmin), members: soleOwner,
-			target: "acc-adm", newRole: RoleOwner, want: ErrOwnerOnly,
+			actor: actorIn("account-adm", RoleAdmin), members: soleOwner,
+			target: "account-adm", newRole: RoleOwner, want: ErrOwnerOnly,
 		},
 		{
 			name:  "an admin cannot demote an owner",
-			actor: actorIn("acc-adm", RoleAdmin), members: twoOwners,
-			target: "acc-own2", newRole: RoleAdmin, want: ErrOwnerOnly,
+			actor: actorIn("account-adm", RoleAdmin), members: twoOwners,
+			target: "account-own2", newRole: RoleAdmin, want: ErrOwnerOnly,
 		},
 		{
 			name:  "the last owner cannot demote themselves",
-			actor: actorIn("acc-own", RoleOwner), members: soleOwner,
-			target: "acc-own", newRole: RoleAdmin, want: ErrLastOwner,
+			actor: actorIn("account-own", RoleOwner), members: soleOwner,
+			target: "account-own", newRole: RoleAdmin, want: ErrLastOwner,
 		},
 		{
 			name:  "an owner may step down once a second owner exists",
-			actor: actorIn("acc-own", RoleOwner), members: twoOwners,
-			target: "acc-own", newRole: RoleMember, want: nil,
+			actor: actorIn("account-own", RoleOwner), members: twoOwners,
+			target: "account-own", newRole: RoleMember, want: nil,
 		},
 		{
 			name:  "an owner may demote another owner",
-			actor: actorIn("acc-own", RoleOwner), members: twoOwners,
-			target: "acc-own2", newRole: RoleMember, want: nil,
+			actor: actorIn("account-own", RoleOwner), members: twoOwners,
+			target: "account-own2", newRole: RoleMember, want: nil,
 		},
 	}
 
@@ -128,8 +128,8 @@ func TestAuthorizeRoleChange(t *testing.T) {
 }
 
 func TestAuthorizeRemoval(t *testing.T) {
-	soleOwner := map[string]Role{"acc-own": RoleOwner, "acc-adm": RoleAdmin, "acc-mem": RoleMember}
-	twoOwners := map[string]Role{"acc-own": RoleOwner, "acc-own2": RoleOwner, "acc-mem": RoleMember}
+	soleOwner := map[string]Role{"account-own": RoleOwner, "account-adm": RoleAdmin, "account-mem": RoleMember}
+	twoOwners := map[string]Role{"account-own": RoleOwner, "account-own2": RoleOwner, "account-mem": RoleMember}
 
 	cases := []struct {
 		name    string
@@ -140,50 +140,50 @@ func TestAuthorizeRemoval(t *testing.T) {
 	}{
 		{
 			name:  "an admin removes a member",
-			actor: actorIn("acc-adm", RoleAdmin), members: soleOwner,
-			target: "acc-mem", want: nil,
+			actor: actorIn("account-adm", RoleAdmin), members: soleOwner,
+			target: "account-mem", want: nil,
 		},
 		{
 			// Leaving needs no administrative right: somebody who accepted
 			// the wrong invite should not have to ask to be let out.
 			name:  "a member leaves on their own",
-			actor: actorIn("acc-mem", RoleMember), members: soleOwner,
-			target: "acc-mem", want: nil,
+			actor: actorIn("account-mem", RoleMember), members: soleOwner,
+			target: "account-mem", want: nil,
 		},
 		{
 			name:  "a member cannot remove somebody else",
-			actor: actorIn("acc-mem", RoleMember), members: soleOwner,
-			target: "acc-adm", want: ErrForbidden,
+			actor: actorIn("account-mem", RoleMember), members: soleOwner,
+			target: "account-adm", want: ErrForbidden,
 		},
 		{
 			name:  "a stranger cannot remove anyone",
-			actor: Actor{Account: "acc-x"}, members: soleOwner,
-			target: "acc-mem", want: ErrForbidden,
+			actor: Actor{Account: "account-x"}, members: soleOwner,
+			target: "account-mem", want: ErrForbidden,
 		},
 		{
 			name:  "the target has to be a member",
-			actor: actorIn("acc-adm", RoleAdmin), members: soleOwner,
-			target: "acc-nobody", want: ErrNotMember,
+			actor: actorIn("account-adm", RoleAdmin), members: soleOwner,
+			target: "account-nobody", want: ErrNotMember,
 		},
 		{
 			name:  "an admin cannot remove an owner",
-			actor: actorIn("acc-adm", RoleAdmin), members: twoOwners,
-			target: "acc-own2", want: ErrOwnerOnly,
+			actor: actorIn("account-adm", RoleAdmin), members: twoOwners,
+			target: "account-own2", want: ErrOwnerOnly,
 		},
 		{
 			name:  "an owner removes another owner",
-			actor: actorIn("acc-own", RoleOwner), members: twoOwners,
-			target: "acc-own2", want: nil,
+			actor: actorIn("account-own", RoleOwner), members: twoOwners,
+			target: "account-own2", want: nil,
 		},
 		{
 			name:  "the last owner cannot leave",
-			actor: actorIn("acc-own", RoleOwner), members: soleOwner,
-			target: "acc-own", want: ErrLastOwner,
+			actor: actorIn("account-own", RoleOwner), members: soleOwner,
+			target: "account-own", want: ErrLastOwner,
 		},
 		{
 			name:  "an owner may leave once a second owner exists",
-			actor: actorIn("acc-own", RoleOwner), members: twoOwners,
-			target: "acc-own", want: nil,
+			actor: actorIn("account-own", RoleOwner), members: twoOwners,
+			target: "account-own", want: nil,
 		},
 	}
 
@@ -196,7 +196,7 @@ func TestAuthorizeRemoval(t *testing.T) {
 }
 
 func TestAuthorizeInvite(t *testing.T) {
-	soleOwner := map[string]Role{"acc-own": RoleOwner, "acc-adm": RoleAdmin, "acc-mem": RoleMember}
+	soleOwner := map[string]Role{"account-own": RoleOwner, "account-adm": RoleAdmin, "account-mem": RoleMember}
 
 	cases := []struct {
 		name  string
@@ -206,35 +206,35 @@ func TestAuthorizeInvite(t *testing.T) {
 	}{
 		{
 			name:  "an owner invites a member",
-			actor: actorIn("acc-own", RoleOwner), role: RoleMember, want: nil,
+			actor: actorIn("account-own", RoleOwner), role: RoleMember, want: nil,
 		},
 		{
 			name:  "an admin invites a member",
-			actor: actorIn("acc-adm", RoleAdmin), role: RoleMember, want: nil,
+			actor: actorIn("account-adm", RoleAdmin), role: RoleMember, want: nil,
 		},
 		{
 			name:  "an admin invites an admin",
-			actor: actorIn("acc-adm", RoleAdmin), role: RoleAdmin, want: nil,
+			actor: actorIn("account-adm", RoleAdmin), role: RoleAdmin, want: nil,
 		},
 		{
 			name:  "an owner invites an owner",
-			actor: actorIn("acc-own", RoleOwner), role: RoleOwner, want: nil,
+			actor: actorIn("account-own", RoleOwner), role: RoleOwner, want: nil,
 		},
 		{
 			name:  "an admin cannot invite an owner",
-			actor: actorIn("acc-adm", RoleAdmin), role: RoleOwner, want: ErrOwnerOnly,
+			actor: actorIn("account-adm", RoleAdmin), role: RoleOwner, want: ErrOwnerOnly,
 		},
 		{
 			name:  "a member cannot invite",
-			actor: actorIn("acc-mem", RoleMember), role: RoleMember, want: ErrForbidden,
+			actor: actorIn("account-mem", RoleMember), role: RoleMember, want: ErrForbidden,
 		},
 		{
 			name:  "a stranger cannot invite",
-			actor: Actor{Account: "acc-x"}, role: RoleMember, want: ErrForbidden,
+			actor: Actor{Account: "account-x"}, role: RoleMember, want: ErrForbidden,
 		},
 		{
 			name:  "an unknown role never reaches the store",
-			actor: actorIn("acc-own", RoleOwner), role: Role("superuser"), want: ErrRoleUnknown,
+			actor: actorIn("account-own", RoleOwner), role: Role("superuser"), want: ErrRoleUnknown,
 		},
 	}
 	for _, c := range cases {
@@ -249,7 +249,7 @@ func TestAuthorizeInvite(t *testing.T) {
 // match it into a "removing myself" shortcut that skips the permission check.
 func TestEmptyAccountIsNotSelfRemoval(t *testing.T) {
 	legacy := Actor{Platform: true}
-	state := org(map[string]Role{"": RoleOwner, "acc-own": RoleOwner})
+	state := org(map[string]Role{"": RoleOwner, "account-own": RoleOwner})
 	if err := AuthorizeRemoval(legacy, state, ""); !errors.Is(err, ErrForbidden) {
 		t.Errorf("error = %v; want ErrForbidden", err)
 	}

@@ -239,7 +239,7 @@ func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, ErrBadDeviceID.Error())
 		return
 	}
-	// Scoped, not just online: a named dev- from another project must not be
+	// Scoped, not just online: a named device- from another project must not be
 	// reachable through this project's task surface (01).
 	if g.connForProject(projectID, worker) == nil {
 		httpError(w, http.StatusServiceUnavailable, ErrDeviceOffline.Error())
@@ -288,7 +288,7 @@ func (g *Gateway) handleGetTask(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	// A tsk- from another project answers 404, not the row: otherwise one
+	// A task- from another project answers 404, not the row: otherwise one
 	// project's task ids are readable from another project's surface.
 	if task.ProjectID != projectID {
 		httpError(w, http.StatusNotFound, scheduler.ErrTaskNotFound.Error())

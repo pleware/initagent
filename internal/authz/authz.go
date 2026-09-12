@@ -241,7 +241,7 @@ func Dangerous(c Capability) bool { return c == ExecDevice }
 // Actor is the resolved identity behind a request. The hub builds it at the
 // edge from the session and the store; every decision below reads only this.
 type Actor struct {
-	// Account is the `acc-` this request acts as. Empty means a hub that was
+	// Account is the `account-` this request acts as. Empty means a hub that was
 	// claimed before accounts existed, whose anonymous operator password is
 	// still the only credential (26's legacy path).
 	Account string

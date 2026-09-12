@@ -40,7 +40,7 @@ Usage:
   {{bin}} serve [--addr :4200] [--data-dir ~/{{cfg}}] [--gateway-url URL] [--offering selfhost|hosted]
               [--trusted-proxies CIDR,...]                  Run the hub (web UI + API)
   {{bin}} serve --tls-domain d.com --tls-email you@d.com   Run the hub with automatic HTTPS (Let's Encrypt)
-  {{bin}} gateway [--addr :4201] [--data-dir ~/{{cfg}}] [--project prj-…] [--public-url URL]
+  {{bin}} gateway [--addr :4201] [--data-dir ~/{{cfg}}] [--project project-…] [--public-url URL]
                                                              Run the project gateway (enroll + tasks)
   {{bin}} gdesk                                           Run the glass desk (local voice seam for the glass)
   {{bin}} agent enroll --hub URL --token TOKEN            Enroll this device with a hub

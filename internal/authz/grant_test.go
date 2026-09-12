@@ -7,7 +7,7 @@ import (
 )
 
 func member(org string, r Role) Actor {
-	return Actor{Account: "acc-1", Orgs: map[string]Role{org: r}}
+	return Actor{Account: "account-1", Orgs: map[string]Role{org: r}}
 }
 
 // A session carries no grant, so the role is the whole answer. This is the
@@ -19,7 +19,7 @@ func TestSessionIsRoleOnly(t *testing.T) {
 		t.Error("a session reported itself as scoped")
 	}
 	for _, c := range []Capability{ReadProject, CreateProject, ExecDevice, AttachTerminal} {
-		if !session.Can(c, "org-1", "prj-1") {
+		if !session.Can(c, "org-1", "project-1") {
 			t.Errorf("admin session refused %q", c)
 		}
 	}
@@ -56,7 +56,7 @@ func TestTokenIsTheIntersection(t *testing.T) {
 			Actor: member(org, c.role),
 			Grant: &Grant{Org: org, Scopes: c.scope},
 		}
-		if got := cred.Can(c.cap, org, "prj-1"); got != c.want {
+		if got := cred.Can(c.cap, org, "project-1"); got != c.want {
 			t.Errorf("%s: Can(%q) = %v; want %v", c.name, c.cap, got, c.want)
 		}
 		if !cred.Scoped() {
@@ -68,13 +68,13 @@ func TestTokenIsTheIntersection(t *testing.T) {
 // Losing the membership must be enough. If a token outlived it, revoking a
 // person's access would mean hunting down every secret they ever minted.
 func TestTokenDiesWithTheMembership(t *testing.T) {
-	stranger := Actor{Account: "acc-1"} // removed from every org
+	stranger := Actor{Account: "account-1"} // removed from every org
 	cred := Credential{
 		Actor: stranger,
 		Grant: &Grant{Org: "org-1", Scopes: []Capability{ReadProject, ExecDevice}},
 	}
 	for _, c := range []Capability{ReadProject, ExecDevice} {
-		if cred.Can(c, "org-1", "prj-1") {
+		if cred.Can(c, "org-1", "project-1") {
 			t.Errorf("%q survived the loss of membership", c)
 		}
 	}
@@ -92,26 +92,26 @@ func TestBoundary(t *testing.T) {
 		targetProject string
 		want          bool
 	}{
-		{"tenant token inside its org", org, "", org, "prj-1", true},
-		{"tenant token, any project", org, "", org, "prj-9", true},
+		{"tenant token inside its org", org, "", org, "project-1", true},
+		{"tenant token, any project", org, "", org, "project-9", true},
 		{"tenant token, org-wide target", org, "", org, "", true},
-		{"another tenant", org, "", "org-2", "prj-1", false},
-		{"project token on its project", org, "prj-1", org, "prj-1", true},
-		{"project token on another project", org, "prj-1", org, "prj-2", false},
-		{"project token asked to act org-wide", org, "prj-1", org, "", false},
-		{"project token in another tenant", org, "prj-1", "org-2", "prj-1", false},
+		{"another tenant", org, "", "org-2", "project-1", false},
+		{"project token on its project", org, "project-1", org, "project-1", true},
+		{"project token on another project", org, "project-1", org, "project-2", false},
+		{"project token asked to act org-wide", org, "project-1", org, "", false},
+		{"project token in another tenant", org, "project-1", "org-2", "project-1", false},
 		// A token's boundary is a project or a tenant (09). Running the
 		// installation is not something a machine secret can reach.
 		{"tenant token at the installation", org, "", "", "", false},
-		{"project token at the installation", org, "prj-1", "", "", false},
+		{"project token at the installation", org, "project-1", "", "", false},
 		// A zero Grant must reach nothing rather than everything.
-		{"zero grant", "", "", org, "prj-1", false},
+		{"zero grant", "", "", org, "project-1", false},
 		{"zero grant, org-wide", "", "", org, "", false},
 	}
 	for _, c := range cases {
 		cred := Credential{
 			// Owner everywhere, so only the boundary can refuse.
-			Actor: Actor{Account: "acc-1", Platform: true, Orgs: map[string]Role{
+			Actor: Actor{Account: "account-1", Platform: true, Orgs: map[string]Role{
 				org: RoleOwner, "org-2": RoleOwner,
 			}},
 			Grant: &Grant{Org: c.grantOrg, Project: c.grantProject, Scopes: all},
@@ -126,7 +126,7 @@ func TestBoundary(t *testing.T) {
 // The installation capabilities are reachable by a session and by no token,
 // which is what keeps a leaked machine secret out of hub administration.
 func TestInstallationStaysWithThePerson(t *testing.T) {
-	operator := Actor{Account: "acc-1", Platform: true}
+	operator := Actor{Account: "account-1", Platform: true}
 
 	session := Credential{Actor: operator}
 	if !session.Can(AdminAccounts, "", "") {
@@ -278,7 +278,7 @@ func TestUnpartitionedOperatorHoldsTheFleet(t *testing.T) {
 	}
 	// Projects on such a hub carry an empty org_id, which is the boundary
 	// these requests arrive with.
-	if !legacy.Can(ReadDevice, "", "prj-1") {
+	if !legacy.Can(ReadDevice, "", "project-1") {
 		t.Error("legacy operator refused a project with no org")
 	}
 
@@ -286,13 +286,13 @@ func TestUnpartitionedOperatorHoldsTheFleet(t *testing.T) {
 	// exists the ordinary rules apply, and a platform admin is still not a
 	// member of a customer's org.
 	partitioned := Credential{Actor: Actor{Platform: true}}
-	if partitioned.Can(ReadDevice, "org-1", "prj-1") {
+	if partitioned.Can(ReadDevice, "org-1", "project-1") {
 		t.Error("platform admin reached an org's fleet without membership")
 	}
 
 	// It cannot be a back door for a non-operator either.
-	impostor := Credential{Actor: Actor{Account: "acc-9", Unpartitioned: true}}
-	if impostor.Can(ReadDevice, "org-1", "prj-1") {
+	impostor := Credential{Actor: Actor{Account: "account-9", Unpartitioned: true}}
+	if impostor.Can(ReadDevice, "org-1", "project-1") {
 		t.Error("a non-operator was let in by the unpartitioned flag")
 	}
 
@@ -302,10 +302,10 @@ func TestUnpartitionedOperatorHoldsTheFleet(t *testing.T) {
 		Actor: Actor{Platform: true, Unpartitioned: true},
 		Grant: &Grant{Org: "org-1", Scopes: []Capability{ReadDevice}},
 	}
-	if token.Can(ReadDevice, "org-2", "prj-1") {
+	if token.Can(ReadDevice, "org-2", "project-1") {
 		t.Error("a token on a legacy hub crossed into another org")
 	}
-	if token.Can(ExecDevice, "org-1", "prj-1") {
+	if token.Can(ExecDevice, "org-1", "project-1") {
 		t.Error("a token on a legacy hub exceeded its scope list")
 	}
 }

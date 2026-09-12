@@ -64,7 +64,7 @@ func TestMsgRoundTrip(t *testing.T) {
 }
 
 func TestProcessStartRoundTrip(t *testing.T) {
-	m, err := NewMsg(TypeProcessStart, 3, 0, ProcessStart{Command: "coder", TimeoutSec: 30, RunID: "tsk-1"})
+	m, err := NewMsg(TypeProcessStart, 3, 0, ProcessStart{Command: "coder", TimeoutSec: 30, RunID: "task-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,14 +83,14 @@ func TestProcessStartRoundTrip(t *testing.T) {
 	if err := json.Unmarshal(back.Data, &p); err != nil {
 		t.Fatal(err)
 	}
-	if p.Command != "coder" || p.TimeoutSec != 30 || p.RunID != "tsk-1" {
+	if p.Command != "coder" || p.TimeoutSec != 30 || p.RunID != "task-1" {
 		t.Fatalf("got %+v", p)
 	}
 }
 
 func TestRunSendKeysRoundTrip(t *testing.T) {
 	m, err := NewMsg(TypeRunSendKeys, 4, 0, RunSendKeys{
-		Command: "coder", Nonce: "0123456789abcdef", RunID: "tsk-1",
+		Command: "coder", Nonce: "0123456789abcdef", RunID: "task-1",
 	})
 	if err != nil {
 		t.Fatal(err)

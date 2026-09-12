@@ -17,7 +17,7 @@ import (
 // restarts; it does not burn retry attempts.
 var ErrNotConfigured = errors.New("mailer: not configured")
 
-// Message is one outbound letter. ID is the outbox row (`eml-`).
+// Message is one outbound letter. ID is the outbox row (`mail-`).
 type Message struct {
 	ID      string
 	Kind    string

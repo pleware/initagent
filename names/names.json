@@ -1,0 +1,591 @@
+{
+  "schema": 1,
+  "authority": "initagent",
+  "seamEnvelopeVersion": 2,
+  "grammar": {
+    "entity": "<authority>.<context>.<entity>",
+    "identifier": "<prefix>-<uuidv7>",
+    "happening": "<context>.<entity>.<verb>",
+    "permission": "<verb>:<context>.<entity>",
+    "separator": "-"
+  },
+  "contexts": [
+    "hub",
+    "project",
+    "gdesk",
+    "fleet",
+    "worker"
+  ],
+  "entities": [
+    {
+      "name": "initagent.fleet.attachment",
+      "context": "fleet",
+      "entity": "attachment",
+      "identifierPrefix": "attachment-",
+      "mints": true,
+      "lifetime": "while the tab is open",
+      "capabilities": [],
+      "happeningPrefix": "fleet.attachment"
+    },
+    {
+      "name": "initagent.fleet.device",
+      "context": "fleet",
+      "entity": "device",
+      "identifierPrefix": "device-",
+      "mints": true,
+      "lifetime": "enroll → delete",
+      "capabilities": [
+        "admin:fleet.device",
+        "create:fleet.device",
+        "exec:fleet.device",
+        "read:fleet.device"
+      ],
+      "happeningPrefix": "fleet.device"
+    },
+    {
+      "name": "initagent.fleet.enrollment",
+      "context": "fleet",
+      "entity": "enrollment",
+      "identifierPrefix": "enrollment-",
+      "mints": true,
+      "lifetime": "minted → used or expired",
+      "capabilities": [],
+      "happeningPrefix": "fleet.enrollment"
+    },
+    {
+      "name": "initagent.fleet.file",
+      "context": "fleet",
+      "entity": "file",
+      "identifierPrefix": "",
+      "mints": false,
+      "lifetime": "the file's own",
+      "capabilities": [
+        "read:fleet.file",
+        "write:fleet.file"
+      ],
+      "happeningPrefix": "fleet.file"
+    },
+    {
+      "name": "initagent.fleet.host",
+      "context": "fleet",
+      "entity": "host",
+      "identifierPrefix": "host-",
+      "mints": true,
+      "lifetime": "first enroll → last device removed",
+      "capabilities": [],
+      "happeningPrefix": "fleet.host"
+    },
+    {
+      "name": "initagent.fleet.terminal",
+      "context": "fleet",
+      "entity": "terminal",
+      "identifierPrefix": "terminal-",
+      "mints": true,
+      "lifetime": "until killed or host reboot",
+      "capabilities": [
+        "attach:fleet.terminal",
+        "read:fleet.terminal"
+      ],
+      "happeningPrefix": "fleet.terminal"
+    },
+    {
+      "name": "initagent.gdesk.conversation",
+      "context": "gdesk",
+      "entity": "conversation",
+      "identifierPrefix": "conversation-",
+      "mints": true,
+      "lifetime": "walk-up → goodbye",
+      "capabilities": [],
+      "happeningPrefix": "gdesk.conversation"
+    },
+    {
+      "name": "initagent.gdesk.stream",
+      "context": "gdesk",
+      "entity": "stream",
+      "identifierPrefix": "stream-",
+      "mints": true,
+      "lifetime": "while the glass is connected",
+      "capabilities": [],
+      "happeningPrefix": "gdesk.stream"
+    },
+    {
+      "name": "initagent.gdesk.surface",
+      "context": "gdesk",
+      "entity": "surface",
+      "identifierPrefix": "surface-",
+      "mints": true,
+      "lifetime": "opened → closed",
+      "capabilities": [],
+      "happeningPrefix": "gdesk.surface"
+    },
+    {
+      "name": "initagent.gdesk.turn",
+      "context": "gdesk",
+      "entity": "turn",
+      "identifierPrefix": "turn-",
+      "mints": true,
+      "lifetime": "one answer",
+      "capabilities": [],
+      "happeningPrefix": "gdesk.turn"
+    },
+    {
+      "name": "initagent.gdesk.utterance",
+      "context": "gdesk",
+      "entity": "utterance",
+      "identifierPrefix": "utterance-",
+      "mints": true,
+      "lifetime": "one message",
+      "capabilities": [],
+      "happeningPrefix": "gdesk.utterance"
+    },
+    {
+      "name": "initagent.hub.account",
+      "context": "hub",
+      "entity": "account",
+      "identifierPrefix": "account-",
+      "mints": true,
+      "lifetime": "until deleted",
+      "capabilities": [
+        "admin:hub.account"
+      ],
+      "happeningPrefix": "hub.account"
+    },
+    {
+      "name": "initagent.hub.command",
+      "context": "hub",
+      "entity": "command",
+      "identifierPrefix": "command-",
+      "mints": true,
+      "lifetime": "until acked",
+      "capabilities": [],
+      "happeningPrefix": "hub.command"
+    },
+    {
+      "name": "initagent.hub.event",
+      "context": "hub",
+      "entity": "event",
+      "identifierPrefix": "event-",
+      "mints": true,
+      "lifetime": "retention window",
+      "capabilities": [
+        "read:hub.event"
+      ],
+      "happeningPrefix": "hub.event"
+    },
+    {
+      "name": "initagent.hub.folder",
+      "context": "hub",
+      "entity": "folder",
+      "identifierPrefix": "folder-",
+      "mints": true,
+      "lifetime": "until deleted",
+      "capabilities": [],
+      "happeningPrefix": "hub.folder"
+    },
+    {
+      "name": "initagent.hub.gateway",
+      "context": "hub",
+      "entity": "gateway",
+      "identifierPrefix": "gateway-",
+      "mints": true,
+      "lifetime": "provisioned → torn down",
+      "capabilities": [],
+      "happeningPrefix": "hub.gateway"
+    },
+    {
+      "name": "initagent.hub.identity",
+      "context": "hub",
+      "entity": "identity",
+      "identifierPrefix": "",
+      "mints": false,
+      "lifetime": "until unlinked",
+      "capabilities": [],
+      "happeningPrefix": "hub.identity"
+    },
+    {
+      "name": "initagent.hub.mail",
+      "context": "hub",
+      "entity": "mail",
+      "identifierPrefix": "mail-",
+      "mints": true,
+      "lifetime": "until sent or dead",
+      "capabilities": [],
+      "happeningPrefix": "hub.mail"
+    },
+    {
+      "name": "initagent.hub.org",
+      "context": "hub",
+      "entity": "org",
+      "identifierPrefix": "org-",
+      "mints": true,
+      "lifetime": "until deleted",
+      "capabilities": [
+        "admin:hub.org",
+        "delete:hub.org",
+        "read:hub.org"
+      ],
+      "happeningPrefix": "hub.org"
+    },
+    {
+      "name": "initagent.hub.org_invite",
+      "context": "hub",
+      "entity": "org_invite",
+      "identifierPrefix": "org_invite-",
+      "mints": true,
+      "lifetime": "until used, revoked, or expired",
+      "capabilities": [],
+      "happeningPrefix": "hub.org_invite"
+    },
+    {
+      "name": "initagent.hub.password_reset",
+      "context": "hub",
+      "entity": "password_reset",
+      "identifierPrefix": "password_reset-",
+      "mints": true,
+      "lifetime": "until used or expired",
+      "capabilities": [],
+      "happeningPrefix": "hub.password_reset"
+    },
+    {
+      "name": "initagent.hub.preset",
+      "context": "hub",
+      "entity": "preset",
+      "identifierPrefix": "",
+      "mints": false,
+      "lifetime": "until deleted",
+      "capabilities": [
+        "admin:hub.preset",
+        "read:hub.preset"
+      ],
+      "happeningPrefix": "hub.preset"
+    },
+    {
+      "name": "initagent.hub.project",
+      "context": "hub",
+      "entity": "project",
+      "identifierPrefix": "project-",
+      "mints": true,
+      "lifetime": "project lifetime",
+      "capabilities": [
+        "admin:hub.project",
+        "create:hub.project",
+        "delete:hub.project",
+        "read:hub.project"
+      ],
+      "happeningPrefix": "hub.project"
+    },
+    {
+      "name": "initagent.hub.staff",
+      "context": "hub",
+      "entity": "staff",
+      "identifierPrefix": "staff-",
+      "mints": true,
+      "lifetime": "until removed",
+      "capabilities": [],
+      "happeningPrefix": "hub.staff"
+    },
+    {
+      "name": "initagent.hub.template",
+      "context": "hub",
+      "entity": "template",
+      "identifierPrefix": "",
+      "mints": false,
+      "lifetime": "ships with the binary",
+      "capabilities": [
+        "read:hub.template"
+      ],
+      "happeningPrefix": "hub.template"
+    },
+    {
+      "name": "initagent.hub.token",
+      "context": "hub",
+      "entity": "token",
+      "identifierPrefix": "token-",
+      "mints": true,
+      "lifetime": "until revoked",
+      "capabilities": [],
+      "happeningPrefix": "hub.token"
+    },
+    {
+      "name": "initagent.hub.update",
+      "context": "hub",
+      "entity": "update",
+      "identifierPrefix": "",
+      "mints": false,
+      "lifetime": "until superseded",
+      "capabilities": [
+        "admin:hub.update",
+        "read:hub.update"
+      ],
+      "happeningPrefix": "hub.update"
+    },
+    {
+      "name": "initagent.project.attention",
+      "context": "project",
+      "entity": "attention",
+      "identifierPrefix": "attention-",
+      "mints": true,
+      "lifetime": "opened → answered or dismissed",
+      "capabilities": [],
+      "happeningPrefix": "project.attention"
+    },
+    {
+      "name": "initagent.project.binding",
+      "context": "project",
+      "entity": "binding",
+      "identifierPrefix": "project-",
+      "mints": false,
+      "borrows": "project",
+      "lifetime": "project lifetime",
+      "capabilities": [],
+      "happeningPrefix": "project.binding"
+    },
+    {
+      "name": "initagent.project.bridge",
+      "context": "project",
+      "entity": "bridge",
+      "identifierPrefix": "bridge-",
+      "mints": true,
+      "lifetime": "while both sides exist",
+      "capabilities": [],
+      "happeningPrefix": "project.bridge"
+    },
+    {
+      "name": "initagent.project.draft",
+      "context": "project",
+      "entity": "draft",
+      "identifierPrefix": "draft-",
+      "mints": true,
+      "lifetime": "until promoted or dropped",
+      "capabilities": [],
+      "happeningPrefix": "project.draft"
+    },
+    {
+      "name": "initagent.project.evidence",
+      "context": "project",
+      "entity": "evidence",
+      "identifierPrefix": "evidence-",
+      "mints": true,
+      "lifetime": "retention window",
+      "capabilities": [],
+      "happeningPrefix": "project.evidence"
+    },
+    {
+      "name": "initagent.project.foreign_project",
+      "context": "project",
+      "entity": "foreign_project",
+      "identifierPrefix": "foreign_project-",
+      "mints": true,
+      "lifetime": "while the foreign project is referenced",
+      "capabilities": [],
+      "happeningPrefix": "project.foreign_project"
+    },
+    {
+      "name": "initagent.project.mcp_server",
+      "context": "project",
+      "entity": "mcp_server",
+      "identifierPrefix": "mcp_server-",
+      "mints": true,
+      "lifetime": "until removed",
+      "capabilities": [],
+      "happeningPrefix": "project.mcp_server"
+    },
+    {
+      "name": "initagent.project.member",
+      "context": "project",
+      "entity": "member",
+      "identifierPrefix": "member-",
+      "mints": true,
+      "lifetime": "until removed",
+      "capabilities": [],
+      "happeningPrefix": "project.member"
+    },
+    {
+      "name": "initagent.project.persona",
+      "context": "project",
+      "entity": "persona",
+      "identifierPrefix": "persona-",
+      "mints": true,
+      "lifetime": "until removed",
+      "capabilities": [],
+      "happeningPrefix": "project.persona"
+    },
+    {
+      "name": "initagent.project.proof",
+      "context": "project",
+      "entity": "proof",
+      "identifierPrefix": "proof-",
+      "mints": true,
+      "lifetime": "permanent",
+      "capabilities": [],
+      "happeningPrefix": "project.proof"
+    },
+    {
+      "name": "initagent.project.repo",
+      "context": "project",
+      "entity": "repo",
+      "identifierPrefix": "repo-",
+      "mints": true,
+      "lifetime": "until unbound",
+      "capabilities": [],
+      "happeningPrefix": "project.repo"
+    },
+    {
+      "name": "initagent.project.run",
+      "context": "project",
+      "entity": "run",
+      "identifierPrefix": "run-",
+      "mints": true,
+      "lifetime": "one execution",
+      "capabilities": [],
+      "happeningPrefix": "project.run"
+    },
+    {
+      "name": "initagent.project.secret",
+      "context": "project",
+      "entity": "secret",
+      "identifierPrefix": "secret-",
+      "mints": true,
+      "lifetime": "until rotated",
+      "capabilities": [],
+      "happeningPrefix": "project.secret"
+    },
+    {
+      "name": "initagent.project.task",
+      "context": "project",
+      "entity": "task",
+      "identifierPrefix": "task-",
+      "mints": true,
+      "lifetime": "queued → done",
+      "capabilities": [
+        "create:project.task",
+        "read:project.task"
+      ],
+      "happeningPrefix": "project.task"
+    },
+    {
+      "name": "initagent.project.thread",
+      "context": "project",
+      "entity": "thread",
+      "identifierPrefix": "thread-",
+      "mints": true,
+      "lifetime": "while the foreign thread is referenced",
+      "capabilities": [],
+      "happeningPrefix": "project.thread"
+    },
+    {
+      "name": "initagent.project.todo",
+      "context": "project",
+      "entity": "todo",
+      "identifierPrefix": "todo-",
+      "mints": true,
+      "lifetime": "until done or dropped",
+      "capabilities": [],
+      "happeningPrefix": "project.todo"
+    },
+    {
+      "name": "initagent.project.work",
+      "context": "project",
+      "entity": "work",
+      "identifierPrefix": "work-",
+      "mints": true,
+      "lifetime": "plan lifetime",
+      "capabilities": [],
+      "happeningPrefix": "project.work"
+    },
+    {
+      "name": "initagent.worker.coder",
+      "context": "worker",
+      "entity": "coder",
+      "identifierPrefix": "coder-",
+      "mints": true,
+      "lifetime": "process lifetime",
+      "capabilities": [],
+      "happeningPrefix": "worker.coder"
+    },
+    {
+      "name": "initagent.worker.workspace",
+      "context": "worker",
+      "entity": "workspace",
+      "identifierPrefix": "workspace-",
+      "mints": true,
+      "lifetime": "per run",
+      "capabilities": [],
+      "happeningPrefix": "worker.workspace"
+    }
+  ],
+  "capabilities": [
+    "admin:fleet.device",
+    "admin:hub.account",
+    "admin:hub.org",
+    "admin:hub.preset",
+    "admin:hub.project",
+    "admin:hub.update",
+    "attach:fleet.terminal",
+    "create:fleet.device",
+    "create:hub.project",
+    "create:project.task",
+    "delete:hub.org",
+    "delete:hub.project",
+    "exec:fleet.device",
+    "read:fleet.device",
+    "read:fleet.file",
+    "read:fleet.terminal",
+    "read:hub.event",
+    "read:hub.org",
+    "read:hub.preset",
+    "read:hub.project",
+    "read:hub.template",
+    "read:hub.update",
+    "read:project.task",
+    "write:fleet.file"
+  ],
+  "happeningPrefixes": [
+    "fleet.attachment",
+    "fleet.device",
+    "fleet.enrollment",
+    "fleet.file",
+    "fleet.host",
+    "fleet.terminal",
+    "gdesk.conversation",
+    "gdesk.stream",
+    "gdesk.surface",
+    "gdesk.turn",
+    "gdesk.utterance",
+    "hub.account",
+    "hub.command",
+    "hub.event",
+    "hub.folder",
+    "hub.gateway",
+    "hub.identity",
+    "hub.mail",
+    "hub.org",
+    "hub.org_invite",
+    "hub.password_reset",
+    "hub.preset",
+    "hub.project",
+    "hub.staff",
+    "hub.template",
+    "hub.token",
+    "hub.update",
+    "project.attention",
+    "project.binding",
+    "project.bridge",
+    "project.draft",
+    "project.evidence",
+    "project.foreign_project",
+    "project.mcp_server",
+    "project.member",
+    "project.persona",
+    "project.proof",
+    "project.repo",
+    "project.run",
+    "project.secret",
+    "project.task",
+    "project.thread",
+    "project.todo",
+    "project.work",
+    "worker.coder",
+    "worker.workspace"
+  ]
+}

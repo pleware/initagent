@@ -192,7 +192,7 @@ func TestAdminSurfacesRefuseAnonymous(t *testing.T) {
 }
 
 // This used to assert that every API token gets 401 on the account surfaces,
-// because a token named nobody. It now names an `acc-`, so admission is
+// because a token named nobody. It now names an `account-`, so admission is
 // decided by the scope list and the boundary — see
 // TestAdminSurfacesTakeScopedTokens in tokens_test.go.
 
@@ -367,7 +367,7 @@ func TestOrgSurfaceRefusals(t *testing.T) {
 		},
 		{
 			name: "a role change for somebody who is not a member", client: f.client,
-			method: http.MethodPatch, path: "/api/orgs/" + f.orgId + "/members/acc-nobody",
+			method: http.MethodPatch, path: "/api/orgs/" + f.orgId + "/members/account-nobody",
 			body: map[string]string{"role": "member"}, want: 404,
 		},
 		{
@@ -427,7 +427,7 @@ func TestRenameOrg(t *testing.T) {
 }
 
 // A hub claimed before accounts existed still signs its operator in. They are
-// the platform operator with no `acc-` and no org, which must not crash the
+// the platform operator with no `account-` and no org, which must not crash the
 // surfaces that expect an account.
 func TestLegacyOperatorSession(t *testing.T) {
 	srv := newHub(t, t.TempDir(), offering.Selfhost)

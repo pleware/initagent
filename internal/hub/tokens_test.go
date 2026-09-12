@@ -174,8 +174,8 @@ func TestApiTokenLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(row.Id, "tok-") {
-		t.Errorf("token id = %q; want a tok- identifier (06)", row.Id)
+	if !strings.HasPrefix(row.Id, "token-") {
+		t.Errorf("token id = %q; want a token- identifier (06)", row.Id)
 	}
 
 	got, ok, err := s.ApiTokenAuth(secret)
@@ -228,7 +228,7 @@ func TestApiTokenLifecycle(t *testing.T) {
 // --- admission versus refusal on the wire ---
 
 // Replaces the old assertion that a token gets 401 on the account surfaces.
-// It no longer does, because a token now names an `acc-`; what refuses it is
+// It no longer does, because a token now names an `account-`; what refuses it is
 // the scope list and the boundary.
 func TestAdminSurfacesTakeScopedTokens(t *testing.T) {
 	f := hostedCustomer(t)
@@ -394,7 +394,7 @@ func TestTokenCannotReachAnotherTenant(t *testing.T) {
 		t.Errorf("another tenant's machine: %d, want 403", resp.StatusCode)
 	}
 	// Naming the project directly must not widen the reach either.
-	if resp := f.withToken(t, wide, http.MethodGet, "/api/tasks/tsk-1?project="+hidden); resp.StatusCode != http.StatusForbidden {
+	if resp := f.withToken(t, wide, http.MethodGet, "/api/tasks/task-1?project="+hidden); resp.StatusCode != http.StatusForbidden {
 		t.Errorf("another tenant's gateway: %d, want 403", resp.StatusCode)
 	}
 }
@@ -410,7 +410,7 @@ func TestTokenCannotMintOrRevokeTokens(t *testing.T) {
 	for _, c := range []struct{ method, path string }{
 		{http.MethodGet, "/api/tokens"},
 		{http.MethodPost, "/api/tokens"},
-		{http.MethodDelete, "/api/tokens/tok-whatever"},
+		{http.MethodDelete, "/api/tokens/token-whatever"},
 	} {
 		resp := f.withToken(t, wide, c.method, c.path)
 		if resp.StatusCode != http.StatusUnauthorized {
@@ -470,7 +470,7 @@ func TestMintingRejectsBadInput(t *testing.T) {
 		// unknown rather than as forbidden.
 		{"installation power", map[string]any{"name": "ci", "scopes": []string{string(authz.AdminUpdate)}}, http.StatusBadRequest},
 		{"project in another org", map[string]any{
-			"name": "ci", "projectId": "prj-nope", "scopes": []string{string(authz.ReadDevice)},
+			"name": "ci", "projectId": "project-nope", "scopes": []string{string(authz.ReadDevice)},
 		}, http.StatusNotFound},
 	}
 	for _, c := range cases {

@@ -127,7 +127,7 @@ func TestADeskWithNoInventoryReportsNone(t *testing.T) {
 func TestTheInventoryIsReadWhenTheDumpIsTaken(t *testing.T) {
 	t.Parallel()
 	views := newTestViews(t)
-	conv := gdesk.ConversationID("cnv-inventory")
+	conv := gdesk.ConversationID("conversation-inventory")
 	asked := 0
 	listener, err := NewListener(ListenConfig{
 		Views:        views,
@@ -162,7 +162,7 @@ func TestTheInventoryIsReadWhenTheDumpIsTaken(t *testing.T) {
 func listenerWithLogs(t *testing.T) (*Listener, *httptest.Server) {
 	t.Helper()
 	views := newTestViews(t)
-	conv := gdesk.ConversationID("cnv-peers")
+	conv := gdesk.ConversationID("conversation-peers")
 	listener, err := NewListener(ListenConfig{
 		Views:        views,
 		Answerer:     &echoAnswerer{views: views, conv: conv},
@@ -198,7 +198,7 @@ func dialFrom(t *testing.T, server *httptest.Server, stream StreamID, origin str
 func listenerOnly(t *testing.T) *Listener {
 	t.Helper()
 	views := newTestViews(t)
-	conv := gdesk.ConversationID("cnv-book")
+	conv := gdesk.ConversationID("conversation-book")
 	listener, err := NewListener(ListenConfig{
 		Views:        views,
 		Answerer:     &echoAnswerer{views: views, conv: conv},

@@ -409,7 +409,48 @@ make cross       # cross-compile darwin/linux/windows × amd64/arm64 into dist/
 
 Project layout: `cmd/initagent` (entrypoint + subcommands), `internal/protocol`
 (wire format), `internal/hub` (server), `internal/agent` (device side),
-`internal/fleet` (API client), `internal/mcp` (MCP server), `ui` (React app).
+`internal/fleet` (API client), `internal/mcp` (MCP server), `ui` (React app),
+`names` (the naming registry, below).
+
+### The naming registry (`names/`)
+
+`names/names.yaml` is the single source of truth for initagent's vocabulary:
+every entity, which of the five contexts it belongs to, its lifetime, whether
+an identifier is minted for it, and which permission verbs it grants. It is a
+language-neutral file at the repository root rather than a Go package under
+`internal/` because more than one language reads it — the identifier prefixes
+are Go, the happening names on the glass seam are TypeScript, and a sensing
+process on a PWare OS box is Python.
+
+Two files are generated from it and both are committed:
+
+| Generated | Owner | Why it is committed |
+| --- | --- | --- |
+| `internal/id/registry_gen.go` | `internal/id` | a clean clone has to compile with no generator run |
+| `names/names.json` | consumers in other repositories | fetched by a stable public path, so it cannot be a build product |
+
+`names.json` carries the seam envelope version, the four grammars, every entity
+with its derived identifier prefix and happening prefix, and the derived
+`verb:context.entity` capability list. It deliberately carries no descriptions —
+those are prose, they belong in the YAML, and a six-line paragraph in a
+generated artifact makes every diff unreadable.
+
+Edit the YAML, never the generated files, then regenerate:
+
+```sh
+go generate ./internal/id
+```
+
+The generator is `cmd/namesgen`; its logic — decoding, every validation refusal,
+both renderings — is `internal/names`. It refuses to emit when the data is
+wrong: a name that is not `<authority>.<context>.<entity>`, a context field that
+disagrees with the name's middle segment, a prefix claimed twice or carrying the
+`-` separator, an empty description or lifetime. `go test ./internal/names`
+fails when a committed generated file is stale and names the command above.
+
+The identifier prefix is **not** a field in the YAML. It is the last segment of
+the entity's name, spelled out in full, and the generator derives it — storing
+it twice is how a prefix and a name come to disagree.
 
 ## Status & roadmap
 

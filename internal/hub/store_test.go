@@ -138,7 +138,7 @@ func TestAdminAccount(t *testing.T) {
 		t.Fatalf("ClaimHub: %v", err)
 	}
 	if !strings.HasPrefix(created.Id, string(id.Account)+id.Separator) {
-		t.Errorf("account id %q does not carry the acc- prefix", created.Id)
+		t.Errorf("account id %q does not carry the account- prefix", created.Id)
 	}
 	if !created.IsAdmin {
 		t.Error("the first account is the platform admin")
@@ -218,7 +218,7 @@ func TestRegisterCustomerMintsAccountAndOrg(t *testing.T) {
 		t.Error("a customer account must not be the platform admin")
 	}
 	if !strings.HasPrefix(account.Id, string(id.Account)+id.Separator) {
-		t.Errorf("account id %q does not carry the acc- prefix", account.Id)
+		t.Errorf("account id %q does not carry the account- prefix", account.Id)
 	}
 	if org.Name != auth.DefaultOrgName || org.Members != 1 {
 		t.Errorf("org = %+v, want name %q and one member", org, auth.DefaultOrgName)
@@ -310,7 +310,7 @@ func TestAccountEmailIsUnique(t *testing.T) {
 	// Same address, and this time not as an admin, so only the email
 	// constraint can refuse it.
 	if _, err := s.db.Exec(`INSERT INTO accounts (id, email, password_hash, is_admin, created_at)
-		VALUES (?, ?, ?, 0, 0)`, "acc-duplicate", "ops@example.com", hash); err == nil {
+		VALUES (?, ?, ?, 0, 0)`, "account-duplicate", "ops@example.com", hash); err == nil {
 		t.Fatal("two accounts share one email address")
 	}
 }
@@ -524,7 +524,7 @@ func TestListAccountsAndLookups(t *testing.T) {
 	if err != nil || found == nil || found.Email != "ops@example.com" {
 		t.Errorf("AccountById = (%v, %v), want the admin", found, err)
 	}
-	missing, err := s.AccountById("acc-nobody")
+	missing, err := s.AccountById("account-nobody")
 	if err != nil || missing != nil {
 		t.Errorf("AccountById for an unknown id = (%v, %v), want (nil, nil)", missing, err)
 	}
@@ -861,7 +861,7 @@ func TestOpenStoreBackfillsProjectDevices(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`INSERT INTO projects (id, name, device_id, path, created_at, updated_at)
-		VALUES ('prj-old', 'Legacy', 'dev-old', '/old', 1, 1)`); err != nil {
+		VALUES ('project-old', 'Legacy', 'device-old', '/old', 1, 1)`); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Close(); err != nil {
@@ -872,8 +872,8 @@ func TestOpenStoreBackfillsProjectDevices(t *testing.T) {
 		t.Fatalf("OpenStore on a project with a selected machine: %v", err)
 	}
 	t.Cleanup(func() { s.Close() })
-	ids, err := s.ListProjectDeviceIds("prj-old")
-	if err != nil || len(ids) != 1 || ids[0] != "dev-old" {
+	ids, err := s.ListProjectDeviceIds("project-old")
+	if err != nil || len(ids) != 1 || ids[0] != "device-old" {
 		t.Fatalf("backfill = %v, %v", ids, err)
 	}
 }
@@ -890,13 +890,13 @@ func TestBackfillProjectOrgsAttachesOrphansToTheOnlyOrg(t *testing.T) {
 	}
 	// Reproduce a row written before org_id existed.
 	if _, err := s.db.Exec(`INSERT INTO projects (id, name, org_id, gateway_url, device_id, path, created_at, updated_at)
-		VALUES ('prj-orphan', 'Legacy', '', '', ?, '/old', 1, 1)`, deviceId); err != nil {
+		VALUES ('project-orphan', 'Legacy', '', '', ?, '/old', 1, 1)`, deviceId); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.backfillProjectOrgs(); err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.ProjectById("prj-orphan")
+	got, err := s.ProjectById("project-orphan")
 	if err != nil || got == nil || got.OrgId != org.Id {
 		t.Fatalf("orphan after backfill = %+v, %v", got, err)
 	}

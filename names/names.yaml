@@ -1,0 +1,437 @@
+# The naming registry: the single source of truth for initagent's vocabulary.
+#
+# This file is language-neutral on purpose. `internal/id` is generated from it,
+# and so is `names.json`, the machine-readable sibling a consumer in another
+# repository fetches. Before this file existed the Go package was the source and
+# every other plane — the seam's happenings, the permission grammar, a Python
+# sensor's fact names — mirrored it by hand. A mirror maintained by hand is how
+# one producer came to say `desk.people.changed` while the product said `gdesk.`.
+#
+# Regenerate after every edit here:
+#
+#     go generate ./internal/id
+#
+# Four rules the generator enforces rather than trusting:
+#
+#   - A name is `<authority>.<context>.<entity>`, exactly three segments.
+#   - The middle segment is the context, so `context:` cannot disagree with it.
+#   - The identifier prefix is DERIVED from the last segment and is never a
+#     field here. Storing it twice is the disagreement this file removes.
+#   - A capability is `<verb>:<context>.<entity>`, derived from `capabilities:`
+#     below, so `internal/authz` cannot grant a verb on an entity nobody owns.
+schema: 1
+
+# The authority every name carries. This registry holds our own words only.
+authority: initagent
+
+seam:
+  # The gdesk seam's envelope version — `SEAM_VERSION` in the glass contract
+  # (`initagent-glass/app/src/seam/contract.ts`) and `Version` in
+  # `internal/gdeskseam/wire.go`. A consumer negotiates on this number, and the
+  # renames still owed across the seam ride its next bump.
+  envelope_version: 2
+
+# The five planes. A sixth is an extension of the ontology made on purpose, not
+# something a new entity may invent in passing. `go_const` is the one
+# Go-specific binding in this file: `gdesk` does not case-fold to `GDesk` by any
+# rule worth writing, and the existing exported identifiers are public API.
+contexts:
+  - name: hub
+    go_const: ContextHub
+  - name: project
+    go_const: ContextProject
+  - name: gdesk
+    go_const: ContextGDesk
+  - name: fleet
+    go_const: ContextFleet
+  - name: worker
+    go_const: ContextWorker
+
+# Every entity the vocabulary owns.
+#
+# `mints: true` means this registry hands out `<prefix>-<uuidv7>` for it.
+# `mints: false` means something else names the thing — a provider owns the key,
+# a path already names it, or it borrows an identifier minted for another entity
+# (`borrows:`). Registration matters either way: a permission, a happening or a
+# document may only name an entity that is here.
+entities:
+  # ---------------------------------------------------------------- hub -----
+  - name: initagent.hub.account
+    context: hub
+    go_const: Account
+    mints: true
+    lifetime: until deleted
+    capabilities: [admin]
+    description: |-
+      A person who can sign in. Memberships, tokens and audit all point at one of these rather than at an email string, so changing an address is not changing an identity.
+
+  - name: initagent.hub.org
+    context: hub
+    go_const: Org
+    mints: true
+    lifetime: until deleted
+    capabilities: [read, admin, delete]
+    description: |-
+      A customer's organization: the billing boundary, the member list, and the scope every query narrows by. Real from day one so there is no "add tenancy later" branch (25).
+
+  - name: initagent.hub.staff
+    context: hub
+    go_const: Staff
+    mints: true
+    lifetime: until removed
+    description: |-
+      One virtual being who works for the organization: greets at a glass, directs the work that follows, wears a rendered body on a scene, and sits on the People screen with a badge. The home is `hub` and not `gdesk` because the desk is one of his posts rather than who he is — his Big Five baseline and his voice identity are held on the hub so they survive any machine (docs/GDESK-SCOPES.md), and the People screen is a hub screen. That the code addressing him lives in internal/gdesk is not a contradiction: a context is a vocabulary domain and not a storage location, the same way a `fleet` device row lives on the gateway.
+
+  - name: initagent.hub.project
+    context: hub
+    go_const: Project
+    mints: true
+    lifetime: project lifetime
+    capabilities: [read, create, delete, admin]
+    description: |-
+      The hub's catalogue entry for one project. The gateway receives this same value at provisioning and uses it as its own project id, so one identifier deliberately spans two planes (07).
+
+  - name: initagent.hub.folder
+    context: hub
+    go_const: Folder
+    mints: true
+    lifetime: until deleted
+    description: |-
+      A display grouping over projects, nested by parent_id, with a project carrying a nullable folder_id. It earns an identifier rather than a path string because a path makes the name the identity and breaks on the first rename (08, 17). Nothing inherits through one until 08 says what would.
+
+  - name: initagent.hub.gateway
+    context: hub
+    go_const: Gateway
+    mints: true
+    lifetime: provisioned → torn down
+    description: |-
+      One running gateway instance. Projects are isolated per gateway (01), so which gateway holds a project is a placement the hub has to record rather than derive.
+
+  - name: initagent.hub.token
+    context: hub
+    go_const: Token
+    mints: true
+    lifetime: until revoked
+    description: |-
+      An API credential carrying a boundary and a verb set, deliberately narrower than the person who minted it (09). The row holds the scopes and a hash; the secret itself is never stored.
+
+  - name: initagent.hub.command
+    context: hub
+    go_const: Command
+    mints: true
+    lifetime: until acked
+    description: |-
+      One instruction on the hub's outbox, waiting for the device or gateway that must run it to acknowledge. The glass seam has a second thing called a command; 05 keeps this prefix and renames that one.
+
+  - name: initagent.hub.event
+    context: hub
+    go_const: Event
+    mints: true
+    lifetime: retention window
+    capabilities: [read]
+    description: |-
+      One ingested fact on the hub's stream — what the cockpit subscribes to and what an operator reads back. A feed rather than the store of record, which is why it expires.
+
+  - name: initagent.hub.mail
+    context: hub
+    go_const: Mail
+    mints: true
+    lifetime: until sent or dead
+    description: |-
+      One outbound message on the mail outbox. Queued as a row so a provider outage delays an invitation or a password reset instead of losing it.
+
+  - name: initagent.hub.password_reset
+    context: hub
+    go_const: Reset
+    mints: true
+    lifetime: until used or expired
+    description: |-
+      One password-reset grant. Single use and time-boxed, which is why it is a row that can be burned rather than a signed value that cannot.
+
+  - name: initagent.hub.org_invite
+    context: hub
+    go_const: Invite
+    mints: true
+    lifetime: until used, revoked, or expired
+    description: |-
+      One invitation to join an organization. It exists before the invitee has an account, so it cannot yet be a membership row.
+
+  - name: initagent.hub.identity
+    context: hub
+    mints: false
+    lifetime: until unlinked
+    description: |-
+      One identity-provider subject linked to an account — a Google or a GitHub login (26). The provider owns the key, so the pair (provider, subject) identifies it and there is nothing for us to mint. It is a row rather than a column so one person can hold several logins.
+
+  - name: initagent.hub.template
+    context: hub
+    mints: false
+    lifetime: ships with the binary
+    capabilities: [read]
+    description: |-
+      One shipped create-project choice: a label over the delivery contract, whether a repo is required, and which worker capabilities the project needs (26, 38). It is a catalogue in the binary, not a project.kind column.
+
+  - name: initagent.hub.preset
+    context: hub
+    mints: false
+    lifetime: until deleted
+    capabilities: [read, admin]
+    description: |-
+      A saved command a person can run on a machine, seeded at first open and editable afterwards. It is stored on the hub, which is why it is a hub word even though what it runs is a fleet thing.
+
+  - name: initagent.hub.update
+    context: hub
+    mints: false
+    lifetime: until superseded
+    capabilities: [read, admin]
+    description: |-
+      The installation's own release: which version runs, which is available, and how much of the fleet is behind. Operating the hub rather than using it, which is why no token can be granted it.
+
+  # ------------------------------------------------------------ project -----
+  - name: initagent.project.member
+    context: project
+    go_const: Member
+    mints: true
+    lifetime: until removed
+    description: |-
+      One person's membership of one project, carrying the role that project enforces. Separate from org membership because the two boundaries answer different questions (25).
+
+  - name: initagent.project.persona
+    context: project
+    go_const: Persona
+    mints: true
+    lifetime: until removed
+    description: |-
+      A virtual AI staff member on a project: the actor a task is attributed to, as against the account that requested it (27). Not an IAM role, and not OMO's persona files.
+
+  - name: initagent.project.mcp_server
+    context: project
+    go_const: MCPServer
+    mints: true
+    lifetime: until removed
+    description: |-
+      One MCP server in the project's catalogue, with the audience — hub inbound or harness on the worker — that decides where it may be reached (28).
+
+  - name: initagent.project.repo
+    context: project
+    go_const: Repo
+    mints: true
+    lifetime: until unbound
+    description: |-
+      The repository a project's work lands in, and the base every pull request opens against. A device pushing to a fork keeps its own URL as a field rather than a second repo row (14).
+
+  - name: initagent.project.secret
+    context: project
+    go_const: Secret
+    mints: true
+    lifetime: until rotated
+    description: |-
+      A recoverable provider secret held for the project — a database DSN, a provider key. Recoverable rather than hashed, because the worker has to present it to something else (24).
+
+  - name: initagent.project.todo
+    context: project
+    go_const: Todo
+    mints: true
+    lifetime: until done or dropped
+    description: |-
+      One checklist item: the intent, not the execution. A todo maps to many tasks over time — retry, split, rework after a rejected review — so the intent survives a failed attempt.
+
+  - name: initagent.project.task
+    context: project
+    go_const: Task
+    mints: true
+    lifetime: queued → done
+    capabilities: [read, create]
+    description: |-
+      One dispatchable unit of work. It names a requester (`account-`) and an actor (`persona-`), which is what makes a result attributable to somebody rather than to the installation.
+
+  - name: initagent.project.run
+    context: project
+    go_const: Run
+    mints: true
+    lifetime: one execution
+    description: |-
+      One attempt at a task on one machine. A retry elsewhere is a new run under the same task, so a task's history is a list rather than an overwritten status.
+
+  - name: initagent.project.work
+    context: project
+    go_const: Work
+    mints: true
+    lifetime: plan lifetime
+    description: |-
+      A plan-scoped umbrella over the tasks one plan produced, so progress on a plan is answerable without the tasks having to know about each other.
+
+  - name: initagent.project.draft
+    context: project
+    go_const: Draft
+    mints: true
+    lifetime: until promoted or dropped
+    description: |-
+      A pre-plan note: something worth keeping before anybody decided it is work. It becomes a todo or it is dropped; it never dispatches.
+
+  - name: initagent.project.evidence
+    context: project
+    go_const: Evidence
+    mints: true
+    lifetime: retention window
+    description: |-
+      One captured artefact of a run — a diff, a log, an output file. Produced on the worker and durable on the gateway, which is why 05 files it under project and not worker.
+
+  - name: initagent.project.proof
+    context: project
+    go_const: Proof
+    mints: true
+    lifetime: permanent
+    description: |-
+      A verdict over evidence: the reviewed answer to whether a run did what it claimed. Permanent, so a later rerun cannot quietly replace the judgement that was made.
+
+  - name: initagent.project.thread
+    context: project
+    go_const: Thread
+    mints: true
+    lifetime: while the foreign thread is referenced
+    description: |-
+      Our surrogate for a conversation owned by a harness (OpenCode, Codex, Cursor). We mint the identifier and the foreign coordinates are its payload, so a provider reshaping its own ids cannot break our references (07).
+
+  - name: initagent.project.bridge
+    context: project
+    go_const: Bridge
+    mints: true
+    lifetime: while both sides exist
+    description: |-
+      One recorded correspondence between two elements that are not permanently one to one — our project and a tool's project, our task and a foreign issue (07).
+
+  - name: initagent.project.attention
+    context: project
+    go_const: Attention
+    mints: true
+    lifetime: opened → answered or dismissed
+    description: |-
+      A pending human decision: a review to sign off, an ambiguity a run could not resolve. A row rather than a notification, so nothing waits on somebody invisibly.
+
+  - name: initagent.project.foreign_project
+    context: project
+    go_const: ForeignProject
+    mints: true
+    lifetime: while the foreign project is referenced
+    description: |-
+      Our surrogate for a project some tool mints itself. The correspondence to our project is many-to-many and the foreign identifier can change under us, which is why it is a row and not a column (07, 44).
+
+  - name: initagent.project.binding
+    context: project
+    mints: false
+    borrows: project
+    lifetime: project lifetime
+    description: |-
+      The project's own row on the gateway, as against the hub's catalogue entry. It carries the `project-` the hub minted rather than one of its own: the correspondence is 1:1 for the life of the product, which is the one place 07's golden rule is deliberately narrowed (05, `project- (shared)`).
+
+  # -------------------------------------------------------------- fleet -----
+  - name: initagent.fleet.host
+    context: fleet
+    go_const: Host
+    mints: true
+    lifetime: first enroll → last device removed
+    description: |-
+      One physical machine. Two connectors on one box are two devices sharing a host, and the scheduler needs the difference because CPU and per-machine coding-CLI authentication belong to the host (10).
+
+  - name: initagent.fleet.device
+    context: fleet
+    go_const: Device
+    mints: true
+    lifetime: enroll → delete
+    capabilities: [read, create, admin, exec]
+    description: |-
+      One enrolled connector instance — what upstream called an agent (03). It holds the socket to the gateway and it is what a task is placed on.
+
+  - name: initagent.fleet.enrollment
+    context: fleet
+    go_const: Enrollment
+    mints: true
+    lifetime: minted → used or expired
+    description: |-
+      The single-use credential that joins a machine. Separate from the device so handing someone an enrolment is not handing them a machine that already exists.
+
+  - name: initagent.fleet.terminal
+    context: fleet
+    go_const: Terminal
+    mints: true
+    lifetime: until killed or host reboot
+    capabilities: [read, attach]
+    description: |-
+      One process host — a tmux session, a ConPTY, a bare pty. The backend is a declared capability rather than an assumption, which is what keeps Windows from being a special case in every code path.
+
+  - name: initagent.fleet.attachment
+    context: fleet
+    go_const: Attachment
+    mints: true
+    lifetime: while the tab is open
+    description: |-
+      One browser view of a terminal. It exists so "who is watching this session" is answerable, and so closing a tab does not kill the process behind it.
+
+  - name: initagent.fleet.file
+    context: fleet
+    mints: false
+    lifetime: the file's own
+    capabilities: [read, write]
+    description: |-
+      A file on an enrolled machine's disk, listed, downloaded or uploaded through the connector. A device id and a path already name it; a row of ours would imply the hub holds something it does not.
+
+  # ------------------------------------------------------------- worker -----
+  - name: initagent.worker.workspace
+    context: worker
+    go_const: Workspace
+    mints: true
+    lifetime: per run
+    description: |-
+      The worktree one run works in. Per run, so two runs on the same machine cannot see each other's half-finished edits.
+
+  - name: initagent.worker.coder
+    context: worker
+    go_const: Coder
+    mints: true
+    lifetime: process lifetime
+    description: |-
+      One coder CLI process: the LLM actually doing the work, which the industry calls an agent and 05 bans us from calling that. Its kind and its host are closed enumerations, so a headless coder needs no terminal row.
+
+  # -------------------------------------------------------------- gdesk -----
+  # The staff member is deliberately not here — he is `initagent.hub.staff`.
+  # What stays in gdesk is what exists only at the reception.
+  - name: initagent.gdesk.conversation
+    context: gdesk
+    go_const: Conversation
+    mints: true
+    lifetime: walk-up → goodbye
+    description: |-
+      One person's ongoing talk at the desk, and the scope of both the floor and the transcripts. Sharing either across people would route one person's unnamed sentence to somebody else's addressee, with nothing in a log.
+
+  - name: initagent.gdesk.stream
+    context: gdesk
+    go_const: Stream
+    mints: true
+    lifetime: while the glass is connected
+    description: |-
+      One glass's numbered view of the seam. Each connection keeps its own log, so each device detects its own gaps and resumes on its own rather than sharing a cursor with the others.
+
+  - name: initagent.gdesk.utterance
+    context: gdesk
+    go_const: Utterance
+    mints: true
+    lifetime: one message
+    description: |-
+      One thing said to the staff: one press-and-release, or one textarea submit. The glass mints it once and reuses it on every retry, which is the only thing that makes a re-delivery recognisable as one.
+
+  - name: initagent.gdesk.turn
+    context: gdesk
+    go_const: Turn
+    mints: true
+    lifetime: one answer
+    description: |-
+      One segment of one utterance being answered by one staff member. A sentence addressed to two people is two turns, so the answer keys here and not on the utterance. This entity is the reason the abbreviated prefixes were dropped: `tur-`, `trn-` and `trm-` were three spellings of two entities, and telling them apart in a log needed the table open. `turn-` and `terminal-` need nothing.
+
+  - name: initagent.gdesk.surface
+    context: gdesk
+    go_const: Surface
+    mints: true
+    lifetime: opened → closed
+    description: |-
+      A window in the glass. A reply travels as one — it opens, text arrives in it a piece at a time — rather than as a verb of its own, so the glass has one thing to render and one thing to fail.

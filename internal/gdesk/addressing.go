@@ -32,11 +32,17 @@ const (
 	MaxOpenCommitments = 24
 )
 
-// StaffID names one front-desk staff member.
+// StaffID names one staff member.
 //
-// A distinct type is the brand: it stops an acc- or a psn- being passed where
-// a staff member belongs. The *format* is still open — `dsk-` versus
-// (org, slot) — so the decision lands in one place when `05` makes it.
+// A distinct type is the brand: it stops an account- or a persona- being
+// passed where a staff member belongs.
+//
+// The format is settled: `staff-<uuidv7>`, registered as initagent.hub.staff in
+// internal/id. The home is the hub rather than this package's context because
+// the being has outgrown the desk — greeting at a glass is one of his posts,
+// not who he is — and a context is a vocabulary domain, not a storage
+// location. The Go names here keep the word "staff", which survived the
+// decision; only the qualified name and the prefix changed.
 type StaffID string
 
 // Staff is one addressable person at the desk.

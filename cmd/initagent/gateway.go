@@ -14,7 +14,7 @@ func cmdGateway(args []string) error {
 	fs := flag.NewFlagSet("gateway", flag.ExitOnError)
 	addr := fs.String("addr", ":4201", "listen address")
 	dataDir := fs.String("data-dir", "", "data directory (default ~/.initagent)")
-	projectID := fs.String("project", "", "shared prj- (minted on first start if empty)")
+	projectID := fs.String("project", "", "shared project- (minted on first start if empty)")
 	publicURL := fs.String("public-url", "", "URL baked into enroll commands (default: request Host)")
 	if err := fs.Parse(args); err != nil {
 		return err

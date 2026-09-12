@@ -33,6 +33,12 @@ threshold, same gate. Design inspiration may live under
 `../external/inspirations/` (umbrella); never `replace` those checkouts
 into this module.
 
+`owned-packages` is the **only** place the membership list lives. Do not
+restate it here, in `AGENTS.md`, or in a sibling document: a prose copy is
+a second source of truth that nothing checks, and the copy this file used
+to carry had already fallen eight packages behind the gate that runs.
+Name a package here only as an example of a rule, never as a roster.
+
 ## Enforced with numbers
 
 | Dimension | Rule | Checked by | Runs at |
@@ -41,7 +47,7 @@ into this module.
 | Vet | zero issues on owned packages | `go vet $(cat owned-packages)` | every edit |
 | Unit | all owned package tests pass | `go test $(cat owned-packages)` | every edit / CI |
 | **Coverage** | **≥ 90% statements** on the union of `owned-packages` | `./scripts/check-owned-coverage.sh`; Codecov publishes the same profile | task end, CI |
-| Naming lint | banned nouns / prefix registry (`05`, `06`) | existing `internal/id` AST tests + future lint (`19`) | CI |
+| Naming lint | banned nouns / prefix registry (`05`, `06`) | `internal/names` generator refusals + goldens gate, `internal/authz` entity tests, `internal/id` data tests + future lint (`19`) | CI |
 | Licence | release NOTICE current | `go-licenses` / checker (`19`, `docs/LICENSING.md`) | release CI |
 
 **Why 90%.** Agents and orchestration will write most of this tree. A soft
@@ -59,7 +65,7 @@ the same 90%.
 
 | Metric | Today | Direction |
 | --- | --- | --- |
-| Owned packages in list | `internal/brand`, `internal/id`, `internal/registry/ai/capability`, `internal/registry/db/kinds`, `internal/registry/config`, `internal/completion`, `internal/store`, `internal/scheduler`, `internal/fakecoder`, `internal/gateway`, `internal/join`, `internal/projecttemplate`, `internal/repo`, `internal/orgplan`, `internal/mailer`, `internal/funnel` | grow only when we add first-party code |
+| Owned packages in list | read [`owned-packages`](owned-packages) — one path per line, and the same file every gate above consumes | grow only when we add first-party code |
 | Product E2E smoke (Milestone 0) | absent | add with step 3 (`02`); not a coverage substitute |
 
 ## Exceptions

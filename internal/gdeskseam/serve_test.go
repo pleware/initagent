@@ -138,7 +138,7 @@ func TestDispatchAttributesTheAnswerToTheCommandItArrivedOn(t *testing.T) {
 	})
 	socket.Dispatch(raw)
 
-	socket.view.Delivery().Record(gdesk.TurnOpened{Turn: "trn-1", Staff: "psn-ania", Utterance: "utt-1"})
+	socket.view.Delivery().Record(gdesk.TurnOpened{Turn: "turn-1", Staff: "staff-ania", Utterance: "utt-1"})
 	if got := log.Since(0)[0].InReplyTo; got != "cmd-7" {
 		t.Fatalf("inReplyTo = %q, want the command she is answering", got)
 	}
@@ -147,7 +147,7 @@ func TestDispatchAttributesTheAnswerToTheCommandItArrivedOn(t *testing.T) {
 func TestDispatchReplaysFromWhereTheGlassStopped(t *testing.T) {
 	socket, log, _ := newTestSocket(t)
 	for range 3 {
-		log.Append(EventSurfaceAppended, surfaceAppended{ID: "sur-1"}, "")
+		log.Append(EventSurfaceAppended, surfaceAppended{ID: "surface-1"}, "")
 	}
 	// fromSeq is the first event wanted, inclusive - the glass filters with
 	// `seq >= fromSeq` (initagent-glass app/src/seam/fake-connector.ts), so
@@ -206,7 +206,7 @@ func TestDispatchRefusesACommandNobodyCanActOn(t *testing.T) {
 		t.Fatalf("inReplyTo = %q, want the refusal to answer the command", events[0].InReplyTo)
 	}
 	surface := payloadOf(t, events[0])["surface"].(map[string]any)
-	if surface["id"] != "sur-cmd-1" {
+	if surface["id"] != "surface-cmd-1" {
 		t.Fatalf("id = %v, want it keyed on the command", surface["id"])
 	}
 	if surface["label"] != RefusalLabel {
@@ -224,7 +224,7 @@ func TestDispatchRefusesACommandNobodyCanActOn(t *testing.T) {
 
 func TestDispatchRefusesACommandForAnotherDesk(t *testing.T) {
 	socket, log, _ := newTestSocket(t)
-	raw := frame(t, "str-somebody-else", "cmd-1", CommandUtterance, map[string]any{
+	raw := frame(t, "gdesk:somebody-else", "cmd-1", CommandUtterance, map[string]any{
 		"utteranceId": "utt-1", "text": "cześć", "source": "typed",
 	})
 
@@ -237,7 +237,7 @@ func TestDispatchRefusesACommandForAnotherDesk(t *testing.T) {
 		t.Fatalf("events = %+v, want a refusal so the glass is not left waiting", events)
 	}
 	failure := payloadOf(t, events[0])["surface"].(map[string]any)["view"].(map[string]any)["failure"].(map[string]any)
-	if !strings.Contains(failure["message"].(string), "str-somebody-else") {
+	if !strings.Contains(failure["message"].(string), "gdesk:somebody-else") {
 		t.Fatalf("message = %v, want it to name the stream asked for", failure["message"])
 	}
 }

@@ -29,7 +29,7 @@ const sessionCookie = brand.SessionCookie
 // this as the gap behind audit and admin surfaces). The account travels with
 // the session now, which is what lets one request resolve to an actor.
 type session struct {
-	account string // `acc-`; empty on a hub still using the legacy operator password
+	account string // `account-`; empty on a hub still using the legacy operator password
 	expiry  time.Time
 }
 
@@ -45,7 +45,7 @@ func newSessionManager() *sessionManager {
 }
 
 // create issues a session for an account. An empty account is the legacy
-// operator credential, which has no `acc-` to point at.
+// operator credential, which has no `account-` to point at.
 func (m *sessionManager) create(account string) string {
 	b := make([]byte, 32)
 	rand.Read(b)

@@ -52,7 +52,7 @@ func TestAppendNumbersFromOneWithoutGaps(t *testing.T) {
 		t.Fatalf("seq = %d before the first fact, want 0", log.Seq())
 	}
 	for want := int64(1); want <= 5; want++ {
-		got := log.Append(EventSurfaceAppended, surfaceAppended{ID: "sur-1"}, "")
+		got := log.Append(EventSurfaceAppended, surfaceAppended{ID: "surface-1"}, "")
 		if got.Seq != want {
 			t.Fatalf("seq = %d, want %d", got.Seq, want)
 		}
@@ -141,7 +141,7 @@ func TestSinceIsEmptyWhenTheGlassIsAhead(t *testing.T) {
 
 func TestSinceHandsOutACopy(t *testing.T) {
 	log := newTestLog(t, 0, nil)
-	log.Append(EventSurfaceAppended, surfaceAppended{ID: "sur-1"}, "")
+	log.Append(EventSurfaceAppended, surfaceAppended{ID: "surface-1"}, "")
 	first := log.Since(0)
 	first[0].Seq = 99
 	again := log.Since(0)

@@ -7,7 +7,7 @@ import (
 
 func TestIdleWarningEnglish(t *testing.T) {
 	t.Parallel()
-	const link = "https://app.example/code/prj-1"
+	const link = "https://app.example/code/project-1"
 	subject, text, htmlBody := IdleWarning("Storefront", link, 14, "en")
 	if subject != "Project Storefront will be deleted" {
 		t.Fatalf("subject = %q", subject)
@@ -33,7 +33,7 @@ func TestIdleWarningEnglish(t *testing.T) {
 
 func TestIdleWarningPolish(t *testing.T) {
 	t.Parallel()
-	const link = "https://app.example/code/prj-1"
+	const link = "https://app.example/code/project-1"
 	subject, text, htmlBody := IdleWarning("Storefront", link, 14, "pl")
 	if subject != "Projekt Storefront zostanie usunięty" {
 		t.Fatalf("subject = %q", subject)
@@ -50,7 +50,7 @@ func TestIdleWarningPolish(t *testing.T) {
 
 func TestIdleWarningUnknownLocaleIsBilingual(t *testing.T) {
 	t.Parallel()
-	const link = "https://app.example/code/prj-1"
+	const link = "https://app.example/code/project-1"
 	subject, text, htmlBody := IdleWarning("Storefront", link, 14, "")
 	if !strings.Contains(subject, "will be deleted") || !strings.Contains(subject, "zostanie usunięty") {
 		t.Fatalf("subject = %q", subject)
@@ -75,7 +75,7 @@ func TestIdleWarningEscapesHTML(t *testing.T) {
 
 func TestIdleWarningDaysLeftAtLeastOne(t *testing.T) {
 	t.Parallel()
-	_, text, _ := IdleWarning("Storefront", "https://app.example/code/prj-1", 0, "en")
+	_, text, _ := IdleWarning("Storefront", "https://app.example/code/project-1", 0, "en")
 	if !strings.Contains(text, "1 days") && !strings.Contains(text, "1 day") {
 		if !strings.Contains(text, "1") {
 			t.Fatalf("zero daysLeft must still show at least one: %s", text)

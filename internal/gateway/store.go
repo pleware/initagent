@@ -1,5 +1,5 @@
 // Package gateway is the project plane: one process, one SQLite file, the
-// shared prj-, the tasks table, and enroll so workers dial this process
+// shared project-, the tasks table, and enroll so workers dial this process
 // rather than the hub. See drafts 02, 07, 10, 11, and 44.
 package gateway
 
@@ -22,9 +22,9 @@ import (
 
 var (
 	ErrProjectNotFound = errors.New("project not found")
-	ErrBadProjectID    = errors.New("project id must be a prj- identifier")
-	ErrBadTaskID       = errors.New("task id must be a tsk- identifier")
-	ErrBadDeviceID     = errors.New("device id must be a dev- identifier")
+	ErrBadProjectID    = errors.New("project id must be a project- identifier")
+	ErrBadTaskID       = errors.New("task id must be a task- identifier")
+	ErrBadDeviceID     = errors.New("device id must be a device- identifier")
 	ErrDeviceOffline   = errors.New("device is not connected")
 	ErrDeviceDraining  = errors.New("device is draining")
 	ErrEmptyCommand    = errors.New("task command is empty")
@@ -39,8 +39,8 @@ const EnrollTTL = 15 * time.Minute
 // unused tokens are not deleted.
 const EnrollRetainFor = 30 * 24 * time.Hour
 
-// Project is our project on this gateway. The id is the same prj- the hub
-// minted — not an alias and not a foreign tool project (fpr-).
+// Project is our project on this gateway. The id is the same project- the hub
+// minted — not an alias and not a foreign tool project (foreign_project-).
 type Project struct {
 	ID        string
 	Address   string
@@ -53,7 +53,7 @@ type Options struct {
 	DataDir string
 	// Addr is the listen address recorded on the project row.
 	Addr string
-	// ProjectID is the shared prj-. Empty mints a new one (first project,
+	// ProjectID is the shared project-. Empty mints a new one (first project,
 	// started by hand).
 	ProjectID string
 	// PublicURL is the URL baked into install commands when set. Empty

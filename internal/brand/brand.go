@@ -81,7 +81,7 @@ const (
 	SessionCookie = "initagent_auth"
 
 	// ProjectHeader carries the hub's placement decision to a gateway: which
-	// prj- this request acts on. One gateway process serves many projects
+	// project- this request acts on. One gateway process serves many projects
 	// (18), so the process cannot be the answer.
 	ProjectHeader = "X-Initagent-Project"
 )

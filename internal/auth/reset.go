@@ -18,7 +18,7 @@ const ResetTTL = time.Hour
 const SpentRetainFor = 30 * 24 * time.Hour
 
 // ResetTokenBytes is the entropy behind the secret in the mail. It is not an
-// identifier: the row is `rst-`, and only a SHA-256 of this value is stored.
+// identifier: the row is `password_reset-`, and only a SHA-256 of this value is stored.
 const ResetTokenBytes = 32
 
 // NewResetToken mints the one-time secret that goes in the reset link.

@@ -16,8 +16,8 @@ import (
 )
 
 func TestShouldBindSelfhostWorker(t *testing.T) {
-	first := &Project{Id: "prj-1"}
-	withDevice := &Project{Id: "prj-1", DeviceId: "dev-1"}
+	first := &Project{Id: "project-1"}
+	withDevice := &Project{Id: "project-1", DeviceId: "device-1"}
 	cases := []struct {
 		name    string
 		kind    offering.Kind

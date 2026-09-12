@@ -34,8 +34,8 @@ func (a *echoAnswerer) Answer(_ context.Context, spoken gdesk.Utterance) error {
 	a.mu.Unlock()
 
 	a.views.Record(spoken.Conversation, gdesk.TurnOpened{
-		Turn:      "trn-1",
-		Staff:     "psn-ania",
+		Turn:      "turn-1",
+		Staff:     "staff-ania",
 		Utterance: spoken.ID,
 	})
 	return nil
@@ -240,7 +240,7 @@ func TestAResyncReplaysToThisConnectionOnly(t *testing.T) {
 
 	// Nothing to replay on the glass, so the next thing it reads is the fact
 	// that arrives after it connected.
-	views.Record("person", gdesk.TurnOpened{Turn: "trn-9", Staff: "psn-adam", Utterance: "utt-9"})
+	views.Record("person", gdesk.TurnOpened{Turn: "turn-9", Staff: "staff-adam", Utterance: "utt-9"})
 	event := readEvent(t, second)
 	if event["seq"] != float64(1) {
 		t.Fatalf("seq = %v, want the glass to number from 1", event["seq"])
@@ -271,7 +271,7 @@ func TestAMalformedFrameCostsNeitherTheStreamNorTheConnection(t *testing.T) {
 	}
 	// Still on the same stream afterwards: a frame without a command id has no
 	// surface to refuse onto, so silence is the documented outcome.
-	views.Record("person", gdesk.TurnOpened{Turn: "trn-9", Staff: "psn-adam", Utterance: "utt-9"})
+	views.Record("person", gdesk.TurnOpened{Turn: "turn-9", Staff: "staff-adam", Utterance: "utt-9"})
 	if event := readEvent(t, ws); event["seq"] != float64(1) {
 		t.Fatalf("seq = %v, want the stream to carry on from 1", event["seq"])
 	}
@@ -307,7 +307,7 @@ func TestAFactTheConnectorCannotEncodeCostsTheConnectionNothing(t *testing.T) {
 	// so the glass sees the gap and asks for a resync rather than being told a
 	// lie about how much it has.
 	view.Log().Append(EventSurfaceAppended, make(chan int), "")
-	view.Log().Append(EventSurfaceAppended, surfaceAppended{ID: "sur-1"}, "")
+	view.Log().Append(EventSurfaceAppended, surfaceAppended{ID: "surface-1"}, "")
 
 	if event := readEvent(t, ws); event["seq"] != float64(2) {
 		t.Fatalf("seq = %v, want the numbering to carry past what we could not encode", event["seq"])
@@ -333,7 +333,7 @@ func TestATurnThatFailsLeavesTheConnectionOpen(t *testing.T) {
 
 	// The desk records its own failure; the error the runner returns is for the
 	// connector's log. She is still connected and can say the next thing.
-	views.Record("person", gdesk.TurnOpened{Turn: "trn-2", Staff: "psn-ania", Utterance: "utt-2"})
+	views.Record("person", gdesk.TurnOpened{Turn: "turn-2", Staff: "staff-ania", Utterance: "utt-2"})
 	if event := readEvent(t, ws); event["kind"] != EventSurfaceOpened {
 		t.Fatalf("kind = %v, want the next reply to open", event["kind"])
 	}

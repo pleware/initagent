@@ -24,3 +24,4 @@
 ./internal/registry/config
 ./internal/mailer
 ./internal/funnel
+./internal/names

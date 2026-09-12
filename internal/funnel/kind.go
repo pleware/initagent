@@ -5,8 +5,8 @@
 // either. A missing insert must not fail the caller.
 package funnel
 
-// Qualified kind names (draft 05). The prefix on the row id is still evt-
-// (id.Event → initagent.hub.event); these strings are what we count.
+// Qualified kind names (draft 05). The row id carries event- (id.Event →
+// initagent.hub.event); these strings are what we count.
 const (
 	KindCTAOpenApp     = "initagent.site.cta.open_app"
 	KindCTASelfHost    = "initagent.site.cta.self_host"

@@ -116,8 +116,8 @@ func TestStaffThatCannotBeToldApartRefuses(t *testing.T) {
 	_, err := Open(Options{
 		Config: configured(t, nil),
 		Staff: []Person{
-			{ID: "psn-ania", Names: []string{"ania"}},
-			{ID: "psn-adam", Names: []string{"ania"}},
+			{ID: "staff-ania", Names: []string{"ania"}},
+			{ID: "staff-adam", Names: []string{"ania"}},
 		},
 	})
 	if !errors.Is(err, gdesk.ErrConfig) {
@@ -129,7 +129,7 @@ func TestStaffThatCannotBeToldApartRefuses(t *testing.T) {
 // assembly, since the floor is the desk's setting rather than a person's state.
 func TestAFloorHolderNobodyEmploysRefuses(t *testing.T) {
 	t.Parallel()
-	_, err := Open(Options{Config: configured(t, nil), Floor: "psn-nobody"})
+	_, err := Open(Options{Config: configured(t, nil), Floor: "staff-nobody"})
 	if !errors.Is(err, gdesk.ErrConfig) {
 		t.Fatalf("Open = %v, want gdesk.ErrConfig", err)
 	}
@@ -187,7 +187,7 @@ func TestTheGlassReachesTheDeskWithItsToken(t *testing.T) {
 	t.Parallel()
 	d := serving(t, Options{Config: configured(t, nil)})
 
-	ws, _, err := websocket.DefaultDialer.Dial(socketURL(d, "trm-glass", testToken), nil)
+	ws, _, err := websocket.DefaultDialer.Dial(socketURL(d, "gdesk:glass", testToken), nil)
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
@@ -200,13 +200,13 @@ func TestTheGlassReachesTheDeskWithItsToken(t *testing.T) {
 		t.Fatalf("streams = %d, want one", d.Views().Streams())
 	}
 	d.Views().Record(gdesk.DefaultConversation, gdesk.TurnOpened{
-		Turn:      "trn-1",
+		Turn:      "turn-1",
 		Staff:     DefaultStaff()[0].ID,
 		Utterance: "utt-1",
 	})
 
 	event := readEvent(t, ws)
-	if event.Stream != "trm-glass" {
+	if event.Stream != "gdesk:glass" {
 		t.Errorf("stream = %q, want the one the glass named", event.Stream)
 	}
 	if event.Seq != 1 {
@@ -223,7 +223,7 @@ func TestADeskThatIsNotOursRefusesTheConnection(t *testing.T) {
 	t.Parallel()
 	d := serving(t, Options{Config: configured(t, nil)})
 
-	_, resp, err := websocket.DefaultDialer.Dial(socketURL(d, "trm-glass", "guessed"), nil)
+	_, resp, err := websocket.DefaultDialer.Dial(socketURL(d, "gdesk:glass", "guessed"), nil)
 	if err == nil {
 		t.Fatal("a connection without the token was upgraded")
 	}

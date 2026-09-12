@@ -9,7 +9,11 @@ Wybierz jedną z dwóch ścieżek:
 | Ścieżka | Kiedy ją wybierasz | Dokument |
 | --- | --- | --- |
 | **1. Instalacja domyślna** | jedna maszyna (Windows, Linux albo macOS) ma być jednym workerem | [`01-worker-windows.md`](01-worker-windows.md) |
-| **2. PWare OS jako worker** | na jednym Windows ma działać kilka workerów, każde we własnym środowisku, a obrazy mają zostać w WSL | [`02-worker-pware-os.md`](02-worker-pware-os.md) |
+| **2. PWare OS jako worker** | na jednej maszynie ma działać kilka workerów — **wyłącznie w kontenerach** (Docker w WSL albo na VPS), obrazy zostają w WSL | [`02-worker-pware-os.md`](02-worker-pware-os.md) |
+
+Tryb zwykły to **jedna konfiguracja na maszynę**. Kilka workerów na jednej
+maszynie uruchamiamy tylko jako kontenery — tak brzmi decyzja produktu, nie
+nasze uproszczenie.
 
 Obie ścieżki kończą się tym samym: maszyna (albo środowisko) pojawia się
 w hubie jako online i wykonuje zadanie. Różnią się tym, ile środowisk
@@ -41,11 +45,11 @@ Trzy pytania produktu są jeszcze otwarte i dotykają tej instrukcji wprost.
 Nie zgadujemy ich tutaj; są opisane w draftach i linkowane na końcu każdej
 części:
 
-1. jak identyfikowana jest **fizyczna maszyna** przy dwóch niezależnych
-   dołączeniach (dwa workery na jednym Windows mogą wyglądać jak jedna
-   maszyna albo jak dwie),
-2. czy izolacja workera ma być **granicą bezpieczeństwa**, czy tylko
-   wygodą (to rozstrzyga, kontener czy nie),
+1. jak identyfikowana jest **fizyczna maszyna**, gdy na jednym hoście stoi
+   kilka kontenerów: hub musi wiedzieć, że to jedna maszyna, a nie trzy,
+2. **co worker może sięgnąć** — urządzenie, gniazdo connectora, sieć firmowa —
+   oraz jaki ma sufit zasobów. Mechanizm dla kilku workerów jest wybrany
+   (kontener, na rzecz izolacji); otwarty jest zakres, nie wybór,
 3. czy jedna maszyna może obsługiwać projekty **różnych organizacji**.
 
 Język: polski. Wersja angielska dojdzie później; [`README.md`](../../README.md)

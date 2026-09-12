@@ -114,7 +114,11 @@ launchd. Data workera siedzi w `%LOCALAPPDATA%\Initagent`.
 
 ## Gdy potrzebujesz kilku workerów na jednej maszynie
 
-To już ścieżka druga: [`02-worker-pware-os.md`](02-worker-pware-os.md).
-Domyślna instalacja zakłada **jedną maszynę = jednego workera** i przy dwóch
-dołączeniach na jednym Windows hub może zobaczyć jedną maszynę zamiast dwóch
-— to otwarta decyzja produktu, opisana w `drafts/10` (`initagent-workspace`).
+To już ścieżka druga: [`02-worker-pware-os.md`](02-worker-pware-os.md) —
+**i tylko w kontenerach**. Decyzja produktu: tryb zwykły to **jedna
+konfiguracja na maszynę** (druga komenda nadpisuje pierwszą, i to jest
+zamierzone), a kilka workerów na jednej maszynie publikujemy wyłącznie jako
+kontenery Docker — na VPS albo w WSL. Zapis w
+`drafts/10.DRAFT.ENROLL-AND-WORKERS.md` (`initagent-workspace`); co tam
+jeszcze jest otwarte (identyfikacja hosta, zakres dostępu workera, sufit
+zasobów) opisuje część 2.

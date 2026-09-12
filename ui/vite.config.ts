@@ -48,11 +48,14 @@ export default defineConfig({
     fs: { allow: ['..'] },
     proxy: {
       '/api': {
-        target: 'http://localhost:4200',
+        // 127.0.0.1, not localhost: on Windows the Vite process may resolve
+        // localhost to ::1 while the hub is only on IPv4, and the proxy
+        // then fails the page's /api calls.
+        target: 'http://127.0.0.1:4200',
         ws: true,
       },
-      '/r': 'http://localhost:4200',
-      '/install': 'http://localhost:4200',
+      '/r': 'http://127.0.0.1:4200',
+      '/install': 'http://127.0.0.1:4200',
     },
   },
   preview: {

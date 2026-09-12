@@ -260,7 +260,10 @@
     "deleteHint": "To usuwa projekt z huba. Pliki na {{machine}} zostają. Przepisz nazwę poniżej dokładnie — wklejanie jest wyłączone.",
     "deleteTypeLabel": "Nazwa projektu",
     "deleteConfirm": "Usuń projekt",
-    "deleteFailed": "Nie udało się usunąć projektu"
+    "deleteFailed": "Nie udało się usunąć projektu",
+    "loading": "Ładowanie przestrzeni…",
+    "missing": "Tego projektu nie ma na hubie.",
+    "openFirst": "Otwórz pierwszy projekt"
   },
   "claim": {
     "organization": "Nazwa organizacji",

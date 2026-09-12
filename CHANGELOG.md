@@ -2,6 +2,8 @@
 
 ## Unreleased — product
 
+- 2026-09-12 — cockpit: open a project without waiting on devices
+- 2026-09-12 — cockpit: open a project without waiting on /api/devices
 - 2026-09-12 — docs: several workers on a box means containers, not a second account
 - 2026-09-12 — docs: the partner deployment guide, and the ignore rule that hid it
 - 2026-09-12 — names: the last five draft numbers become the claim they stood for

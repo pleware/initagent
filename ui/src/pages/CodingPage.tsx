@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import Boarding, { isHostedOperator, orgNeedsName } from '../components/Boarding'
+import type { HubOutlet } from '../components/Layout'
 import { isBoardingComplete, markBoardingDone } from '../components/boardingState'
 import ConfirmTypeDialog from '../components/ConfirmTypeDialog'
 import FxTerminal from '../components/FxTerminal'
@@ -19,9 +20,8 @@ export default function CodingPage({
 }) {
   const { projectId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [projects, setProjects] = useState<Project[]>([])
+  const { projects, setProjects, projectsReady, reloadProjects } = useOutletContext<HubOutlet>()
   const [devices, setDevices] = useState<Device[]>([])
-  const [loaded, setLoaded] = useState(false)
   const [editing, setEditing] = useState<Project | undefined>()
   const [showModal, setShowModal] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
@@ -31,21 +31,15 @@ export default function CodingPage({
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  const load = useCallback(async () => {
+  const loadDevices = useCallback(async () => {
     try {
-      const [nextProjects, nextDevices] = await Promise.all([
-        api.get<Project[]>('/api/projects'),
-        api.get<Device[]>('/api/devices'),
-      ])
-      setProjects(nextProjects)
-      setDevices(nextDevices)
-      setLoaded(true)
+      setDevices(await api.get<Device[]>('/api/devices'))
     } catch {
-      /* keep the last live snapshot */
+      /* keep the last live snapshot — the workspace does not wait on this */
     }
   }, [])
 
-  usePoll(load, 12_000)
+  usePoll(loadDevices, 12_000)
   usePoll(
     useCallback(() => {
       if (!projectId) return
@@ -56,7 +50,10 @@ export default function CodingPage({
     60 * 60 * 1000,
   )
   useHubEvents((event) => {
-    if (event.type === 'device.online' || event.type === 'device.offline') load()
+    if (event.type === 'device.online' || event.type === 'device.offline') {
+      loadDevices()
+      reloadProjects()
+    }
   })
 
   useEffect(() => {
@@ -76,7 +73,7 @@ export default function CodingPage({
   }, [navigate, projectId, projects])
 
   const boardingOpen =
-    loaded &&
+    projectsReady &&
     !isHostedOperator(me) &&
     (me.orgs?.length ?? 0) > 0 &&
     !isBoardingComplete(projects)
@@ -102,7 +99,7 @@ export default function CodingPage({
     }
   }
 
-  if (loaded && isHostedOperator(me) && projects.length === 0) {
+  if (projectsReady && isHostedOperator(me) && projects.length === 0) {
     return (
       <div className="code-empty">
         <div className="code-empty-mark"><span>fx</span></div>
@@ -136,7 +133,7 @@ export default function CodingPage({
     )
   }
 
-  if (loaded && projects.length === 0) {
+  if (projectsReady && projects.length === 0) {
     return (
       <div className="code-empty">
         <div className="code-empty-mark"><span>fx</span></div>
@@ -157,8 +154,21 @@ export default function CodingPage({
     )
   }
 
+  if (!projectsReady || (!project && !projectId)) {
+    return <div className="grid h-full place-items-center text-sm text-zinc-600">{t('code.loading')}</div>
+  }
+
   if (!project) {
-    return <div className="grid h-full place-items-center text-sm text-zinc-600">Loading workspace…</div>
+    return (
+      <div className="grid h-full place-items-center px-6 text-center text-sm text-zinc-500">
+        <div>
+          <p>{t('code.missing')}</p>
+          <button type="button" onClick={() => navigate(`/code/${projects[0].id}`)} className="btn-primary mt-4">
+            {t('code.openFirst')}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

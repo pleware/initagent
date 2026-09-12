@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { displayName } from '../../../web/brand.ts'
@@ -17,9 +17,17 @@ const links = [
   { to: '/settings', label: 'Settings', icon: 'sliders' },
 ]
 
+export type HubOutlet = {
+  projects: Project[]
+  setProjects: Dispatch<SetStateAction<Project[]>>
+  projectsReady: boolean
+  reloadProjects: () => void
+}
+
 export default function Layout({ me }: { me: Me }) {
   const { t } = useTranslation()
   const [projects, setProjects] = useState<Project[]>([])
+  const [projectsReady, setProjectsReady] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   // Two hub surfaces, deliberately separate (draft 17): People is an
@@ -40,6 +48,8 @@ export default function Layout({ me }: { me: Me }) {
       setProjects(await api.get<Project[]>('/api/projects'))
     } catch {
       /* preserve the current project rail during a short disconnect */
+    } finally {
+      setProjectsReady(true)
     }
   }, [])
 
@@ -149,7 +159,9 @@ export default function Layout({ me }: { me: Me }) {
         </footer>
       </aside>
 
-      <main id="main-content" className="app-content"><Outlet /></main>
+      <main id="main-content" className="app-content">
+        <Outlet context={{ projects, setProjects, projectsReady, reloadProjects: loadProjects } satisfies HubOutlet} />
+      </main>
     </div>
   )
 }

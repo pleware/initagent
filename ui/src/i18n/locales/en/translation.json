@@ -260,7 +260,10 @@
     "deleteHint": "This removes the project from the hub. Files on {{machine}} stay. Type the name below exactly — pasting is disabled.",
     "deleteTypeLabel": "Project name",
     "deleteConfirm": "Delete project",
-    "deleteFailed": "Could not delete the project"
+    "deleteFailed": "Could not delete the project",
+    "loading": "Loading workspace…",
+    "missing": "This project is not on the hub.",
+    "openFirst": "Open the first project"
   },
   "claim": {
     "organization": "Organization name",

@@ -25,9 +25,12 @@
 /ui/assets/auth/.stamp
 
 # Extra Markdown lives in the parent workspace (always private).
-# README.md, LICENSE, and CHANGELOG.md stay. Do not add more.
+# README.md, LICENSE, and CHANGELOG.md stay. One exception: the partner
+# deployment guide, because pware.ai links to it and an external partner has
+# no access to the private umbrella (docs/wdrozenie/).
 /drafts/
-/docs/
+/docs/*
+!/docs/wdrozenie/
 /backlog.md
 
 # Local glass-desk YAML (copy gdesk.example.yaml). Secrets live here.

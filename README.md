@@ -244,6 +244,11 @@ reattachable sessions. Windows uses the native ConPTY API for fully interactive
 PowerShell and coding-agent terminals; those sessions are live but not yet
 reattachable after a disconnect.
 
+> **Partner deployments (Polish):** [`docs/wdrozenie/`](docs/wdrozenie/) has a
+> two-part guide for an external implementation partner — the default
+> single-worker install, and the PWare OS path where one Windows box runs
+> several workers in WSL with their images kept in WSL.
+
 ### 3. Launch an agent
 
 Open a device, hit **Launch agent**, pick Claude Code / Codex / a shell, choose

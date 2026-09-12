@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-12 — docs: the partner deployment guide, and the ignore rule that hid it
 - 2026-09-12 — names: the last five draft numbers become the claim they stood for
 - 2026-09-12 — gitattributes: pin the data files the tests read
 - 2026-09-12 — Ignore the local graphify cache

@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-12 — console: offer the hatch's own address with the key on it
 - 2026-09-12 — gdesk: the console lists what this box runs
 - 2026-09-12 — gdesk: the console links to the desktop it can see
 - 2026-09-12 — gdesk: serve the operator console from the connector

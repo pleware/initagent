@@ -54,6 +54,26 @@ func TestThePageDoesNotKnowWhereTheDesktopIs(t *testing.T) {
 	}
 }
 
+// TestThePageOffersItsOwnAddressAsALinkItBuilds guards the header's second
+// link: this hatch's address with the token on it, for a second browser or for
+// after the tab is closed. It has to be assembled in the browser from the token
+// that tab already holds, because the document itself is served to anybody who
+// asks for it (ServeHTTP) — a rendered link would put the key in it.
+func TestThePageOffersItsOwnAddressAsALinkItBuilds(t *testing.T) {
+	t.Parallel()
+
+	page := body(t, rendered(t))
+	if !strings.Contains(page, `id="hatch"`) {
+		t.Fatal("the header has nowhere to put the console's own link")
+	}
+	// Belt and braces with TestThePageIsServedWithoutTheToken: that one proves
+	// no token is rendered, this one that no address is either, so the only
+	// thing the link can be built from is the running tab.
+	if strings.Contains(page, "http://") {
+		t.Error("the page names an address of its own; the link must come from location")
+	}
+}
+
 // TestThePageHasAWordForEveryStateTheDeskReports is the drift guard for the
 // service table's last column. A state Go sends and the page cannot translate
 // renders as a machine word in a Polish table; a word the page keeps for a state

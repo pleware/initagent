@@ -77,6 +77,12 @@
         border-bottom: 1px dotted currentColor;
       }
 
+      /* Not the desktop's blue: this one carries the desk's key, and the
+         difference has to be visible before it is copied. */
+      .peer.key {
+        color: var(--warn);
+      }
+
       table.services {
         width: 100%;
         border-collapse: collapse;
@@ -284,6 +290,7 @@
       <h1>Konsola biurka</h1>
       <div class="right">
         <a class="peer" id="peer" hidden target="_blank" rel="noreferrer noopener"></a>
+        <a class="peer key" id="hatch" hidden target="_blank" rel="noreferrer noopener"></a>
         <span class="state" id="state">łączę…</span>
       </div>
     </header>
@@ -359,6 +366,7 @@
 
       const state = document.getElementById('state')
       const peer = document.getElementById('peer')
+      const hatch = document.getElementById('hatch')
       const services = document.getElementById('services')
       const gate = document.getElementById('gate')
       const gateWhy = document.getElementById('gate-why')
@@ -397,6 +405,30 @@
           return found
         }
         return sessionStorage.getItem(TOKEN_KEY) ?? ''
+      }
+
+      /**
+       * The mirror of claimToken: this hatch's own address, with the token put
+       * back into the fragment, for opening it in another browser or after this
+       * tab is gone. The address comes from where the page was actually
+       * fetched, so it is right whichever host name the operator used.
+       *
+       * The token is already in this tab; an href only makes it copyable, which
+       * is the point — and the reason the link is the colour of a warning, says
+       * so on hover, and is offered only while we hold a token at all.
+       */
+      function showHatch() {
+        if (!token) {
+          hatch.hidden = true
+          hatch.removeAttribute('href')
+          return
+        }
+        const url = new URL(location.pathname, location.href)
+        url.hash = new URLSearchParams({ t: token }).toString()
+        hatch.href = url.toString()
+        hatch.textContent = 'konsola · ' + location.host
+        hatch.title = 'ten adres z tokenem biurka — otwiera nową kartę; skopiowany link oddaje biurko'
+        hatch.hidden = false
       }
 
       function says(text, tone) {
@@ -516,6 +548,7 @@
       }
 
       function connect() {
+        showHatch()
         if (!token) {
           says('bez tokenu', 'down')
           askForToken()
@@ -556,6 +589,9 @@
             says('odrzucone', 'down')
             sessionStorage.removeItem(TOKEN_KEY)
             token = ''
+            // A link built from a token the desk just refused would be a link
+            // that hands over nothing, offered as if it worked.
+            showHatch()
             askForToken('Biurko zamyka połączenie bez słowa — najczęściej to zły token. Wklej go jeszcze raz.')
             return
           }

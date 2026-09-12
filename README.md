@@ -161,6 +161,13 @@ and a packaged glass has no address to know. The link therefore appears only
 while a glass is actually connected, and opening it gives a second copy of that
 page with no desk behind it.
 
+Beside it the header offers the hatch's own address with the token on it, for a
+second browser or for after the tab is closed. The browser assembles it from
+the token that tab already holds, so the served document still carries neither
+the key nor an address; it is marked as a key on screen, and it is the same
+secret as the startup line — a copied link is a desk handed over. A token the
+desk refuses takes the link with it.
+
 The older names still work: `initagent desk`, `~/.initagent/desk.yaml` and
 `INITAGENT_DESK_*` are read when the current ones are absent. The `g` is
 there because a coder also has a desk — one is where a person walks up to

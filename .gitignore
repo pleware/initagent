@@ -40,6 +40,9 @@
 *.db-shm
 *.db-wal
 
+# Local knowledge-graph cache (graphify). Rebuilt on demand, never committed.
+/graphify-out/
+
 # Test coverage
 coverage*.out
 coverage

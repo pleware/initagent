@@ -71,7 +71,7 @@ var entities = map[Kind]Spec{
 	Device: {
 		Name:        "initagent.fleet.device",
 		Context:     ContextFleet,
-		Description: "One enrolled connector instance — what upstream called an agent (03). It holds the socket to the gateway and it is what a task is placed on.",
+		Description: "One enrolled connector instance — what upstream called an agent. It holds the socket to the gateway and it is what a task is placed on.",
 		Lifetime:    "enroll → delete",
 	},
 	Enrollment: {
@@ -83,7 +83,7 @@ var entities = map[Kind]Spec{
 	Host: {
 		Name:        "initagent.fleet.host",
 		Context:     ContextFleet,
-		Description: "One physical machine. Two connectors on one box are two devices sharing a host, and the scheduler needs the difference because CPU and per-machine coding-CLI authentication belong to the host (10).",
+		Description: "One physical machine. Two connectors on one box are two devices sharing a host, and the scheduler needs the difference because CPU and per-machine coding-CLI authentication belong to the host.",
 		Lifetime:    "first enroll → last device removed",
 	},
 	Terminal: {
@@ -143,13 +143,13 @@ var entities = map[Kind]Spec{
 	Folder: {
 		Name:        "initagent.hub.folder",
 		Context:     ContextHub,
-		Description: "A display grouping over projects, nested by parent_id, with a project carrying a nullable folder_id. It earns an identifier rather than a path string because a path makes the name the identity and breaks on the first rename (08, 17). Nothing inherits through one until 08 says what would.",
+		Description: "A display grouping over projects, nested by parent_id, with a project carrying a nullable folder_id. It earns an identifier rather than a path string because a path makes the name the identity and breaks on the first rename. Nothing inherits through one until 08 says what would.",
 		Lifetime:    "until deleted",
 	},
 	Gateway: {
 		Name:        "initagent.hub.gateway",
 		Context:     ContextHub,
-		Description: "One running gateway instance. Projects are isolated per gateway (01), so which gateway holds a project is a placement the hub has to record rather than derive.",
+		Description: "One running gateway instance. Projects are isolated per gateway, so which gateway holds a project is a placement the hub has to record rather than derive.",
 		Lifetime:    "provisioned → torn down",
 	},
 	Mail: {
@@ -161,7 +161,7 @@ var entities = map[Kind]Spec{
 	Org: {
 		Name:        "initagent.hub.org",
 		Context:     ContextHub,
-		Description: "A customer's organization: the billing boundary, the member list, and the scope every query narrows by. Real from day one so there is no \"add tenancy later\" branch (25).",
+		Description: "A customer's organization: the billing boundary, the member list, and the scope every query narrows by. Real from day one so there is no \"add tenancy later\" branch.",
 		Lifetime:    "until deleted",
 	},
 	Invite: {
@@ -179,19 +179,19 @@ var entities = map[Kind]Spec{
 	Project: {
 		Name:        "initagent.hub.project",
 		Context:     ContextHub,
-		Description: "The hub's catalogue entry for one project. The gateway receives this same value at provisioning and uses it as its own project id, so one identifier deliberately spans two planes (07).",
+		Description: "The hub's catalogue entry for one project. The gateway receives this same value at provisioning and uses it as its own project id, so one identifier deliberately spans two planes.",
 		Lifetime:    "project lifetime",
 	},
 	Staff: {
 		Name:        "initagent.hub.staff",
 		Context:     ContextHub,
-		Description: "One virtual being who works for the organization: greets at a glass, directs the work that follows, wears a rendered body on a scene, and sits on the People screen with a badge. The home is `hub` and not `gdesk` because the desk is one of his posts rather than who he is — his Big Five baseline and his voice identity are held on the hub so they survive any machine (docs/GDESK-SCOPES.md), and the People screen is a hub screen. That the code addressing him lives in internal/gdesk is not a contradiction: a context is a vocabulary domain and not a storage location, the same way a `fleet` device row lives on the gateway.",
+		Description: "One virtual being who works for the organization: greets at a glass, directs the work that follows, wears a rendered body on a scene, and sits on the People screen with a badge. The home is `hub` and not `gdesk` because the desk is one of his posts rather than who he is — his Big Five baseline and his voice identity are held on the hub so they survive any machine, and the People screen is a hub screen. That the code addressing him lives in internal/gdesk is not a contradiction: a context is a vocabulary domain and not a storage location, the same way a `fleet` device row lives on the gateway.",
 		Lifetime:    "until removed",
 	},
 	Token: {
 		Name:        "initagent.hub.token",
 		Context:     ContextHub,
-		Description: "An API credential carrying a boundary and a verb set, deliberately narrower than the person who minted it (09). The row holds the scopes and a hash; the secret itself is never stored.",
+		Description: "An API credential carrying a boundary and a verb set, deliberately narrower than the person who minted it. The row holds the scopes and a hash; the secret itself is never stored.",
 		Lifetime:    "until revoked",
 	},
 	Attention: {
@@ -203,7 +203,7 @@ var entities = map[Kind]Spec{
 	Bridge: {
 		Name:        "initagent.project.bridge",
 		Context:     ContextProject,
-		Description: "One recorded correspondence between two elements that are not permanently one to one — our project and a tool's project, our task and a foreign issue (07).",
+		Description: "One recorded correspondence between two elements that are not permanently one to one — our project and a tool's project, our task and a foreign issue.",
 		Lifetime:    "while both sides exist",
 	},
 	Draft: {
@@ -221,25 +221,25 @@ var entities = map[Kind]Spec{
 	ForeignProject: {
 		Name:        "initagent.project.foreign_project",
 		Context:     ContextProject,
-		Description: "Our surrogate for a project some tool mints itself. The correspondence to our project is many-to-many and the foreign identifier can change under us, which is why it is a row and not a column (07, 44).",
+		Description: "Our surrogate for a project some tool mints itself. The correspondence to our project is many-to-many and the foreign identifier can change under us, which is why it is a row and not a column.",
 		Lifetime:    "while the foreign project is referenced",
 	},
 	MCPServer: {
 		Name:        "initagent.project.mcp_server",
 		Context:     ContextProject,
-		Description: "One MCP server in the project's catalogue, with the audience — hub inbound or harness on the worker — that decides where it may be reached (28).",
+		Description: "One MCP server in the project's catalogue, with the audience — hub inbound or harness on the worker — that decides where it may be reached.",
 		Lifetime:    "until removed",
 	},
 	Member: {
 		Name:        "initagent.project.member",
 		Context:     ContextProject,
-		Description: "One person's membership of one project, carrying the role that project enforces. Separate from org membership because the two boundaries answer different questions (25).",
+		Description: "One person's membership of one project, carrying the role that project enforces. Separate from org membership because the two boundaries answer different questions.",
 		Lifetime:    "until removed",
 	},
 	Persona: {
 		Name:        "initagent.project.persona",
 		Context:     ContextProject,
-		Description: "A virtual AI staff member on a project: the actor a task is attributed to, as against the account that requested it (27). Not an IAM role, and not OMO's persona files.",
+		Description: "A virtual AI staff member on a project: the actor a task is attributed to, as against the account that requested it. Not an IAM role, and not OMO's persona files.",
 		Lifetime:    "until removed",
 	},
 	Proof: {
@@ -251,7 +251,7 @@ var entities = map[Kind]Spec{
 	Repo: {
 		Name:        "initagent.project.repo",
 		Context:     ContextProject,
-		Description: "The repository a project's work lands in, and the base every pull request opens against. A device pushing to a fork keeps its own URL as a field rather than a second repo row (14).",
+		Description: "The repository a project's work lands in, and the base every pull request opens against. A device pushing to a fork keeps its own URL as a field rather than a second repo row.",
 		Lifetime:    "until unbound",
 	},
 	Run: {
@@ -263,7 +263,7 @@ var entities = map[Kind]Spec{
 	Secret: {
 		Name:        "initagent.project.secret",
 		Context:     ContextProject,
-		Description: "A recoverable provider secret held for the project — a database DSN, a provider key. Recoverable rather than hashed, because the worker has to present it to something else (24).",
+		Description: "A recoverable provider secret held for the project — a database DSN, a provider key. Recoverable rather than hashed, because the worker has to present it to something else.",
 		Lifetime:    "until rotated",
 	},
 	Task: {
@@ -275,7 +275,7 @@ var entities = map[Kind]Spec{
 	Thread: {
 		Name:        "initagent.project.thread",
 		Context:     ContextProject,
-		Description: "Our surrogate for a conversation owned by a harness (OpenCode, Codex, Cursor). We mint the identifier and the foreign coordinates are its payload, so a provider reshaping its own ids cannot break our references (07).",
+		Description: "Our surrogate for a conversation owned by a harness (OpenCode, Codex, Cursor). We mint the identifier and the foreign coordinates are its payload, so a provider reshaping its own ids cannot break our references.",
 		Lifetime:    "while the foreign thread is referenced",
 	},
 	Todo: {
@@ -316,7 +316,7 @@ var unminted = []Spec{
 	{
 		Name:        "initagent.hub.identity",
 		Context:     ContextHub,
-		Description: "One identity-provider subject linked to an account — a Google or a GitHub login (26). The provider owns the key, so the pair (provider, subject) identifies it and there is nothing for us to mint. It is a row rather than a column so one person can hold several logins.",
+		Description: "One identity-provider subject linked to an account — a Google or a GitHub login. The provider owns the key, so the pair (provider, subject) identifies it and there is nothing for us to mint. It is a row rather than a column so one person can hold several logins.",
 		Lifetime:    "until unlinked",
 	},
 	{
@@ -328,7 +328,7 @@ var unminted = []Spec{
 	{
 		Name:        "initagent.hub.template",
 		Context:     ContextHub,
-		Description: "One shipped create-project choice: a label over the delivery contract, whether a repo is required, and which worker capabilities the project needs (26, 38). It is a catalogue in the binary, not a project.kind column.",
+		Description: "One shipped create-project choice: a label over the delivery contract, whether a repo is required, and which worker capabilities the project needs. It is a catalogue in the binary, not a project.kind column.",
 		Lifetime:    "ships with the binary",
 	},
 	{

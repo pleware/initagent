@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-12 — names: drop the pointers a public reader cannot follow
 - 2026-09-12 — console: the services table carries a port of its own
 - 2026-09-12 — Generate the name registry from names/names.yaml
 - 2026-09-12 — console: offer the hatch's own address with the key on it

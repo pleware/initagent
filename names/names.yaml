@@ -72,7 +72,7 @@ entities:
     lifetime: until deleted
     capabilities: [read, admin, delete]
     description: |-
-      A customer's organization: the billing boundary, the member list, and the scope every query narrows by. Real from day one so there is no "add tenancy later" branch (25).
+      A customer's organization: the billing boundary, the member list, and the scope every query narrows by. Real from day one so there is no "add tenancy later" branch.
 
   - name: initagent.hub.staff
     context: hub
@@ -80,7 +80,7 @@ entities:
     mints: true
     lifetime: until removed
     description: |-
-      One virtual being who works for the organization: greets at a glass, directs the work that follows, wears a rendered body on a scene, and sits on the People screen with a badge. The home is `hub` and not `gdesk` because the desk is one of his posts rather than who he is — his Big Five baseline and his voice identity are held on the hub so they survive any machine (docs/GDESK-SCOPES.md), and the People screen is a hub screen. That the code addressing him lives in internal/gdesk is not a contradiction: a context is a vocabulary domain and not a storage location, the same way a `fleet` device row lives on the gateway.
+      One virtual being who works for the organization: greets at a glass, directs the work that follows, wears a rendered body on a scene, and sits on the People screen with a badge. The home is `hub` and not `gdesk` because the desk is one of his posts rather than who he is — his Big Five baseline and his voice identity are held on the hub so they survive any machine, and the People screen is a hub screen. That the code addressing him lives in internal/gdesk is not a contradiction: a context is a vocabulary domain and not a storage location, the same way a `fleet` device row lives on the gateway.
 
   - name: initagent.hub.project
     context: hub
@@ -89,7 +89,7 @@ entities:
     lifetime: project lifetime
     capabilities: [read, create, delete, admin]
     description: |-
-      The hub's catalogue entry for one project. The gateway receives this same value at provisioning and uses it as its own project id, so one identifier deliberately spans two planes (07).
+      The hub's catalogue entry for one project. The gateway receives this same value at provisioning and uses it as its own project id, so one identifier deliberately spans two planes.
 
   - name: initagent.hub.folder
     context: hub
@@ -97,7 +97,7 @@ entities:
     mints: true
     lifetime: until deleted
     description: |-
-      A display grouping over projects, nested by parent_id, with a project carrying a nullable folder_id. It earns an identifier rather than a path string because a path makes the name the identity and breaks on the first rename (08, 17). Nothing inherits through one until 08 says what would.
+      A display grouping over projects, nested by parent_id, with a project carrying a nullable folder_id. It earns an identifier rather than a path string because a path makes the name the identity and breaks on the first rename. Nothing inherits through one until 08 says what would.
 
   - name: initagent.hub.gateway
     context: hub
@@ -105,7 +105,7 @@ entities:
     mints: true
     lifetime: provisioned → torn down
     description: |-
-      One running gateway instance. Projects are isolated per gateway (01), so which gateway holds a project is a placement the hub has to record rather than derive.
+      One running gateway instance. Projects are isolated per gateway, so which gateway holds a project is a placement the hub has to record rather than derive.
 
   - name: initagent.hub.token
     context: hub
@@ -113,7 +113,7 @@ entities:
     mints: true
     lifetime: until revoked
     description: |-
-      An API credential carrying a boundary and a verb set, deliberately narrower than the person who minted it (09). The row holds the scopes and a hash; the secret itself is never stored.
+      An API credential carrying a boundary and a verb set, deliberately narrower than the person who minted it. The row holds the scopes and a hash; the secret itself is never stored.
 
   - name: initagent.hub.command
     context: hub
@@ -161,7 +161,7 @@ entities:
     mints: false
     lifetime: until unlinked
     description: |-
-      One identity-provider subject linked to an account — a Google or a GitHub login (26). The provider owns the key, so the pair (provider, subject) identifies it and there is nothing for us to mint. It is a row rather than a column so one person can hold several logins.
+      One identity-provider subject linked to an account — a Google or a GitHub login. The provider owns the key, so the pair (provider, subject) identifies it and there is nothing for us to mint. It is a row rather than a column so one person can hold several logins.
 
   - name: initagent.hub.template
     context: hub
@@ -169,7 +169,7 @@ entities:
     lifetime: ships with the binary
     capabilities: [read]
     description: |-
-      One shipped create-project choice: a label over the delivery contract, whether a repo is required, and which worker capabilities the project needs (26, 38). It is a catalogue in the binary, not a project.kind column.
+      One shipped create-project choice: a label over the delivery contract, whether a repo is required, and which worker capabilities the project needs. It is a catalogue in the binary, not a project.kind column.
 
   - name: initagent.hub.preset
     context: hub
@@ -194,7 +194,7 @@ entities:
     mints: true
     lifetime: until removed
     description: |-
-      One person's membership of one project, carrying the role that project enforces. Separate from org membership because the two boundaries answer different questions (25).
+      One person's membership of one project, carrying the role that project enforces. Separate from org membership because the two boundaries answer different questions.
 
   - name: initagent.project.persona
     context: project
@@ -202,7 +202,7 @@ entities:
     mints: true
     lifetime: until removed
     description: |-
-      A virtual AI staff member on a project: the actor a task is attributed to, as against the account that requested it (27). Not an IAM role, and not OMO's persona files.
+      A virtual AI staff member on a project: the actor a task is attributed to, as against the account that requested it. Not an IAM role, and not OMO's persona files.
 
   - name: initagent.project.mcp_server
     context: project
@@ -210,7 +210,7 @@ entities:
     mints: true
     lifetime: until removed
     description: |-
-      One MCP server in the project's catalogue, with the audience — hub inbound or harness on the worker — that decides where it may be reached (28).
+      One MCP server in the project's catalogue, with the audience — hub inbound or harness on the worker — that decides where it may be reached.
 
   - name: initagent.project.repo
     context: project
@@ -218,7 +218,7 @@ entities:
     mints: true
     lifetime: until unbound
     description: |-
-      The repository a project's work lands in, and the base every pull request opens against. A device pushing to a fork keeps its own URL as a field rather than a second repo row (14).
+      The repository a project's work lands in, and the base every pull request opens against. A device pushing to a fork keeps its own URL as a field rather than a second repo row.
 
   - name: initagent.project.secret
     context: project
@@ -226,7 +226,7 @@ entities:
     mints: true
     lifetime: until rotated
     description: |-
-      A recoverable provider secret held for the project — a database DSN, a provider key. Recoverable rather than hashed, because the worker has to present it to something else (24).
+      A recoverable provider secret held for the project — a database DSN, a provider key. Recoverable rather than hashed, because the worker has to present it to something else.
 
   - name: initagent.project.todo
     context: project
@@ -291,7 +291,7 @@ entities:
     mints: true
     lifetime: while the foreign thread is referenced
     description: |-
-      Our surrogate for a conversation owned by a harness (OpenCode, Codex, Cursor). We mint the identifier and the foreign coordinates are its payload, so a provider reshaping its own ids cannot break our references (07).
+      Our surrogate for a conversation owned by a harness (OpenCode, Codex, Cursor). We mint the identifier and the foreign coordinates are its payload, so a provider reshaping its own ids cannot break our references.
 
   - name: initagent.project.bridge
     context: project
@@ -299,7 +299,7 @@ entities:
     mints: true
     lifetime: while both sides exist
     description: |-
-      One recorded correspondence between two elements that are not permanently one to one — our project and a tool's project, our task and a foreign issue (07).
+      One recorded correspondence between two elements that are not permanently one to one — our project and a tool's project, our task and a foreign issue.
 
   - name: initagent.project.attention
     context: project
@@ -315,7 +315,7 @@ entities:
     mints: true
     lifetime: while the foreign project is referenced
     description: |-
-      Our surrogate for a project some tool mints itself. The correspondence to our project is many-to-many and the foreign identifier can change under us, which is why it is a row and not a column (07, 44).
+      Our surrogate for a project some tool mints itself. The correspondence to our project is many-to-many and the foreign identifier can change under us, which is why it is a row and not a column.
 
   - name: initagent.project.binding
     context: project
@@ -332,7 +332,7 @@ entities:
     mints: true
     lifetime: first enroll → last device removed
     description: |-
-      One physical machine. Two connectors on one box are two devices sharing a host, and the scheduler needs the difference because CPU and per-machine coding-CLI authentication belong to the host (10).
+      One physical machine. Two connectors on one box are two devices sharing a host, and the scheduler needs the difference because CPU and per-machine coding-CLI authentication belong to the host.
 
   - name: initagent.fleet.device
     context: fleet
@@ -341,7 +341,7 @@ entities:
     lifetime: enroll → delete
     capabilities: [read, create, admin, exec]
     description: |-
-      One enrolled connector instance — what upstream called an agent (03). It holds the socket to the gateway and it is what a task is placed on.
+      One enrolled connector instance — what upstream called an agent. It holds the socket to the gateway and it is what a task is placed on.
 
   - name: initagent.fleet.enrollment
     context: fleet

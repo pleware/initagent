@@ -131,7 +131,7 @@ var entities = map[Kind]Spec{
 	Command: {
 		Name:        "initagent.hub.command",
 		Context:     ContextHub,
-		Description: "One instruction on the hub's outbox, waiting for the device or gateway that must run it to acknowledge. The glass seam has a second thing called a command; 05 keeps this prefix and renames that one.",
+		Description: "One instruction on the hub's outbox, waiting for the device or gateway that must run it to acknowledge. The glass seam has a second thing called a command; the naming ontology keeps this prefix and renames that one.",
 		Lifetime:    "until acked",
 	},
 	Event: {
@@ -143,7 +143,7 @@ var entities = map[Kind]Spec{
 	Folder: {
 		Name:        "initagent.hub.folder",
 		Context:     ContextHub,
-		Description: "A display grouping over projects, nested by parent_id, with a project carrying a nullable folder_id. It earns an identifier rather than a path string because a path makes the name the identity and breaks on the first rename. Nothing inherits through one until 08 says what would.",
+		Description: "A display grouping over projects, nested by parent_id, with a project carrying a nullable folder_id. It earns an identifier rather than a path string because a path makes the name the identity and breaks on the first rename. Nothing inherits through one — no role, no secret, no catalogue row — because folder inheritance is still undecided on purpose.",
 		Lifetime:    "until deleted",
 	},
 	Gateway: {
@@ -215,7 +215,7 @@ var entities = map[Kind]Spec{
 	Evidence: {
 		Name:        "initagent.project.evidence",
 		Context:     ContextProject,
-		Description: "One captured artefact of a run — a diff, a log, an output file. Produced on the worker and durable on the gateway, which is why 05 files it under project and not worker.",
+		Description: "One captured artefact of a run — a diff, a log, an output file. Produced on the worker and durable on the gateway, which is why it is filed under project and not worker: durability decides the context.",
 		Lifetime:    "retention window",
 	},
 	ForeignProject: {
@@ -293,7 +293,7 @@ var entities = map[Kind]Spec{
 	Coder: {
 		Name:        "initagent.worker.coder",
 		Context:     ContextWorker,
-		Description: "One coder CLI process: the LLM actually doing the work, which the industry calls an agent and 05 bans us from calling that. Its kind and its host are closed enumerations, so a headless coder needs no terminal row.",
+		Description: "One coder CLI process: the LLM actually doing the work, which the industry calls an agent and this vocabulary bans us from calling that. Its kind and its host are closed enumerations, so a headless coder needs no terminal row.",
 		Lifetime:    "process lifetime",
 	},
 	Workspace: {
@@ -340,7 +340,7 @@ var unminted = []Spec{
 	{
 		Name:        "initagent.project.binding",
 		Context:     ContextProject,
-		Description: "The project's own row on the gateway, as against the hub's catalogue entry. It carries the `project-` the hub minted rather than one of its own: the correspondence is 1:1 for the life of the product, which is the one place 07's golden rule is deliberately narrowed (05, `project- (shared)`).",
+		Description: "The project's own row on the gateway, as against the hub's catalogue entry. It carries the `project-` the hub minted rather than one of its own: the correspondence is 1:1 for the life of the product, which is the one place the rule that every correspondence between elements is an explicit bridge row is deliberately narrowed to a shared identifier — the one prefix this vocabulary spells `project- (shared)`.",
 		Lifetime:    "project lifetime",
 		Borrows:     Project,
 	},

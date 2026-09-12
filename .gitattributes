@@ -12,3 +12,24 @@
 
 # Shell scripts must be LF to run at all, on the box and in CI.
 *.sh text eol=lf
+
+# Data files check out with LF too, for the same reason and the same cost.
+#
+# The rule above pinned the source and left the data the source is generated
+# from and compared against unpinned, so a fresh Windows clone still failed
+# three packages before anyone had edited anything:
+#
+#   internal/names          names/names.json is the committed golden, compared
+#                           byte for byte against what the emitter produces,
+#                           and the emitter only ever writes LF
+#   internal/registry/config catalog.yaml is embedded and matched on the
+#                           literal "\n    free:\n"
+#   internal/orgplan        loads that same embedded catalogue and patches it
+#                           with byte substitutions to build its failure cases
+#
+# YAML parsing survives CRLF, so names/names.yaml is pinned for the artifacts
+# it generates rather than for its own sake. The blobs in git are already LF:
+# this changes no blob, only what lands in a working copy.
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf

@@ -63,6 +63,20 @@
         font-size: 11px;
       }
 
+      .right {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+      }
+
+      .peer {
+        font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+        font-size: 11px;
+        color: var(--accent);
+        text-decoration: none;
+        border-bottom: 1px dotted currentColor;
+      }
+
       .state.up {
         color: var(--good);
       }
@@ -218,7 +232,10 @@
   <body>
     <header>
       <h1>Konsola biurka</h1>
-      <span class="state" id="state">łączę…</span>
+      <div class="right">
+        <a class="peer" id="peer" hidden target="_blank" rel="noreferrer noopener"></a>
+        <span class="state" id="state">łączę…</span>
+      </div>
     </header>
 
     <div class="gate" id="gate" hidden>
@@ -274,6 +291,7 @@
       const MAX_SILENT_CLOSES = 3
 
       const state = document.getElementById('state')
+      const peer = document.getElementById('peer')
       const gate = document.getElementById('gate')
       const gateWhy = document.getElementById('gate-why')
       const tokenBox = document.getElementById('token')
@@ -513,6 +531,31 @@
         }
       }
 
+      // Where the desktop is cannot be configured here, and a packaged glass has
+      // no address to configure, so the only truthful source is the origin of a
+      // browser that actually joined the seam. The desk hands back one entry per
+      // stream; ours is not a link to offer, and anything that is not a plain
+      // http(s) origin is not one either.
+      function showPeers(list) {
+        const found = (Array.isArray(list) ? list : []).find(
+          (p) =>
+            p &&
+            p.stream !== WIRE.stream &&
+            typeof p.origin === 'string' &&
+            /^https?:\/\/[^/?#]+$/.test(p.origin),
+        )
+        if (!found) {
+          peer.hidden = true
+          return
+        }
+        peer.href = found.origin
+        peer.textContent = 'pulpit · ' + found.origin.replace(/^https?:\/\//, '')
+        peer.title =
+          found.stream +
+          ' · otwiera się w nowej karcie — kopia bez żywego szwu, z czerwonym znaczkiem w narożniku'
+        peer.hidden = false
+      }
+
       async function pollLogs() {
         if (!token) return
         try {
@@ -522,8 +565,11 @@
           if (!response.ok) return
           const dump = await response.json()
           for (const entry of dump.lines ?? []) sysLine(entry)
+          showPeers(dump.peers)
         } catch {
-          // The desk is down or restarting; the socket says so louder.
+          // The desk is down or restarting; the socket says so louder. The link
+          // goes with it: a desktop with no desk behind it opens onto nothing.
+          peer.hidden = true
         }
       }
 

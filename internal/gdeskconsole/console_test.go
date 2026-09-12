@@ -36,6 +36,24 @@ func body(t *testing.T, page *Page) string {
 	return rec.Body.String()
 }
 
+// TestThePageDoesNotKnowWhereTheDesktopIs guards how the header's link is
+// found. The desktop's address is a live handshake's Origin, never a value
+// written here: a development port baked into this file would ship inside a
+// customer's binary and would be wrong the first time somebody moved it.
+func TestThePageDoesNotKnowWhereTheDesktopIs(t *testing.T) {
+	t.Parallel()
+
+	page := body(t, rendered(t))
+	if !strings.Contains(page, `id="peer"`) {
+		t.Fatal("the header has nowhere to put the desktop's link")
+	}
+	for _, guess := range []string{"localhost", "5178", "vite", "127.0.0.1"} {
+		if strings.Contains(strings.ToLower(page), guess) {
+			t.Fatalf("the page names %q: the desktop is learned, not configured", guess)
+		}
+	}
+}
+
 // TestThePageIsToldWhatTheSeamDecided is the drift guard: every value here has
 // one owning definition in Go, and a page that hard-coded any of them would
 // keep working until the day the seam moved.

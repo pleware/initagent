@@ -14,7 +14,7 @@ import (
 // appears to vanish.
 const MaxTraceLines = 80
 
-// MaxTraceAge is how far back the pane may look. A line count alone is the
+// MaxTraceAge is how far back the console may look. A line count alone is the
 // wrong bound for a desk nobody is talking to: a handful of lines an hour
 // keeps an hour of history on screen, so what a person sees when they finally
 // look is mostly not about what they just did. Two bounds together say it
@@ -32,10 +32,17 @@ type TraceLine struct {
 	Text  string `json:"text"`
 }
 
-// TraceDump is what GET /gdesk/logs returns.
+// TraceDump is what GET /gdesk/logs returns: the ring, plus who is on the seam
+// from a browser.
+//
+// Peers is not the ring's business and the ring does not fill it — the listener
+// does, on the way out, because it is the half of the desk that saw the
+// handshake. It is here rather than on a route of its own for the reason given
+// at ServeLogs.
 type TraceDump struct {
 	V     int         `json:"v"`
 	Lines []TraceLine `json:"lines"`
+	Peers []Peer      `json:"peers,omitempty"`
 }
 
 // tracked is one kept line plus the instant it was recorded. The instant is
@@ -48,7 +55,7 @@ type tracked struct {
 }
 
 // Trace is the connector's operator ring. Stdout still gets every line;
-// this is the copy the glass's back-office pane polls.
+// this is the copy the operator's console polls.
 type Trace struct {
 	mu   sync.Mutex
 	seq  int64
@@ -133,7 +140,7 @@ func (t *Trace) forget(now time.Time) {
 		cutoff := now.Add(-t.age)
 		// Recorded in order, so the first line still young ends the discard.
 		// A clock that stepped backwards leaves everything in place rather
-		// than emptying the pane, which is the friendlier of the two wrong
+		// than emptying the column, which is the friendlier of the two wrong
 		// answers.
 		keep := 0
 		for keep < len(t.kept) && t.kept[keep].at.Before(cutoff) {
@@ -149,7 +156,7 @@ func (t *Trace) forget(now time.Time) {
 }
 
 // noteTrace writes to the process log and, when a ring is present, keeps
-// the same line for the operator pane.
+// the same line for the operator console.
 func noteTrace(t *Trace, level, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	log.Print(msg)

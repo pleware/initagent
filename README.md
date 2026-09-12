@@ -145,6 +145,14 @@ the URL *fragment*, which a browser never sends to a server; that line is a
 secret, so a pasted startup log is a desk handed over. The page holds no
 key of its own and stores nothing beyond the tab it is open in.
 
+Its header also links to the desktop page when a browser is on the seam. That
+address is not configured anywhere: a browser states the origin its page came
+from on every handshake, so the desk reports the origin of a live connection
+and forgets it when the socket closes — nothing here knows a development port,
+and a packaged glass has no address to know. The link therefore appears only
+while a glass is actually connected, and opening it gives a second copy of that
+page with no desk behind it.
+
 The older names still work: `initagent desk`, `~/.initagent/desk.yaml` and
 `INITAGENT_DESK_*` are read when the current ones are absent. The `g` is
 there because a coder also has a desk — one is where a person walks up to

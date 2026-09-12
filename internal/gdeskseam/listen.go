@@ -29,8 +29,8 @@ var upgrader = websocket.Upgrader{
 // contract for the glass to learn.
 const Path = "/gdesk"
 
-// LogsPath is the operator ring. It is not a second seam: the glass still
-// owns the websocket, and this dump is what the back-office pane polls.
+// LogsPath is the operator ring. It is not a second seam — nobody talks to the
+// desk here — and it is what the operator's console polls once a second.
 const LogsPath = Path + "/logs"
 
 const (
@@ -99,8 +99,8 @@ type ListenConfig struct {
 	// Empty is gdesk.DefaultConversation, which is the person at this machine.
 	Conversation gdesk.ConversationID
 
-	// Trace is the operator ring the back-office pane polls. Nil is fine:
-	// stdout still gets the same lines, the dump just has nothing to say.
+	// Trace is the operator ring the console polls. Nil is fine: stdout still
+	// gets the same lines, the dump just has nothing to say.
 	Trace *Trace
 }
 
@@ -119,6 +119,7 @@ type Listener struct {
 	token    string
 	conv     gdesk.ConversationID
 	trace    *Trace
+	peers    peers
 }
 
 // NewListener refuses a listener that cannot serve or cannot tell who is
@@ -170,18 +171,31 @@ func (l *Listener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return // Upgrade has already answered the request.
 	}
+	// After the upgrade, so an origin this desk would have refused never
+	// becomes something the console offers to open, and only for as long as
+	// the socket lives.
+	l.peers.note(stream, r.Header.Get("Origin"))
+	defer l.peers.forget(stream)
 	Talk(ws, socket, view)
 }
 
-// ServeLogs dumps the operator ring. Same token as the websocket, so a page
-// on the open web that guessed the port still cannot read what she said.
+// ServeLogs dumps the operator ring, and who is on the seam from a browser.
+// Same token as the websocket, so a page on the open web that guessed the port
+// still cannot read what she said.
+//
+// The peers ride along here rather than on a route of their own because the
+// console already polls this one every second: a second endpoint would be a
+// second thing to authenticate and a second thing to keep in step, for a
+// question that is only ever asked beside "what has the desk been doing".
 func (l *Listener) ServeLogs(w http.ResponseWriter, r *http.Request) {
 	if !l.admits(r) {
 		http.Error(w, "gdesk: unknown token", http.StatusUnauthorized)
 		return
 	}
+	dump := l.trace.Dump()
+	dump.Peers = l.peers.list()
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(l.trace.Dump()); err != nil {
+	if err := json.NewEncoder(w).Encode(dump); err != nil {
 		noteTrace(l.trace, "error", "gdesk: logs encode: %v", err)
 	}
 }

@@ -248,8 +248,8 @@ func TestTheOperatorLogRequiresTheSameToken(t *testing.T) {
 	}
 }
 
-// TestTheOperatorLogShowsTheDeskIsListening is the hop the back-office pane
-// polls: the same token as the websocket, and a line that says the port is
+// TestTheOperatorLogShowsTheDeskIsListening is the hop the console polls:
+// the same token as the websocket, and a line that says the port is
 // ours, so "nothing happened" is no longer an empty column.
 func TestTheOperatorLogShowsTheDeskIsListening(t *testing.T) {
 	t.Parallel()

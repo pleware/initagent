@@ -14,6 +14,16 @@ import (
 // appears to vanish.
 const MaxTraceLines = 80
 
+// MaxTraceAge is how far back the pane may look. A line count alone is the
+// wrong bound for a desk nobody is talking to: a handful of lines an hour
+// keeps an hour of history on screen, so what a person sees when they finally
+// look is mostly not about what they just did. Two bounds together say it
+// properly — the last ten minutes, and never more than MaxTraceLines of them.
+//
+// This is a scrolling pane, and forgetting is the point. Anything that has to
+// survive belongs in the process log, which still gets every line.
+const MaxTraceAge = 10 * time.Minute
+
 // TraceLine is one operator line. Seq is this ring's count, not a stream seq.
 type TraceLine struct {
 	Seq   int64  `json:"seq"`
@@ -28,13 +38,23 @@ type TraceDump struct {
 	Lines []TraceLine `json:"lines"`
 }
 
+// tracked is one kept line plus the instant it was recorded. The instant is
+// held as a time.Time rather than re-parsed from TraceLine.At because the age
+// bound is checked on every read, and a ring that parses its whole history to
+// answer one poll is a ring that gets sampled less often than it should be.
+type tracked struct {
+	line TraceLine
+	at   time.Time
+}
+
 // Trace is the connector's operator ring. Stdout still gets every line;
 // this is the copy the glass's back-office pane polls.
 type Trace struct {
 	mu   sync.Mutex
 	seq  int64
-	kept []TraceLine
+	kept []tracked
 	max  int
+	age  time.Duration
 	now  func() time.Time
 }
 
@@ -42,6 +62,9 @@ type Trace struct {
 type TraceConfig struct {
 	// Max is how many lines to keep. Zero means MaxTraceLines.
 	Max int
+	// MaxAge is how old a line may be. Zero means MaxTraceAge; a negative
+	// value keeps every line, which is for a test that owns the clock.
+	MaxAge time.Duration
 	// Now defaults to time.Now.
 	Now func() time.Time
 }
@@ -56,7 +79,11 @@ func NewTrace(cfg TraceConfig) *Trace {
 	if max <= 0 {
 		max = MaxTraceLines
 	}
-	return &Trace{max: max, now: now}
+	age := cfg.MaxAge
+	if age == 0 {
+		age = MaxTraceAge
+	}
+	return &Trace{max: max, age: age, now: now}
 }
 
 // Record keeps one line. A nil receiver is a silent no-op so a test socket
@@ -67,16 +94,18 @@ func (t *Trace) Record(level, text string) {
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	at := t.now().UTC()
 	t.seq++
-	t.kept = append(t.kept, TraceLine{
-		Seq:   t.seq,
-		At:    t.now().UTC().Format(time.RFC3339Nano),
-		Level: level,
-		Text:  text,
+	t.kept = append(t.kept, tracked{
+		line: TraceLine{
+			Seq:   t.seq,
+			At:    at.Format(time.RFC3339Nano),
+			Level: level,
+			Text:  text,
+		},
+		at: at,
 	})
-	if len(t.kept) > t.max {
-		t.kept = append(t.kept[:0], t.kept[len(t.kept)-t.max:]...)
-	}
+	t.forget(at)
 }
 
 // Dump is a copy of what is still held, oldest first.
@@ -86,7 +115,37 @@ func (t *Trace) Dump() TraceDump {
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	return TraceDump{V: Version, Lines: slices.Clone(t.kept)}
+	// Forgetting on the way out as well as on the way in, because the age
+	// bound has to hold on a quiet desk too. A ring that only prunes when a
+	// line arrives would show a stale hour precisely when nothing is
+	// happening — the moment somebody goes looking for why.
+	t.forget(t.now().UTC())
+	lines := make([]TraceLine, 0, len(t.kept))
+	for _, k := range t.kept {
+		lines = append(lines, k.line)
+	}
+	return TraceDump{V: Version, Lines: lines}
+}
+
+// forget drops what is too old, then what is over the count. Caller holds mu.
+func (t *Trace) forget(now time.Time) {
+	if t.age > 0 {
+		cutoff := now.Add(-t.age)
+		// Recorded in order, so the first line still young ends the discard.
+		// A clock that stepped backwards leaves everything in place rather
+		// than emptying the pane, which is the friendlier of the two wrong
+		// answers.
+		keep := 0
+		for keep < len(t.kept) && t.kept[keep].at.Before(cutoff) {
+			keep++
+		}
+		if keep > 0 {
+			t.kept = slices.Delete(t.kept, 0, keep)
+		}
+	}
+	if len(t.kept) > t.max {
+		t.kept = slices.Delete(t.kept, 0, len(t.kept)-t.max)
+	}
 }
 
 // noteTrace writes to the process log and, when a ring is present, keeps

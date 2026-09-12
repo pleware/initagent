@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-12 — gdeskseam: bound the operator ring by age as well as by count
 - 2026-09-12 — gdeskseam: name the envelope version in the log instead of shrugging
 - 2026-09-12 — Point the comments at the names that exist
 - 2026-09-11 — Move the glass desk onto the gdesk vocabulary

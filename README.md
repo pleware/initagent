@@ -130,7 +130,10 @@ local token and the provider key. Comments in that example are English and
 Polish. `INITAGENT_GDESK_CONFIG` points at another path. Environment
 variables override the file; neither belongs on a flag. The same token
 admits `GET /gdesk/logs`, an operator ring the glass back-office pane
-polls — not a second conversation stream. Operator steps (Polish) live
+polls — not a second conversation stream. It keeps the last ten minutes,
+and no more than eighty lines of them: a count alone leaves an hour on
+screen on a desk nobody is talking to. Anything that has to survive is in
+the process log, which still gets every line. Operator steps (Polish) live
 in the parent workspace `docs/CONFIGURATION.md`.
 
 The older names still work: `initagent desk`, `~/.initagent/desk.yaml` and

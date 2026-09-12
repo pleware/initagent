@@ -33,6 +33,43 @@ Sama maszyna nie dołącza niczego i pozostaje jedną konfiguracją.
 - uprawnienia administratora przy instalacji WSL (dalej już nie),
 - konto w hubie z dostępem do projektu klienta.
 
+## Krok 0 — nazwij środowisko, zanim je dołączysz
+
+Agent bierze nazwę z **hostname'a** środowiska, w którym się dołącza (flagi
+`--name` nie ma). Domyślnie w WSL to nazwa komputera Windows, a w kontenerze
+losowy identyfikator — czyli przy trzech workerach na jednej maszynie
+zobaczysz trzy razy to samo. Nazwij je **przed** dołączeniem:
+
+- **kontener Docker** — hostname nadajesz przy tworzeniu:
+
+  ```sh
+  docker run --hostname dell-worker-01 -d <obraz> <polecenie>
+  ```
+
+- **dystrybucja WSL** — trwale przez `/etc/wsl.conf` (WSL tego pilnuje):
+
+  ```ini
+  [network]
+  hostname = dell-worker-01
+  ```
+
+  Potem `wsl --shutdown` z PowerShella i wejdź ponownie. `hostnamectl` w WSL
+  bez systemd nie zadziała, a sam wpis w `/etc/hostname` przepada po restarcie
+  dystrybucji.
+
+Konwencja: producent plus numer — `dell-worker-01`, `lenovo-worker-02`.
+Nazwa jest widoczna w panelu i w `initagent fleet devices`.
+
+**Nazwa dystrybucji to inna rzecz niż nazwa workera.** W `wsl -l -v` dystrybucja
+z tej instrukcji nazywa się `Ubuntu` i to jest tylko etykieta u Ciebie w
+PowerShellu — na hub nie wpływa. Zmiana tej etykiety to eksport i import
+(`wsl --export` → `wsl --unregister` → `wsl --import <nazwa> <katalog> <plik>`),
+więc rób to tylko jeśli naprawdę chcesz inny wpis na liście.
+
+Nazwę urządzenia w hubie da się zmienić po fakcie — to osobne pole od
+hostname'a, hub ma `PATCH /api/devices/{id}` — ale w panelu nie ma na to
+przycisku, więc taniej jest nazwać od razu.
+
 ## Krok 1 — WSL2
 
 ```powershell
@@ -163,6 +200,46 @@ sprawdzenia.
 - **Odinstalowanie:** `systemctl --user disable --now initagent-connector`,
   usuń `~/.initagent`. Wpis urządzenia w hubie zostaje — produkt nie ma
   jeszcze ścieżki odłączenia (otwarty punkt w `drafts/10`).
+
+## Odinstalowanie środowiska: usunięcie Ubuntu z WSL
+
+Kolejność ma znaczenie. `wsl --unregister` **kasuje dystrybucję razem z
+wszystkim, co w niej jest** — kontenery, obrazy, wolumeny i pliki w katalogu
+domowym. Kosza nie ma, więc najpierw to, co chcesz zachować.
+
+1. **Zatrzymaj workery.** Dla każdego środowiska osobno:
+
+   ```sh
+   docker rm -f <kontener>
+   ```
+
+2. **Zatrzymaj WSL** (z PowerShella):
+
+   ```powershell
+   wsl --shutdown
+   ```
+
+3. **Usuń dystrybucję.** To jest „odinstalowanie Ubuntu z WSL":
+
+   ```powershell
+   wsl --unregister Ubuntu
+   ```
+
+4. **Sprawdź**, że zniknęła z listy:
+
+   ```powershell
+   wsl -l -v
+   ```
+
+   Jeśli `Ubuntu` było dystrybucją domyślną, ustaw inną (`wsl --set-default
+   <nazwa>`), bo samo `wsl` bez argumentu odwoła się do nieistniejącej.
+
+5. **Wpis w hubie zostaje.** Maszyna zniknęła, urządzenie nie — będzie widoczne
+   jako offline. Produkt nie ma jeszcze ścieżki „odłącz workera"; wpis usuwa
+   `DELETE /api/devices/{id}` (w panelu nie ma dziś przycisku).
+
+Na VPS jest tak samo, tylko bez WSL: `docker rm -f` dla kontenerów i
+`docker rmi` dla obrazów — nie ma tam dystrybucji do wyrejestrowania.
 
 ## Czego ta instrukcja nie ustala (i to jest ważne)
 

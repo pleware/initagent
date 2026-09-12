@@ -3,6 +3,24 @@
 Ścieżka dla jednej maszyny, która ma być **jednym** workerem. Cała instalacja
 to jedna komenda wklejona w PowerShell.
 
+## Zanim wklejasz: nazwa maszyny
+
+W panelu worker pokaże się pod nazwą komputera (hostname) — na Windows to
+zwykle `DESKTOP-4A1B2C` albo nazwa nadana przez firmowego administratora. Jeśli
+chcesz, żeby wdrożeniowiec i klient wiedzieli, co to za maszyna, ustal nazwę
+**teraz**, po ludzku: producent plus numer, np. `dell-worker-01`.
+
+Nazwę komputera zmieniasz w Windows (Ustawienia → System → Informacje →
+Zmień nazwę tego komputera) i wymaga to restartu, więc zrób to przed wklejeniem
+komendy. Alternatywa bez restartu: zostaw hostname i zmień **nazwę urządzenia**
+w hubie — to osobne pole, a hub ma `PATCH /api/devices/{id}` (przycisku w
+panelu jeszcze nie ma, więc to droga przez API; jedno urządzenie = jedno
+wywołanie).
+
+Więcej niż jeden worker na jednej maszynie to już
+[ścieżka 2](02-worker-pware-os.md), gdzie nazwa jest obowiązkowa — inaczej
+kilka środowisk pokaże się pod tą samą nazwą.
+
 ## Krok 1 — weź komendę z huba
 
 1. Zaloguj się na `https://app.initagent.dev`.

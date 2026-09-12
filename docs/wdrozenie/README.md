@@ -39,6 +39,26 @@ uruchamiasz i gdzie.
 - 15 minut na wklejenie komendy, zanim token wygaśnie — komenda powstaje
   w momencie pokazania jej w panelu.
 
+## Nazwa workera — ustal ją, zanim dołączysz
+
+Nazwę w panelu agent bierze z **hostname'a środowiska**, w którym się dołącza
+— nie ma flagi `--name`. Domyślnie więc worker w WSL pokaże nazwę komputera
+Windows, a worker w kontenerze losowy identyfikator. Przy kilku workerach na
+jednej maszynie dostaniesz kilka razy to samo i nie odróżnisz ich w panelu.
+
+Dlatego nazwij środowisko **przed** dołączeniem, po ludzku: producent plus
+numer, np. `dell-worker-01`, `lenovo-worker-02`. Konwencję widać potem w
+panelu i w `initagent fleet devices`.
+
+Jak to zrobić na konkretnej platformie: część 1,
+[`01-worker-windows.md`](01-worker-windows.md) (jedna maszyna), część 2,
+[`02-worker-pware-os.md`](02-worker-pware-os.md) (kilka środowisk) — tam jest
+też `Krok 0` w całości poświęcony nazwie.
+
+Nazwę da się zmienić po fakcie: nazwa urządzenia to osobne pole od hostname'a,
+a hub ma `PATCH /api/devices/{id}`. W panelu nie ma dziś na to przycisku, więc
+taniej jest nazwać od razu.
+
 ## Czego ta instrukcja świadomie nie ustala
 
 Trzy pytania produktu są jeszcze otwarte i dotykają tej instrukcji wprost.

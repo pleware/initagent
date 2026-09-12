@@ -2,6 +2,9 @@ package gdeskfront
 
 import (
 	"fmt"
+	"net"
+	"net/url"
+	"strconv"
 
 	"github.com/pleware/initagent/internal/gdesk"
 	"github.com/pleware/initagent/internal/gdeskconsole"
@@ -31,16 +34,22 @@ func (d *Desk) Services() []gdeskseam.Service {
 		return nil
 	}
 	addr := d.Addr()
+	// One port for all three rows, and it is the one the listener took rather
+	// than the one configuration asked for: a desk started on `:0` holds a port
+	// nobody wrote down, and that is exactly the case where somebody is looking.
+	local := portOf(addr)
 	clients := d.socket.Clients()
 	out := []gdeskseam.Service{{
 		Name:    "gdesk seam",
 		Where:   addr + gdeskseam.Path,
+		Port:    local,
 		State:   gdeskseam.ServiceListening,
 		Clients: &clients,
 		Note:    "websocket; one stream per connected client",
 	}, {
 		Name:  "operator console",
 		Where: addr + gdeskconsole.Path,
+		Port:  local,
 		State: gdeskseam.ServiceListening,
 		// No count on purpose: an HTTP route holds nobody between requests, so
 		// a number here would be a guess dressed as a measurement. Whoever has
@@ -49,6 +58,7 @@ func (d *Desk) Services() []gdeskseam.Service {
 	}, {
 		Name:  "operator log",
 		Where: addr + gdeskseam.LogsPath,
+		Port:  local,
 		State: gdeskseam.ServiceListening,
 		Note:  "polled by the console once a second",
 	}}
@@ -84,11 +94,52 @@ func (d *Desk) roleServices() []gdeskseam.Service {
 		out = append(out, gdeskseam.Service{
 			Name:  string(role),
 			Where: binding.Provider.BaseURL,
+			Port:  providerPort(binding.Provider.BaseURL),
 			State: gdeskseam.ServiceOutbound,
 			Note:  fmt.Sprintf("%s via %s", binding.Model, binding.Provider.ID),
 		})
 	}
 	return out
+}
+
+// portOf is the port a bound local address holds. An address that is not
+// host:port by the time it is reported is not something to guess about, so the
+// row simply carries no port.
+func portOf(addr string) int {
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return 0
+	}
+	number, err := strconv.Atoi(port)
+	if err != nil {
+		return 0
+	}
+	return number
+}
+
+// providerPort is the port a base URL reaches. Most provider URLs carry no port
+// and still reach 443, so the scheme's own default is the truthful answer — an
+// empty cell there would suggest the desk calls nowhere. Anything else, a local
+// model on a chosen port included, is read from the URL.
+func providerPort(base string) int {
+	parsed, err := url.Parse(base)
+	if err != nil || parsed.Host == "" {
+		return 0
+	}
+	if port := parsed.Port(); port != "" {
+		number, err := strconv.Atoi(port)
+		if err != nil {
+			return 0
+		}
+		return number
+	}
+	switch parsed.Scheme {
+	case "https":
+		return 443
+	case "http":
+		return 80
+	}
+	return 0
 }
 
 // silenceNote is why a role cannot answer, in the words the desk already prints

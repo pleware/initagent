@@ -1,6 +1,8 @@
 package gdeskfront
 
 import (
+	"net"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +19,18 @@ import (
 func TestTheServiceListSaysWhatHoldsWhichPort(t *testing.T) {
 	t.Parallel()
 	d := serving(t, Options{Config: configured(t, nil)})
+
+	// The test desk asks for `:0`, so the port it holds is one nobody wrote
+	// down. That is the case the column exists for, and it is why this is read
+	// back from the listener instead of compared with a constant.
+	_, held, err := net.SplitHostPort(d.Addr())
+	if err != nil {
+		t.Fatalf("the desk's address is not host:port: %v", err)
+	}
+	port, err := strconv.Atoi(held)
+	if err != nil {
+		t.Fatalf("port %q is not a number: %v", held, err)
+	}
 
 	byName := servicesOf(t, d)
 	for _, want := range []struct {
@@ -37,6 +51,61 @@ func TestTheServiceListSaysWhatHoldsWhichPort(t *testing.T) {
 		}
 		if got.State != want.state {
 			t.Errorf("%s is %q, want %q", want.name, got.State, want.state)
+		}
+		if got.Port != port {
+			t.Errorf("%s reports port %d, want %d", want.name, got.Port, port)
+		}
+	}
+}
+
+// TestAnOutboundRowCarriesThePortItWouldReach is the half of the column that is
+// not ours. A provider URL usually names no port and still reaches 443, so an
+// empty cell there would read as "the desk calls nowhere"; a local model on a
+// chosen port has to show that port instead.
+func TestAnOutboundRowCarriesThePortItWouldReach(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		base string
+		want int
+	}{
+		{"https with no port in it", "", 443},
+		{"a local model on its own port", "http://127.0.0.1:11434/v1", 11434},
+		{"plain http", "http://models.example.com/v1", 80},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			d := serving(t, Options{Config: configured(t, map[string]string{
+				"INITAGENT_GDESK_PROVIDER_OPENAI_BASE_URL": tc.base,
+			})})
+
+			chat, ok := servicesOf(t, d)["gdesk.chat"]
+			if !ok {
+				t.Fatal("no row for the voice that answers")
+			}
+			if chat.Port != tc.want {
+				t.Errorf("port = %d for %q, want %d", chat.Port, chat.Where, tc.want)
+			}
+		})
+	}
+}
+
+// TestARowWithNoPortSaysSoWithAZero guards the other end: a role nothing is
+// bound to reaches nothing, and facts on a pipe have no port by design. A number
+// invented for either would be the same lie the `declared` state prevents.
+func TestARowWithNoPortSaysSoWithAZero(t *testing.T) {
+	t.Parallel()
+	d := serving(t, Options{Config: configured(t, nil)})
+
+	byName := servicesOf(t, d)
+	for _, name := range []string{"gdesk.stt", "local sensing"} {
+		got, ok := byName[name]
+		if !ok {
+			t.Fatalf("no row for %q in %v", name, names(byName))
+		}
+		if got.Port != 0 {
+			t.Errorf("%s reports port %d, and it reaches nothing", name, got.Port)
 		}
 	}
 }

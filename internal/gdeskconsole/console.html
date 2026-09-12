@@ -328,13 +328,14 @@
             <tr>
               <th scope="col">usługa</th>
               <th scope="col">gdzie</th>
+              <th scope="col">port</th>
               <th scope="col">połączenia</th>
               <th scope="col">stan</th>
             </tr>
           </thead>
           <tbody id="services">
             <tr class="empty">
-              <td colspan="4">Biurko jeszcze nie odpowiedziało.</td>
+              <td colspan="5">Biurko jeszcze nie odpowiedziało.</td>
             </tr>
           </tbody>
         </table>
@@ -702,7 +703,7 @@
           const empty = document.createElement('tr')
           empty.className = 'empty'
           const cell = td(whenEmpty)
-          cell.colSpan = 4
+          cell.colSpan = 5
           empty.append(cell)
           services.append(empty)
           return
@@ -711,6 +712,10 @@
           const row = document.createElement('tr')
           const reported = String(service.state ?? '')
           const counted = typeof service.clients === 'number'
+          // The desk sends the port as a number; the page never reads one out of
+          // the address beside it. A row without a port reaches nothing —
+          // a pipe, or a role nothing is bound to — and gets a dash.
+          const port = typeof service.port === 'number' && service.port > 0 ? String(service.port) : '—'
           row.className = reported
           // The note is why a row looks the way it does — a model, a missing
           // binding, who produces facts nothing reads yet. A row that counts
@@ -720,6 +725,7 @@
           row.append(
             td(String(service.name ?? '')),
             td(service.where ? String(service.where) : '—'),
+            td(port, 'number'),
             // A dash, not a zero: an HTTP route holds nobody between requests,
             // and a zero would read as a service nobody uses.
             td(counted ? String(service.clients) : '—', 'number'),

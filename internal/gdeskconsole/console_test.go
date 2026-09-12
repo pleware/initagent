@@ -95,6 +95,23 @@ func TestThePageHasAWordForEveryStateTheDeskReports(t *testing.T) {
 	}
 }
 
+// TestThePortIsItsOwnColumnAndIsNeverReadOutOfTheAddress is the first question
+// asked of a desk that looks dead, so it gets a column instead of hiding inside
+// an address. The number arrives from Go with the row: a page that split
+// `service.where` on a colon would be parsing the desk's evidence back out of a
+// string, and would disagree with it the day a route changes.
+func TestThePortIsItsOwnColumnAndIsNeverReadOutOfTheAddress(t *testing.T) {
+	t.Parallel()
+
+	page := body(t, rendered(t))
+	if !strings.Contains(page, `<th scope="col">port</th>`) {
+		t.Error("the service table has no port column")
+	}
+	if !strings.Contains(page, "service.port") {
+		t.Error("the page does not read the port the desk sends")
+	}
+}
+
 // TestThePageIsToldWhatTheSeamDecided is the drift guard: every value here has
 // one owning definition in Go, and a page that hard-coded any of them would
 // keep working until the day the seam moved.

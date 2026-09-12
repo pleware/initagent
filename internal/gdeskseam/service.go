@@ -20,6 +20,16 @@ type Service struct {
 	// port at all; saying so beats an empty cell that reads as "unknown".
 	Where string `json:"where"`
 
+	// Port is the TCP port this row is about, when it is about one.
+	//
+	// A field of its own rather than something read back out of Where, because
+	// "which port" is the question this table is opened for, and a page that
+	// parsed it out of an address would be guessing at text the desk already
+	// knows. Zero means the row has no port — facts on a pipe, or a role
+	// nothing is bound to — which is an answer and not a missing value, so no
+	// pointer is needed: nothing serves on port 0.
+	Port int `json:"port,omitempty"`
+
 	// State is one of the four words below.
 	State string `json:"state"`
 

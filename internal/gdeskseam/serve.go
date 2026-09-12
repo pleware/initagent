@@ -82,8 +82,10 @@ func (s *Socket) Dispatch(raw []byte) Intent {
 
 	switch inbound.Kind {
 	case InboundMalformed:
-		// Nothing to answer to: a frame without a command id has no surface
-		// the glass could resolve a refusal onto.
+		// Nothing to answer to: a frame without a command id has no surface the
+		// glass could resolve a refusal onto, and a frame on another envelope
+		// version would discard the refusal. The detail is the whole point of
+		// the log line — it is the only account of the frame anyone gets.
 		noteTrace(s.trace, "warn", "gdesk: dropped malformed frame: %s", inbound.Detail)
 		return Intent{}
 	case InboundUnrecognised:

@@ -28,10 +28,12 @@ import (
 // would make the glass refuse facts it could have read.
 //
 // It moved to 2 when the desk became the `gdesk` context (workspace draft 05),
-// because a glass still saying `gdesk.utterance` would be answered
+// because a glass still saying `desk.utterance` would be answered
 // `unrecognised` — the rollout rule working as designed, and on a monitor that
-// reads as a sentence going nowhere. Refusing the envelope makes the mismatch
-// a message instead of a silence.
+// reads as a sentence going nowhere. The bump does not turn that silence into a
+// message on the glass (a caller on version 1 discards a version 2 event, so
+// there is nowhere to put one); what it buys is a diagnosis: the operator ring
+// names both versions instead of shrugging at an unknown verb.
 const Version = 2
 
 // ErrSeam is the class of every refusal in this package, so a caller can tell
@@ -143,8 +145,20 @@ func ParseCommand(raw []byte) Inbound {
 	if err := json.Unmarshal(raw, &cmd); err != nil {
 		return Inbound{Kind: InboundMalformed, Detail: "not JSON"}
 	}
-	if cmd.V != Version || cmd.CmdID == "" || cmd.Stream == "" || cmd.Kind == "" {
+	if cmd.CmdID == "" || cmd.Stream == "" || cmd.Kind == "" {
 		return Inbound{Kind: InboundMalformed, Detail: "bad command"}
+	}
+	if cmd.V != Version {
+		// Still dropped rather than refused: a caller on another envelope
+		// version cannot read our answer either, because the glass discards an
+		// event whose `v` is not its own. So the mismatch is named here instead
+		// of counted — the operator ring is the one place both sides can still
+		// be compared.
+		return Inbound{
+			Kind:   InboundMalformed,
+			Header: cmd.Header,
+			Detail: fmt.Sprintf("seam version %d, this desk speaks %d", cmd.V, Version),
+		}
 	}
 	switch cmd.Kind {
 	case CommandUtterance:

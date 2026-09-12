@@ -16,7 +16,8 @@ func TestParseCommandClassifiesWhatCannotBeACommand(t *testing.T) {
 		detail string
 	}{
 		{"not json", "{", InboundMalformed, "not JSON"},
-		{"another envelope version", `{"v":3,"cmdId":"c1","stream":"gdesk:local","kind":"gdesk.utterance","payload":{}}`, InboundMalformed, "bad command"},
+		{"a newer envelope version", `{"v":3,"cmdId":"c1","stream":"gdesk:local","kind":"gdesk.utterance","payload":{}}`, InboundMalformed, "seam version 3, this desk speaks 2"},
+		{"the envelope version from before the rename", `{"v":1,"cmdId":"c1","stream":"gdesk:local","kind":"desk.utterance","payload":{}}`, InboundMalformed, "seam version 1, this desk speaks 2"},
 		{"no command id", `{"v":2,"cmdId":"","stream":"gdesk:local","kind":"gdesk.utterance","payload":{}}`, InboundMalformed, "bad command"},
 		{"no stream", `{"v":2,"cmdId":"c1","stream":"","kind":"gdesk.utterance","payload":{}}`, InboundMalformed, "bad command"},
 		{"no verb", `{"v":2,"cmdId":"c1","stream":"gdesk:local","kind":"","payload":{}}`, InboundMalformed, "bad command"},

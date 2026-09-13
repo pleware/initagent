@@ -58,7 +58,7 @@ const (
 	ServiceSilent = "silent"
 
 	// ServiceDeclared is a service that belongs on this box and is not running
-	// in this process: a contract with a sibling that has no reader here yet.
+	// in this process: a contract with a sibling that nothing here starts yet.
 	//
 	// It is in the list on purpose. Leaving it out makes the list read as
 	// complete, and somebody spends an afternoon looking for the row instead

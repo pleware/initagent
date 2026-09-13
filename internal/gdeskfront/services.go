@@ -13,13 +13,16 @@ import (
 
 // sensingProducer is the sibling that turns a camera into facts on this box.
 //
-// Named here, with no code behind it, because the alternative is worse. The
-// contract is `os:desk-facts` in the PWare OS registry: that process writes one
-// JSON fact per line on stdout — presence and range, never a frame, never an
-// identity — and this connector is the reader, as the parent that spawns it.
-// The reader does not exist yet. A list that quietly omitted it would read as
-// complete, and somebody would go looking for the row instead of reading that
-// the work is still open.
+// The contract is `os:desk-facts` in the PWare OS registry: that process writes
+// one JSON fact per line on stdout — attendance and range, never a frame and
+// never an identity — and this connector is the reader, as the parent that
+// spawns it.
+//
+// The reader is `internal/gdesksensor`. What is still missing is anybody
+// starting a sensor: no configuration names a camera and no desk holds the
+// state, so this row stays declared instead of becoming evidence. A list that
+// quietly omitted it would read as complete, and somebody would go looking for
+// the row instead of reading that the work is still open.
 const sensingProducer = "pware-os-input-vision"
 
 // Services is what this box runs, for the operator console's list.
@@ -69,7 +72,7 @@ func (d *Desk) Services() []gdeskseam.Service {
 		Name:  "local sensing",
 		Where: "stdout, no port",
 		State: gdeskseam.ServiceDeclared,
-		Note:  sensingProducer + " writes NDJSON facts; this connector has no reader yet",
+		Note:  sensingProducer + " writes NDJSON facts; nothing starts one on this desk yet",
 	})
 }
 

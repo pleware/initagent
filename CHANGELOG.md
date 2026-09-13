@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-13 — feat: add gdesksensor reader for os:desk-facts attendance lines
 - 2026-09-13 — feat: hosted org billing with Stripe Checkout and Fakturownia
 - 2026-09-13 — test: cover hub_connector_token migration and orphan connector name
 - 2026-09-13 — names: finish connector locals in hub tests and ws handler

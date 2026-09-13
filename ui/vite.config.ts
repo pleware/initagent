@@ -35,6 +35,7 @@ export default defineConfig({
       'react/jsx-runtime': resolve(here, 'node_modules/react/jsx-runtime.js'),
       '@ia/web': resolve(here, '../web'),
       '@base-ui/react': resolve(here, 'node_modules/@base-ui/react'),
+      '@sentry/react': resolve(here, 'node_modules/@sentry/react'),
       cn: resolve(here, 'node_modules/cn'),
       'class-variance-authority': resolve(here, 'node_modules/class-variance-authority'),
       '@phosphor-icons/react': resolve(here, 'node_modules/@phosphor-icons/react'),

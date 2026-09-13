@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-13 — Report browser errors to shared GlitchTip (draft 55)
 - 2026-09-13 — billing: EUR catalogue pricing and buyer kind (company vs private person)
 - 2026-09-13 — billing: buyer kind (company vs private person); a private person has no NIP
 - 2026-09-13 — plans: catalogue prices in EUR (Starter €5, Team €7 per person)

@@ -98,23 +98,23 @@ const (
 	// repository, and which machines may run its work.
 	AdminProject Capability = "admin:hub.project"
 
-	// ReadDevice is seeing the machines enrolled into a project.
-	ReadDevice Capability = "read:fleet.device"
+	// ReadConnector is seeing the connectors enrolled into a project.
+	ReadConnector Capability = "read:fleet.connector"
 
-	// EnrollDevice mints the token that joins a machine, so it hands out
+	// EnrollConnector mints the token that joins a machine, so it hands out
 	// capability rather than reading it.
-	EnrollDevice Capability = "create:fleet.device"
+	EnrollConnector Capability = "create:fleet.connector"
 
-	// AdminDevice renames or removes an enrolled machine.
-	AdminDevice Capability = "admin:fleet.device"
+	// AdminConnector renames or removes an enrolled connector.
+	AdminConnector Capability = "admin:fleet.connector"
 
-	// ExecDevice runs an arbitrary command on someone's machine. Draft 09
+	// ExecConnector runs an arbitrary command on someone's machine. Draft 09
 	// keeps this out of every credential unless it was asked for by name:
 	// the attributable path is a task, which is queued, bounded and logged.
 	// A role still carries it, because the cockpit's own terminal runs on a
 	// session where a person is present; what a *token* may do is the axis
 	// this constant exists to make explicit.
-	ExecDevice Capability = "exec:fleet.device"
+	ExecConnector Capability = "exec:fleet.connector"
 
 	// ReadTerminal lists terminal sessions and reads their output.
 	ReadTerminal Capability = "read:fleet.terminal"
@@ -134,7 +134,7 @@ const (
 	ReadTask Capability = "read:project.task"
 
 	// CreateTask submits work. This is the normal path for running something
-	// (09), which is why its floor is lower than ExecDevice's blast radius
+	// (09), which is why its floor is lower than ExecConnector's blast radius
 	// would suggest: a task is attributable and bounded.
 	CreateTask Capability = "create:project.task"
 
@@ -177,27 +177,27 @@ var installation = map[Capability]bool{
 // already do today and tightening the cockpit's own terminal is a separate
 // change with its own UI consequences (09 keeps the question open).
 var orgMinimum = map[Capability]Role{
-	ReadOrg:        RoleMember,
-	AdminOrg:       RoleAdmin,
-	DeleteOrg:      RoleOwner,
-	ReadProject:    RoleMember,
-	CreateProject:  RoleAdmin,
-	DeleteProject:  RoleAdmin,
-	AdminProject:   RoleAdmin,
-	ReadDevice:     RoleMember,
-	EnrollDevice:   RoleAdmin,
-	AdminDevice:    RoleAdmin,
-	ExecDevice:     RoleMember,
-	ReadTerminal:   RoleMember,
-	AttachTerminal: RoleMember,
-	ReadFile:       RoleMember,
-	WriteFile:      RoleMember,
-	ReadTask:       RoleMember,
-	CreateTask:     RoleMember,
-	ReadTemplate:   RoleMember,
-	ReadPreset:     RoleMember,
-	AdminPreset:    RoleAdmin,
-	ReadEvent:      RoleMember,
+	ReadOrg:         RoleMember,
+	AdminOrg:        RoleAdmin,
+	DeleteOrg:       RoleOwner,
+	ReadProject:     RoleMember,
+	CreateProject:   RoleAdmin,
+	DeleteProject:   RoleAdmin,
+	AdminProject:    RoleAdmin,
+	ReadConnector:   RoleMember,
+	EnrollConnector: RoleAdmin,
+	AdminConnector:  RoleAdmin,
+	ExecConnector:   RoleMember,
+	ReadTerminal:    RoleMember,
+	AttachTerminal:  RoleMember,
+	ReadFile:        RoleMember,
+	WriteFile:       RoleMember,
+	ReadTask:        RoleMember,
+	CreateTask:      RoleMember,
+	ReadTemplate:    RoleMember,
+	ReadPreset:      RoleMember,
+	AdminPreset:     RoleAdmin,
+	ReadEvent:       RoleMember,
 }
 
 // Capabilities lists every capability this hub understands, sorted.
@@ -236,7 +236,7 @@ func GrantableScopes() []Capability {
 // someone else's machine. The cockpit separates these in its picker and
 // leaves them unchecked; keeping the judgement here means the form cannot
 // disagree with the rule it is rendering.
-func Dangerous(c Capability) bool { return c == ExecDevice }
+func Dangerous(c Capability) bool { return c == ExecConnector }
 
 // Actor is the resolved identity behind a request. The hub builds it at the
 // edge from the session and the store; every decision below reads only this.

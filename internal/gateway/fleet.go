@@ -14,8 +14,8 @@ import (
 // second wire type (16).
 type fleetAgent struct {
 	protocol.Session
-	DeviceId   string `json:"deviceId"`
-	DeviceName string `json:"deviceName"`
+	ConnectorId   string `json:"connectorId"`
+	ConnectorName string `json:"connectorName"`
 }
 
 // handleFleetAgents lists every session across the project's online devices.
@@ -27,7 +27,7 @@ func (g *Gateway) handleFleetAgents(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	devices, err := g.store.ListDevices(r.Context(), projectID)
+	devices, err := g.store.ListConnectors(r.Context(), projectID)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -53,9 +53,9 @@ func (g *Gateway) handleFleetAgents(w http.ResponseWriter, r *http.Request) {
 	var wg sync.WaitGroup
 	for _, id := range ids {
 		wg.Add(1)
-		go func(deviceID string) {
+		go func(connectorID string) {
 			defer wg.Done()
-			c := g.connForProject(projectID, deviceID)
+			c := g.connForProject(projectID, connectorID)
 			if c == nil {
 				return
 			}
@@ -67,15 +67,15 @@ func (g *Gateway) handleFleetAgents(w http.ResponseWriter, r *http.Request) {
 			}
 			mu.Lock()
 			for _, sess := range res.Sessions {
-				out = append(out, fleetAgent{Session: sess, DeviceId: deviceID, DeviceName: nameByID[deviceID]})
+				out = append(out, fleetAgent{Session: sess, ConnectorId: connectorID, ConnectorName: nameByID[connectorID]})
 			}
 			mu.Unlock()
 		}(id)
 	}
 	wg.Wait()
 	sort.Slice(out, func(i, j int) bool {
-		if out[i].DeviceName != out[j].DeviceName {
-			return out[i].DeviceName < out[j].DeviceName
+		if out[i].ConnectorName != out[j].ConnectorName {
+			return out[i].ConnectorName < out[j].ConnectorName
 		}
 		return out[i].Name < out[j].Name
 	})

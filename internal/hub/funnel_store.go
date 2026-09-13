@@ -50,7 +50,7 @@ func (s *Store) RecordFunnelEvent(e funnel.Event) error {
 	_, err := s.db.Exec(`INSERT INTO funnel_events
 		(id, kind, occurred_at, org_id, account_id, project_id, device_id, wall)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		e.ID, e.Kind, occurred, e.OrgID, e.AccountID, e.ProjectID, e.DeviceID, e.Wall)
+		e.ID, e.Kind, occurred, e.OrgID, e.AccountID, e.ProjectID, e.ConnectorID, e.Wall)
 	return err
 }
 
@@ -66,7 +66,7 @@ func (s *Store) ListFunnelEvents() ([]funnel.Event, error) {
 	for rows.Next() {
 		var e funnel.Event
 		var occurred int64
-		if err := rows.Scan(&e.ID, &e.Kind, &occurred, &e.OrgID, &e.AccountID, &e.ProjectID, &e.DeviceID, &e.Wall); err != nil {
+		if err := rows.Scan(&e.ID, &e.Kind, &occurred, &e.OrgID, &e.AccountID, &e.ProjectID, &e.ConnectorID, &e.Wall); err != nil {
 			return nil, err
 		}
 		e.OccurredAt = time.Unix(occurred, 0).UTC()
@@ -118,7 +118,7 @@ func (s *Store) FunnelFacts() (funnel.Facts, error) {
 		}
 		o.CreatedAt = time.Unix(created, 0).UTC()
 		o.HasProject = projects > 0
-		o.HasDevice = devices > 0
+		o.HasConnector = devices > 0
 		if first.Valid {
 			o.FirstTaskAt = time.Unix(first.Int64, 0).UTC()
 		}

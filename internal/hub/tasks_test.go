@@ -48,7 +48,7 @@ func newTaskHub(t *testing.T, gatewayURL string) (*Server, *httptest.Server, str
 	account, org := seedOwner(t, srv.store)
 	token, _, err := srv.store.CreateApiToken("test", account, authz.Grant{
 		Org:    org,
-		Scopes: []authz.Capability{authz.CreateTask, authz.ReadTask, authz.EnrollDevice, authz.ReadProject},
+		Scopes: []authz.Capability{authz.CreateTask, authz.ReadTask, authz.EnrollConnector, authz.ReadProject},
 	})
 	if err != nil {
 		t.Fatal(err)

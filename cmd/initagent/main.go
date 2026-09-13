@@ -47,13 +47,13 @@ Usage:
   {{bin}} agent run                                       Run the device agent (foreground)
   {{bin}} agent install-service                           Install + start the agent as a service
   {{bin}} fleet login --hub URL --token API_TOKEN         Save fleet CLI credentials
-  {{bin}} fleet devices                                   List devices
-  {{bin}} fleet sessions [device]                         List sessions (fleet-wide or one device)
-  {{bin}} fleet new DEVICE NAME [--cwd DIR] [--cmd CMD]   Create a session
-  {{bin}} fleet run DEVICE -- CMD...                      Run a command and print output
-  {{bin}} fleet send DEVICE SESSION TEXT                  Type into a session (presses Enter)
-  {{bin}} fleet read DEVICE SESSION [--lines N]           Read a session's recent output
-  {{bin}} fleet kill DEVICE SESSION                       Kill a session
+  {{bin}} fleet connectors                                   List connectors
+  {{bin}} fleet sessions [connector]                         List sessions (fleet-wide or one connector)
+  {{bin}} fleet new CONNECTOR NAME [--cwd DIR] [--cmd CMD]   Create a session
+  {{bin}} fleet run CONNECTOR -- CMD...                      Run a command and print output
+  {{bin}} fleet send CONNECTOR SESSION TEXT                  Type into a session (presses Enter)
+  {{bin}} fleet read CONNECTOR SESSION [--lines N]           Read a session's recent output
+  {{bin}} fleet kill CONNECTOR SESSION                       Kill a session
   {{bin}} mcp                                             Run the MCP server (stdio) for coding agents
   {{bin}} update [--check]                                Install or check the latest verified stable release
   {{bin}} rollback                                        Restore the previous verified binary
@@ -200,20 +200,26 @@ func cmdServe(args []string) error {
 	}
 
 	srv, err := hub.NewServer(hub.Options{
-		Addr:           *addr,
-		DataDir:        resolvedDir,
-		Version:        version,
-		GithubRepo:     brand.ReleaseSource,
-		TLSDomain:      *tlsDomain,
-		TLSEmail:       *tlsEmail,
-		UI:             uiFS(),
-		GatewayURL:     gwURL,
-		GatewaySecret:  os.Getenv(brand.EnvGatewaySecret),
-		DatabaseURL:    *databaseURL,
-		Offering:       kind,
-		ResendAPIKey:   os.Getenv(brand.EnvResendAPIKey),
-		MailFrom:       os.Getenv(brand.EnvMailFrom),
-		TrustedProxies: *trustedProxies,
+		Addr:                *addr,
+		DataDir:             resolvedDir,
+		Version:             version,
+		GithubRepo:          brand.ReleaseSource,
+		TLSDomain:           *tlsDomain,
+		TLSEmail:            *tlsEmail,
+		UI:                  uiFS(),
+		GatewayURL:          gwURL,
+		GatewaySecret:       os.Getenv(brand.EnvGatewaySecret),
+		DatabaseURL:         *databaseURL,
+		Offering:            kind,
+		ResendAPIKey:        os.Getenv(brand.EnvResendAPIKey),
+		MailFrom:            os.Getenv(brand.EnvMailFrom),
+		StripeSecretKey:     os.Getenv(brand.EnvStripeSecretKey),
+		StripeWebhookSecret: os.Getenv(brand.EnvStripeWebhookSecret),
+		StripePriceStarter:  os.Getenv(brand.EnvStripePriceStarter),
+		StripePriceTeam:     os.Getenv(brand.EnvStripePriceTeam),
+		FakturowniaToken:    os.Getenv(brand.EnvFakturowniaToken),
+		FakturowniaDomain:   os.Getenv(brand.EnvFakturowniaDomain),
+		TrustedProxies:      *trustedProxies,
 	})
 	if err != nil {
 		return err
@@ -238,7 +244,7 @@ func cmdAgent(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("enrolled as device %s with hub %s\n", cfg.DeviceId, cfg.HubURL)
+		fmt.Printf("enrolled as connector %s with hub %s\n", cfg.ConnectorId, cfg.HubURL)
 		return nil
 	case "run":
 		cfg, err := agent.LoadConfig()
@@ -270,7 +276,7 @@ func cmdMCP() error {
 
 func cmdFleet(args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: %s fleet <login|devices|sessions|new|run|send|read|kill>", brand.Binary)
+		return fmt.Errorf("usage: %s fleet <login|connectors|sessions|new|run|send|read|kill>", brand.Binary)
 	}
 	sub, rest := args[0], args[1:]
 
@@ -283,7 +289,7 @@ func cmdFleet(args []string) error {
 			return fmt.Errorf("both --hub and --token are required")
 		}
 		client := fleet.New(*hubURL, *token)
-		if _, err := client.Devices(); err != nil {
+		if _, err := client.Connectors(); err != nil {
 			// A refusal is proof the credential is live: the hub read it,
 			// found the account behind it and declined one verb. A token
 			// minted for tasks alone is a legitimate token, so saving it is
@@ -307,8 +313,8 @@ func cmdFleet(args []string) error {
 	}
 
 	switch sub {
-	case "devices":
-		devices, err := client.Devices()
+	case "connectors":
+		devices, err := client.Connectors()
 		if err != nil {
 			return err
 		}
@@ -333,7 +339,7 @@ func cmdFleet(args []string) error {
 	case "sessions":
 		var sessions []fleet.Session
 		if len(rest) > 0 {
-			d, err := client.ResolveDevice(rest[0])
+			d, err := client.ResolveConnector(rest[0])
 			if err != nil {
 				return err
 			}
@@ -342,7 +348,7 @@ func cmdFleet(args []string) error {
 				return err
 			}
 			for i := range sessions {
-				sessions[i].DeviceName = d.Name
+				sessions[i].ConnectorName = d.Name
 			}
 		} else {
 			sessions, err = client.FleetSessions()
@@ -357,7 +363,7 @@ func cmdFleet(args []string) error {
 			if kind == "" {
 				kind = "terminal"
 			}
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", s.Name, s.DeviceName, kind, s.Status)
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", s.Name, s.ConnectorName, kind, s.Status)
 		}
 		return tw.Flush()
 
@@ -367,10 +373,10 @@ func cmdFleet(args []string) error {
 		cmd := fs.String("cmd", "", "command to run in the session")
 		kind := fs.String("kind", "", "label, e.g. claude")
 		if len(rest) < 2 {
-			return fmt.Errorf("usage: %s fleet new DEVICE NAME [--cwd DIR] [--cmd CMD]", brand.Binary)
+			return fmt.Errorf("usage: %s fleet new CONNECTOR NAME [--cwd DIR] [--cmd CMD]", brand.Binary)
 		}
 		fs.Parse(rest[2:])
-		d, err := client.ResolveDevice(rest[0])
+		d, err := client.ResolveConnector(rest[0])
 		if err != nil {
 			return err
 		}
@@ -382,9 +388,9 @@ func cmdFleet(args []string) error {
 
 	case "run":
 		if len(rest) < 2 {
-			return fmt.Errorf("usage: %s fleet run DEVICE -- CMD...", brand.Binary)
+			return fmt.Errorf("usage: %s fleet run CONNECTOR -- CMD...", brand.Binary)
 		}
-		d, err := client.ResolveDevice(rest[0])
+		d, err := client.ResolveConnector(rest[0])
 		if err != nil {
 			return err
 		}
@@ -412,9 +418,9 @@ func cmdFleet(args []string) error {
 
 	case "send":
 		if len(rest) < 3 {
-			return fmt.Errorf("usage: %s fleet send DEVICE SESSION TEXT", brand.Binary)
+			return fmt.Errorf("usage: %s fleet send CONNECTOR SESSION TEXT", brand.Binary)
 		}
-		d, err := client.ResolveDevice(rest[0])
+		d, err := client.ResolveConnector(rest[0])
 		if err != nil {
 			return err
 		}
@@ -424,10 +430,10 @@ func cmdFleet(args []string) error {
 		fs := flag.NewFlagSet("read", flag.ExitOnError)
 		lines := fs.Int("lines", 200, "lines of scrollback")
 		if len(rest) < 2 {
-			return fmt.Errorf("usage: %s fleet read DEVICE SESSION [--lines N]", brand.Binary)
+			return fmt.Errorf("usage: %s fleet read CONNECTOR SESSION [--lines N]", brand.Binary)
 		}
 		fs.Parse(rest[2:])
-		d, err := client.ResolveDevice(rest[0])
+		d, err := client.ResolveConnector(rest[0])
 		if err != nil {
 			return err
 		}
@@ -440,9 +446,9 @@ func cmdFleet(args []string) error {
 
 	case "kill":
 		if len(rest) < 2 {
-			return fmt.Errorf("usage: %s fleet kill DEVICE SESSION", brand.Binary)
+			return fmt.Errorf("usage: %s fleet kill CONNECTOR SESSION", brand.Binary)
 		}
-		d, err := client.ResolveDevice(rest[0])
+		d, err := client.ResolveConnector(rest[0])
 		if err != nil {
 			return err
 		}

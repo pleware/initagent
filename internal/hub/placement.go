@@ -89,7 +89,7 @@ func (s *Server) readableProjects(cred authz.Credential) ([]Project, error) {
 	return s.store.ListProjectsForOrgs(orgIds)
 }
 
-// deviceFilter reports which machines a credential may see.
+// connectorFilter reports which machines a credential may see.
 //
 // It returns a predicate rather than a set so the "whole installation" case
 // stays honest: the operator of a hub with no organizations owns the orphan
@@ -99,8 +99,8 @@ func (s *Server) readableProjects(cred authz.Credential) ([]Project, error) {
 // Everything else is reached through the projects the credential can read,
 // so a machine attached to nothing is invisible to a scoped caller. That is
 // the same fail-closed rule the middleware applies per device.
-func (s *Server) deviceFilter(cred authz.Credential) (func(string) bool, error) {
-	if cred.Can(authz.ReadDevice, "", "") {
+func (s *Server) connectorFilter(cred authz.Credential) (func(string) bool, error) {
+	if cred.Can(authz.ReadConnector, "", "") {
 		return func(string) bool { return true }, nil
 	}
 	projects, err := s.readableProjects(cred)
@@ -111,17 +111,17 @@ func (s *Server) deviceFilter(cred authz.Credential) (func(string) bool, error) 
 	for i, p := range projects {
 		projectIds[i] = p.Id
 	}
-	byProject, err := s.store.deviceIdsByProjects(projectIds)
+	byProject, err := s.store.connectorIdsByProjects(projectIds)
 	if err != nil {
 		return nil, err
 	}
 	visible := map[string]bool{}
-	for _, deviceIds := range byProject {
-		for _, deviceId := range deviceIds {
-			visible[deviceId] = true
+	for _, connectorIds := range byProject {
+		for _, connectorId := range connectorIds {
+			visible[connectorId] = true
 		}
 	}
-	return func(deviceId string) bool { return visible[deviceId] }, nil
+	return func(connectorId string) bool { return visible[connectorId] }, nil
 }
 
 var errProjectNotFound = errNotFound("project not found")

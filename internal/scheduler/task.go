@@ -33,7 +33,7 @@ type Task struct {
 	LaunchMode string    // exec | process | send_keys; empty means exec
 
 	// Placement
-	AssignedWorkerID string    // device ID (e.g., device-...) when assigned
+	AssignedWorkerID string    // connector ID (e.g., connector-...) when assigned
 	LeaseExpiry      time.Time // when the lease expires (zero if not assigned)
 
 	// Timing

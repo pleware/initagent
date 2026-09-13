@@ -16,7 +16,7 @@ func TestEnrollToWritesConfig(t *testing.T) {
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]string{
-			"deviceId": "device-test", "deviceToken": "token-test",
+			"connectorId": "connector-test", "connectorToken": "token-test",
 		})
 	}))
 	t.Cleanup(ts.Close)
@@ -26,7 +26,7 @@ func TestEnrollToWritesConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.DeviceId != "device-test" || cfg.Token != "token-test" || cfg.HubURL != ts.URL {
+	if cfg.ConnectorId != "connector-test" || cfg.Token != "token-test" || cfg.HubURL != ts.URL {
 		t.Fatalf("cfg = %+v", cfg)
 	}
 	loaded, err := LoadConfigFrom(path)
@@ -40,7 +40,7 @@ func TestEnrollToWritesConfig(t *testing.T) {
 
 func TestEnrollToRejectsEmptyCredentials(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]string{"deviceId": "", "deviceToken": ""})
+		_ = json.NewEncoder(w).Encode(map[string]string{"connectorId": "", "connectorToken": ""})
 	}))
 	t.Cleanup(ts.Close)
 	path := filepath.Join(t.TempDir(), "connector.json")

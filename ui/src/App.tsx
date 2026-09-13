@@ -6,7 +6,7 @@ import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
-import DevicePage from './pages/DevicePage'
+import ConnectorPage from './pages/ConnectorPage'
 import AgentsPage from './pages/AgentsPage'
 import SettingsPage from './pages/SettingsPage'
 import SetupPage from './pages/SetupPage'
@@ -14,6 +14,7 @@ import CodingPage from './pages/CodingPage'
 import TasksPage from './pages/TasksPage'
 import AdminPage from './pages/AdminPage'
 import PeoplePage from './pages/PeoplePage'
+import PlansPage from './pages/PlansPage'
 import AcceptInvite from './pages/AcceptInvite'
 import type { Me } from './types'
 import i18n from './i18n/config'
@@ -123,11 +124,12 @@ export default function App() {
         <Route path="/code/:projectId" element={<CodingPage me={me} onMeChanged={refresh} />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/fleet" element={<Dashboard />} />
-        <Route path="/devices/:id" element={<DevicePage />} />
+        <Route path="/connectors/:id" element={<ConnectorPage />} />
         <Route path="/agents" element={<AgentsPage />} />
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/settings" element={<SettingsPage me={me} />} />
         <Route path="/people" element={<PeoplePage me={me} onChanged={refresh} />} />
+        {me.offering === 'hosted' && <Route path="/plans" element={<PlansPage me={me} />} />}
         {/* The administration surface exists for the operator of this hub.
             The route is absent for everyone else rather than rendering a
             refusal, and the endpoints behind it check the same thing. */}

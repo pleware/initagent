@@ -1,4 +1,4 @@
-// Package agent implements the device-side of initagent: it dials out to the
+// Package agent implements the connector-side of initagent: it dials out to the
 // hub over a single WebSocket and serves terminal, exec, stats and file
 // requests over it. It never listens on any port.
 package agent
@@ -28,9 +28,9 @@ import (
 
 // Config is what an enrolled agent needs to reach its hub.
 type Config struct {
-	HubURL   string `json:"hubUrl"` // e.g. http://192.168.1.10:4200
-	DeviceId string `json:"deviceId"`
-	Token    string `json:"token"`
+	HubURL      string `json:"hubUrl"` // e.g. http://192.168.1.10:4200
+	ConnectorId string `json:"connectorId"`
+	Token       string `json:"token"`
 }
 
 // Agent maintains the hub connection and dispatches requests.

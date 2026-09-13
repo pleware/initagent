@@ -20,15 +20,15 @@ func TestTerminalBridge(t *testing.T) {
 		t.Skip("tmux not installed")
 	}
 	srv, base := startHub(t)
-	deviceId := connectAgent(t, srv, base)
+	connectorId := connectAgent(t, srv, base)
 
-	apiToken := fleetToken(t, srv.store, deviceId,
+	apiToken := fleetToken(t, srv.store, connectorId,
 		authz.AttachTerminal, authz.ReadTerminal, authz.ReadProject)
 	session := fmt.Sprintf("ovsr-term-%d", time.Now().UnixNano())
 	defer exec.Command("tmux", "kill-session", "-t", session).Run()
 
 	url := strings.Replace(base, "http://", "ws://", 1) +
-		fmt.Sprintf("/api/ws/term?device=%s&session=%s&cols=100&rows=30", deviceId, session)
+		fmt.Sprintf("/api/ws/term?connector=%s&session=%s&cols=100&rows=30", connectorId, session)
 	hdr := http.Header{"Authorization": {"Bearer " + apiToken}}
 	ws, _, err := websocket.DefaultDialer.Dial(url, hdr)
 	if err != nil {
@@ -73,14 +73,14 @@ func TestTerminalBridge(t *testing.T) {
 }
 
 func TestTermGatewayURL(t *testing.T) {
-	got, err := termGatewayURL("http://127.0.0.1:4201/", "device-1", "term-2", 80, 24)
+	got, err := termGatewayURL("http://127.0.0.1:4201/", "connector-1", "term-2", 80, 24)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(got, "ws://127.0.0.1:4201/api/ws/term?") {
 		t.Fatalf("url = %q", got)
 	}
-	if !strings.Contains(got, "device=device-1") || !strings.Contains(got, "session=term-2") {
+	if !strings.Contains(got, "connector=connector-1") || !strings.Contains(got, "session=term-2") {
 		t.Fatalf("query missing ids: %q", got)
 	}
 }

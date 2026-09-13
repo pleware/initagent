@@ -4,14 +4,14 @@ import "time"
 
 // Event is one append-only funnel row.
 type Event struct {
-	ID         string
-	Kind       string
-	OccurredAt time.Time
-	OrgID      string
-	AccountID  string
-	ProjectID  string
-	DeviceID   string
-	Wall       string
+	ID          string
+	Kind        string
+	OccurredAt  time.Time
+	OrgID       string
+	AccountID   string
+	ProjectID   string
+	ConnectorID string
+	Wall        string
 }
 
 // AccountFact is the live account row the snapshot needs.
@@ -24,12 +24,12 @@ type AccountFact struct {
 // OrgFact is the live org row plus activation derived from projects,
 // enrolled machines, and finished-task streams.
 type OrgFact struct {
-	ID          string
-	CreatedAt   time.Time
-	Plan        string
-	HasProject  bool
-	HasDevice   bool
-	FirstTaskAt time.Time
+	ID           string
+	CreatedAt    time.Time
+	Plan         string
+	HasProject   bool
+	HasConnector bool
+	FirstTaskAt  time.Time
 }
 
 // Facts is the live side of a snapshot. Historical CTA / login / wall /

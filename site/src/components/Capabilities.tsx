@@ -91,7 +91,7 @@ export function Capabilities() {
               <div className="flex items-center gap-2.5 px-6 pt-6 pb-5">
                 <FolderOpen size={18} weight="regular" className="text-accent" />
                 <h3 className="text-[15.5px] font-semibold tracking-tight">
-                  Browse and move files across devices
+                  Browse and move files across connectors
                 </h3>
               </div>
               <div className="h-[260px] overflow-hidden border-t border-line-2">

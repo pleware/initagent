@@ -79,13 +79,13 @@ func TestEnrollConsumesTokenOnce(t *testing.T) {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
 	var got struct {
-		DeviceID    string `json:"deviceId"`
-		DeviceToken string `json:"deviceToken"`
+		ConnectorID    string `json:"connectorId"`
+		ConnectorToken string `json:"connectorToken"`
 	}
 	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
 		t.Fatal(err)
 	}
-	if !id.Is(id.Device, got.DeviceID) || got.DeviceToken == "" {
+	if !id.Is(id.Connector, got.ConnectorID) || got.ConnectorToken == "" {
 		t.Fatalf("got %+v", got)
 	}
 
@@ -96,14 +96,14 @@ func TestEnrollConsumesTokenOnce(t *testing.T) {
 		t.Fatalf("reuse status = %d", rec2.Code)
 	}
 
-	listReq := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	listReq := httptest.NewRequest(http.MethodGet, "/api/connectors", nil)
 	listRec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(listRec, listReq)
-	var views []DeviceView
+	var views []ConnectorView
 	if err := json.NewDecoder(listRec.Body).Decode(&views); err != nil {
 		t.Fatal(err)
 	}
-	if len(views) != 1 || views[0].ID != got.DeviceID || views[0].Online {
+	if len(views) != 1 || views[0].ID != got.ConnectorID || views[0].Online {
 		t.Fatalf("views = %+v", views)
 	}
 }
@@ -299,11 +299,11 @@ func TestAgentBinaryRequiresParams(t *testing.T) {
 func TestAgentWSHelloMarksOnline(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	_, token, err := g.Store().CreateDevice(ctx, g.Project().ID, "box", "box", "linux", "amd64")
+	_, token, err := g.Store().CreateConnector(ctx, g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
-	dev, err := g.Store().DeviceByToken(ctx, token)
+	dev, err := g.Store().ConnectorByToken(ctx, token)
 	if err != nil || dev == nil {
 		t.Fatalf("device: %v %+v", err, dev)
 	}
@@ -336,10 +336,10 @@ func TestAgentWSHelloMarksOnline(t *testing.T) {
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/connectors", nil)
 		rec := httptest.NewRecorder()
 		g.Handler().ServeHTTP(rec, req)
-		var views []DeviceView
+		var views []ConnectorView
 		if err := json.NewDecoder(rec.Body).Decode(&views); err != nil {
 			t.Fatal(err)
 		}
@@ -379,25 +379,25 @@ func TestAgentWSRejectsMissingBearer(t *testing.T) {
 	}
 }
 
-func TestDeviceByIDAndBadID(t *testing.T) {
+func TestConnectorByIDAndBadID(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	did, _, err := g.Store().CreateDevice(ctx, g.Project().ID, "box", "box", "linux", "amd64")
+	did, _, err := g.Store().CreateConnector(ctx, g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := g.Store().DeviceByID(ctx, did)
+	got, err := g.Store().ConnectorByID(ctx, did)
 	if err != nil || got == nil || got.ID != did {
 		t.Fatalf("got %+v %v", got, err)
 	}
-	if _, err := g.Store().DeviceByID(ctx, "task-nope"); err == nil {
+	if _, err := g.Store().ConnectorByID(ctx, "task-nope"); err == nil {
 		t.Fatal("expected bad id")
 	}
-	missing, err := id.New(id.Device)
+	missing, err := id.New(id.Connector)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err = g.Store().DeviceByID(ctx, missing)
+	got, err = g.Store().ConnectorByID(ctx, missing)
 	if err != nil || got != nil {
 		t.Fatalf("missing: %+v %v", got, err)
 	}
@@ -408,25 +408,25 @@ func TestDeviceByIDAndBadID(t *testing.T) {
 func TestDeviceCarriesItsProject(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	did, token, err := g.Store().CreateDevice(ctx, g.Project().ID, "box", "box", "linux", "amd64")
+	did, token, err := g.Store().CreateConnector(ctx, g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
-	byToken, err := g.Store().DeviceByToken(ctx, token)
+	byToken, err := g.Store().ConnectorByToken(ctx, token)
 	if err != nil || byToken == nil {
 		t.Fatalf("by token: %+v %v", byToken, err)
 	}
 	if byToken.ProjectID != g.Project().ID {
 		t.Fatalf("token project = %q, want %q", byToken.ProjectID, g.Project().ID)
 	}
-	byID, err := g.Store().DeviceByID(ctx, did)
+	byID, err := g.Store().ConnectorByID(ctx, did)
 	if err != nil || byID == nil {
 		t.Fatalf("by id: %+v %v", byID, err)
 	}
 	if byID.ProjectID != g.Project().ID {
 		t.Fatalf("id project = %q", byID.ProjectID)
 	}
-	listed, err := g.Store().ListDevices(ctx, g.Project().ID)
+	listed, err := g.Store().ListConnectors(ctx, g.Project().ID)
 	if err != nil || len(listed) != 1 {
 		t.Fatalf("listed = %+v %v", listed, err)
 	}
@@ -435,21 +435,21 @@ func TestDeviceCarriesItsProject(t *testing.T) {
 	}
 }
 
-func TestCreateDeviceRejectsBadProject(t *testing.T) {
+func TestCreateConnectorRejectsBadProject(t *testing.T) {
 	g := openTest(t, "")
-	if _, _, err := g.Store().CreateDevice(context.Background(), "not-prj", "n", "", "", ""); err == nil {
+	if _, _, err := g.Store().CreateConnector(context.Background(), "not-prj", "n", "", "", ""); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestListDevicesRejectsBadProject(t *testing.T) {
+func TestListConnectorsRejectsBadProject(t *testing.T) {
 	g := openTest(t, "")
-	if _, err := g.Store().ListDevices(context.Background(), "nope"); err == nil {
+	if _, err := g.Store().ListConnectors(context.Background(), "nope"); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestEnrollDefaultDeviceName(t *testing.T) {
+func TestEnrollDefaultConnectorName(t *testing.T) {
 	g := openTest(t, "")
 	token, err := g.Store().CreateEnrollToken(context.Background(), g.Project().ID, EnrollTTL)
 	if err != nil {
@@ -462,9 +462,9 @@ func TestEnrollDefaultDeviceName(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
-	devices, err := g.Store().ListDevices(context.Background(), g.Project().ID)
-	if err != nil || len(devices) != 1 || devices[0].Name != "device" {
-		t.Fatalf("devices = %+v %v", devices, err)
+	devices, err := g.Store().ListConnectors(context.Background(), g.Project().ID)
+	if err != nil || len(devices) != 1 || devices[0].Name != "connector" {
+		t.Fatalf("connectors = %+v %v", devices, err)
 	}
 }
 
@@ -495,10 +495,10 @@ func TestCreateEnrollTokenAfterClose(t *testing.T) {
 	}
 }
 
-func TestListDevicesAfterClose(t *testing.T) {
+func TestListConnectorsAfterClose(t *testing.T) {
 	g := openTest(t, "")
 	g.Close()
-	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors", nil)
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusInternalServerError {
@@ -556,7 +556,7 @@ func TestAgentBinaryCurrentPlatform(t *testing.T) {
 func TestAgentWSStatsMarkPresence(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	_, token, err := g.Store().CreateDevice(ctx, g.Project().ID, "box", "box", "linux", "amd64")
+	_, token, err := g.Store().CreateConnector(ctx, g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -584,10 +584,10 @@ func TestAgentWSStatsMarkPresence(t *testing.T) {
 	}
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/connectors", nil)
 		rec := httptest.NewRecorder()
 		g.Handler().ServeHTTP(rec, req)
-		var views []DeviceView
+		var views []ConnectorView
 		if err := json.NewDecoder(rec.Body).Decode(&views); err != nil {
 			t.Fatal(err)
 		}
@@ -601,7 +601,7 @@ func TestAgentWSStatsMarkPresence(t *testing.T) {
 
 func TestAgentWSRejectsNonHello(t *testing.T) {
 	g := openTest(t, "")
-	_, token, err := g.Store().CreateDevice(context.Background(), g.Project().ID, "box", "box", "linux", "amd64")
+	_, token, err := g.Store().CreateConnector(context.Background(), g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}

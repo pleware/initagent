@@ -57,7 +57,7 @@ function MyComponent() {
 
 - `common.*` — Generic UI elements (buttons, actions)
 - `dashboard.*` — Dashboard-specific strings
-- `devices.*` — Device management strings
+- `connectors.*` — Connector management strings
 - `settings.*` — Settings page strings
 - `auth.*` — Authentication strings
 - `errors.*` — Error messages

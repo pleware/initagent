@@ -70,25 +70,25 @@ func seedOwner(t *testing.T, s *Store) (account, org string) {
 // An unattached machine is invisible to every token on purpose: it has no
 // owner to check a boundary against. A test that wants to reach one therefore
 // takes the same step an operator does in the cockpit.
-func attachToProject(t *testing.T, s *Store, org, deviceId string) string {
+func attachToProject(t *testing.T, s *Store, org, connectorId string) string {
 	t.Helper()
-	project, err := s.CreateProject(org, "Test Project", deviceId, "/srv/app", "", "", "", "")
+	project, err := s.CreateProject(org, "Test Project", connectorId, "/srv/app", "", "", "", "")
 	if err != nil {
 		t.Fatalf("CreateProject: %v", err)
 	}
-	if _, err := s.AttachProjectDevice(project.Id, deviceId); err != nil {
-		t.Fatalf("AttachProjectDevice: %v", err)
+	if _, err := s.AttachProjectConnector(project.Id, connectorId); err != nil {
+		t.Fatalf("AttachProjectConnector: %v", err)
 	}
 	return project.Id
 }
 
-// fleetToken mints a credential that can reach deviceId, with the verbs the
+// fleetToken mints a credential that can reach connectorId, with the verbs the
 // caller names. No scopes means every grantable verb.
-func fleetToken(t *testing.T, s *Store, deviceId string, scopes ...authz.Capability) string {
+func fleetToken(t *testing.T, s *Store, connectorId string, scopes ...authz.Capability) string {
 	t.Helper()
 	account, org := seedOwner(t, s)
-	if deviceId != "" {
-		attachToProject(t, s, org, deviceId)
+	if connectorId != "" {
+		attachToProject(t, s, org, connectorId)
 	}
 	if len(scopes) == 0 {
 		scopes = authz.GrantableScopes()
@@ -153,8 +153,8 @@ func TestStoreRefusesAnUnscopedToken(t *testing.T) {
 		account string
 		grant   authz.Grant
 	}{
-		{"no subject", "", authz.Grant{Org: org, Scopes: []authz.Capability{authz.ReadDevice}}},
-		{"no boundary", account, authz.Grant{Scopes: []authz.Capability{authz.ReadDevice}}},
+		{"no subject", "", authz.Grant{Org: org, Scopes: []authz.Capability{authz.ReadConnector}}},
+		{"no boundary", account, authz.Grant{Scopes: []authz.Capability{authz.ReadConnector}}},
 		{"no verbs", account, authz.Grant{Org: org}},
 		{"nothing at all", "", authz.Grant{}},
 	}
@@ -168,7 +168,7 @@ func TestStoreRefusesAnUnscopedToken(t *testing.T) {
 func TestApiTokenLifecycle(t *testing.T) {
 	s := testStore(t)
 	account, org := seedOwner(t, s)
-	grant := authz.Grant{Org: org, Scopes: []authz.Capability{authz.ReadDevice, authz.CreateTask}}
+	grant := authz.Grant{Org: org, Scopes: []authz.Capability{authz.ReadConnector, authz.CreateTask}}
 
 	secret, row, err := s.CreateApiToken("ci", account, grant)
 	if err != nil {
@@ -250,7 +250,7 @@ func TestAdminSurfacesTakeScopedTokens(t *testing.T) {
 
 	// A token without the verb is refused on a surface it could otherwise
 	// reach, and the refusal says which verb is missing.
-	narrow := f.mintToken(t, authz.Grant{Scopes: []authz.Capability{authz.ReadDevice}})
+	narrow := f.mintToken(t, authz.Grant{Scopes: []authz.Capability{authz.ReadConnector}})
 	resp = f.withToken(t, narrow, http.MethodGet, "/api/orgs/"+f.orgId+"/members")
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("token without read:hub.org: %d, want 403", resp.StatusCode)
@@ -265,7 +265,7 @@ func TestAdminSurfacesTakeScopedTokens(t *testing.T) {
 
 func TestProjectsTakeScopedTokens(t *testing.T) {
 	f := hostedCustomer(t)
-	device := f.addDevice(t)
+	device := f.addConnector(t)
 	project := attachToProject(t, f.srv.store, f.orgId, device)
 
 	scoped := f.mintToken(t, authz.Grant{Scopes: []authz.Capability{authz.ReadProject}})
@@ -298,16 +298,16 @@ func TestProjectsTakeScopedTokens(t *testing.T) {
 // put in the new token.
 func TestRefusalNamesTheMissingScope(t *testing.T) {
 	f := hostedCustomer(t)
-	device := f.addDevice(t)
+	device := f.addConnector(t)
 	attachToProject(t, f.srv.store, f.orgId, device)
 
-	narrow := f.mintToken(t, authz.Grant{Scopes: []authz.Capability{authz.ReadDevice}})
-	resp := f.withToken(t, narrow, http.MethodPost, "/api/devices/"+device+"/exec")
+	narrow := f.mintToken(t, authz.Grant{Scopes: []authz.Capability{authz.ReadConnector}})
+	resp := f.withToken(t, narrow, http.MethodPost, "/api/connectors/"+device+"/exec")
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("exec without the scope: %d, want 403", resp.StatusCode)
 	}
-	if msg := bodyOf(t, resp); !strings.Contains(msg, string(authz.ExecDevice)) {
-		t.Errorf("refusal = %q; want it to name %q", msg, authz.ExecDevice)
+	if msg := bodyOf(t, resp); !strings.Contains(msg, string(authz.ExecConnector)) {
+		t.Errorf("refusal = %q; want it to name %q", msg, authz.ExecConnector)
 	}
 }
 
@@ -315,10 +315,10 @@ func TestRefusalNamesTheMissingScope(t *testing.T) {
 
 func TestTokenCannotCrossIntoAnotherProject(t *testing.T) {
 	f := hostedCustomer(t)
-	mine := f.addDevice(t)
+	mine := f.addConnector(t)
 	minePrj := attachToProject(t, f.srv.store, f.orgId, mine)
 
-	theirs, _, err := f.srv.store.CreateDevice("other", "other.local", "linux", "amd64", false)
+	theirs, _, err := f.srv.store.CreateConnector("other", "other.local", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,13 +326,13 @@ func TestTokenCannotCrossIntoAnotherProject(t *testing.T) {
 
 	scoped := f.mintToken(t, authz.Grant{
 		Project: minePrj,
-		Scopes:  []authz.Capability{authz.ReadDevice, authz.ExecDevice, authz.ReadProject},
+		Scopes:  []authz.Capability{authz.ReadConnector, authz.ExecConnector, authz.ReadProject},
 	})
 
-	if resp := f.withToken(t, scoped, http.MethodGet, "/api/devices/"+mine+"/setup"); resp.StatusCode == http.StatusForbidden {
+	if resp := f.withToken(t, scoped, http.MethodGet, "/api/connectors/"+mine+"/setup"); resp.StatusCode == http.StatusForbidden {
 		t.Error("a project-scoped token was refused its own machine")
 	}
-	resp := f.withToken(t, scoped, http.MethodGet, "/api/devices/"+theirs+"/setup")
+	resp := f.withToken(t, scoped, http.MethodGet, "/api/connectors/"+theirs+"/setup")
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("neighbouring machine: %d, want 403", resp.StatusCode)
 	}
@@ -358,15 +358,15 @@ func TestTokenCannotCrossIntoAnotherProject(t *testing.T) {
 // scoped reaches it. Fail closed rather than treat it as everyone's.
 func TestOrphanDeviceIsUnreachableByToken(t *testing.T) {
 	f := hostedCustomer(t)
-	orphan := f.addDevice(t)
+	orphan := f.addConnector(t)
 
 	wide := f.mintToken(t, authz.Grant{Scopes: authz.GrantableScopes()})
-	if resp := f.withToken(t, wide, http.MethodGet, "/api/devices/"+orphan+"/setup"); resp.StatusCode != http.StatusForbidden {
+	if resp := f.withToken(t, wide, http.MethodGet, "/api/connectors/"+orphan+"/setup"); resp.StatusCode != http.StatusForbidden {
 		t.Errorf("orphan machine reached by a token: %d, want 403", resp.StatusCode)
 	}
 
-	resp := f.withToken(t, wide, http.MethodGet, "/api/devices")
-	var views []deviceView
+	resp := f.withToken(t, wide, http.MethodGet, "/api/connectors")
+	var views []connectorView
 	if err := json.NewDecoder(resp.Body).Decode(&views); err != nil {
 		t.Fatal(err)
 	}
@@ -383,14 +383,14 @@ func TestTokenCannotReachAnotherTenant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	device, _, err := f.srv.store.CreateDevice("theirs", "theirs.local", "linux", "amd64", false)
+	device, _, err := f.srv.store.CreateConnector("theirs", "theirs.local", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	hidden := attachToProject(t, f.srv.store, other.Id, device)
 
 	wide := f.mintToken(t, authz.Grant{Scopes: authz.GrantableScopes()})
-	if resp := f.withToken(t, wide, http.MethodGet, "/api/devices/"+device+"/setup"); resp.StatusCode != http.StatusForbidden {
+	if resp := f.withToken(t, wide, http.MethodGet, "/api/connectors/"+device+"/setup"); resp.StatusCode != http.StatusForbidden {
 		t.Errorf("another tenant's machine: %d, want 403", resp.StatusCode)
 	}
 	// Naming the project directly must not widen the reach either.
@@ -448,7 +448,7 @@ func TestMintingCannotExceedTheMinter(t *testing.T) {
 	resp = requestJSON(t, f.ts, dev, http.MethodPost, "/api/tokens", map[string]any{
 		"name":   "ci",
 		"orgId":  f.orgId,
-		"scopes": []string{string(authz.ReadDevice)},
+		"scopes": []string{string(authz.ReadConnector)},
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("member minting a read verb: %d, want 201", resp.StatusCode)
@@ -463,14 +463,14 @@ func TestMintingRejectsBadInput(t *testing.T) {
 		body map[string]any
 		want int
 	}{
-		{"no name", map[string]any{"scopes": []string{string(authz.ReadDevice)}}, http.StatusBadRequest},
+		{"no name", map[string]any{"scopes": []string{string(authz.ReadConnector)}}, http.StatusBadRequest},
 		{"no scopes", map[string]any{"name": "ci"}, http.StatusBadRequest},
 		{"unknown scope", map[string]any{"name": "ci", "scopes": []string{"write:hub.invented"}}, http.StatusBadRequest},
 		// Installation powers are not grantable at all, so they read as
 		// unknown rather than as forbidden.
 		{"installation power", map[string]any{"name": "ci", "scopes": []string{string(authz.AdminUpdate)}}, http.StatusBadRequest},
 		{"project in another org", map[string]any{
-			"name": "ci", "projectId": "project-nope", "scopes": []string{string(authz.ReadDevice)},
+			"name": "ci", "projectId": "project-nope", "scopes": []string{string(authz.ReadConnector)},
 		}, http.StatusNotFound},
 	}
 	for _, c := range cases {

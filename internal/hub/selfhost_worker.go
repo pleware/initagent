@@ -30,7 +30,7 @@ func shouldBindSelfhostWorker(kind offering.Kind, gatewayURL string, project *Pr
 	if strings.TrimSpace(gatewayURL) == "" {
 		return false
 	}
-	if project == nil || strings.TrimSpace(project.DeviceId) != "" {
+	if project == nil || strings.TrimSpace(project.ConnectorId) != "" {
 		return false
 	}
 	return projectCount == 1
@@ -65,7 +65,7 @@ func (s *Server) bindSelfhostWorker(ctx context.Context, project *Project) *Proj
 	if s.signalSelfhostWorker != nil {
 		s.signalSelfhostWorker()
 	}
-	updated, err := s.store.UpdateProject(project.Id, project.Name, cfg.DeviceId, project.Path, project.TemplateId, project.RepoRemote, project.RepoHost)
+	updated, err := s.store.UpdateProject(project.Id, project.Name, cfg.ConnectorId, project.Path, project.TemplateId, project.RepoRemote, project.RepoHost)
 	if err != nil {
 		log.Printf("self-host worker: attach device: %v", err)
 		return project
@@ -73,7 +73,7 @@ func (s *Server) bindSelfhostWorker(ctx context.Context, project *Project) *Proj
 	if updated == nil {
 		return project
 	}
-	log.Printf("self-host worker enrolled as %s on %s", cfg.DeviceId, project.Id)
+	log.Printf("self-host worker enrolled as %s on %s", cfg.ConnectorId, project.Id)
 	return updated
 }
 

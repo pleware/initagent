@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pleware/initagent/internal/deviceops"
+	"github.com/pleware/initagent/internal/connectorops"
 	"github.com/pleware/initagent/internal/id"
 	"github.com/pleware/initagent/internal/protocol"
 )
@@ -21,14 +21,14 @@ func (g *Gateway) liveConn(w http.ResponseWriter, r *http.Request) *agentConn {
 	if !ok {
 		return nil
 	}
-	deviceID := r.PathValue("id")
-	if !id.Is(id.Device, deviceID) {
-		httpError(w, http.StatusBadRequest, ErrBadDeviceID.Error())
+	connectorID := r.PathValue("id")
+	if !id.Is(id.Connector, connectorID) {
+		httpError(w, http.StatusBadRequest, ErrBadConnectorID.Error())
 		return nil
 	}
-	c := g.connForProject(projectID, deviceID)
+	c := g.connForProject(projectID, connectorID)
 	if c == nil {
-		httpError(w, http.StatusServiceUnavailable, "device is offline")
+		httpError(w, http.StatusServiceUnavailable, "connector is offline")
 		return nil
 	}
 	return c
@@ -102,19 +102,19 @@ func (g *Gateway) handleSessionInput(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	cmd := ""
 	if req.Text != "" {
-		cmd = fmt.Sprintf("tmux send-keys -t %s -l %s", deviceops.ShellQuote(name), deviceops.ShellQuote(req.Text))
+		cmd = fmt.Sprintf("tmux send-keys -t %s -l %s", connectorops.ShellQuote(name), connectorops.ShellQuote(req.Text))
 	}
 	if req.Enter {
 		if cmd != "" {
 			cmd += " && "
 		}
-		cmd += fmt.Sprintf("tmux send-keys -t %s Enter", deviceops.ShellQuote(name))
+		cmd += fmt.Sprintf("tmux send-keys -t %s Enter", connectorops.ShellQuote(name))
 	}
 	if cmd == "" {
 		httpError(w, http.StatusBadRequest, "nothing to send")
 		return
 	}
-	res, err := deviceops.Exec(r.Context(), c, cmd, "", 15)
+	res, err := connectorops.Exec(r.Context(), c, cmd, "", 15)
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
@@ -136,8 +136,8 @@ func (g *Gateway) handleSessionOutput(w http.ResponseWriter, r *http.Request) {
 		lines = l
 	}
 	name := r.PathValue("name")
-	cmd := fmt.Sprintf("tmux capture-pane -p -t %s -S -%d", deviceops.ShellQuote(name), lines)
-	res, err := deviceops.Exec(r.Context(), c, cmd, "", 15)
+	cmd := fmt.Sprintf("tmux capture-pane -p -t %s -S -%d", connectorops.ShellQuote(name), lines)
+	res, err := connectorops.Exec(r.Context(), c, cmd, "", 15)
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
@@ -159,7 +159,7 @@ func (g *Gateway) handleExec(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, "command required")
 		return
 	}
-	res, err := deviceops.Exec(r.Context(), c, req.Command, req.Cwd, req.TimeoutSec)
+	res, err := connectorops.Exec(r.Context(), c, req.Command, req.Cwd, req.TimeoutSec)
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return

@@ -116,7 +116,7 @@ export function Install() {
           </h2>
           <p className="mt-5 text-[16px] leading-relaxed text-fg-muted">
             Same binary as the hosted hub. One paste per device — no SSH keys,
-            no port forwarding. Devices dial out over a single WebSocket, so
+            no port forwarding. Connectors dial out over a single WebSocket, so
             NAT and firewalls stay as they are. We never see your fleet.
           </p>
         </Reveal>

@@ -67,22 +67,22 @@ func (g *Gateway) Handler() http.Handler {
 	})
 	mux.HandleFunc("POST /api/enroll-tokens", g.fromHub(g.handleCreateEnrollToken))
 	mux.HandleFunc("POST /api/enroll", g.handleEnroll)
-	mux.HandleFunc("GET /api/devices", g.fromHub(g.handleListDevices))
+	mux.HandleFunc("GET /api/connectors", g.fromHub(g.handleListConnectors))
 	mux.HandleFunc("GET /api/agents", g.fromHub(g.handleFleetAgents))
 	mux.HandleFunc("GET /install/", g.joiner.ServeScript)
 	mux.HandleFunc("GET /api/agent-binary", g.joiner.ServeBinary)
 	mux.HandleFunc("GET /api/ws/agent", g.handleAgentWS)
 	mux.HandleFunc("GET /api/ws/term", g.fromHub(g.handleTermWS))
-	mux.HandleFunc("GET /api/devices/{id}/sessions", g.fromHub(g.handleListSessions))
-	mux.HandleFunc("POST /api/devices/{id}/sessions", g.fromHub(g.handleCreateSession))
-	mux.HandleFunc("DELETE /api/devices/{id}/sessions/{name}", g.fromHub(g.handleKillSession))
-	mux.HandleFunc("POST /api/devices/{id}/sessions/{name}/input", g.fromHub(g.handleSessionInput))
-	mux.HandleFunc("GET /api/devices/{id}/sessions/{name}/output", g.fromHub(g.handleSessionOutput))
-	mux.HandleFunc("POST /api/devices/{id}/exec", g.fromHub(g.handleExec))
-	mux.HandleFunc("GET /api/devices/{id}/setup", g.fromHub(g.handleSetupStatus))
-	mux.HandleFunc("GET /api/devices/{id}/fs", g.fromHub(g.handleFsList))
-	mux.HandleFunc("GET /api/devices/{id}/fs/download", g.fromHub(g.handleFsDownload))
-	mux.HandleFunc("POST /api/devices/{id}/fs/upload", g.fromHub(g.handleFsUpload))
+	mux.HandleFunc("GET /api/connectors/{id}/sessions", g.fromHub(g.handleListSessions))
+	mux.HandleFunc("POST /api/connectors/{id}/sessions", g.fromHub(g.handleCreateSession))
+	mux.HandleFunc("DELETE /api/connectors/{id}/sessions/{name}", g.fromHub(g.handleKillSession))
+	mux.HandleFunc("POST /api/connectors/{id}/sessions/{name}/input", g.fromHub(g.handleSessionInput))
+	mux.HandleFunc("GET /api/connectors/{id}/sessions/{name}/output", g.fromHub(g.handleSessionOutput))
+	mux.HandleFunc("POST /api/connectors/{id}/exec", g.fromHub(g.handleExec))
+	mux.HandleFunc("GET /api/connectors/{id}/setup", g.fromHub(g.handleSetupStatus))
+	mux.HandleFunc("GET /api/connectors/{id}/fs", g.fromHub(g.handleFsList))
+	mux.HandleFunc("GET /api/connectors/{id}/fs/download", g.fromHub(g.handleFsDownload))
+	mux.HandleFunc("POST /api/connectors/{id}/fs/upload", g.fromHub(g.handleFsUpload))
 	mux.HandleFunc("POST /api/tasks", g.fromHub(g.handleCreateTask))
 	mux.HandleFunc("GET /api/tasks/{id}", g.fromHub(g.handleGetTask))
 	return mux
@@ -163,29 +163,29 @@ func (g *Gateway) handleEnroll(w http.ResponseWriter, r *http.Request) {
 	}
 	name := req.Hostname
 	if name == "" {
-		name = "device"
+		name = "connector"
 	}
-	id, token, err := g.store.CreateDevice(r.Context(), projectID, name, req.Hostname, req.OS, req.Arch)
+	id, token, err := g.store.CreateConnector(r.Context(), projectID, name, req.Hostname, req.OS, req.Arch)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, map[string]string{"deviceId": id, "deviceToken": token})
+	writeJSON(w, map[string]string{"connectorId": id, "connectorToken": token})
 }
 
-func (g *Gateway) handleListDevices(w http.ResponseWriter, r *http.Request) {
+func (g *Gateway) handleListConnectors(w http.ResponseWriter, r *http.Request) {
 	projectID, ok := g.resolveProject(w, r)
 	if !ok {
 		return
 	}
-	devices, err := g.store.ListDevices(r.Context(), projectID)
+	devices, err := g.store.ListConnectors(r.Context(), projectID)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	out := make([]DeviceView, 0, len(devices))
+	out := make([]ConnectorView, 0, len(devices))
 	for _, d := range devices {
-		v := DeviceView{Device: d}
+		v := ConnectorView{Connector: d}
 		if p, ok := g.presence(d.ID); ok {
 			v.Online = true
 			v.Tmux = p.hello.Tmux
@@ -206,9 +206,9 @@ func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Command  string `json:"command"`
-		DeviceID string `json:"deviceId"`
-		Launch   string `json:"launch"`
+		Command     string `json:"command"`
+		ConnectorID string `json:"connectorId"`
+		Launch      string `json:"launch"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1<<20)).Decode(&req); err != nil {
 		httpError(w, http.StatusBadRequest, "bad request")
@@ -223,30 +223,30 @@ func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, ErrUnknownLaunch.Error())
 		return
 	}
-	worker := req.DeviceID
+	worker := req.ConnectorID
 	if worker == "" {
 		worker = g.firstOnlineID(projectID)
 		if worker == "" {
 			if g.hasDraining(projectID) {
-				httpError(w, http.StatusConflict, ErrDeviceDraining.Error())
+				httpError(w, http.StatusConflict, ErrConnectorDraining.Error())
 				return
 			}
-			httpError(w, http.StatusServiceUnavailable, ErrDeviceOffline.Error())
+			httpError(w, http.StatusServiceUnavailable, ErrConnectorOffline.Error())
 			return
 		}
 	}
-	if !id.Is(id.Device, worker) {
-		httpError(w, http.StatusBadRequest, ErrBadDeviceID.Error())
+	if !id.Is(id.Connector, worker) {
+		httpError(w, http.StatusBadRequest, ErrBadConnectorID.Error())
 		return
 	}
-	// Scoped, not just online: a named device- from another project must not be
-	// reachable through this project's task surface (01).
+	// Scoped, not just online: a named connector- from another project must not
+	// be reachable through this project's task surface (01).
 	if g.connForProject(projectID, worker) == nil {
-		httpError(w, http.StatusServiceUnavailable, ErrDeviceOffline.Error())
+		httpError(w, http.StatusServiceUnavailable, ErrConnectorOffline.Error())
 		return
 	}
 	if g.draining(worker) {
-		httpError(w, http.StatusConflict, ErrDeviceDraining.Error())
+		httpError(w, http.StatusConflict, ErrConnectorDraining.Error())
 		return
 	}
 	if _, err := g.store.Enqueue(r.Context(), scheduler.Task{
@@ -263,9 +263,9 @@ func (g *Gateway) handleCreateTask(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, scheduler.ErrNoFreeSlot):
 			code = http.StatusConflict
-		case errors.Is(err, ErrDeviceDraining):
+		case errors.Is(err, ErrConnectorDraining):
 			code = http.StatusConflict
-		case errors.Is(err, ErrDeviceOffline):
+		case errors.Is(err, ErrConnectorOffline):
 			code = http.StatusServiceUnavailable
 		}
 		httpError(w, code, err.Error())

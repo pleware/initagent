@@ -12,14 +12,14 @@ import (
 
 func TestFsListForwardsToAgent(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(m protocol.Msg) (any, error) {
 		if m.Type != protocol.TypeFsList {
 			return nil, errors.New("unexpected " + m.Type)
 		}
 		return protocol.FsListResult{Path: "/home", Entries: []protocol.FsEntry{{Name: "a.txt", Size: 3}}}, nil
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/"+deviceID+"/fs?path=/home", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/"+connectorID+"/fs?path=/home", nil)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -36,11 +36,11 @@ func TestFsListForwardsToAgent(t *testing.T) {
 
 func TestFsListOffline(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, _, err := g.Store().CreateDevice(t.Context(), g.Project().ID, "box", "box", "linux", "amd64")
+	connectorID, _, err := g.Store().CreateConnector(t.Context(), g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/"+deviceID+"/fs", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/"+connectorID+"/fs", nil)
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusServiceUnavailable {
@@ -50,11 +50,11 @@ func TestFsListOffline(t *testing.T) {
 
 func TestFsDownloadMissingPath(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return nil, errors.New("should not reach agent")
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/"+deviceID+"/fs/download", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/"+connectorID+"/fs/download", nil)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -64,14 +64,14 @@ func TestFsDownloadMissingPath(t *testing.T) {
 
 func TestSetupStatusForwardsToAgent(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgent(t, g, protocol.Hello{Hostname: "box", OS: "linux", Arch: "amd64"})
+	connectorID, agent, ts := connectAgent(t, g, protocol.Hello{Hostname: "box", OS: "linux", Arch: "amd64"})
 	echoRPC(t, agent, func(m protocol.Msg) (any, error) {
 		if m.Type != protocol.TypeExec {
 			return nil, errors.New("unexpected " + m.Type)
 		}
 		return protocol.ExecResult{ExitCode: 0, Stdout: "installed\n1.2.3\n"}, nil
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/"+deviceID+"/setup", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/"+connectorID+"/setup", nil)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

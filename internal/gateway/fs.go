@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/pleware/initagent/internal/deviceops"
+	"github.com/pleware/initagent/internal/connectorops"
 	"github.com/pleware/initagent/internal/protocol"
 )
 
@@ -20,7 +20,7 @@ func (g *Gateway) liveHello(w http.ResponseWriter, r *http.Request) (*agentConn,
 	}
 	p, ok := g.presence(r.PathValue("id"))
 	if !ok {
-		httpError(w, http.StatusServiceUnavailable, "device is offline")
+		httpError(w, http.StatusServiceUnavailable, "connector is offline")
 		return nil, protocol.Hello{}, false
 	}
 	return c, p.hello, true
@@ -33,7 +33,7 @@ func (g *Gateway) handleFsList(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), sessionRPCTimeout)
 	defer cancel()
-	res, err := deviceops.ListDir(ctx, c, r.URL.Query().Get("path"))
+	res, err := connectorops.ListDir(ctx, c, r.URL.Query().Get("path"))
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
@@ -57,7 +57,7 @@ func (g *Gateway) handleFsDownload(w http.ResponseWriter, r *http.Request) {
 	base := path[strings.LastIndex(path, "/")+1:]
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", base))
 	w.Header().Set("Content-Type", "application/octet-stream")
-	if err := deviceops.Download(c, path, w); err != nil {
+	if err := connectorops.Download(c, path, w); err != nil {
 		// A failure before the first byte is unreportable once the stream
 		// headers are set; a dropped device surfaces as a truncated download.
 		return
@@ -90,7 +90,7 @@ func (g *Gateway) handleFsUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	target := strings.TrimRight(dir, "/") + "/" + name
-	if err := deviceops.Upload(c, target, file); err != nil {
+	if err := connectorops.Upload(c, target, file); err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
 	}
@@ -102,5 +102,5 @@ func (g *Gateway) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeJSON(w, deviceops.SetupStatus(r.Context(), c, hello.OS, hello.Arch))
+	writeJSON(w, connectorops.SetupStatus(r.Context(), c, hello.OS, hello.Arch))
 }

@@ -37,25 +37,25 @@ func echoRPC(t *testing.T, agent *websocket.Conn, handle func(protocol.Msg) (any
 
 func TestSessionCreateOffline(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, _, err := g.Store().CreateDevice(t.Context(), g.Project().ID, "box", "box", "linux", "amd64")
+	connectorID, _, err := g.Store().CreateConnector(t.Context(), g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
 	body := strings.NewReader(`{"name":"claude-1"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/sessions", body)
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/sessions", body)
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "device is offline") {
+	if !strings.Contains(rec.Body.String(), "connector is offline") {
 		t.Fatalf("body = %s", rec.Body.String())
 	}
 }
 
-func TestSessionCreateRejectsBadDeviceID(t *testing.T) {
+func TestSessionCreateRejectsBadConnectorID(t *testing.T) {
 	g := openTest(t, "")
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/not-a-device/sessions", strings.NewReader(`{"name":"x"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/not-a-connector/sessions", strings.NewReader(`{"name":"x"}`))
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -65,7 +65,7 @@ func TestSessionCreateRejectsBadDeviceID(t *testing.T) {
 
 func TestSessionCreateForwardsToAgent(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	var got protocol.SessionCreate
 	echoRPC(t, agent, func(m protocol.Msg) (any, error) {
 		if m.Type != protocol.TypeSessionCreate {
@@ -78,7 +78,7 @@ func TestSessionCreateForwardsToAgent(t *testing.T) {
 	})
 
 	body := strings.NewReader(`{"name":"claude-1","kind":"claude","command":"claude"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/sessions", body)
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/sessions", body)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -91,7 +91,7 @@ func TestSessionCreateForwardsToAgent(t *testing.T) {
 
 func TestSessionCreateWrongProjectIsOffline(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return nil, errors.New("should not reach agent")
 	})
@@ -99,7 +99,7 @@ func TestSessionCreateWrongProjectIsOffline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/sessions", strings.NewReader(`{"name":"x"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/sessions", strings.NewReader(`{"name":"x"}`))
 	req.Header.Set(brand.ProjectHeader, other)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
@@ -110,14 +110,14 @@ func TestSessionCreateWrongProjectIsOffline(t *testing.T) {
 
 func TestSessionListForwardsToAgent(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(m protocol.Msg) (any, error) {
 		if m.Type != protocol.TypeSessionsList {
 			return nil, errors.New("unexpected " + m.Type)
 		}
 		return protocol.SessionsListResult{Sessions: []protocol.Session{{Name: "term-1"}}}, nil
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/"+deviceID+"/sessions", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/"+connectorID+"/sessions", nil)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -134,7 +134,7 @@ func TestSessionListForwardsToAgent(t *testing.T) {
 
 func TestSessionKillForwardsToAgent(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	var killed string
 	echoRPC(t, agent, func(m protocol.Msg) (any, error) {
 		if m.Type != protocol.TypeSessionKill {
@@ -147,7 +147,7 @@ func TestSessionKillForwardsToAgent(t *testing.T) {
 		killed = req.Name
 		return nil, nil
 	})
-	req := httptest.NewRequest(http.MethodDelete, "/api/devices/"+deviceID+"/sessions/claude-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/connectors/"+connectorID+"/sessions/claude-1", nil)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -160,14 +160,14 @@ func TestSessionKillForwardsToAgent(t *testing.T) {
 
 func TestExecForwardsToAgent(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(m protocol.Msg) (any, error) {
 		if m.Type != protocol.TypeExec {
 			return nil, errors.New("unexpected " + m.Type)
 		}
 		return protocol.ExecResult{ExitCode: 0, Stdout: "hi"}, nil
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/exec", strings.NewReader(`{"command":"echo hi"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/exec", strings.NewReader(`{"command":"echo hi"}`))
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -184,11 +184,11 @@ func TestExecForwardsToAgent(t *testing.T) {
 
 func TestExecRequiresCommand(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return nil, errors.New("should not reach agent")
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/exec", strings.NewReader(`{"command":"  "}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/exec", strings.NewReader(`{"command":"  "}`))
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -198,7 +198,7 @@ func TestExecRequiresCommand(t *testing.T) {
 
 func TestSessionInputForwardsExec(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	var cmd string
 	echoRPC(t, agent, func(m protocol.Msg) (any, error) {
 		if m.Type != protocol.TypeExec {
@@ -211,7 +211,7 @@ func TestSessionInputForwardsExec(t *testing.T) {
 		cmd = req.Command
 		return protocol.ExecResult{ExitCode: 0}, nil
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/sessions/term-1/input", strings.NewReader(`{"text":"ls","enter":true}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/sessions/term-1/input", strings.NewReader(`{"text":"ls","enter":true}`))
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -224,11 +224,11 @@ func TestSessionInputForwardsExec(t *testing.T) {
 
 func TestSessionInputNothingToSend(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return nil, errors.New("should not reach agent")
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/sessions/term-1/input", strings.NewReader(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/sessions/term-1/input", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -238,14 +238,14 @@ func TestSessionInputNothingToSend(t *testing.T) {
 
 func TestSessionOutputForwardsExec(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(m protocol.Msg) (any, error) {
 		if m.Type != protocol.TypeExec {
 			return nil, errors.New("unexpected " + m.Type)
 		}
 		return protocol.ExecResult{ExitCode: 0, Stdout: "pane"}, nil
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/"+deviceID+"/sessions/term-1/output?lines=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/"+connectorID+"/sessions/term-1/output?lines=10", nil)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -262,11 +262,11 @@ func TestSessionOutputForwardsExec(t *testing.T) {
 
 func TestSessionCreateRequiresName(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return nil, errors.New("should not reach agent")
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/sessions", strings.NewReader(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/sessions", strings.NewReader(`{}`))
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -276,11 +276,11 @@ func TestSessionCreateRequiresName(t *testing.T) {
 
 func TestSessionCreateAgentError(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return nil, errors.New("tmux missing")
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/sessions", strings.NewReader(`{"name":"x"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/sessions", strings.NewReader(`{"name":"x"}`))
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadGateway {
@@ -290,11 +290,11 @@ func TestSessionCreateAgentError(t *testing.T) {
 
 func TestSessionListEmptySessions(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return protocol.SessionsListResult{}, nil
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/"+deviceID+"/sessions", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/"+connectorID+"/sessions", nil)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -311,11 +311,11 @@ func TestSessionListEmptySessions(t *testing.T) {
 
 func TestSessionInputBadJSON(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return nil, errors.New("should not reach agent")
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/sessions/term-1/input", strings.NewReader(`{`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/sessions/term-1/input", strings.NewReader(`{`))
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -325,11 +325,11 @@ func TestSessionInputBadJSON(t *testing.T) {
 
 func TestSessionInputNonzeroExit(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return protocol.ExecResult{ExitCode: 1, Stderr: "no tmux"}, nil
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/sessions/term-1/input", strings.NewReader(`{"enter":true}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/sessions/term-1/input", strings.NewReader(`{"enter":true}`))
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadGateway {
@@ -339,11 +339,11 @@ func TestSessionInputNonzeroExit(t *testing.T) {
 
 func TestSessionOutputNonzeroExit(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return protocol.ExecResult{ExitCode: 1, Stderr: "missing"}, nil
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/"+deviceID+"/sessions/term-1/output", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/"+connectorID+"/sessions/term-1/output", nil)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadGateway {
@@ -353,11 +353,11 @@ func TestSessionOutputNonzeroExit(t *testing.T) {
 
 func TestKillSessionAgentError(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return nil, errors.New("no such session")
 	})
-	req := httptest.NewRequest(http.MethodDelete, "/api/devices/"+deviceID+"/sessions/x", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/connectors/"+connectorID+"/sessions/x", nil)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadGateway {
@@ -367,11 +367,11 @@ func TestKillSessionAgentError(t *testing.T) {
 
 func TestListSessionsAgentError(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return nil, errors.New("list failed")
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/"+deviceID+"/sessions", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/"+connectorID+"/sessions", nil)
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadGateway {
@@ -381,11 +381,11 @@ func TestListSessionsAgentError(t *testing.T) {
 
 func TestExecAgentError(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(protocol.Msg) (any, error) {
 		return nil, errors.New("exec failed")
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/"+deviceID+"/exec", strings.NewReader(`{"command":"true","timeoutSec":5}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/"+connectorID+"/exec", strings.NewReader(`{"command":"true","timeoutSec":5}`))
 	rec := httptest.NewRecorder()
 	ts.Config.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadGateway {

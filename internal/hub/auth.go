@@ -254,19 +254,19 @@ func (s *Server) requireAt(c authz.Capability, at func(*http.Request, authz.Cred
 	}
 }
 
-// requireDevice guards a route whose path names the machine it acts on. The
+// requireConnector guards a route whose path names the machine it acts on. The
 // boundary is that machine's, which is what keeps a project-scoped token off
 // another project's hardware.
-func (s *Server) requireDevice(c authz.Capability, next credHandler) http.HandlerFunc {
+func (s *Server) requireConnector(c authz.Capability, next credHandler) http.HandlerFunc {
 	return s.requireAt(c, func(r *http.Request, _ authz.Credential) ([]bound, error) {
-		return s.boundsForDevice(strings.TrimSpace(r.PathValue("id")))
+		return s.boundsForConnector(strings.TrimSpace(r.PathValue("id")))
 	}, next)
 }
 
 // requireFleet guards a route that names its target by query parameter, or
 // not at all: creating a task, reading presets, watching events.
 //
-// Separate from requireDevice on purpose. Several of these routes have an
+// Separate from requireConnector on purpose. Several of these routes have an
 // {id} of their own — a task, a preset — and reading that as a device id
 // would check the wrong boundary and refuse every caller.
 func (s *Server) requireFleet(c authz.Capability, next credHandler) http.HandlerFunc {
@@ -332,15 +332,15 @@ func (s *Server) requireSession(next credHandler) http.HandlerFunc {
 
 // atFleet resolves the boundaries a fleet request acts in.
 //
-// A named machine is the strongest signal available, so ?device= wins: the
+// A named machine is the strongest signal available, so ?connector= wins: the
 // projects it is attached to are its boundary. Failing that an explicit
 // ?project= answers, and failing that the credential's own boundary does —
 // the shape of a self-host install and of the CLI, where there is one of
 // everything.
 func (s *Server) atFleet(r *http.Request, cred authz.Credential) ([]bound, error) {
 	q := r.URL.Query()
-	if deviceId := strings.TrimSpace(q.Get("device")); deviceId != "" {
-		return s.boundsForDevice(deviceId)
+	if connectorId := strings.TrimSpace(q.Get("connector")); connectorId != "" {
+		return s.boundsForConnector(connectorId)
 	}
 	if projectId := strings.TrimSpace(q.Get(projectParam)); projectId != "" {
 		return s.boundsForProject(projectId)
@@ -348,10 +348,10 @@ func (s *Server) atFleet(r *http.Request, cred authz.Credential) ([]bound, error
 	return credentialBounds(cred), nil
 }
 
-// boundsForDevice answers where a machine lives. An unattached machine yields
-// nothing, so nothing scoped can reach it — see Store.DeviceBoundaries.
-func (s *Server) boundsForDevice(deviceId string) ([]bound, error) {
-	rows, err := s.store.DeviceBoundaries(deviceId)
+// boundsForConnector answers where a machine lives. An unattached machine yields
+// nothing, so nothing scoped can reach it — see Store.ConnectorBoundaries.
+func (s *Server) boundsForConnector(connectorId string) ([]bound, error) {
+	rows, err := s.store.ConnectorBoundaries(connectorId)
 	if err != nil {
 		return nil, err
 	}

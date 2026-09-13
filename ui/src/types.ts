@@ -141,7 +141,7 @@ export interface Membership {
   role: string
 }
 
-export interface Device {
+export interface Connector {
   id: string
   name: string
   hostname: string
@@ -164,8 +164,8 @@ export interface Project {
   name: string
   orgId: string
   gatewayUrl: string
-  deviceId: string
-  deviceIds?: string[]
+  connectorId: string
+  connectorIds?: string[]
   path: string
   templateId?: string
   repoRemote?: string
@@ -236,8 +236,8 @@ export interface Session {
 }
 
 export interface FleetSession extends Session {
-  deviceId: string
-  deviceName: string
+  connectorId: string
+  connectorName: string
 }
 
 export interface Preset {
@@ -299,7 +299,7 @@ export interface FsListing {
 }
 
 export interface HubEvent {
-  type: 'device.online' | 'device.offline' | 'device.stats' | 'sessions.changed'
-  deviceId?: string
+  type: 'connector.online' | 'connector.offline' | 'connector.stats' | 'sessions.changed'
+  connectorId?: string
   stats?: Stats
 }

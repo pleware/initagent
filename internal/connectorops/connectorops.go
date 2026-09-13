@@ -1,9 +1,9 @@
-// Package deviceops runs device-side operations — exec, filesystem
+// Package connectorops runs connector-side operations — exec, filesystem
 // list/download/upload, and setup probing — over a live connector
 // connection. Both the hub (single-plane fallback) and the gateway (project
 // plane) perform these operations, so the logic lives here and each plane
 // adapts its agentConn to Conn.
-package deviceops
+package connectorops
 
 import (
 	"context"

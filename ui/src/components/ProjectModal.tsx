@@ -1,34 +1,34 @@
 import { FormEvent, useMemo, useState } from 'react'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api } from '../api'
-import type { Device, Project } from '../types'
+import type { Connector, Project } from '../types'
 import Modal from './Modal'
 import { HubError } from './PlanWall'
 
 function enrolledIds(project?: Project): string[] {
-  if (project?.deviceIds?.length) return project.deviceIds
-  if (project?.deviceId) return [project.deviceId]
+  if (project?.connectorIds?.length) return project.connectorIds
+  if (project?.connectorId) return [project.connectorId]
   return []
 }
 
 export default function ProjectModal({
-  devices,
+  connectors,
   project,
   onClose,
   onSaved,
   onUpdated,
 }: {
-  devices: Device[]
+  connectors: Connector[]
   project?: Project
   onClose: () => void
   onSaved: (project: Project) => void
   onUpdated?: (project: Project) => void
 }) {
-  const online = useMemo(() => devices.filter((device) => device.online), [devices])
-  const firstDevice = online[0]?.id ?? devices[0]?.id ?? ''
+  const online = useMemo(() => connectors.filter((item) => item.online), [connectors])
+  const firstConnector = online[0]?.id ?? connectors[0]?.id ?? ''
   const [name, setName] = useState(project?.name ?? '')
   const [enrolled, setEnrolled] = useState<string[]>(() => enrolledIds(project))
-  const [deviceId, setDeviceId] = useState(project?.deviceId ?? firstDevice)
+  const [connectorId, setConnectorId] = useState(project?.connectorId ?? firstConnector)
   const [addId, setAddId] = useState('')
   const [path, setPath] = useState(project?.path ?? '')
   const [saving, setSaving] = useState(false)
@@ -36,13 +36,13 @@ export default function ProjectModal({
   const [error, setError] = useState<unknown>(null)
 
   const editing = Boolean(project)
-  const deviceById = useMemo(() => new Map(devices.map((device) => [device.id, device])), [devices])
-  const available = devices.filter((device) => !enrolled.includes(device.id))
-  const runOnIds = enrolled.length > 0 ? enrolled : devices.map((device) => device.id)
+  const deviceById = useMemo(() => new Map(connectors.map((device) => [device.id, device])), [connectors])
+  const available = connectors.filter((device) => !enrolled.includes(device.id))
+  const runOnIds = enrolled.length > 0 ? enrolled : connectors.map((device) => device.id)
 
   const apply = (saved: Project) => {
     setEnrolled(enrolledIds(saved))
-    setDeviceId(saved.deviceId || saved.deviceIds?.[0] || '')
+    setConnectorId(saved.connectorId || saved.connectorIds?.[0] || '')
     onUpdated?.(saved)
   }
 
@@ -51,7 +51,7 @@ export default function ProjectModal({
     setAdding(true)
     setError(null)
     try {
-      const saved = await api.post<Project>(`/api/projects/${project.id}/devices`, { deviceId: addId })
+      const saved = await api.post<Project>(`/api/projects/${project.id}/connectors`, { connectorId: addId })
       setAddId('')
       apply(saved)
     } catch (cause) {
@@ -66,7 +66,7 @@ export default function ProjectModal({
     setAdding(true)
     setError(null)
     try {
-      const saved = await api.del<Project>(`/api/projects/${project.id}/devices/${id}`)
+      const saved = await api.del<Project>(`/api/projects/${project.id}/connectors/${id}`)
       apply(saved)
     } catch (cause) {
       setError(cause)
@@ -77,11 +77,11 @@ export default function ProjectModal({
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
-    if (!name.trim() || !deviceId || !path.trim()) return
+    if (!name.trim() || !connectorId || !path.trim()) return
     setSaving(true)
     setError(null)
     try {
-      const body = { name: name.trim(), deviceId, path: path.trim() }
+      const body = { name: name.trim(), connectorId, path: path.trim() }
       const saved = project
         ? await api.patch<Project>(`/api/projects/${project.id}`, body)
         : await api.post<Project>('/api/projects', body)
@@ -165,8 +165,8 @@ export default function ProjectModal({
           <div className="mt-2">
             <SimpleSelect
               size="default"
-              value={deviceId}
-              onValueChange={setDeviceId}
+              value={connectorId}
+              onValueChange={setConnectorId}
               className="w-full"
               items={runOnIds.map((id) => {
                 const device = deviceById.get(id)
@@ -198,7 +198,7 @@ export default function ProjectModal({
 
         <div className="flex justify-end gap-2 border-t border-white/[0.07] pt-4">
           <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-          <button type="submit" disabled={saving || !name.trim() || !deviceId || !path.trim()} className="btn-primary">
+          <button type="submit" disabled={saving || !name.trim() || !connectorId || !path.trim()} className="btn-primary">
             {saving ? 'Saving…' : project ? 'Save changes' : 'Add project'}
           </button>
         </div>

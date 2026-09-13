@@ -135,89 +135,89 @@ func num(desc string) map[string]any  { return map[string]any{"type": "number", 
 func boolp(desc string) map[string]any { return map[string]any{"type": "boolean", "description": desc} }
 
 func toolDefs() []map[string]any {
-	device := str("Device name or id (see list_devices)")
+	device := str("Connector name or id (see list_connectors)")
 	session := str("Session name")
 	return []map[string]any{
 		{
-			"name":        "list_devices",
-			"description": "List every device in the initagent fleet with online status, OS, and whether tmux is available.",
+			"name":        "list_connectors",
+			"description": "List every connector in the initagent fleet with online status, OS, and whether tmux is available.",
 			"inputSchema": obj(map[string]any{}),
 		},
 		{
 			"name":        "list_sessions",
-			"description": "List terminal/agent sessions. Without a device, lists sessions across the whole fleet with their status (working/idle).",
-			"inputSchema": obj(map[string]any{"device": str("Optional device name or id to filter")}),
+			"description": "List terminal/agent sessions. Without a connector, lists sessions across the whole fleet with their status (working/idle).",
+			"inputSchema": obj(map[string]any{"connector": str("Optional connector name or id to filter")}),
 		},
 		{
 			"name":        "create_session",
-			"description": "Create a persistent (tmux) session on a device, optionally starting a command in it — e.g. launch a coding agent like `claude` in a project directory. Returns immediately; use read_output to observe it.",
+			"description": "Create a persistent (tmux) session on a connector, optionally starting a command in it — e.g. launch a coding agent like `claude` in a project directory. Returns immediately; use read_output to observe it.",
 			"inputSchema": obj(map[string]any{
-				"device":  device,
+				"connector":  device,
 				"name":    str("Session name (letters, digits, . _ -)"),
 				"cwd":     str("Working directory (optional)"),
 				"command": str("Command to run in the session (optional; empty = shell)"),
 				"kind":    str("Label like 'claude', 'codex', 'shell' (optional)"),
-			}, "device", "name"),
+			}, "connector", "name"),
 		},
 		{
 			"name":        "send_input",
 			"description": "Type text into a session (like typing into its terminal). Set enter=true to press Enter after the text. Use this to answer prompts or steer an agent running in the session.",
 			"inputSchema": obj(map[string]any{
-				"device":  device,
+				"connector":  device,
 				"session": session,
 				"text":    str("Text to type (may be empty if only pressing Enter)"),
 				"enter":   boolp("Press Enter after typing (default true)"),
-			}, "device", "session"),
+			}, "connector", "session"),
 		},
 		{
 			"name":        "read_output",
 			"description": "Read the most recent terminal output of a session (its visible scrollback). Use to check what an agent or command is doing.",
 			"inputSchema": obj(map[string]any{
-				"device":  device,
+				"connector":  device,
 				"session": session,
 				"lines":   num("How many lines of scrollback (default 200, max 10000)"),
-			}, "device", "session"),
+			}, "connector", "session"),
 		},
 		{
 			"name":        "run_command",
-			"description": "Run a shell command on a device and wait for it to finish. Returns exit code, stdout, and stderr. For long-running or interactive work use create_session instead.",
+			"description": "Run a shell command on a connector and wait for it to finish. Returns exit code, stdout, and stderr. For long-running or interactive work use create_session instead.",
 			"inputSchema": obj(map[string]any{
-				"device":     device,
+				"connector":     device,
 				"command":    str("Shell command to run"),
 				"cwd":        str("Working directory (optional)"),
 				"timeoutSec": num("Timeout in seconds (default 60, max 600)"),
-			}, "device", "command"),
+			}, "connector", "command"),
 		},
 		{
 			"name":        "kill_session",
-			"description": "Terminate a session on a device.",
-			"inputSchema": obj(map[string]any{"device": device, "session": session}, "device", "session"),
+			"description": "Terminate a session on a connector.",
+			"inputSchema": obj(map[string]any{"connector": device, "session": session}, "connector", "session"),
 		},
 		{
 			"name":        "list_files",
-			"description": "List a directory on a device (like `ls -la`). Use to explore a project before reading or editing files.",
-			"inputSchema": obj(map[string]any{"device": device, "path": str("Absolute path to a directory")}, "device", "path"),
+			"description": "List a directory on a connector (like `ls -la`). Use to explore a project before reading or editing files.",
+			"inputSchema": obj(map[string]any{"connector": device, "path": str("Absolute path to a directory")}, "connector", "path"),
 		},
 		{
 			"name":        "read_file",
-			"description": "Read a text file's contents from a device. Use before editing so you know what's there.",
-			"inputSchema": obj(map[string]any{"device": device, "path": str("Absolute path to the file")}, "device", "path"),
+			"description": "Read a text file's contents from a connector. Use before editing so you know what's there.",
+			"inputSchema": obj(map[string]any{"connector": device, "path": str("Absolute path to the file")}, "connector", "path"),
 		},
 		{
 			"name":        "write_file",
-			"description": "Create or overwrite a text file on a device with the given contents. Parent directory must exist. Content is capped at ~512 KB; for larger writes use run_command.",
+			"description": "Create or overwrite a text file on a connector with the given contents. Parent directory must exist. Content is capped at ~512 KB; for larger writes use run_command.",
 			"inputSchema": obj(map[string]any{
-				"device":  device,
+				"connector":  device,
 				"path":    str("Absolute path to the file"),
 				"content": str("Full new contents of the file"),
-			}, "device", "path", "content"),
+			}, "connector", "path", "content"),
 		},
 	}
 }
 
 func callTool(client *fleet.Client, name string, rawArgs json.RawMessage) (string, error) {
 	var args struct {
-		Device     string  `json:"device"`
+		Connector     string  `json:"connector"`
 		Name       string  `json:"name"`
 		Session    string  `json:"session"`
 		Cwd        string  `json:"cwd"`
@@ -235,16 +235,16 @@ func callTool(client *fleet.Client, name string, rawArgs json.RawMessage) (strin
 			return "", fmt.Errorf("bad arguments: %w", err)
 		}
 	}
-	resolve := func() (*fleet.Device, error) {
-		if args.Device == "" {
-			return nil, fmt.Errorf("device is required")
+	resolve := func() (*fleet.Connector, error) {
+		if args.Connector == "" {
+			return nil, fmt.Errorf("connector is required")
 		}
-		return client.ResolveDevice(args.Device)
+		return client.ResolveConnector(args.Connector)
 	}
 
 	switch name {
-	case "list_devices":
-		devices, err := client.Devices()
+	case "list_connectors":
+		devices, err := client.Connectors()
 		if err != nil {
 			return "", err
 		}
@@ -265,21 +265,21 @@ func callTool(client *fleet.Client, name string, rawArgs json.RawMessage) (strin
 			fmt.Fprintf(&b, "- %s%s — id %s, %s/%s, %s%s\n", d.Name, hub, d.Id, d.OS, d.Arch, status, tmux)
 		}
 		if b.Len() == 0 {
-			return "No devices in the fleet yet.", nil
+			return "No connectors in the fleet yet.", nil
 		}
 		return b.String(), nil
 
 	case "list_sessions":
 		var sessions []fleet.Session
 		var err error
-		if args.Device != "" {
+		if args.Connector != "" {
 			d, derr := resolve()
 			if derr != nil {
 				return "", derr
 			}
 			sessions, err = client.Sessions(d.Id)
 			for i := range sessions {
-				sessions[i].DeviceName = d.Name
+				sessions[i].ConnectorName = d.Name
 			}
 		} else {
 			sessions, err = client.FleetSessions()
@@ -296,7 +296,7 @@ func callTool(client *fleet.Client, name string, rawArgs json.RawMessage) (strin
 			if kind == "" {
 				kind = "terminal"
 			}
-			fmt.Fprintf(&b, "- %s on %s — %s, %s\n", s.Name, s.DeviceName, kind, s.Status)
+			fmt.Fprintf(&b, "- %s on %s — %s, %s\n", s.Name, s.ConnectorName, kind, s.Status)
 		}
 		return b.String(), nil
 

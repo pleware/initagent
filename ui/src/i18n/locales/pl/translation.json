@@ -18,7 +18,7 @@
     "title": "Twoje maszyny, w jednym miejscu.",
     "subtitle": "Stan, pojemność i dostęp na każdym podłączonym urządzeniu.",
     "eyebrow": "Flota na żywo",
-    "addDevice": "Dodaj urządzenie",
+    "addConnector": "Dodaj łącznik",
     "prepareMachine": "Przygotuj maszynę",
     "stats": {
       "total": "Razem",
@@ -26,10 +26,10 @@
       "attention": "Uwaga",
       "platforms": "Platformy"
     },
-    "noDevices": "Nie ma jeszcze podłączonych urządzeń",
-    "noDevicesHint": "Dodaj pierwsze urządzenie, żeby zacząć"
+    "noConnectors": "Nie ma jeszcze podłączonych urządzeń",
+    "noConnectorsHint": "Dodaj pierwszy łącznik, żeby zacząć"
   },
-  "devices": {
+  "connectors": {
     "status": {
       "online": "Online",
       "offline": "Offline"
@@ -115,13 +115,14 @@
   },
   "nav": {
     "dashboard": "Pulpit",
-    "devices": "Urządzenia",
+    "connectors": "Urządzenia",
     "agents": "Agenci",
     "coding": "Kod",
     "tasks": "Zadania",
     "settings": "Ustawienia",
     "setup": "Konfiguracja",
     "people": "Ludzie",
+    "plans": "Plany",
     "administration": "Administracja"
   },
   "publicNav": {
@@ -175,6 +176,38 @@
     "mrr": "MRR",
     "mrrPending": "Stripe jeszcze niepodłączony",
     "onlineWorkers": "Maszyny online"
+  },
+  "plans": {
+    "eyebrow": "Organizacja",
+    "title": "Plany",
+    "subtitle": "Płacisz za ludzi w {{org}}. Maszyny zostają Twoje — nie hostujemy workerów.",
+    "selfhost": "Ten hub jest self-host. Nie ma ściany katalogu i nie ma płatności do nas.",
+    "noOrg": "Plany należą do organizacji. Najpierw ją załóż.",
+    "paid": "Płatność przyjęta. Możesz zapraszać ludzi.",
+    "canceled": "Checkout anulowany. Nic się nie zmieniło.",
+    "talk": "Porozmawiaj z nami",
+    "perPerson": "za osobę / miesiąc",
+    "onePerson": "jedna osoba",
+    "contract": "bez publicznej ceny",
+    "capPeople": "{{n}} osoba",
+    "capProjects": "{{n}} projekty",
+    "noProjectCap": "Bez limitu projektów",
+    "capMachines": "{{n}} Twoich maszyn na projekt",
+    "current": "Obecny plan",
+    "choose": "Wybierz {{plan}}",
+    "contact": "Kontakt ze sprzedażą",
+    "invoiceTitle": "Dane do faktury",
+    "invoiceHint": "Polskie firmy potrzebują NIP-u. Po płatności wystawiamy fakturę VAT w Fakturowni i wysyłamy ją do KSeF.",
+    "company": "Nazwa firmy",
+    "nip": "NIP",
+    "street": "Ulica",
+    "postCode": "Kod pocztowy",
+    "city": "Miasto",
+    "country": "Kraj",
+    "email": "E-mail do faktury",
+    "saveInvoice": "Zapisz dane do faktury",
+    "notWired": "Checkout nie jest jeszcze skonfigurowany na tym hubie. Dane do faktury i tak się zapiszą.",
+    "failed": "Nie udało się zapisać rozliczenia"
   },
   "people": {
     "eyebrow": "Organizacja",
@@ -276,8 +309,8 @@
     "subtitle": "Wyślij zadanie do bramy projektu. Worker je wykona i zgłosi wynik — nie decydujesz, kiedy skończy.",
     "commandLabel": "Polecenie",
     "commandPlaceholder": "echo hello from the worker",
-    "deviceLabel": "Worker",
-    "anyDevice": "Dowolny worker online",
+    "connectorLabel": "Worker",
+    "anyConnector": "Dowolny worker online",
     "launchLabel": "Jak się kończy",
     "launch": "Uruchomienie",
     "launchOption": {

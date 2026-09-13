@@ -85,7 +85,7 @@ func (g *Grant) allows(c Capability, org, project string) bool {
 // Contains reports whether this grant's boundary covers a target.
 //
 // Exported so a refusal can say which axis failed. "This token is missing
-// the exec:fleet.device scope" and "this token belongs to another project"
+// the exec:fleet.connector scope" and "this token belongs to another project"
 // send an operator to different places, and a single 403 sends them nowhere.
 func (g *Grant) Contains(org, project string) bool {
 	// The installation is not a tenant. 09 gives an API token a project or a

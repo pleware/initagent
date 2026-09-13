@@ -5,11 +5,11 @@ import { wsURL } from '../api'
 
 // Terminal renders one xterm attached to a device session via the hub bridge.
 export default function Terminal({
-  deviceId,
+  connectorId,
   session,
   onExit,
 }: {
-  deviceId: string
+  connectorId: string
   session: string
   onExit?: (error: string) => void
 }) {
@@ -39,8 +39,8 @@ export default function Terminal({
     term.open(host)
     fit.fit()
 
-    const url = `${wsURL('/api/ws/term')}?device=${encodeURIComponent(
-      deviceId,
+    const url = `${wsURL('/api/ws/term')}?connector=${encodeURIComponent(
+      connectorId,
     )}&session=${encodeURIComponent(session)}&cols=${term.cols}&rows=${term.rows}`
     const ws = new WebSocket(url)
     ws.binaryType = 'arraybuffer'
@@ -95,7 +95,7 @@ export default function Terminal({
       ws.close()
       term.dispose()
     }
-  }, [deviceId, session])
+  }, [connectorId, session])
 
   return <div ref={hostRef} className="term-host h-full w-full bg-[#020617]" />
 }

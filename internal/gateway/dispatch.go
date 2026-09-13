@@ -49,10 +49,10 @@ type finishFunc func(to scheduler.TaskState, exit int, reason, stdout, stderr st
 // completion-registry Outcome.
 func (g *Gateway) RunQueued(ctx context.Context, projectID, workerID string) (TaskView, error) {
 	if g.connForProject(projectID, workerID) == nil {
-		return TaskView{}, ErrDeviceOffline
+		return TaskView{}, ErrConnectorOffline
 	}
 	if g.draining(workerID) {
-		return TaskView{}, ErrDeviceDraining
+		return TaskView{}, ErrConnectorDraining
 	}
 	claimed, _, err := g.Claim(ctx, projectID, workerID)
 	if err != nil {
@@ -200,7 +200,7 @@ func rpcTimeout(ctx context.Context) time.Duration {
 func (g *Gateway) execOn(ctx context.Context, workerID, command string) (protocol.ExecResult, error) {
 	ac := g.connFor(workerID)
 	if ac == nil {
-		return protocol.ExecResult{}, ErrDeviceOffline
+		return protocol.ExecResult{}, ErrConnectorOffline
 	}
 	timeout := rpcTimeout(ctx)
 	callCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -222,7 +222,7 @@ func (g *Gateway) execOn(ctx context.Context, workerID, command string) (protoco
 func (g *Gateway) processOn(ctx context.Context, task *scheduler.Task) (protocol.ProcessResult, error) {
 	ac := g.connFor(task.AssignedWorkerID)
 	if ac == nil {
-		return protocol.ProcessResult{}, ErrDeviceOffline
+		return protocol.ProcessResult{}, ErrConnectorOffline
 	}
 	timeout := rpcTimeout(ctx)
 	callCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -245,7 +245,7 @@ func (g *Gateway) processOn(ctx context.Context, task *scheduler.Task) (protocol
 func (g *Gateway) sendKeysOn(ctx context.Context, task *scheduler.Task, nonce string) (protocol.RunSendKeysResult, error) {
 	ac := g.connFor(task.AssignedWorkerID)
 	if ac == nil {
-		return protocol.RunSendKeysResult{}, ErrDeviceOffline
+		return protocol.RunSendKeysResult{}, ErrConnectorOffline
 	}
 	timeout := rpcTimeout(ctx)
 	callCtx, cancel := context.WithTimeout(ctx, timeout)

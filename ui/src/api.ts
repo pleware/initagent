@@ -74,7 +74,7 @@ export function forProject(path: string, projectId?: string): string {
 
 // Remote execution entry point used by libfx's typed browser-workspace
 // adapter. AbortSignal cancellation stops the browser request immediately;
-// the device-side timeout remains the hard upper bound for a command.
+// the connector-side timeout remains the hard upper bound for a command.
 export async function execProject(
   projectId: string,
   command: string,

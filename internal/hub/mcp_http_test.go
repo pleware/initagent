@@ -30,10 +30,10 @@ func mcpCall(t *testing.T, base, token, body string) (int, map[string]any) {
 
 func TestMCPHTTPEndpoint(t *testing.T) {
 	srv, base := startHub(t)
-	deviceId := connectAgent(t, srv, base)
+	connectorId := connectAgent(t, srv, base)
 	// MCP tools re-enter the hub's own API with this token, so the scopes it
 	// carries are the scopes its tools have.
-	token := fleetToken(t, srv.store, deviceId)
+	token := fleetToken(t, srv.store, connectorId)
 
 	t.Run("rejects missing token", func(t *testing.T) {
 		code, _ := mcpCall(t, base, "", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
@@ -78,7 +78,7 @@ func TestMCPHTTPEndpoint(t *testing.T) {
 	})
 
 	t.Run("tools/call run_command", func(t *testing.T) {
-		body := `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"run_command","arguments":{"device":"test-device","command":"echo mcp-http-$((11*11))"}}}`
+		body := `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"run_command","arguments":{"connector":"test-device","command":"echo mcp-http-$((11*11))"}}}`
 		code, out := mcpCall(t, base, token, body)
 		if code != 200 {
 			t.Fatalf("got %d", code)
@@ -97,8 +97,8 @@ func TestMCPHTTPEndpoint(t *testing.T) {
 	// guard. The refusal has to name the verb: an agent told only "Error:
 	// forbidden" has nothing to report back to the person who minted it.
 	t.Run("a tool refusal names the missing scope", func(t *testing.T) {
-		narrow := fleetToken(t, srv.store, deviceId, authz.ReadDevice, authz.ReadProject)
-		body := `{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"run_command","arguments":{"device":"test-device","command":"echo nope"}}}`
+		narrow := fleetToken(t, srv.store, connectorId, authz.ReadConnector, authz.ReadProject)
+		body := `{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"run_command","arguments":{"connector":"test-device","command":"echo nope"}}}`
 		code, out := mcpCall(t, base, narrow, body)
 		if code != 200 {
 			t.Fatalf("got %d; a scope refusal is a tool error, not a transport failure", code)
@@ -110,8 +110,8 @@ func TestMCPHTTPEndpoint(t *testing.T) {
 		content, _ := res["content"].([]any)
 		first, _ := content[0].(map[string]any)
 		text, _ := first["text"].(string)
-		if !strings.Contains(text, string(authz.ExecDevice)) {
-			t.Errorf("tool error = %q; want it to name %q", text, authz.ExecDevice)
+		if !strings.Contains(text, string(authz.ExecConnector)) {
+			t.Errorf("tool error = %q; want it to name %q", text, authz.ExecConnector)
 		}
 	})
 

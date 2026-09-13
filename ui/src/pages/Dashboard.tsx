@@ -3,17 +3,17 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, formatBytes, timeAgo } from '../api'
 import { useHubEvents, usePoll } from '../hooks'
-import type { Device } from '../types'
-import AddDeviceModal from '../components/AddDeviceModal'
+import type { Connector } from '../types'
+import AddConnectorModal from '../components/AddConnectorModal'
 
 export default function Dashboard() {
   const { t } = useTranslation()
-  const [devices, setDevices] = useState<Device[] | null>(null)
+  const [connectors, setConnectors] = useState<Connector[] | null>(null)
   const [showAdd, setShowAdd] = useState(false)
 
   const load = useCallback(async () => {
     try {
-      setDevices(await api.get<Device[]>('/api/devices'))
+      setConnectors(await api.get<Connector[]>('/api/connectors'))
     } catch {
       /* a short network interruption should not clear the fleet */
     }
@@ -21,19 +21,19 @@ export default function Dashboard() {
 
   usePoll(load, 15000)
   useHubEvents((e) => {
-    if (e.type === 'device.online' || e.type === 'device.offline') load()
-    if (e.type === 'device.stats' && e.deviceId && e.stats) {
-      setDevices((current) => current?.map((d) => d.id === e.deviceId ? { ...d, stats: e.stats } : d) ?? current)
+    if (e.type === 'connector.online' || e.type === 'connector.offline') load()
+    if (e.type === 'connector.stats' && e.connectorId && e.stats) {
+      setConnectors((current) => current?.map((d) => d.id === e.connectorId ? { ...d, stats: e.stats } : d) ?? current)
     }
   })
 
   const fleet = useMemo(() => {
-    const list = devices ?? []
+    const list = connectors ?? []
     const online = list.filter((d) => d.online)
     const loaded = online.filter((d) => (d.stats?.cpuPercent ?? 0) >= 80)
     const platforms = new Set(list.map((d) => d.os).filter(Boolean))
     return { total: list.length, online: online.length, attention: loaded.length, platforms: platforms.size }
-  }, [devices])
+  }, [connectors])
 
   return (
     <div className="page-shell">
@@ -45,7 +45,7 @@ export default function Dashboard() {
         </div>
         <div className="flex gap-2">
           <Link to="/setup" className="btn-secondary">{t('dashboard.prepareMachine')}</Link>
-          <button onClick={() => setShowAdd(true)} className="btn-primary">{t('dashboard.addDevice')}</button>
+          <button onClick={() => setShowAdd(true)} className="btn-primary">{t('dashboard.addConnector')}</button>
         </div>
       </header>
 
@@ -56,21 +56,21 @@ export default function Dashboard() {
         <Summary label="Remote setup" value="Ready" tone="good" />
       </section>
 
-      {devices === null ? (
+      {connectors === null ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((x) => <div key={x} className="surface h-72 animate-pulse rounded-2xl" />)}</div>
-      ) : devices.length === 0 ? (
+      ) : connectors.length === 0 ? (
         <div className="surface rounded-2xl px-6 py-16 text-center">
           <p className="font-medium text-zinc-200">This fleet is empty</p>
           <p className="mt-2 text-sm text-zinc-500">Add your first computer with one install command.</p>
-          <button onClick={() => setShowAdd(true)} className="btn-primary mt-5">Add first device</button>
+          <button onClick={() => setShowAdd(true)} className="btn-primary mt-5">Add first connector</button>
         </div>
       ) : (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {devices.map((d) => <DeviceCard key={d.id} device={d} />)}
+          {connectors.map((d) => <ConnectorCard key={d.id} connector={d} />)}
         </section>
       )}
 
-      {showAdd && <AddDeviceModal onClose={() => { setShowAdd(false); load() }} />}
+      {showAdd && <AddConnectorModal onClose={() => { setShowAdd(false); load() }} />}
     </div>
   )
 }
@@ -80,13 +80,13 @@ function Summary({ label, value, tone = 'muted' }: { label: string; value: strin
   return <div className="border-r border-white/[0.06] px-4 py-4 last:border-r-0 sm:px-5"><p className="text-[11px] font-medium text-zinc-600">{label}</p><p className={`data-number mt-1 text-xl font-medium ${color}`}>{value}</p></div>
 }
 
-function DeviceCard({ device: d }: { device: Device }) {
+function ConnectorCard({ connector: d }: { connector: Connector }) {
   const stats = d.stats
   const memory = ratio(stats?.memUsed, stats?.memTotal)
   const disk = ratio(stats?.diskUsed, stats?.diskTotal)
   const network = (stats?.netRxBytes ?? 0) + (stats?.netTxBytes ?? 0)
   return (
-    <Link to={`/devices/${d.id}`} className="surface group flex min-h-72 flex-col rounded-2xl p-5 hover:-translate-y-0.5 hover:border-white/[0.13] hover:bg-white/[0.05]">
+    <Link to={`/connectors/${d.id}`} className="surface group flex min-h-72 flex-col rounded-2xl p-5 hover:-translate-y-0.5 hover:border-white/[0.13] hover:bg-white/[0.05]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <span className={`h-2 w-2 shrink-0 rounded-full ${d.online ? 'bg-lime-300 shadow-[0_0_12px_rgba(190,242,100,0.6)]' : 'bg-zinc-700'}`} />

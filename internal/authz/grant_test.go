@@ -18,7 +18,7 @@ func TestSessionIsRoleOnly(t *testing.T) {
 	if session.Scoped() {
 		t.Error("a session reported itself as scoped")
 	}
-	for _, c := range []Capability{ReadProject, CreateProject, ExecDevice, AttachTerminal} {
+	for _, c := range []Capability{ReadProject, CreateProject, ExecConnector, AttachTerminal} {
 		if !session.Can(c, "org-1", "project-1") {
 			t.Errorf("admin session refused %q", c)
 		}
@@ -48,8 +48,8 @@ func TestTokenIsTheIntersection(t *testing.T) {
 		{"role without the scope", RoleAdmin, []Capability{ReadProject}, CreateProject, false},
 		{"neither", RoleMember, []Capability{ReadProject}, DeleteOrg, false},
 		{"empty scope set grants nothing", RoleOwner, nil, ReadProject, false},
-		{"exec must be asked for by name", RoleOwner, []Capability{ReadDevice}, ExecDevice, false},
-		{"exec when named", RoleOwner, []Capability{ExecDevice}, ExecDevice, true},
+		{"exec must be asked for by name", RoleOwner, []Capability{ReadConnector}, ExecConnector, false},
+		{"exec when named", RoleOwner, []Capability{ExecConnector}, ExecConnector, true},
 	}
 	for _, c := range cases {
 		cred := Credential{
@@ -71,9 +71,9 @@ func TestTokenDiesWithTheMembership(t *testing.T) {
 	stranger := Actor{Account: "account-1"} // removed from every org
 	cred := Credential{
 		Actor: stranger,
-		Grant: &Grant{Org: "org-1", Scopes: []Capability{ReadProject, ExecDevice}},
+		Grant: &Grant{Org: "org-1", Scopes: []Capability{ReadProject, ExecConnector}},
 	}
-	for _, c := range []Capability{ReadProject, ExecDevice} {
+	for _, c := range []Capability{ReadProject, ExecConnector} {
 		if cred.Can(c, "org-1", "project-1") {
 			t.Errorf("%q survived the loss of membership", c)
 		}
@@ -278,7 +278,7 @@ func TestUnpartitionedOperatorHoldsTheFleet(t *testing.T) {
 	}
 	// Projects on such a hub carry an empty org_id, which is the boundary
 	// these requests arrive with.
-	if !legacy.Can(ReadDevice, "", "project-1") {
+	if !legacy.Can(ReadConnector, "", "project-1") {
 		t.Error("legacy operator refused a project with no org")
 	}
 
@@ -286,13 +286,13 @@ func TestUnpartitionedOperatorHoldsTheFleet(t *testing.T) {
 	// exists the ordinary rules apply, and a platform admin is still not a
 	// member of a customer's org.
 	partitioned := Credential{Actor: Actor{Platform: true}}
-	if partitioned.Can(ReadDevice, "org-1", "project-1") {
+	if partitioned.Can(ReadConnector, "org-1", "project-1") {
 		t.Error("platform admin reached an org's fleet without membership")
 	}
 
 	// It cannot be a back door for a non-operator either.
 	impostor := Credential{Actor: Actor{Account: "account-9", Unpartitioned: true}}
-	if impostor.Can(ReadDevice, "org-1", "project-1") {
+	if impostor.Can(ReadConnector, "org-1", "project-1") {
 		t.Error("a non-operator was let in by the unpartitioned flag")
 	}
 
@@ -300,22 +300,22 @@ func TestUnpartitionedOperatorHoldsTheFleet(t *testing.T) {
 	// once it has an org — the grant does the refusing, not the role.
 	token := Credential{
 		Actor: Actor{Platform: true, Unpartitioned: true},
-		Grant: &Grant{Org: "org-1", Scopes: []Capability{ReadDevice}},
+		Grant: &Grant{Org: "org-1", Scopes: []Capability{ReadConnector}},
 	}
-	if token.Can(ReadDevice, "org-2", "project-1") {
+	if token.Can(ReadConnector, "org-2", "project-1") {
 		t.Error("a token on a legacy hub crossed into another org")
 	}
-	if token.Can(ExecDevice, "org-1", "project-1") {
+	if token.Can(ExecConnector, "org-1", "project-1") {
 		t.Error("a token on a legacy hub exceeded its scope list")
 	}
 }
 
 func TestDangerousIsExecOnly(t *testing.T) {
-	if !Dangerous(ExecDevice) {
-		t.Error("exec:fleet.device is not marked dangerous")
+	if !Dangerous(ExecConnector) {
+		t.Error("exec:fleet.connector is not marked dangerous")
 	}
 	for _, c := range GrantableScopes() {
-		if c == ExecDevice {
+		if c == ExecConnector {
 			continue
 		}
 		if Dangerous(c) {

@@ -13,7 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/pleware/initagent/internal/deviceops"
+	"github.com/pleware/initagent/internal/connectorops"
 	"github.com/pleware/initagent/internal/protocol"
 	"github.com/pleware/initagent/internal/updater"
 )
@@ -52,16 +52,16 @@ func newAgentConn(ws *websocket.Conn) *agentConn {
 func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Bearer ") {
-		httpError(w, http.StatusUnauthorized, "missing device token")
+		httpError(w, http.StatusUnauthorized, "missing connector token")
 		return
 	}
-	device, err := g.store.DeviceByToken(r.Context(), strings.TrimPrefix(auth, "Bearer "))
+	device, err := g.store.ConnectorByToken(r.Context(), strings.TrimPrefix(auth, "Bearer "))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if device == nil {
-		httpError(w, http.StatusForbidden, "unknown device token")
+		httpError(w, http.StatusForbidden, "unknown connector token")
 		return
 	}
 	ws, err := upgrader.Upgrade(w, r, nil)
@@ -79,15 +79,15 @@ func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 	_ = json.Unmarshal(hello.Data, &h)
 	ws.SetReadDeadline(time.Time{})
 
-	_ = g.store.UpdateDeviceOnConnect(r.Context(), device.ID, h.Hostname, h.OS, h.Arch)
+	_ = g.store.UpdateConnectorOnConnect(r.Context(), device.ID, h.Hostname, h.OS, h.Arch)
 	ac := newAgentConn(ws)
 	g.attachConn(device.ID, device.ProjectID, h, ac)
 	defer g.markOffline(device.ID)
 
 	welcome, err := protocol.NewMsg(protocol.TypeWelcome, 0, 0, protocol.Welcome{
-		DeviceId: device.ID,
-		Version:  g.joiner.Version,
-		Repo:     g.joiner.GithubRepo,
+		ConnectorId: device.ID,
+		Version:     g.joiner.Version,
+		Repo:        g.joiner.GithubRepo,
 	})
 	if err != nil {
 		return
@@ -150,14 +150,14 @@ func (c *agentConn) closePending() {
 	channels := c.channels
 	c.channels = map[uint32]*termChannel{}
 	c.mu.Unlock()
-	msg := protocol.Msg{Type: protocol.TypeResult, Error: "device disconnected"}
+	msg := protocol.Msg{Type: protocol.TypeResult, Error: "connector disconnected"}
 	for _, ch := range pending {
 		select {
 		case ch <- msg:
 		default:
 		}
 	}
-	exit := protocol.Msg{Type: protocol.TypeTermExit, Error: "device disconnected"}
+	exit := protocol.Msg{Type: protocol.TypeTermExit, Error: "connector disconnected"}
 	for _, h := range channels {
 		if h.onControl != nil {
 			h.onControl(exit)
@@ -256,7 +256,7 @@ func (c *agentConn) callInto(ctx context.Context, typ string, payload, out any) 
 	return nil
 }
 
-// The exported methods below adapt *agentConn to deviceops.Conn so the
+// The exported methods below adapt *agentConn to connectorops.Conn so the
 // gateway and the hub share one implementation of exec, fs, and setup
 // probing (10/16).
 
@@ -264,7 +264,7 @@ func (c *agentConn) Call(ctx context.Context, typ string, payload, out any) erro
 	return c.callInto(ctx, typ, payload, out)
 }
 
-func (c *agentConn) OpenChannel(h *deviceops.Channel) uint32 {
+func (c *agentConn) OpenChannel(h *connectorops.Channel) uint32 {
 	return c.openChannel(&termChannel{onBinary: h.OnBinary, onControl: h.OnControl})
 }
 
@@ -303,9 +303,9 @@ func (g *Gateway) connFor(id string) *agentConn {
 	return g.online[id].conn
 }
 
-// connForProject returns the socket only when the device belongs to
-// projectID. Without the check a caller naming another project's device- would
-// reach that machine, which is the isolation guarantee in 01.
+// connForProject returns the socket only when the connector belongs to
+// projectID. Without the check a caller naming another project's connector-
+// would reach that machine, which is the isolation guarantee in 01.
 func (g *Gateway) connForProject(projectID, id string) *agentConn {
 	g.mu.Lock()
 	defer g.mu.Unlock()

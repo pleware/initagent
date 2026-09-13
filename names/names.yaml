@@ -330,13 +330,13 @@ entities:
     context: fleet
     go_const: Host
     mints: true
-    lifetime: first enroll → last device removed
+    lifetime: first enroll → last connector removed
     description: |-
-      One physical machine. Two connectors on one box are two devices sharing a host, and the scheduler needs the difference because CPU and per-machine coding-CLI authentication belong to the host.
+      One physical machine. Two connectors on one box share a host, and the scheduler needs the difference because CPU and per-machine coding-CLI authentication belong to the host.
 
-  - name: initagent.fleet.device
+  - name: initagent.fleet.connector
     context: fleet
-    go_const: Device
+    go_const: Connector
     mints: true
     lifetime: enroll → delete
     capabilities: [read, create, admin, exec]
@@ -349,7 +349,7 @@ entities:
     mints: true
     lifetime: minted → used or expired
     description: |-
-      The single-use credential that joins a machine. Separate from the device so handing someone an enrolment is not handing them a machine that already exists.
+      The single-use credential that joins a machine. Separate from the connector so handing someone an enrolment is not handing them a machine that already exists.
 
   - name: initagent.fleet.terminal
     context: fleet
@@ -374,7 +374,7 @@ entities:
     lifetime: the file's own
     capabilities: [read, write]
     description: |-
-      A file on an enrolled machine's disk, listed, downloaded or uploaded through the connector. A device id and a path already name it; a row of ours would imply the hub holds something it does not.
+      A file on an enrolled machine's disk, listed, downloaded or uploaded through the connector. A connector id and a path already name it; a row of ours would imply the hub holds something it does not.
 
   # ------------------------------------------------------------- worker -----
   - name: initagent.worker.workspace

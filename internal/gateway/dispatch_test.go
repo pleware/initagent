@@ -17,14 +17,14 @@ import (
 	"github.com/pleware/initagent/internal/scheduler"
 )
 
-func connectAgentWS(t *testing.T, g *Gateway) (deviceID string, conn *websocket.Conn, ts *httptest.Server) {
+func connectAgentWS(t *testing.T, g *Gateway) (connectorID string, conn *websocket.Conn, ts *httptest.Server) {
 	t.Helper()
 	return connectAgent(t, g, protocol.Hello{Hostname: "box", OS: "linux"})
 }
 
-func connectAgent(t *testing.T, g *Gateway, hello protocol.Hello) (deviceID string, conn *websocket.Conn, ts *httptest.Server) {
+func connectAgent(t *testing.T, g *Gateway, hello protocol.Hello) (connectorID string, conn *websocket.Conn, ts *httptest.Server) {
 	t.Helper()
-	deviceID, token, err := g.Store().CreateDevice(context.Background(), g.Project().ID, "box", "box", "linux", "amd64")
+	connectorID, token, err := g.Store().CreateConnector(context.Background(), g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,8 +51,8 @@ func connectAgent(t *testing.T, g *Gateway, hello protocol.Hello) (deviceID stri
 	}
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if g.connFor(deviceID) != nil {
-			return deviceID, conn, ts
+		if g.connFor(connectorID) != nil {
+			return connectorID, conn, ts
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
@@ -98,10 +98,10 @@ func postTask(t *testing.T, ts *httptest.Server, body any) *httptest.ResponseRec
 
 func TestCreateTaskExecDone(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, ts := connectAgentWS(t, g)
+	connectorID, conn, ts := connectAgentWS(t, g)
 	replyExec(t, conn, 0)
 
-	rec := postTask(t, ts, map[string]string{"command": "echo hi", "deviceId": deviceID})
+	rec := postTask(t, ts, map[string]string{"command": "echo hi", "connectorId": connectorID})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -115,7 +115,7 @@ func TestCreateTaskExecDone(t *testing.T) {
 	if view.Reason != "exec" {
 		t.Fatalf("reason = %q, want the exec resolver's reason", view.Reason)
 	}
-	if view.AssignedWorkerID != deviceID {
+	if view.AssignedWorkerID != connectorID {
 		t.Fatalf("worker = %q", view.AssignedWorkerID)
 	}
 
@@ -129,10 +129,10 @@ func TestCreateTaskExecDone(t *testing.T) {
 
 func TestCreateTaskExecFailed(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, ts := connectAgentWS(t, g)
+	connectorID, conn, ts := connectAgentWS(t, g)
 	replyExec(t, conn, 7)
 
-	rec := postTask(t, ts, map[string]string{"command": "false", "deviceId": deviceID})
+	rec := postTask(t, ts, map[string]string{"command": "false", "connectorId": connectorID})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -189,10 +189,10 @@ func replySendKeys(t *testing.T, conn *websocket.Conn, exit int) {
 
 func TestCreateTaskProcessDone(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, ts := connectAgentWS(t, g)
+	connectorID, conn, ts := connectAgentWS(t, g)
 	replyProcess(t, conn, 0)
 
-	rec := postTask(t, ts, map[string]string{"command": "coder", "deviceId": deviceID, "launch": "process"})
+	rec := postTask(t, ts, map[string]string{"command": "coder", "connectorId": connectorID, "launch": "process"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -210,10 +210,10 @@ func TestCreateTaskProcessDone(t *testing.T) {
 
 func TestCreateTaskProcessFailed(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, ts := connectAgentWS(t, g)
+	connectorID, conn, ts := connectAgentWS(t, g)
 	replyProcess(t, conn, 3)
 
-	rec := postTask(t, ts, map[string]string{"command": "coder", "deviceId": deviceID, "launch": "process"})
+	rec := postTask(t, ts, map[string]string{"command": "coder", "connectorId": connectorID, "launch": "process"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -228,10 +228,10 @@ func TestCreateTaskProcessFailed(t *testing.T) {
 
 func TestCreateTaskSendKeysDone(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, ts := connectAgentWS(t, g)
+	connectorID, conn, ts := connectAgentWS(t, g)
 	replySendKeys(t, conn, 0)
 
-	rec := postTask(t, ts, map[string]string{"command": "coder", "deviceId": deviceID, "launch": "send_keys"})
+	rec := postTask(t, ts, map[string]string{"command": "coder", "connectorId": connectorID, "launch": "send_keys"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -249,10 +249,10 @@ func TestCreateTaskSendKeysDone(t *testing.T) {
 
 func TestCreateTaskSendKeysFailed(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, ts := connectAgentWS(t, g)
+	connectorID, conn, ts := connectAgentWS(t, g)
 	replySendKeys(t, conn, 2)
 
-	rec := postTask(t, ts, map[string]string{"command": "coder", "deviceId": deviceID, "launch": "send_keys"})
+	rec := postTask(t, ts, map[string]string{"command": "coder", "connectorId": connectorID, "launch": "send_keys"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -267,7 +267,7 @@ func TestCreateTaskSendKeysFailed(t *testing.T) {
 
 func TestCreateTaskSendKeysDoneFile(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, ts := connectAgentWS(t, g)
+	connectorID, conn, ts := connectAgentWS(t, g)
 	go func() {
 		for {
 			var m protocol.Msg
@@ -285,7 +285,7 @@ func TestCreateTaskSendKeysDoneFile(t *testing.T) {
 		}
 	}()
 
-	rec := postTask(t, ts, map[string]string{"command": "coder", "deviceId": deviceID, "launch": "send_keys"})
+	rec := postTask(t, ts, map[string]string{"command": "coder", "connectorId": connectorID, "launch": "send_keys"})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -300,9 +300,9 @@ func TestCreateTaskSendKeysDoneFile(t *testing.T) {
 
 func TestCreateTaskUnknownLaunch(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, ts := connectAgentWS(t, g)
+	connectorID, conn, ts := connectAgentWS(t, g)
 	replyExec(t, conn, 0)
-	rec := postTask(t, ts, map[string]string{"command": "true", "deviceId": deviceID, "launch": "tmux"})
+	rec := postTask(t, ts, map[string]string{"command": "true", "connectorId": connectorID, "launch": "tmux"})
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -351,11 +351,11 @@ func TestCreateTaskBadJSON(t *testing.T) {
 
 func TestCreateTaskOfflineDevice(t *testing.T) {
 	g := openTest(t, "")
-	dev, _, err := g.Store().CreateDevice(context.Background(), g.Project().ID, "box", "box", "linux", "amd64")
+	dev, _, err := g.Store().CreateConnector(context.Background(), g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(`{"command":"true","deviceId":"`+dev+`"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(`{"command":"true","connectorId":"`+dev+`"}`))
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusServiceUnavailable {
@@ -363,9 +363,9 @@ func TestCreateTaskOfflineDevice(t *testing.T) {
 	}
 }
 
-func TestCreateTaskBadDeviceID(t *testing.T) {
+func TestCreateTaskBadConnectorID(t *testing.T) {
 	g := openTest(t, "")
-	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(`{"command":"true","deviceId":"task-nope"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/tasks", strings.NewReader(`{"command":"true","connectorId":"task-nope"}`))
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -391,12 +391,12 @@ func TestGetTaskNotFound(t *testing.T) {
 
 func TestRunQueuedEmptyCommandFails(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, _ := connectAgentWS(t, g)
+	connectorID, conn, _ := connectAgentWS(t, g)
 	replyExec(t, conn, 0)
 	if _, err := g.Store().Enqueue(context.Background(), scheduler.Task{ProjectID: g.Project().ID}); err != nil {
 		t.Fatal(err)
 	}
-	view, err := g.RunQueued(context.Background(), g.Project().ID, deviceID)
+	view, err := g.RunQueued(context.Background(), g.Project().ID, connectorID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,7 +407,7 @@ func TestRunQueuedEmptyCommandFails(t *testing.T) {
 
 func TestRunQueuedTimeoutFails(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, _, _ := connectAgentWS(t, g)
+	connectorID, _, _ := connectAgentWS(t, g)
 	// The budget also covers claiming the task, which is a database write. Too
 	// short and a loaded runner spends it before the device is ever asked, so
 	// RunQueued returns the deadline instead of a task it never started.
@@ -419,7 +419,7 @@ func TestRunQueuedTimeoutFails(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	view, err := g.RunQueued(ctx, g.Project().ID, deviceID)
+	view, err := g.RunQueued(ctx, g.Project().ID, connectorID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -430,7 +430,7 @@ func TestRunQueuedTimeoutFails(t *testing.T) {
 
 func TestRunQueuedDisconnectFails(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, _ := connectAgentWS(t, g)
+	connectorID, conn, _ := connectAgentWS(t, g)
 	if _, err := g.Store().Enqueue(context.Background(), scheduler.Task{
 		ProjectID: g.Project().ID,
 		Command:   "hang",
@@ -441,7 +441,7 @@ func TestRunQueuedDisconnectFails(t *testing.T) {
 	var view TaskView
 	go func() {
 		var err error
-		view, err = g.RunQueued(context.Background(), g.Project().ID, deviceID)
+		view, err = g.RunQueued(context.Background(), g.Project().ID, connectorID)
 		errc <- err
 	}()
 	deadline := time.Now().Add(2 * time.Second)
@@ -469,14 +469,14 @@ func TestRunQueuedDisconnectFails(t *testing.T) {
 func TestRunQueuedOffline(t *testing.T) {
 	g := openTest(t, "")
 	_, err := g.RunQueued(context.Background(), g.Project().ID, mustDevice(t))
-	if err != ErrDeviceOffline {
+	if err != ErrConnectorOffline {
 		t.Fatalf("err = %v", err)
 	}
 }
 
 func TestCreateTaskNoSlot(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, ts := connectAgentWS(t, g)
+	connectorID, conn, ts := connectAgentWS(t, g)
 	replyExec(t, conn, 0)
 	if _, err := g.Store().Enqueue(context.Background(), scheduler.Task{
 		ProjectID: g.Project().ID,
@@ -484,10 +484,10 @@ func TestCreateTaskNoSlot(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := g.Claim(context.Background(), g.Project().ID, deviceID); err != nil {
+	if _, _, err := g.Claim(context.Background(), g.Project().ID, connectorID); err != nil {
 		t.Fatal(err)
 	}
-	rec := postTask(t, ts, map[string]string{"command": "next", "deviceId": deviceID})
+	rec := postTask(t, ts, map[string]string{"command": "next", "connectorId": connectorID})
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -495,7 +495,7 @@ func TestCreateTaskNoSlot(t *testing.T) {
 
 func TestRunQueuedBadExecJSON(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, _ := connectAgentWS(t, g)
+	connectorID, conn, _ := connectAgentWS(t, g)
 	go func() {
 		var m protocol.Msg
 		if err := conn.ReadJSON(&m); err != nil {
@@ -509,7 +509,7 @@ func TestRunQueuedBadExecJSON(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	view, err := g.RunQueued(context.Background(), g.Project().ID, deviceID)
+	view, err := g.RunQueued(context.Background(), g.Project().ID, connectorID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,7 +520,7 @@ func TestRunQueuedBadExecJSON(t *testing.T) {
 
 func TestRunQueuedBadProcessJSON(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, _ := connectAgentWS(t, g)
+	connectorID, conn, _ := connectAgentWS(t, g)
 	go func() {
 		var m protocol.Msg
 		if err := conn.ReadJSON(&m); err != nil {
@@ -535,7 +535,7 @@ func TestRunQueuedBadProcessJSON(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	view, err := g.RunQueued(context.Background(), g.Project().ID, deviceID)
+	view, err := g.RunQueued(context.Background(), g.Project().ID, connectorID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -546,7 +546,7 @@ func TestRunQueuedBadProcessJSON(t *testing.T) {
 
 func TestRunQueuedSendKeysNoMarker(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, conn, _ := connectAgentWS(t, g)
+	connectorID, conn, _ := connectAgentWS(t, g)
 	go func() {
 		var m protocol.Msg
 		if err := conn.ReadJSON(&m); err != nil {
@@ -565,7 +565,7 @@ func TestRunQueuedSendKeysNoMarker(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	view, err := g.RunQueued(context.Background(), g.Project().ID, deviceID)
+	view, err := g.RunQueued(context.Background(), g.Project().ID, connectorID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -592,7 +592,7 @@ func TestGetTaskAfterClose(t *testing.T) {
 func TestProcessOnOffline(t *testing.T) {
 	g := openTest(t, "")
 	_, err := g.processOn(t.Context(), &scheduler.Task{AssignedWorkerID: mustDevice(t)})
-	if err != ErrDeviceOffline {
+	if err != ErrConnectorOffline {
 		t.Fatalf("err = %v", err)
 	}
 }
@@ -600,7 +600,7 @@ func TestProcessOnOffline(t *testing.T) {
 func TestSendKeysOnOffline(t *testing.T) {
 	g := openTest(t, "")
 	_, err := g.sendKeysOn(t.Context(), &scheduler.Task{AssignedWorkerID: mustDevice(t)}, "0123456789abcdef0123456789abcdef")
-	if err != ErrDeviceOffline {
+	if err != ErrConnectorOffline {
 		t.Fatalf("err = %v", err)
 	}
 }

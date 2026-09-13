@@ -206,7 +206,7 @@ func TestStoreAfterClose(t *testing.T) {
 	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: prj}); err == nil {
 		t.Fatal("Enqueue after close")
 	}
-	if _, _, err := g.Store().Claim(ctx, prj, "device-closed", time.Minute); err == nil {
+	if _, _, err := g.Store().Claim(ctx, prj, "connector-closed", time.Minute); err == nil {
 		t.Fatal("Claim after close")
 	}
 }
@@ -330,7 +330,7 @@ func TestEnqueueRequiresBoundProject(t *testing.T) {
 func TestEnqueueRejectsBadIDs(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: "device-nope"}); err == nil {
+	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: "connector-nope"}); err == nil {
 		t.Fatal("expected bad project id")
 	}
 	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: g.Project().ID, ID: "project-as-task"}); err == nil {

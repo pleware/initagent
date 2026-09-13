@@ -38,7 +38,7 @@ func LoadConfigFrom(path string) (Config, error) {
 	var cfg Config
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return cfg, fmt.Errorf("reading %s (is this device enrolled? run `%s agent enroll`): %w", path, brand.Binary, err)
+		return cfg, fmt.Errorf("reading %s (is this connector enrolled? run `%s agent enroll`): %w", path, brand.Binary, err)
 	}
 	if err := json.Unmarshal(b, &cfg); err != nil {
 		return cfg, fmt.Errorf("parsing %s: %w", path, err)
@@ -54,11 +54,11 @@ type enrollRequest struct {
 }
 
 type enrollResponse struct {
-	DeviceId    string `json:"deviceId"`
-	DeviceToken string `json:"deviceToken"`
+	ConnectorId    string `json:"connectorId"`
+	ConnectorToken string `json:"connectorToken"`
 }
 
-// Enroll exchanges a single-use enrollment token for a permanent device
+// Enroll exchanges a single-use enrollment token for a permanent connector
 // credential and writes the default agent config.
 func Enroll(hubURL, token string) (Config, error) {
 	p, err := ConfigPath()
@@ -91,11 +91,11 @@ func EnrollTo(hubURL, token, configPath string) (Config, error) {
 	if err := json.Unmarshal(respBody, &er); err != nil {
 		return Config{}, fmt.Errorf("parsing enrollment response: %w", err)
 	}
-	if er.DeviceId == "" || er.DeviceToken == "" {
-		return Config{}, fmt.Errorf("enrollment response missing device credentials")
+	if er.ConnectorId == "" || er.ConnectorToken == "" {
+		return Config{}, fmt.Errorf("enrollment response missing connector credentials")
 	}
 
-	cfg := Config{HubURL: hubURL, DeviceId: er.DeviceId, Token: er.DeviceToken}
+	cfg := Config{HubURL: hubURL, ConnectorId: er.ConnectorId, Token: er.ConnectorToken}
 	if err := os.MkdirAll(filepath.Dir(configPath), 0o700); err != nil {
 		return Config{}, err
 	}

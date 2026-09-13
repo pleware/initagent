@@ -58,20 +58,20 @@ func TestStorePostgresSmoke(t *testing.T) {
 		t.Fatalf("Setting after upsert = %q, want %q", v, "two")
 	}
 
-	// Device + project + token cover the remaining rebinding paths.
-	deviceID, token, err := s.CreateDevice("smoke", "smoke.local", "linux", "amd64", false)
+	// Connector + project + token cover the remaining rebinding paths.
+	connectorID, token, err := s.CreateConnector("smoke", "smoke.local", "linux", "amd64", false)
 	if err != nil {
-		t.Fatalf("CreateDevice: %v", err)
+		t.Fatalf("CreateConnector: %v", err)
 	}
-	if d, _ := s.DeviceByToken(token); d == nil || d.Id != deviceID {
-		t.Fatalf("DeviceByToken: got %+v", d)
+	if d, _ := s.ConnectorByToken(token); d == nil || d.Id != connectorID {
+		t.Fatalf("ConnectorByToken: got %+v", d)
 	}
 
 	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
 	if err != nil {
 		t.Fatalf("ClaimHub: %v", err)
 	}
-	proj, err := s.CreateProject(org.Id, "smoke-proj", deviceID, "/srv/smoke", "http://gateway", "", "", "")
+	proj, err := s.CreateProject(org.Id, "smoke-proj", connectorID, "/srv/smoke", "http://gateway", "", "", "")
 	if err != nil {
 		t.Fatalf("CreateProject: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestStorePostgresSmoke(t *testing.T) {
 
 	tokenOwner, tokenOrg := seedOwner(t, s)
 	apiTok, _, err := s.CreateApiToken("smoke-ci", tokenOwner,
-		authz.Grant{Org: tokenOrg, Scopes: []authz.Capability{authz.ReadDevice}})
+		authz.Grant{Org: tokenOrg, Scopes: []authz.Capability{authz.ReadConnector}})
 	if err != nil {
 		t.Fatalf("CreateApiToken: %v", err)
 	}

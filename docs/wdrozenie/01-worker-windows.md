@@ -7,14 +7,14 @@ Jedna maszyna, jeden worker. Całość to jedna komenda w PowerShellu.
 Panel pokaże workera pod nazwą komputera (hostname), zwykle `DESKTOP-4A1B2C`.
 Nadaj sensowną nazwę **przed** dołączeniem — zmiana nazwy komputera w Windows
 (Ustawienia → System → Informacje) wymaga restartu. Bez restartu: zmień nazwę
-urządzenia w hubie (`PATCH /api/devices/{id}`; przycisku w panelu nie ma).
+urządzenia w hubie (`PATCH /api/connectors/{id}`; przycisku w panelu nie ma).
 
 Więcej niż jeden worker na maszynie → [ścieżka 2](02-worker-pware-os.md).
 
 ## Krok 1 — komenda z huba
 
 1. Zaloguj się na `https://app.initagent.dev`, otwórz projekt klienta.
-2. **Add device** → wybierz **Windows** → skopiuj komendę.
+2. **Add a connector** → wybierz **Windows** → skopiuj komendę.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -Command "irm <ADRES>/install/<TOKEN>.ps1 | iex"
@@ -36,8 +36,8 @@ wykonaniem: wyślij z panelu zadanie `initagent version`, albo z CLI:
 
 ```sh
 initagent fleet login --hub https://app.initagent.dev --token <API_TOKEN>
-initagent fleet devices
-initagent fleet run <DEVICE> -- initagent version
+initagent fleet connectors
+initagent fleet run <CONNECTOR> -- initagent version
 ```
 
 `<API_TOKEN>` tworzysz w panelu (Settings → API tokeny). Bez tego kroku nie

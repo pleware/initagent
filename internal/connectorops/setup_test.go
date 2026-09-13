@@ -1,4 +1,4 @@
-package deviceops
+package connectorops
 
 import (
 	"context"

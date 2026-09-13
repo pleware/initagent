@@ -14,7 +14,7 @@ func TestFleetAgentsAsksGateway(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`[{"name":"term-1","kind":"shell","deviceId":"device-gw","deviceName":"gwbox"}]`))
+		_, _ = w.Write([]byte(`[{"name":"term-1","kind":"shell","connectorId":"connector-gw","connectorName":"gwbox"}]`))
 	}))
 	t.Cleanup(gw.Close)
 
@@ -30,7 +30,7 @@ func TestFleetAgentsAsksGateway(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &rows); err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 1 || rows[0].DeviceName != "gwbox" || rows[0].Name != "term-1" {
+	if len(rows) != 1 || rows[0].ConnectorName != "gwbox" || rows[0].Name != "term-1" {
 		t.Fatalf("rows = %+v", rows)
 	}
 }
@@ -54,7 +54,7 @@ func TestFleetAgentsEmptyWithoutGateway(t *testing.T) {
 
 func TestUpdateStatusCountsGatewayDevices(t *testing.T) {
 	gw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/devices" {
+		if r.URL.Path != "/api/connectors" {
 			http.Error(w, "unexpected "+r.URL.Path, http.StatusBadRequest)
 			return
 		}

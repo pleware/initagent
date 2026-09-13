@@ -3,7 +3,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import { execProject } from '../api'
 import { fxConfigStore, fxOAuthStore, fxPromptHistoryStore, fxSessionStore } from '../lib/fxStorage'
-import type { Device, ExecResult, Project } from '../types'
+import type { Connector, ExecResult, Project } from '../types'
 
 type FxRuntime = {
   interactive: Promise<void>
@@ -13,7 +13,7 @@ type FxRuntime = {
   abort(): void
 }
 
-export default function FxTerminal({ project, device }: { project: Project; device?: Device }) {
+export default function FxTerminal({ project, connector }: { project: Project; connector?: Connector }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const runtimeRef = useRef<FxRuntime | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'unsupported' | 'failed'>('loading')
@@ -21,7 +21,7 @@ export default function FxTerminal({ project, device }: { project: Project; devi
 
   useEffect(() => {
     const host = hostRef.current
-    if (!host || !device?.online) return
+    if (!host || !connector?.online) return
 
     const wasmWithJspi = WebAssembly as typeof WebAssembly & {
       Suspending?: unknown
@@ -143,12 +143,12 @@ export default function FxTerminal({ project, device }: { project: Project; devi
       runtimeRef.current = null
       terminal.dispose()
     }
-  }, [device?.id, device?.online, project.id, project.updatedAt])
+  }, [connector?.id, connector?.online, project.id, project.updatedAt])
 
-  if (!device?.online) {
+  if (!connector?.online) {
     return (
       <TerminalNotice
-        title={`${device?.name ?? 'This machine'} is offline`}
+        title={`${connector?.name ?? 'This machine'} is offline`}
         body="Reconnect the machine or move this project to an online node. Your fx session is safe in this browser."
       />
     )
@@ -158,7 +158,7 @@ export default function FxTerminal({ project, device }: { project: Project; devi
     return (
       <TerminalNotice
         title="This browser cannot run embedded fx"
-        body="Open LiveAgent in Chrome or Edge 137+ with WebAssembly JSPI enabled. Fleet terminals remain available on the device pages."
+        body="Open LiveAgent in Chrome or Edge 137+ with WebAssembly JSPI enabled. Fleet terminals remain available on the connector pages."
       />
     )
   }

@@ -19,17 +19,17 @@ func (g *Gateway) handleTermWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	deviceID := q.Get("device")
+	connectorID := q.Get("connector")
 	session := q.Get("session")
 	cols := clampInt(q.Get("cols"), 80, 10, 500)
 	rows := clampInt(q.Get("rows"), 24, 5, 300)
-	if deviceID == "" || session == "" {
-		httpError(w, http.StatusBadRequest, "device and session required")
+	if connectorID == "" || session == "" {
+		httpError(w, http.StatusBadRequest, "connector and session required")
 		return
 	}
-	c := g.connForProject(projectID, deviceID)
+	c := g.connForProject(projectID, connectorID)
 	if c == nil {
-		httpError(w, http.StatusServiceUnavailable, "device is offline")
+		httpError(w, http.StatusServiceUnavailable, "connector is offline")
 		return
 	}
 	client, err := upgrader.Upgrade(w, r, nil)
@@ -72,7 +72,7 @@ func (g *Gateway) handleTermWS(w http.ResponseWriter, r *http.Request) {
 
 	open, _ := protocol.NewMsg(protocol.TypeTermOpen, 0, ch, protocol.TermOpen{Session: session, Cols: cols, Rows: rows})
 	if err := c.sendJSON(open); err != nil {
-		_ = sendClient(websocket.TextMessage, exitJSON("device connection lost"))
+		_ = sendClient(websocket.TextMessage, exitJSON("connector connection lost"))
 		return
 	}
 

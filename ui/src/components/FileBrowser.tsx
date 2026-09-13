@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, formatBytes } from '../api'
 import type { FsListing } from '../types'
 
-export default function FileBrowser({ deviceId }: { deviceId: string }) {
+export default function FileBrowser({ connectorId }: { connectorId: string }) {
   const [listing, setListing] = useState<FsListing | null>(null)
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -14,14 +14,14 @@ export default function FileBrowser({ deviceId }: { deviceId: string }) {
       try {
         setListing(
           await api.get<FsListing>(
-            `/api/devices/${deviceId}/fs?path=${encodeURIComponent(path)}`,
+            `/api/connectors/${connectorId}/fs?path=${encodeURIComponent(path)}`,
           ),
         )
       } catch (e) {
         setError(e instanceof Error ? e.message : 'failed to list directory')
       }
     },
-    [deviceId],
+    [connectorId],
   )
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function FileBrowser({ deviceId }: { deviceId: string }) {
   const download = (name: string) => {
     const path = `${listing?.path}/${name}`
     window.open(
-      `/api/devices/${deviceId}/fs/download?path=${encodeURIComponent(path)}`,
+      `/api/connectors/${connectorId}/fs/download?path=${encodeURIComponent(path)}`,
       '_blank',
     )
   }
@@ -50,7 +50,7 @@ export default function FileBrowser({ deviceId }: { deviceId: string }) {
       const form = new FormData()
       form.append('file', file)
       const res = await fetch(
-        `/api/devices/${deviceId}/fs/upload?dir=${encodeURIComponent(listing.path)}`,
+        `/api/connectors/${connectorId}/fs/upload?dir=${encodeURIComponent(listing.path)}`,
         { method: 'POST', body: form },
       )
       if (!res.ok) {

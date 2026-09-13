@@ -97,7 +97,7 @@ func SnapshotFrom(facts Facts, events []Event, now time.Time) Snapshot {
 		if org.HasProject {
 			snap.Activation.OrgsWithProject++
 		}
-		if org.HasDevice {
+		if org.HasConnector {
 			snap.Activation.OrgsWithWorker++
 		}
 		if !org.FirstTaskAt.IsZero() {

@@ -26,24 +26,24 @@ func testStore(t *testing.T) *Store {
 
 func TestDeviceLifecycle(t *testing.T) {
 	s := testStore(t)
-	id, token, err := s.CreateDevice("laptop", "laptop.local", "linux", "amd64", false)
+	id, token, err := s.CreateConnector("laptop", "laptop.local", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, err := s.DeviceByToken(token)
+	d, err := s.ConnectorByToken(token)
 	if err != nil || d == nil {
-		t.Fatalf("DeviceByToken: %v, %v", d, err)
+		t.Fatalf("ConnectorByToken: %v, %v", d, err)
 	}
 	if d.Id != id || d.Name != "laptop" {
 		t.Errorf("got %+v", d)
 	}
-	if d2, _ := s.DeviceByToken("wrong-token"); d2 != nil {
+	if d2, _ := s.ConnectorByToken("wrong-token"); d2 != nil {
 		t.Error("wrong token should not authenticate")
 	}
-	if err := s.DeleteDevice(id); err != nil {
+	if err := s.DeleteConnector(id); err != nil {
 		t.Fatal(err)
 	}
-	if d3, _ := s.DeviceByToken(token); d3 != nil {
+	if d3, _ := s.ConnectorByToken(token); d3 != nil {
 		t.Error("deleted device should not authenticate")
 	}
 }
@@ -616,7 +616,7 @@ func TestPresetsSeeded(t *testing.T) {
 
 func TestProjectLifecycle(t *testing.T) {
 	s := testStore(t)
-	deviceId, _, err := s.CreateDevice("studio", "studio.local", "darwin", "arm64", false)
+	connectorId, _, err := s.CreateConnector("studio", "studio.local", "darwin", "arm64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -624,15 +624,15 @@ func TestProjectLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := s.CreateProject(org.Id, "Storefront", deviceId, "/Users/dev/storefront", "http://gateway", "", "", "")
+	p, err := s.CreateProject(org.Id, "Storefront", connectorId, "/Users/dev/storefront", "http://gateway", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Name != "Storefront" || p.DeviceId != deviceId {
+	if p.Name != "Storefront" || p.ConnectorId != connectorId {
 		t.Fatalf("unexpected project: %+v", p)
 	}
-	if len(p.DeviceIds) != 1 || p.DeviceIds[0] != deviceId {
-		t.Fatalf("enrolled machines = %v, want [%s]", p.DeviceIds, deviceId)
+	if len(p.ConnectorIds) != 1 || p.ConnectorIds[0] != connectorId {
+		t.Fatalf("enrolled machines = %v, want [%s]", p.ConnectorIds, connectorId)
 	}
 	projects, err := s.ListProjectsByOrg(org.Id)
 	if err != nil || len(projects) != 1 {
@@ -641,7 +641,7 @@ func TestProjectLifecycle(t *testing.T) {
 	if projects[0].OrgId != org.Id || projects[0].GatewayURL != "http://gateway" {
 		t.Fatalf("project missing org or gateway: %+v", projects[0])
 	}
-	updated, err := s.UpdateProject(p.Id, "Web store", deviceId, "/Users/dev/web-store", "", "", "")
+	updated, err := s.UpdateProject(p.Id, "Web store", connectorId, "/Users/dev/web-store", "", "", "")
 	if err != nil || updated == nil || updated.Path != "/Users/dev/web-store" {
 		t.Fatalf("UpdateProject: %+v, %v", updated, err)
 	}
@@ -663,11 +663,11 @@ func TestCreateProjectWithoutADevice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.DeviceId != "" || p.Path != "" {
+	if p.ConnectorId != "" || p.Path != "" {
 		t.Fatalf("expected empty device/path, got %+v", p)
 	}
-	if len(p.DeviceIds) != 0 {
-		t.Fatalf("expected no enrolled machines, got %v", p.DeviceIds)
+	if len(p.ConnectorIds) != 0 {
+		t.Fatalf("expected no enrolled machines, got %v", p.ConnectorIds)
 	}
 	if p.TemplateId != "software" || p.RepoHost != "github" {
 		t.Fatalf("template/repo = %+v", p)
@@ -680,34 +680,34 @@ func TestCreateProjectWithoutADevice(t *testing.T) {
 
 func TestDeletingDeviceDetachesItFromProjects(t *testing.T) {
 	s := testStore(t)
-	deviceId, _, _ := s.CreateDevice("runner", "runner", "linux", "amd64", false)
+	connectorId, _, _ := s.CreateConnector("runner", "runner", "linux", "amd64", false)
 	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := s.CreateProject(org.Id, "API", deviceId, "/srv/api", "", "", "", "")
+	p, err := s.CreateProject(org.Id, "API", connectorId, "/srv/api", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.DeleteDevice(deviceId); err != nil {
+	if err := s.DeleteConnector(connectorId); err != nil {
 		t.Fatal(err)
 	}
 	projects, err := s.ListProjectsByOrg(org.Id)
 	if err != nil || len(projects) != 1 {
 		t.Fatalf("project should remain after deleting its machine: %+v, %v", projects, err)
 	}
-	if projects[0].Id != p.Id || projects[0].DeviceId != "" || len(projects[0].DeviceIds) != 0 {
+	if projects[0].Id != p.Id || projects[0].ConnectorId != "" || len(projects[0].ConnectorIds) != 0 {
 		t.Fatalf("detached project = %+v", projects[0])
 	}
 }
 
 func TestDeletingDeviceKeepsTheOtherMachines(t *testing.T) {
 	s := testStore(t)
-	first, _, err := s.CreateDevice("one", "one", "linux", "amd64", false)
+	first, _, err := s.CreateConnector("one", "one", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, _, err := s.CreateDevice("two", "two", "linux", "amd64", false)
+	second, _, err := s.CreateConnector("two", "two", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -719,31 +719,31 @@ func TestDeletingDeviceKeepsTheOtherMachines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.AttachProjectDevice(p.Id, second); err != nil {
+	if _, err := s.AttachProjectConnector(p.Id, second); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.DeleteDevice(first); err != nil {
+	if err := s.DeleteConnector(first); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.ProjectById(p.Id)
 	if err != nil || got == nil {
 		t.Fatalf("project vanished: %v", err)
 	}
-	if got.DeviceId != second || len(got.DeviceIds) != 1 || got.DeviceIds[0] != second {
+	if got.ConnectorId != second || len(got.ConnectorIds) != 1 || got.ConnectorIds[0] != second {
 		t.Fatalf("after deleting the selected machine = %+v", got)
 	}
 }
 
 func TestCreateProjectRequiresAnOrg(t *testing.T) {
 	s := testStore(t)
-	deviceId, _, err := s.CreateDevice("box", "box", "linux", "amd64", false)
+	connectorId, _, err := s.CreateConnector("box", "box", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateProject("", "NoOrg", deviceId, "/tmp", "", "", "", ""); err == nil {
+	if _, err := s.CreateProject("", "NoOrg", connectorId, "/tmp", "", "", "", ""); err == nil {
 		t.Fatal("CreateProject with empty org_id succeeded")
 	}
-	if _, err := s.CreateProject("org-missing", "NoOrg", deviceId, "/tmp", "", "", "", ""); err == nil {
+	if _, err := s.CreateProject("org-missing", "NoOrg", connectorId, "/tmp", "", "", "", ""); err == nil {
 		t.Fatal("CreateProject with an unknown org succeeded")
 	}
 }
@@ -758,14 +758,14 @@ func TestProjectsDoNotCrossOrgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	deviceId, _, err := s.CreateDevice("box", "box", "linux", "amd64", false)
+	connectorId, _, err := s.CreateConnector("box", "box", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateProject(first.Id, "A", deviceId, "/a", "", "", "", ""); err != nil {
+	if _, err := s.CreateProject(first.Id, "A", connectorId, "/a", "", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateProject(second.Id, "B", deviceId, "/b", "", "", "", ""); err != nil {
+	if _, err := s.CreateProject(second.Id, "B", connectorId, "/b", "", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	onlyFirst, err := s.ListProjectsByOrg(first.Id)
@@ -861,7 +861,7 @@ func TestOpenStoreBackfillsProjectDevices(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`INSERT INTO projects (id, name, device_id, path, created_at, updated_at)
-		VALUES ('project-old', 'Legacy', 'device-old', '/old', 1, 1)`); err != nil {
+		VALUES ('project-old', 'Legacy', 'connector-old', '/old', 1, 1)`); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.Close(); err != nil {
@@ -872,8 +872,8 @@ func TestOpenStoreBackfillsProjectDevices(t *testing.T) {
 		t.Fatalf("OpenStore on a project with a selected machine: %v", err)
 	}
 	t.Cleanup(func() { s.Close() })
-	ids, err := s.ListProjectDeviceIds("project-old")
-	if err != nil || len(ids) != 1 || ids[0] != "device-old" {
+	ids, err := s.ListProjectConnectorIds("project-old")
+	if err != nil || len(ids) != 1 || ids[0] != "connector-old" {
 		t.Fatalf("backfill = %v, %v", ids, err)
 	}
 }
@@ -884,13 +884,13 @@ func TestBackfillProjectOrgsAttachesOrphansToTheOnlyOrg(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	deviceId, _, err := s.CreateDevice("box", "box", "linux", "amd64", false)
+	connectorId, _, err := s.CreateConnector("box", "box", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Reproduce a row written before org_id existed.
 	if _, err := s.db.Exec(`INSERT INTO projects (id, name, org_id, gateway_url, device_id, path, created_at, updated_at)
-		VALUES ('project-orphan', 'Legacy', '', '', ?, '/old', 1, 1)`, deviceId); err != nil {
+		VALUES ('project-orphan', 'Legacy', '', '', ?, '/old', 1, 1)`, connectorId); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.backfillProjectOrgs(); err != nil {

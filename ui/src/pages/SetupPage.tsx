@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api } from '../api'
 import { usePoll } from '../hooks'
-import type { Device, SetupOverview, SetupTool } from '../types'
+import type { Connector, SetupOverview, SetupTool } from '../types'
 
 const toolMarks: Record<string, string> = {
   node: 'JS',
@@ -14,58 +14,58 @@ const toolMarks: Record<string, string> = {
 }
 
 export default function SetupPage() {
-  const [devices, setDevices] = useState<Device[]>([])
-  const [deviceId, setDeviceId] = useState('')
+  const [connectors, setConnectors] = useState<Connector[]>([])
+  const [connectorId, setConnectorId] = useState('')
   const [setup, setSetup] = useState<SetupOverview | null>(null)
   const [error, setError] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const navigate = useNavigate()
 
-  const loadDevices = useCallback(async () => {
-    const result = await api.get<Device[]>('/api/devices')
-    setDevices(result)
-    setDeviceId((current) => {
+  const loadConnectors = useCallback(async () => {
+    const result = await api.get<Connector[]>('/api/connectors')
+    setConnectors(result)
+    setConnectorId((current) => {
       if (current && result.some((d) => d.id === current && d.online)) return current
       return result.find((d) => d.online)?.id ?? ''
     })
   }, [])
-  usePoll(loadDevices, 15000)
+  usePoll(loadConnectors, 15000)
 
   const loadSetup = useCallback(async () => {
-    if (!deviceId) {
+    if (!connectorId) {
       setSetup(null)
       return
     }
     setRefreshing(true)
     setError('')
     try {
-      setSetup(await api.get<SetupOverview>(`/api/devices/${deviceId}/setup`))
+      setSetup(await api.get<SetupOverview>(`/api/connectors/${connectorId}/setup`))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not inspect this device')
+      setError(e instanceof Error ? e.message : 'Could not inspect this connector')
     } finally {
       setRefreshing(false)
     }
-  }, [deviceId])
+  }, [connectorId])
 
   useEffect(() => {
     loadSetup()
   }, [loadSetup])
 
-  const selected = useMemo(() => devices.find((d) => d.id === deviceId), [devices, deviceId])
+  const selected = useMemo(() => connectors.find((d) => d.id === connectorId), [connectors, connectorId])
   const core = setup?.tools.filter((t) => ['codex', 'claude', 'gemini'].includes(t.id)) ?? []
   const readyCount = core.filter((t) => t.installed).length
 
   const launchSetup = async (name: string, command: string, kind = 'setup') => {
-    if (!deviceId || !command) return
+    if (!connectorId || !command) return
     setError('')
     const session = `${name}-${Date.now().toString().slice(-6)}`
     try {
-      await api.post(`/api/devices/${deviceId}/sessions`, {
+      await api.post(`/api/connectors/${connectorId}/sessions`, {
         name: session,
         command,
         kind,
       })
-      navigate(`/devices/${deviceId}?session=${encodeURIComponent(session)}`)
+      navigate(`/connectors/${connectorId}?session=${encodeURIComponent(session)}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not start setup')
     }
@@ -87,15 +87,15 @@ export default function SetupPage() {
           <span className={`h-2 w-2 rounded-full ${selected?.online ? 'bg-lime-300' : 'bg-zinc-700'}`} />
           <SimpleSelect
             size="default"
-            value={deviceId}
-            onValueChange={setDeviceId}
+            value={connectorId}
+            onValueChange={setConnectorId}
             className="min-w-0 flex-1"
-            aria-label="Device to configure"
-            items={devices
+            aria-label="Connector to configure"
+            items={connectors
               .filter((d) => d.online)
               .map((d) => ({ value: d.id, label: `${d.name} · ${d.os}/${d.arch}` }))}
           />
-          <button onClick={loadSetup} disabled={refreshing || !deviceId} className="text-xs font-medium text-zinc-500 hover:text-white">
+          <button onClick={loadSetup} disabled={refreshing || !connectorId} className="text-xs font-medium text-zinc-500 hover:text-white">
             {refreshing ? 'Checking…' : 'Refresh'}
           </button>
         </div>
@@ -115,7 +115,7 @@ export default function SetupPage() {
         <button onClick={() => navigate('/code')} className="btn-secondary">Open Code</button>
       </section>
 
-      {!deviceId ? (
+      {!connectorId ? (
         <EmptyState />
       ) : setup === null ? (
         <SetupSkeleton />
@@ -209,7 +209,7 @@ function Status({ installed, connected, auth }: { installed: boolean; connected:
 }
 
 function EmptyState() {
-  return <div className="surface rounded-2xl p-12 text-center"><p className="font-medium text-zinc-200">No online machines</p><p className="mt-2 text-sm text-zinc-500">Connect a device first, then return here to prepare it.</p></div>
+  return <div className="surface rounded-2xl p-12 text-center"><p className="font-medium text-zinc-200">No online machines</p><p className="mt-2 text-sm text-zinc-500">Connect a connector first, then return here to prepare it.</p></div>
 }
 
 function SetupSkeleton() {

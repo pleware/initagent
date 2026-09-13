@@ -26,14 +26,14 @@ func TestFunnelFactsFromLiveRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.CreateDevice("box", "box", "linux", "amd64", false); err != nil {
+	if _, _, err := s.CreateConnector("box", "box", "linux", "amd64", false); err != nil {
 		t.Fatal(err)
 	}
-	devices, err := s.ListDevices()
+	devices, err := s.ListConnectors()
 	if err != nil || len(devices) == 0 {
 		t.Fatalf("devices: %v %v", devices, err)
 	}
-	if _, err := s.AttachProjectDevice(project.Id, devices[0].Id); err != nil {
+	if _, err := s.AttachProjectConnector(project.Id, devices[0].Id); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.SaveTaskOutput(TaskOutput{
@@ -49,7 +49,7 @@ func TestFunnelFactsFromLiveRows(t *testing.T) {
 	if len(facts.Accounts) != 1 || facts.Accounts[0].ID != account.Id {
 		t.Fatalf("accounts = %+v", facts.Accounts)
 	}
-	if len(facts.Orgs) != 1 || !facts.Orgs[0].HasProject || !facts.Orgs[0].HasDevice || facts.Orgs[0].FirstTaskAt.IsZero() {
+	if len(facts.Orgs) != 1 || !facts.Orgs[0].HasProject || !facts.Orgs[0].HasConnector || facts.Orgs[0].FirstTaskAt.IsZero() {
 		t.Fatalf("orgs = %+v", facts.Orgs)
 	}
 }

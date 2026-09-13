@@ -386,18 +386,18 @@ func TestLoadReportsThePath(t *testing.T) {
 
 func TestDerivedFields(t *testing.T) {
 	t.Parallel()
-	e := Entity{Name: "initagent.fleet.device", Context: "fleet", Capabilities: []string{"read", "admin"}}
-	if got := e.Prefix(); got != "device" {
+	e := Entity{Name: "initagent.fleet.connector", Context: "fleet", Capabilities: []string{"read", "admin"}}
+	if got := e.Prefix(); got != "connector" {
 		t.Errorf("Prefix() = %q", got)
 	}
-	if got := e.Tail(); got != "fleet.device" {
+	if got := e.Tail(); got != "fleet.connector" {
 		t.Errorf("Tail() = %q", got)
 	}
-	if got := e.HappeningPrefix(); got != "fleet.device" {
+	if got := e.HappeningPrefix(); got != "fleet.connector" {
 		t.Errorf("HappeningPrefix() = %q", got)
 	}
 	got := e.CapabilityNames()
-	want := []string{"admin:fleet.device", "read:fleet.device"}
+	want := []string{"admin:fleet.connector", "read:fleet.connector"}
 	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Errorf("CapabilityNames() = %v, want %v", got, want)
 	}

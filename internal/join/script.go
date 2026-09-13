@@ -4,7 +4,7 @@ package join
 // enrollment token baked in. It must stay POSIX-sh compatible: it is piped
 // into `sh`, not into bash.
 const unixScript = `#!/bin/sh
-# initagent device installer
+# initagent connector installer
 set -eu
 
 HUB="%s"
@@ -35,14 +35,14 @@ fi
 mv "$BIN.tmp" "$BIN"
 chmod +x "$BIN"
 
-echo "→ enrolling this device..."
+echo "→ enrolling this connector..."
 "$BIN" agent enroll --hub "$HUB" --token "$TOKEN"
 
 echo "→ installing background service..."
 "$BIN" agent install-service
 
 echo ""
-echo "✓ Done. This device is now connected to initagent."
+echo "✓ Done. This connector is now connected to initagent."
 echo "  It should appear on your dashboard within a few seconds."
 `
 
@@ -68,13 +68,13 @@ Write-Host "-> downloading the initagent agent for windows/$Arch..."
 Invoke-WebRequest -UseBasicParsing -Uri "$Hub/api/agent-binary?os=windows&arch=$Arch" -OutFile $Tmp
 Move-Item -Force $Tmp $Bin
 
-Write-Host "-> enrolling this device..."
+Write-Host "-> enrolling this connector..."
 & $Bin agent enroll --hub $Hub --token $Token
 
 Write-Host "-> installing background task..."
 & $Bin agent install-service
 
 Write-Host ""
-Write-Host "Done. This device is now connected to initagent."
+Write-Host "Done. This connector is now connected to initagent."
 Write-Host "It should appear on your dashboard within a few seconds."
 `

@@ -32,11 +32,11 @@ func TestSnapshotFromRatesAndMedianTTV(t *testing.T) {
 		Orgs: []OrgFact{
 			{
 				ID: "org-1", CreatedAt: now.Add(-10 * day), Plan: "free",
-				HasProject: true, HasDevice: true, FirstTaskAt: now.Add(-10*day + 6*time.Hour),
+				HasProject: true, HasConnector: true, FirstTaskAt: now.Add(-10*day + 6*time.Hour),
 			},
 			{
 				ID: "org-2", CreatedAt: now.Add(-8 * day), Plan: "starter",
-				HasProject: true, HasDevice: true, FirstTaskAt: now.Add(-8*day + 18*time.Hour),
+				HasProject: true, HasConnector: true, FirstTaskAt: now.Add(-8*day + 18*time.Hour),
 			},
 			{
 				ID: "org-3", CreatedAt: now.Add(-3 * day), Plan: "free",

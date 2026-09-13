@@ -124,12 +124,12 @@ func TestContextsAreTheFive(t *testing.T) {
 }
 
 func TestDescribe(t *testing.T) {
-	spec, ok := Describe(Device)
+	spec, ok := Describe(Connector)
 	if !ok {
-		t.Fatal("Describe(Device) reported unregistered")
+		t.Fatal("Describe(Connector) reported unregistered")
 	}
-	if spec.Name != "initagent.fleet.device" || spec.Context != ContextFleet {
-		t.Errorf("Describe(Device) = %+v", spec)
+	if spec.Name != "initagent.fleet.connector" || spec.Context != ContextFleet {
+		t.Errorf("Describe(Connector) = %+v", spec)
 	}
 	if _, ok := Describe(Kind("zzz")); ok {
 		t.Error("Describe accepted an unregistered kind")
@@ -268,8 +268,8 @@ func TestParseRejects(t *testing.T) {
 		{"empty", ""},
 		{"no separator", "dev0198f3a17c4e7b2a9f312c6a8d4e5b70"},
 		{"unregistered prefix", "zzz-0198f3a1-7c4e-7b2a-9f31-2c6a8d4e5b70"},
-		{"missing uuid", "device-"},
-		{"malformed uuid", "device-not-a-uuid"},
+		{"missing uuid", "connector-"},
+		{"malformed uuid", "connector-not-a-uuid"},
 		{"bare uuid", "0198f3a1-7c4e-7b2a-9f31-2c6a8d4e5b70"},
 		{"upstream shape", "a3f9c2d1e8b7f4a0"},
 		{"prefix only", "dev"},
@@ -288,23 +288,23 @@ func TestIsRejectsWrongKind(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if Is(Device, project) {
-		t.Errorf("Is(Device, %q) = true; a project id must not pass as a device id", project)
+	if Is(Connector, project) {
+		t.Errorf("Is(Connector, %q) = true; a project id must not pass as a connector id", project)
 	}
 }
 
 func TestParseAcceptsAnyUUIDVersion(t *testing.T) {
 	// Parse validates shape, not provenance: identifiers minted before we
 	// moved to v7 must still resolve.
-	v4 := "device-" + uuid.NewString()
+	v4 := "connector-" + uuid.NewString()
 	if _, _, err := Parse(v4); err != nil {
 		t.Errorf("Parse rejected a v4-backed identifier: %v", err)
 	}
 }
 
 func TestEntity(t *testing.T) {
-	if name, ok := Entity(Device); !ok || name != "initagent.fleet.device" {
-		t.Errorf("Entity(Device) = %q, %v", name, ok)
+	if name, ok := Entity(Connector); !ok || name != "initagent.fleet.connector" {
+		t.Errorf("Entity(Connector) = %q, %v", name, ok)
 	}
 	if _, ok := Entity(Kind("zzz")); ok {
 		t.Error("Entity accepted an unregistered kind")

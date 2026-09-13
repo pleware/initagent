@@ -46,7 +46,7 @@ func asProject(method, path, projectID string, body []byte) *http.Request {
 // answers exec so a claimed task can finish.
 func connectAs(t *testing.T, g *Gateway, ts *httptest.Server, projectID string) string {
 	t.Helper()
-	deviceID, token, err := g.Store().CreateDevice(context.Background(), projectID, "box", "box", "linux", "amd64")
+	connectorID, token, err := g.Store().CreateConnector(context.Background(), projectID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,8 +81,8 @@ func connectAs(t *testing.T, g *Gateway, ts *httptest.Server, projectID string) 
 	}()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if g.connForProject(projectID, deviceID) != nil {
-			return deviceID
+		if g.connForProject(projectID, connectorID) != nil {
+			return connectorID
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
@@ -140,7 +140,7 @@ func TestEnsureProjectIsIdempotent(t *testing.T) {
 func TestBadProjectHeaderIsRefused(t *testing.T) {
 	g := openTest(t, "")
 	rec := httptest.NewRecorder()
-	g.Handler().ServeHTTP(rec, asProject(http.MethodGet, "/api/devices", "task-wrongkind", nil))
+	g.Handler().ServeHTTP(rec, asProject(http.MethodGet, "/api/connectors", "task-wrongkind", nil))
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rec.Code)
 	}
@@ -170,16 +170,16 @@ func TestDeviceListIsScopedToItsProject(t *testing.T) {
 	if _, err := g.Store().EnsureProject(ctx, other, "127.0.0.1:4201"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := g.Store().CreateDevice(ctx, g.Project().ID, "mine", "", "", ""); err != nil {
+	if _, _, err := g.Store().CreateConnector(ctx, g.Project().ID, "mine", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := g.Store().CreateDevice(ctx, other, "theirs", "", "", ""); err != nil {
+	if _, _, err := g.Store().CreateConnector(ctx, other, "theirs", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
 
 	rec := httptest.NewRecorder()
-	g.Handler().ServeHTTP(rec, asProject(http.MethodGet, "/api/devices", other, nil))
-	var views []DeviceView
+	g.Handler().ServeHTTP(rec, asProject(http.MethodGet, "/api/connectors", other, nil))
+	var views []ConnectorView
 	if err := json.NewDecoder(rec.Body).Decode(&views); err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestAnotherProjectsWorkerIsNotPicked(t *testing.T) {
 	}
 }
 
-// Naming another project's device- explicitly must not reach that machine.
+// Naming another project's connector- explicitly must not reach that machine.
 func TestNamedForeignDeviceIsRefused(t *testing.T) {
 	g := openTest(t, "")
 	ts := httptest.NewServer(g.Handler())
@@ -220,7 +220,7 @@ func TestNamedForeignDeviceIsRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	body := []byte(`{"command":"true","deviceId":"` + mine + `"}`)
+	body := []byte(`{"command":"true","connectorId":"` + mine + `"}`)
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, asProject(http.MethodPost, "/api/tasks", other, body))
 	if rec.Code != http.StatusServiceUnavailable {
@@ -292,7 +292,7 @@ func TestTaskRunsOnItsOwnProject(t *testing.T) {
 	}
 	worker := connectAs(t, g, ts, second)
 
-	body := []byte(`{"command":"true","deviceId":"` + worker + `"}`)
+	body := []byte(`{"command":"true","connectorId":"` + worker + `"}`)
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, asProject(http.MethodPost, "/api/tasks", second, body))
 	if rec.Code != http.StatusOK {
@@ -319,7 +319,7 @@ func TestProjectResolutionFailsAfterClose(t *testing.T) {
 	other := mustProject(t)
 	g.Close()
 	rec := httptest.NewRecorder()
-	g.Handler().ServeHTTP(rec, asProject(http.MethodGet, "/api/devices", other, nil))
+	g.Handler().ServeHTTP(rec, asProject(http.MethodGet, "/api/connectors", other, nil))
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", rec.Code)
 	}
@@ -344,7 +344,7 @@ func TestControlRoutesRequireTheSecret(t *testing.T) {
 		path   string
 	}{
 		{http.MethodPost, "/api/enroll-tokens"},
-		{http.MethodGet, "/api/devices"},
+		{http.MethodGet, "/api/connectors"},
 		{http.MethodPost, "/api/tasks"},
 		{http.MethodGet, "/api/tasks/task-1"},
 	}
@@ -369,7 +369,7 @@ func TestControlRoutesRequireTheSecret(t *testing.T) {
 // the hub sends, so it must not be accepted as if it were.
 func TestSecretWithoutBearerSchemeIsRefused(t *testing.T) {
 	g := openSecured(t, "shared-secret")
-	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors", nil)
 	req.Header.Set("Authorization", "shared-secret")
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
@@ -380,7 +380,7 @@ func TestSecretWithoutBearerSchemeIsRefused(t *testing.T) {
 
 func TestCorrectSecretIsAdmitted(t *testing.T) {
 	g := openSecured(t, "shared-secret")
-	req := httptest.NewRequest(http.MethodGet, "/api/devices", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors", nil)
 	req.Header.Set("Authorization", "Bearer shared-secret")
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
@@ -423,7 +423,7 @@ func TestWorkerRoutesStayOpenUnderTheSecret(t *testing.T) {
 	// The websocket rejects for the *device* credential, not the secret.
 	ws := httptest.NewRecorder()
 	g.Handler().ServeHTTP(ws, httptest.NewRequest(http.MethodGet, "/api/ws/agent", nil))
-	if ws.Code != http.StatusUnauthorized || !strings.Contains(ws.Body.String(), "device token") {
+	if ws.Code != http.StatusUnauthorized || !strings.Contains(ws.Body.String(), "connector token") {
 		t.Fatalf("/api/ws/agent = %d %s", ws.Code, ws.Body.String())
 	}
 }
@@ -433,7 +433,7 @@ func TestWorkerRoutesStayOpenUnderTheSecret(t *testing.T) {
 func TestEmptySecretLeavesControlRoutesOpen(t *testing.T) {
 	g := openSecured(t, "")
 	rec := httptest.NewRecorder()
-	g.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/devices", nil))
+	g.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/connectors", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
 	}

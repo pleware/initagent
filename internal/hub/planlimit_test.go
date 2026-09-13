@@ -125,11 +125,11 @@ func TestEnterpriseAllowsASecondPerson(t *testing.T) {
 
 func TestHostedFreeAllowsTwoMachinesAndRefusesAThird(t *testing.T) {
 	f := hostedCustomer(t)
-	first := f.addDevice(t)
-	second := f.addDevice(t)
-	third := f.addDevice(t)
+	first := f.addConnector(t)
+	second := f.addConnector(t)
+	third := f.addConnector(t)
 	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
-		"name": "Storefront", "deviceId": first, "path": "/srv/store",
+		"name": "Storefront", "connectorId": first, "path": "/srv/store",
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create: %d, want 201", resp.StatusCode)
@@ -138,20 +138,20 @@ func TestHostedFreeAllowsTwoMachinesAndRefusesAThird(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
 		t.Fatal(err)
 	}
-	if len(project.DeviceIds) != 1 || project.DeviceIds[0] != first {
-		t.Fatalf("create enrolled = %v", project.DeviceIds)
+	if len(project.ConnectorIds) != 1 || project.ConnectorIds[0] != first {
+		t.Fatalf("create enrolled = %v", project.ConnectorIds)
 	}
-	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/devices", map[string]string{"deviceId": second})
+	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/connectors", map[string]string{"connectorId": second})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("second machine: %d, want 201", resp.StatusCode)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
 		t.Fatal(err)
 	}
-	if len(project.DeviceIds) != 2 {
-		t.Fatalf("two machines = %v", project.DeviceIds)
+	if len(project.ConnectorIds) != 2 {
+		t.Fatalf("two machines = %v", project.ConnectorIds)
 	}
-	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/devices", map[string]string{"deviceId": third})
+	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/connectors", map[string]string{"connectorId": third})
 	if resp.StatusCode != http.StatusConflict {
 		t.Fatalf("third machine: %d, want 409", resp.StatusCode)
 	}
@@ -170,27 +170,27 @@ func TestHostedFreeAllowsTwoMachinesAndRefusesAThird(t *testing.T) {
 
 func TestSwitchingTheSelectedMachineIsNotAnotherMachine(t *testing.T) {
 	f := hostedCustomer(t)
-	first := f.addDevice(t)
-	second := f.addDevice(t)
+	first := f.addConnector(t)
+	second := f.addConnector(t)
 	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
-		"name": "Storefront", "deviceId": first, "path": "/srv/store",
+		"name": "Storefront", "connectorId": first, "path": "/srv/store",
 	})
 	var project Project
 	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
 		t.Fatal(err)
 	}
-	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/devices", map[string]string{"deviceId": second})
+	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/connectors", map[string]string{"connectorId": second})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("second machine: %d", resp.StatusCode)
 	}
-	resp = f.do(t, http.MethodPatch, "/api/projects/"+project.Id, map[string]string{"deviceId": first})
+	resp = f.do(t, http.MethodPatch, "/api/projects/"+project.Id, map[string]string{"connectorId": first})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("switch selected: %d, want 200", resp.StatusCode)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
 		t.Fatal(err)
 	}
-	if project.DeviceId != first || len(project.DeviceIds) != 2 {
+	if project.ConnectorId != first || len(project.ConnectorIds) != 2 {
 		t.Fatalf("after switch = %+v", project)
 	}
 }
@@ -206,8 +206,8 @@ func TestSelfHostIgnoresMachineCap(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := range 3 {
-		id := f.addDevice(t)
-		resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/devices", map[string]string{"deviceId": id})
+		id := f.addConnector(t)
+		resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/connectors", map[string]string{"connectorId": id})
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatalf("machine %d: %d, want 201", i+1, resp.StatusCode)
 		}
@@ -228,13 +228,13 @@ func TestStarterAllowsThreeMachines(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := range 3 {
-		id := f.addDevice(t)
-		resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/devices", map[string]string{"deviceId": id})
+		id := f.addConnector(t)
+		resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/connectors", map[string]string{"connectorId": id})
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatalf("machine %d: %d, want 201", i+1, resp.StatusCode)
 		}
 	}
-	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/devices", map[string]string{"deviceId": f.addDevice(t)})
+	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/connectors", map[string]string{"connectorId": f.addConnector(t)})
 	if resp.StatusCode != http.StatusConflict {
 		t.Fatalf("fourth machine: %d, want 409", resp.StatusCode)
 	}
@@ -242,31 +242,31 @@ func TestStarterAllowsThreeMachines(t *testing.T) {
 
 func TestDetachFreesAMachineSlot(t *testing.T) {
 	f := hostedCustomer(t)
-	first := f.addDevice(t)
-	second := f.addDevice(t)
-	third := f.addDevice(t)
+	first := f.addConnector(t)
+	second := f.addConnector(t)
+	third := f.addConnector(t)
 	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
-		"name": "Storefront", "deviceId": first, "path": "/srv/store",
+		"name": "Storefront", "connectorId": first, "path": "/srv/store",
 	})
 	var project Project
 	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
 		t.Fatal(err)
 	}
-	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/devices", map[string]string{"deviceId": second})
+	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/connectors", map[string]string{"connectorId": second})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("second: %d", resp.StatusCode)
 	}
-	resp = f.do(t, http.MethodDelete, "/api/projects/"+project.Id+"/devices/"+first, nil)
+	resp = f.do(t, http.MethodDelete, "/api/projects/"+project.Id+"/connectors/"+first, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("detach: %d, want 200", resp.StatusCode)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
 		t.Fatal(err)
 	}
-	if project.DeviceId != second || len(project.DeviceIds) != 1 {
+	if project.ConnectorId != second || len(project.ConnectorIds) != 1 {
 		t.Fatalf("after detach = %+v", project)
 	}
-	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/devices", map[string]string{"deviceId": third})
+	resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/connectors", map[string]string{"connectorId": third})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("reuse slot: %d, want 201", resp.StatusCode)
 	}

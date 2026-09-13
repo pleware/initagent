@@ -16,9 +16,9 @@
   },
   "dashboard": {
     "title": "Your machines, at a glance.",
-    "subtitle": "Health, capacity, and access across every connected device.",
+    "subtitle": "Health, capacity, and access across every connected connector.",
     "eyebrow": "Live fleet",
-    "addDevice": "Add device",
+    "addConnector": "Add connector",
     "prepareMachine": "Prepare a machine",
     "stats": {
       "total": "Total",
@@ -26,10 +26,10 @@
       "attention": "Attention",
       "platforms": "Platforms"
     },
-    "noDevices": "No devices connected yet",
-    "noDevicesHint": "Add your first device to get started"
+    "noConnectors": "No connectors connected yet",
+    "noConnectorsHint": "Add your first connector to get started"
   },
-  "devices": {
+  "connectors": {
     "status": {
       "online": "Online",
       "offline": "Offline"
@@ -115,13 +115,14 @@
   },
   "nav": {
     "dashboard": "Dashboard",
-    "devices": "Devices",
+    "connectors": "Connectors",
     "agents": "Agents",
     "coding": "Coding",
     "tasks": "Tasks",
     "settings": "Settings",
     "setup": "Setup",
     "people": "People",
+    "plans": "Plans",
     "administration": "Administration"
   },
   "publicNav": {
@@ -175,6 +176,38 @@
     "mrr": "MRR",
     "mrrPending": "Stripe not wired yet",
     "onlineWorkers": "Online workers"
+  },
+  "plans": {
+    "eyebrow": "Organization",
+    "title": "Plans",
+    "subtitle": "Pay for people in {{org}}. Machines stay yours — we never host workers.",
+    "selfhost": "This hub is self-hosted. There is no catalogue wall and no payment against us.",
+    "noOrg": "Plans belong to an organization. Create one first.",
+    "paid": "Payment received. You can invite people now.",
+    "canceled": "Checkout was canceled. Nothing changed.",
+    "talk": "Talk to us",
+    "perPerson": "per person / month",
+    "onePerson": "one person",
+    "contract": "no public price",
+    "capPeople": "{{n}} person",
+    "capProjects": "{{n}} projects",
+    "noProjectCap": "No project cap",
+    "capMachines": "{{n}} of your machines per project",
+    "current": "Current plan",
+    "choose": "Choose {{plan}}",
+    "contact": "Contact sales",
+    "invoiceTitle": "Invoice details",
+    "invoiceHint": "Polish companies need a NIP. After payment we issue the VAT invoice in Fakturownia and send it to KSeF.",
+    "company": "Company name",
+    "nip": "NIP",
+    "street": "Street",
+    "postCode": "Postal code",
+    "city": "City",
+    "country": "Country",
+    "email": "Invoice email",
+    "saveInvoice": "Save invoice details",
+    "notWired": "Checkout is not configured on this hub yet. Invoice details still save.",
+    "failed": "Could not update billing"
   },
   "people": {
     "eyebrow": "Organization",
@@ -276,8 +309,8 @@
     "subtitle": "Submit a task to the project gateway. A worker runs it and reports back — you don't decide when it's done.",
     "commandLabel": "Command",
     "commandPlaceholder": "echo hello from the worker",
-    "deviceLabel": "Worker",
-    "anyDevice": "Any online worker",
+    "connectorLabel": "Worker",
+    "anyConnector": "Any online worker",
     "launchLabel": "How it finishes",
     "launch": "Launch",
     "launchOption": {

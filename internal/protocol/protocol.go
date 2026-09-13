@@ -82,9 +82,9 @@ type Hello struct {
 // Welcome is the hub's acceptance of an agent connection. Version lets the
 // agent decide whether to self-update to match the hub.
 type Welcome struct {
-	DeviceId string `json:"deviceId"`
-	Version  string `json:"version"`
-	Repo     string `json:"repo,omitempty"`
+	ConnectorId string `json:"connectorId"`
+	Version     string `json:"version"`
+	Repo        string `json:"repo,omitempty"`
 }
 
 // Stats is a periodic system snapshot from the agent.

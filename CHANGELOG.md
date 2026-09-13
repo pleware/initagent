@@ -2,6 +2,8 @@
 
 ## Unreleased — product
 
+- 2026-09-13 — names: the enrolled thing is a connector, not a device
+- 2026-09-13 — hosted: Plans in the cockpit, Stripe Checkout, Fakturownia+KSeF after payment
 - 2026-09-12 — wdrozenie: command cheat sheet, a tighter guide, and Ubuntu in the diagram
 - 2026-09-12 — wdrozenie: name the worker before joining, and how to remove the distro
 - 2026-09-12 — wdrozenie: say which machine the restart means

@@ -9,7 +9,7 @@
 ./internal/gdeskseam
 ./internal/gdeskconsole
 ./internal/gdeskfront
-./internal/deviceops
+./internal/connectorops
 ./internal/store
 ./internal/scheduler
 ./internal/fakecoder

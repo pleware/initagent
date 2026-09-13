@@ -1,23 +1,23 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api } from '../api'
-import type { Device, Preset } from '../types'
+import type { Connector, Preset } from '../types'
 import Modal from './Modal'
 
 // LaunchSessionModal starts a named session (usually a coding agent) on a
 // device. Used from both the device page (single device) and the agents page
 // (device picker).
 export default function LaunchSessionModal({
-  devices,
+  connectors,
   onLaunched,
   onClose,
 }: {
-  devices: Device[]
-  onLaunched: (deviceId: string, session: string) => void
+  connectors: Connector[]
+  onLaunched: (connectorId: string, session: string) => void
   onClose: () => void
 }) {
-  const online = devices.filter((d) => d.online)
-  const [deviceId, setDeviceId] = useState(online[0]?.id ?? '')
+  const online = connectors.filter((d) => d.online)
+  const [connectorId, setConnectorId] = useState(online[0]?.id ?? '')
   const [presets, setPresets] = useState<Preset[]>([])
   const [presetId, setPresetId] = useState<number | null>(null)
   const [name, setName] = useState('')
@@ -49,17 +49,17 @@ export default function LaunchSessionModal({
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!deviceId || !name) return
+    if (!connectorId || !name) return
     setBusy(true)
     const preset = presets.find((p) => p.id === presetId)
     try {
-      await api.post(`/api/devices/${deviceId}/sessions`, {
+      await api.post(`/api/connectors/${connectorId}/sessions`, {
         name,
         cwd,
         command,
         kind: preset?.kind ?? (command ? command.split(/\s+/)[0] : 'shell'),
       })
-      onLaunched(deviceId, name)
+      onLaunched(connectorId, name)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'failed to launch')
       setBusy(false)
@@ -72,15 +72,15 @@ export default function LaunchSessionModal({
   return (
     <Modal title="Launch session" onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
-        {devices.length > 1 && (
+        {connectors.length > 1 && (
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-300">
-              Device
+              Connector
             </label>
             <SimpleSelect
               size="default"
-              value={deviceId}
-              onValueChange={setDeviceId}
+              value={connectorId}
+              onValueChange={setConnectorId}
               className="w-full"
               items={online.map((d) => ({
                 value: d.id,
@@ -157,7 +157,7 @@ export default function LaunchSessionModal({
         {error && <p className="text-sm text-rose-400">{error}</p>}
         <button
           type="submit"
-          disabled={busy || !deviceId}
+          disabled={busy || !connectorId}
           className="btn-primary"
         >
           {busy ? 'Launching…' : 'Launch'}

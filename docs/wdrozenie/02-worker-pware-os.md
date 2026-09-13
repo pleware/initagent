@@ -81,7 +81,7 @@ Dockera Desktop obok.
 
 Dla każdego środowiska:
 
-1. W hubie: **Add device** → **Linux/macOS** → skopiuj komendę (`.sh`).
+1. W hubie: **Add a connector** → **Linux/macOS** → skopiuj komendę (`.sh`).
    Każdy kontener dostaje własną — token jest jednorazowy, 15 minut.
 2. Uruchom ją **wewnątrz kontenera**:
 
@@ -101,7 +101,7 @@ dla partnera (`drafts/10`).
 ## Krok 5 — weryfikacja
 
 Dla każdego środowiska osobno: zadanie z panelu albo
-`initagent fleet run <DEVICE> -- initagent version`. Trzy kontenery = trzy
+`initagent fleet run <CONNECTOR> -- initagent version`. Trzy kontenery = trzy
 wpisy `dev-` i trzy wyniki do sprawdzenia.
 
 ## Utrzymanie
@@ -121,7 +121,7 @@ obrazy, wolumeny, pliki domowe. Kosza nie ma.
 2. `wsl --shutdown` (z PowerShella),
 3. `wsl --unregister Ubuntu`,
 4. `wsl -l -v` — sprawdź; jeśli Ubuntu było domyślną, `wsl --set-default <inna>`,
-5. **wpis w hubie zostaje** jako offline — usuń go `DELETE /api/devices/{id}`
+5. **wpis w hubie zostaje** jako offline — usuń go `DELETE /api/connectors/{id}`
    (przycisku w panelu nie ma).
 
 Na VPS bez WSL: `docker rm -f` + `docker rmi`.

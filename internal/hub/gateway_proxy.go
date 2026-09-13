@@ -17,9 +17,9 @@ import (
 // return immediately (device list, enroll token).
 const gatewayProxyTimeout = 10 * time.Second
 
-// deviceProxyTimeout covers session create/list/kill and exec round-trips
+// connectorProxyTimeout covers session create/list/kill and exec round-trips
 // (the connector's own timeout plus slack).
-const deviceProxyTimeout = 90 * time.Second
+const connectorProxyTimeout = 90 * time.Second
 
 // proxyGateway forwards a request to the gateway named by p. The body streams
 // through so POSTs (enroll tokens, task submissions) reach the gateway

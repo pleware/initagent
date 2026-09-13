@@ -9,7 +9,7 @@ import ConfirmTypeDialog from '../components/ConfirmTypeDialog'
 import FxTerminal from '../components/FxTerminal'
 import ProjectModal from '../components/ProjectModal'
 import { useHubEvents, usePoll } from '../hooks'
-import type { Device, Me, Project } from '../types'
+import type { Connector, Me, Project } from '../types'
 
 export default function CodingPage({
   me,
@@ -21,7 +21,7 @@ export default function CodingPage({
   const { projectId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const { projects, setProjects, projectsReady, reloadProjects } = useOutletContext<HubOutlet>()
-  const [devices, setDevices] = useState<Device[]>([])
+  const [connectors, setConnectors] = useState<Connector[]>([])
   const [editing, setEditing] = useState<Project | undefined>()
   const [showModal, setShowModal] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
@@ -31,15 +31,15 @@ export default function CodingPage({
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  const loadDevices = useCallback(async () => {
+  const loadConnectors = useCallback(async () => {
     try {
-      setDevices(await api.get<Device[]>('/api/devices'))
+      setConnectors(await api.get<Connector[]>('/api/connectors'))
     } catch {
       /* keep the last live snapshot — the workspace does not wait on this */
     }
   }, [])
 
-  usePoll(loadDevices, 12_000)
+  usePoll(loadConnectors, 12_000)
   usePoll(
     useCallback(() => {
       if (!projectId) return
@@ -50,8 +50,8 @@ export default function CodingPage({
     60 * 60 * 1000,
   )
   useHubEvents((event) => {
-    if (event.type === 'device.online' || event.type === 'device.offline') {
-      loadDevices()
+    if (event.type === 'connector.online' || event.type === 'connector.offline') {
+      loadConnectors()
       reloadProjects()
     }
   })
@@ -79,7 +79,7 @@ export default function CodingPage({
     !isBoardingComplete(projects)
 
   const project = useMemo(() => projects.find((item) => item.id === projectId), [projectId, projects])
-  const device = useMemo(() => devices.find((item) => item.id === project?.deviceId), [devices, project])
+  const connector = useMemo(() => connectors.find((item) => item.id === project?.connectorId), [connectors, project])
 
   const removeProject = async () => {
     if (!project) return
@@ -116,7 +116,7 @@ export default function CodingPage({
     return (
       <Boarding
         me={me}
-        devices={devices}
+        connectors={connectors}
         initialProject={projects[0]}
         onMeChanged={onMeChanged}
         onFinished={(saved) => {
@@ -145,7 +145,7 @@ export default function CodingPage({
         <button onClick={() => setShowModal(true)} className="btn-primary mt-6">Add your first project</button>
         {showModal && (
           <ProjectModal
-            devices={devices}
+            connectors={connectors}
             onClose={() => setShowModal(false)}
             onSaved={(saved) => { setShowModal(false); setProjects([saved]); navigate(`/code/${saved.id}`) }}
           />
@@ -186,14 +186,14 @@ export default function CodingPage({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="truncate text-sm font-semibold text-zinc-100">{project.name}</h1>
-            <span className={`node-dot ${device?.online ? 'node-dot-online' : ''}`} />
+            <span className={`node-dot ${connector?.online ? 'node-dot-online' : ''}`} />
           </div>
           <p className="mt-0.5 truncate font-mono text-[10px] text-zinc-600">{project.path}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="machine-pill">
-            <DeviceIcon />
-            {device?.name ?? 'Unknown machine'}
+            <ConnectorIcon />
+            {connector?.name ?? 'Unknown machine'}
           </span>
           <button onClick={() => { setEditing(project); setShowModal(true) }} className="toolbar-button" aria-label="Edit project"><SlidersIcon /></button>
           <button
@@ -209,17 +209,17 @@ export default function CodingPage({
       {showLoginHint && (
         <div className="fx-login-hint">
           <span className="fx-wordmark">fx</span>
-          <p><strong>One fx login, every machine.</strong> Type <code>/login</code> below once. Your session stays in this browser while project commands run on <span>{device?.name}</span>.</p>
+          <p><strong>One fx login, every machine.</strong> Type <code>/login</code> below once. Your session stays in this browser while project commands run on <span>{connector?.name}</span>.</p>
           <button onClick={() => { localStorage.setItem('liveagent.fx.login-hint', 'hidden'); setShowLoginHint(false) }} aria-label="Dismiss login hint">×</button>
         </div>
       )}
 
       <main className="min-h-0 flex-1">
-        <FxTerminal project={project} device={device} />
+        <FxTerminal project={project} connector={connector} />
       </main>
 
       <footer className="coding-statusbar">
-        <span className="inline-flex items-center gap-1.5"><span className={`node-dot ${device?.online ? 'node-dot-online' : ''}`} />{device?.online ? 'Connected' : 'Offline'}</span>
+        <span className="inline-flex items-center gap-1.5"><span className={`node-dot ${connector?.online ? 'node-dot-online' : ''}`} />{connector?.online ? 'Connected' : 'Offline'}</span>
         <span className="hidden items-center gap-1.5 font-mono min-[480px]:inline-flex">fx / browser runtime</span>
         <span className="ml-auto hidden sm:inline">Commands execute in {project.path}</span>
       </footer>
@@ -227,7 +227,7 @@ export default function CodingPage({
       {showDelete && (
         <ConfirmTypeDialog
           title={t('code.deleteTitle')}
-          hint={t('code.deleteHint', { machine: device?.name ?? t('code.unknownMachine') })}
+          hint={t('code.deleteHint', { machine: connector?.name ?? t('code.unknownMachine') })}
           phrase={project.name || project.id}
           confirmLabel={t('code.deleteConfirm')}
           busy={deleting}
@@ -238,7 +238,7 @@ export default function CodingPage({
       )}
       {showModal && (
         <ProjectModal
-          devices={devices}
+          connectors={connectors}
           project={editing}
           onClose={() => setShowModal(false)}
           onSaved={(saved) => {
@@ -255,7 +255,7 @@ export default function CodingPage({
   )
 }
 
-function DeviceIcon() {
+function ConnectorIcon() {
   return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><rect x="3" y="5" width="18" height="13" rx="2" /><path d="M8 21h8M12 18v3" /></svg>
 }
 

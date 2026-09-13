@@ -2,8 +2,8 @@ import { Reveal } from "../lib/reveal";
 
 const GROUPS = [
   {
-    group: "Devices",
-    tools: ["list_devices", "run_command"],
+    group: "Connectors",
+    tools: ["list_connectors", "run_command"],
   },
   {
     group: "Sessions",
@@ -102,7 +102,7 @@ export function FleetAgents() {
                   Same tools from the CLI
                 </h3>
                 <div className="mt-4 overflow-x-auto font-mono text-[12px] leading-[2] whitespace-pre text-fg-muted">
-                  <div>initagent fleet devices</div>
+                  <div>initagent fleet connectors</div>
                   <div>initagent fleet run homelab -- git status</div>
                   <div>initagent fleet read homelab build</div>
                 </div>

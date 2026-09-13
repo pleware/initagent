@@ -101,13 +101,13 @@ func (s *Server) refuseAnotherProject(w http.ResponseWriter, orgId, accountId st
 	return true
 }
 
-func (s *Server) refuseAnotherMachine(w http.ResponseWriter, orgId, projectId, accountId, nextDevice string) bool {
-	nextDevice = strings.TrimSpace(nextDevice)
-	if nextDevice == "" {
+func (s *Server) refuseAnotherMachine(w http.ResponseWriter, orgId, projectId, accountId, nextConnector string) bool {
+	nextConnector = strings.TrimSpace(nextConnector)
+	if nextConnector == "" {
 		return false
 	}
 	if projectId != "" {
-		enrolled, err := s.store.ProjectHasDevice(projectId, nextDevice)
+		enrolled, err := s.store.ProjectHasConnector(projectId, nextConnector)
 		if err != nil {
 			httpError(w, http.StatusInternalServerError, err.Error())
 			return true

@@ -54,7 +54,7 @@ export function HowItWorks() {
           </h2>
           <p className="mt-5 text-[16px] leading-relaxed text-fg-muted">
             Terminal streams, machine stats, file transfers, and control all
-            share the same connection. Nothing dials in to your devices.
+            share the same connection. Nothing dials in to your connectors.
           </p>
         </Reveal>
 

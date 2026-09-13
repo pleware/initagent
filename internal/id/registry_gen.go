@@ -18,7 +18,7 @@ var contexts = []Context{ContextHub, ContextProject, ContextGDesk, ContextFleet,
 // name, derived rather than declared, so the two cannot drift apart.
 const (
 	Attachment     Kind = "attachment"
-	Device         Kind = "device"
+	Connector      Kind = "connector"
 	Enrollment     Kind = "enrollment"
 	Host           Kind = "host"
 	Terminal       Kind = "terminal"
@@ -68,8 +68,8 @@ var entities = map[Kind]Spec{
 		Description: "One browser view of a terminal. It exists so \"who is watching this session\" is answerable, and so closing a tab does not kill the process behind it.",
 		Lifetime:    "while the tab is open",
 	},
-	Device: {
-		Name:        "initagent.fleet.device",
+	Connector: {
+		Name:        "initagent.fleet.connector",
 		Context:     ContextFleet,
 		Description: "One enrolled connector instance — what upstream called an agent. It holds the socket to the gateway and it is what a task is placed on.",
 		Lifetime:    "enroll → delete",
@@ -77,14 +77,14 @@ var entities = map[Kind]Spec{
 	Enrollment: {
 		Name:        "initagent.fleet.enrollment",
 		Context:     ContextFleet,
-		Description: "The single-use credential that joins a machine. Separate from the device so handing someone an enrolment is not handing them a machine that already exists.",
+		Description: "The single-use credential that joins a machine. Separate from the connector so handing someone an enrolment is not handing them a machine that already exists.",
 		Lifetime:    "minted → used or expired",
 	},
 	Host: {
 		Name:        "initagent.fleet.host",
 		Context:     ContextFleet,
-		Description: "One physical machine. Two connectors on one box are two devices sharing a host, and the scheduler needs the difference because CPU and per-machine coding-CLI authentication belong to the host.",
-		Lifetime:    "first enroll → last device removed",
+		Description: "One physical machine. Two connectors on one box share a host, and the scheduler needs the difference because CPU and per-machine coding-CLI authentication belong to the host.",
+		Lifetime:    "first enroll → last connector removed",
 	},
 	Terminal: {
 		Name:        "initagent.fleet.terminal",
@@ -310,7 +310,7 @@ var unminted = []Spec{
 	{
 		Name:        "initagent.fleet.file",
 		Context:     ContextFleet,
-		Description: "A file on an enrolled machine's disk, listed, downloaded or uploaded through the connector. A device id and a path already name it; a row of ours would imply the hub holds something it does not.",
+		Description: "A file on an enrolled machine's disk, listed, downloaded or uploaded through the connector. A connector id and a path already name it; a row of ours would imply the hub holds something it does not.",
 		Lifetime:    "the file's own",
 	},
 	{

@@ -2,7 +2,7 @@
 //
 // Every identifier is <prefix>-<uuid>, for example
 //
-//	device-0198f3a1-7c4e-7b2a-9f31-2c6a8d4e5b70
+//	connector-0198f3a1-7c4e-7b2a-9f31-2c6a8d4e5b70
 //
 // The UUID is version 7, so keys are time-ordered and append to an index
 // instead of splitting pages at random. That costs nothing on SQLite and
@@ -59,7 +59,7 @@ const Separator = "-"
 // list somewhere else is how "task" ends up meaning two different things.
 //
 // A prefix is the last segment of the entity's qualified name, spelled out
-// in full: initagent.fleet.device mints device-, initagent.hub.password_reset
+// in full: initagent.fleet.connector mints connector-, initagent.hub.password_reset
 // mints password_reset-. There is no length limit and no abbreviation, so
 // nothing has to be looked up to read a log line, and there is no judgement
 // call left for the rule to drift through. An underscore inside a name is

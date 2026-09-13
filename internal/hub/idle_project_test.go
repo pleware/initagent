@@ -232,7 +232,7 @@ func TestRetainIdleProjectsStampsOnlineGatewayWorker(t *testing.T) {
 		t.Fatal(err)
 	}
 	gw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/devices" {
+		if r.URL.Path != "/api/connectors" {
 			http.NotFound(w, r)
 			return
 		}
@@ -259,17 +259,17 @@ func TestRetainIdleProjectsStampsOnlineGatewayWorker(t *testing.T) {
 	}
 }
 
-func TestUpdateDeviceOnConnectStampsProject(t *testing.T) {
+func TestUpdateConnectorOnConnectStampsProject(t *testing.T) {
 	s := testStore(t)
 	org, err := s.CreateOrg("Free")
 	if err != nil {
 		t.Fatal(err)
 	}
-	deviceID, _, err := s.CreateDevice("studio", "studio.local", "linux", "amd64", false)
+	connectorID, _, err := s.CreateConnector("studio", "studio.local", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := s.CreateProject(org.Id, "Storefront", deviceID, "/srv", "", "", "", "")
+	p, err := s.CreateProject(org.Id, "Storefront", connectorID, "/srv", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +277,7 @@ func TestUpdateDeviceOnConnectStampsProject(t *testing.T) {
 	if _, err := s.db.Exec(`UPDATE projects SET activity_at = ? WHERE id = ?`, now.Unix(), p.Id); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.UpdateDeviceOnConnect(deviceID, "studio.local", "linux", "amd64"); err != nil {
+	if err := s.UpdateConnectorOnConnect(connectorID, "studio.local", "linux", "amd64"); err != nil {
 		t.Fatal(err)
 	}
 	row, err := s.projectIdle(p.Id)

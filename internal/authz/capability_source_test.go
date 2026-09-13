@@ -17,7 +17,7 @@ import (
 // into a generated half and a hand-written half that has to agree with it,
 // which is the drift this pass exists to remove rather than relocate. The
 // exported constant names are also public API, and none of them derives from
-// its value (`create:fleet.device` is EnrollDevice, not CreateDevice).
+// its value (`create:fleet.connector` is EnrollConnector, not CreateConnector).
 //
 // So the constants stay written and this test makes them derived in the sense
 // that matters: the registry decides which capabilities may exist, and a

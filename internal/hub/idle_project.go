@@ -70,8 +70,8 @@ func (s *Store) listProjectIdleByOrg(orgID string) ([]projectIdleRow, error) {
 	return out, rows.Err()
 }
 
-func (s *Store) touchProjectsForDevice(deviceID string, now time.Time) error {
-	bounds, err := s.DeviceBoundaries(deviceID)
+func (s *Store) touchProjectsForConnector(connectorID string, now time.Time) error {
+	bounds, err := s.ConnectorBoundaries(connectorID)
 	if err != nil {
 		return err
 	}
@@ -175,7 +175,7 @@ func (s *Server) projectHasOnlineWorker(ctx context.Context, p projectIdleRow) b
 			Online bool `json:"online"`
 		}
 		if err := s.getGatewayJSON(ctx, placement{projectID: p.ID, gatewayURL: p.GatewayURL},
-			"/api/devices", &devices); err != nil {
+			"/api/connectors", &devices); err != nil {
 			return false
 		}
 		for _, d := range devices {
@@ -188,7 +188,7 @@ func (s *Server) projectHasOnlineWorker(ctx context.Context, p projectIdleRow) b
 	if s.registry == nil {
 		return false
 	}
-	ids, err := s.store.deviceIdsByProjects([]string{p.ID})
+	ids, err := s.store.connectorIdsByProjects([]string{p.ID})
 	if err != nil {
 		return false
 	}

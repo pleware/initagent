@@ -14,7 +14,7 @@ import (
 
 func TestTermWSBridgesAgentOutput(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, agent, ts := connectAgentWS(t, g)
+	connectorID, agent, ts := connectAgentWS(t, g)
 
 	go func() {
 		for {
@@ -37,7 +37,7 @@ func TestTermWSBridgesAgentOutput(t *testing.T) {
 		}
 	}()
 
-	u := "ws" + strings.TrimPrefix(ts.URL, "http") + "/api/ws/term?device=" + deviceID + "&session=term-1&cols=80&rows=24"
+	u := "ws" + strings.TrimPrefix(ts.URL, "http") + "/api/ws/term?connector=" + connectorID + "&session=term-1&cols=80&rows=24"
 	client, resp, err := websocket.DefaultDialer.Dial(u, nil)
 	if err != nil {
 		t.Fatalf("dial term: %v (resp=%v)", err, resp)
@@ -60,13 +60,13 @@ func TestTermWSBridgesAgentOutput(t *testing.T) {
 
 func TestTermWSOfflineStatus(t *testing.T) {
 	g := openTest(t, "")
-	deviceID, _, err := g.Store().CreateDevice(t.Context(), g.Project().ID, "box", "box", "linux", "amd64")
+	connectorID, _, err := g.Store().CreateConnector(t.Context(), g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
 	ts := httptest.NewServer(g.Handler())
 	t.Cleanup(ts.Close)
-	u := "ws" + strings.TrimPrefix(ts.URL, "http") + "/api/ws/term?device=" + deviceID + "&session=term-1"
+	u := "ws" + strings.TrimPrefix(ts.URL, "http") + "/api/ws/term?connector=" + connectorID + "&session=term-1"
 	_, resp, err := websocket.DefaultDialer.Dial(u, nil)
 	if err == nil {
 		t.Fatal("wanted offline device to refuse the socket")

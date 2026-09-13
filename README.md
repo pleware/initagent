@@ -204,7 +204,11 @@ on that screen is stored on the account (`en` or `pl`). That mints a customer
 admin. Self-host does not show that door; claim already made the operator
 the founder. After sign-in, an empty Code page asks them to name the
 organization (or skip) and add the first project. The hosted platform
-operator is not that funnel. Forgot-password sends a reset mail in the
+operator is not that funnel. Hosted organizations see **Plans** in the
+cockpit: Free is one person; Starter and Team are Stripe Checkout at
+$5 / person / month; the VAT invoice is issued in Fakturownia and sent
+to KSeF. Self-host has no Plans page and no payment against us.
+Forgot-password sends a reset mail in the
 language stored on the account through the hub outbox. The link works
 once, for one hour.
 
@@ -284,7 +288,7 @@ initagent fleet login --hub http://YOUR-HUB:4200 --token YOUR_API_TOKEN
 claude mcp add initagent -- initagent mcp     # for Claude Code
 ```
 
-Now your agent has these tools: `list_devices`, `list_sessions`,
+Now your agent has these tools: `list_connectors`, `list_sessions`,
 `create_session`, `send_input`, `read_output`, `run_command`, `kill_session`,
 `list_files`, `read_file`, `write_file`. Ask it things like *"launch claude in
 ~/projects/api on the homelab box and have it fix the failing tests, then report
@@ -293,7 +297,7 @@ back."*
 The same operations are available as a CLI:
 
 ```sh
-initagent fleet devices
+initagent fleet connectors
 initagent fleet new homelab build --cwd ~/app --cmd "claude"
 initagent fleet read homelab build
 initagent fleet run homelab -- git status

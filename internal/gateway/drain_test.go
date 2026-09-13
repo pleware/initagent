@@ -19,14 +19,14 @@ func TestOutdatedDeviceTakesNoNewTask(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = g.Close() })
 
-	deviceID, _, ts := connectAgent(t, g, protocol.Hello{
+	connectorID, _, ts := connectAgent(t, g, protocol.Hello{
 		Hostname: "box", OS: "linux", Version: "v0.3.8",
 	})
-	if !g.draining(deviceID) {
+	if !g.draining(connectorID) {
 		t.Fatal("outdated hello should drain")
 	}
 
-	rec := postTask(t, ts, map[string]string{"command": "echo hi", "deviceId": deviceID})
+	rec := postTask(t, ts, map[string]string{"command": "echo hi", "connectorId": connectorID})
 	if rec.Code != 409 {
 		t.Fatalf("named drain status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -44,15 +44,15 @@ func TestMatchingVersionIsClaimable(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = g.Close() })
 
-	deviceID, conn, ts := connectAgent(t, g, protocol.Hello{
+	connectorID, conn, ts := connectAgent(t, g, protocol.Hello{
 		Hostname: "box", OS: "linux", Version: "v0.3.9",
 	})
-	if g.draining(deviceID) {
+	if g.draining(connectorID) {
 		t.Fatal("current hello should not drain")
 	}
 	replyExec(t, conn, 0)
 
-	rec := postTask(t, ts, map[string]string{"command": "echo hi", "deviceId": deviceID})
+	rec := postTask(t, ts, map[string]string{"command": "echo hi", "connectorId": connectorID})
 	if rec.Code != 200 {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -93,7 +93,7 @@ func TestMatchingHelloClearsDrain(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = g.Close() })
 
-	deviceID, token, err := g.Store().CreateDevice(t.Context(), g.Project().ID, "box", "box", "linux", "amd64")
+	connectorID, token, err := g.Store().CreateConnector(t.Context(), g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,22 +101,22 @@ func TestMatchingHelloClearsDrain(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	old := dialHello(t, ts, token, protocol.Hello{Hostname: "box", OS: "linux", Version: "v0.3.8"})
-	waitAttached(t, g, deviceID)
-	if !g.draining(deviceID) {
+	waitAttached(t, g, connectorID)
+	if !g.draining(connectorID) {
 		t.Fatal("outdated hello should drain")
 	}
 
 	_ = old.Close()
-	waitDetached(t, g, deviceID)
+	waitDetached(t, g, connectorID)
 
 	conn := dialHello(t, ts, token, protocol.Hello{Hostname: "box", OS: "linux", Version: "v0.3.9"})
-	waitAttached(t, g, deviceID)
-	if g.draining(deviceID) {
+	waitAttached(t, g, connectorID)
+	if g.draining(connectorID) {
 		t.Fatal("matching hello should clear drain")
 	}
 	replyExec(t, conn, 0)
 
-	rec := postTask(t, ts, map[string]string{"command": "echo hi", "deviceId": deviceID})
+	rec := postTask(t, ts, map[string]string{"command": "echo hi", "connectorId": connectorID})
 	if rec.Code != 200 {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
@@ -146,11 +146,11 @@ func dialHello(t *testing.T, ts *httptest.Server, token string, hello protocol.H
 	return conn
 }
 
-func waitAttached(t *testing.T, g *Gateway, deviceID string) {
+func waitAttached(t *testing.T, g *Gateway, connectorID string) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if g.connFor(deviceID) != nil {
+		if g.connFor(connectorID) != nil {
 			return
 		}
 		time.Sleep(5 * time.Millisecond)
@@ -158,11 +158,11 @@ func waitAttached(t *testing.T, g *Gateway, deviceID string) {
 	t.Fatal("agent never attached")
 }
 
-func waitDetached(t *testing.T, g *Gateway, deviceID string) {
+func waitDetached(t *testing.T, g *Gateway, connectorID string) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		if g.connFor(deviceID) == nil {
+		if g.connFor(connectorID) == nil {
 			return
 		}
 		time.Sleep(5 * time.Millisecond)

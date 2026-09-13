@@ -10,10 +10,10 @@ import (
 	"github.com/pleware/initagent/internal/protocol"
 )
 
-// Device is a worker enrolled into one project. ProjectID travels with the
+// Connector is a worker enrolled into one project. ProjectID travels with the
 // row so a credential answers which project it belongs to — a gateway
 // process serves many projects, so the socket cannot inherit one (18).
-type Device struct {
+type Connector struct {
 	ID        string `json:"id"`
 	ProjectID string `json:"projectId"`
 	Name      string `json:"name"`
@@ -25,9 +25,9 @@ type Device struct {
 	LastSeen  int64  `json:"lastSeen"`
 }
 
-// DeviceView is what the hub proxies to the cockpit.
-type DeviceView struct {
-	Device
+// ConnectorView is what the hub proxies to the cockpit.
+type ConnectorView struct {
+	Connector
 	Online          bool            `json:"online"`
 	Stats           *protocol.Stats `json:"stats,omitempty"`
 	Tmux            bool            `json:"tmux"`
@@ -37,12 +37,12 @@ type DeviceView struct {
 	KernelVersion   string          `json:"kernelVersion,omitempty"`
 }
 
-// CreateDevice registers a worker and returns its id and plaintext credential.
-func (s *Store) CreateDevice(ctx context.Context, projectID, name, hostname, osName, arch string) (deviceID, token string, err error) {
+// CreateConnector registers a worker and returns its id and plaintext credential.
+func (s *Store) CreateConnector(ctx context.Context, projectID, name, hostname, osName, arch string) (connectorID, token string, err error) {
 	if !id.Is(id.Project, projectID) {
 		return "", "", fmt.Errorf("%w: %s", ErrBadProjectID, projectID)
 	}
-	deviceID, err = id.New(id.Device)
+	connectorID, err = id.New(id.Connector)
 	if err != nil {
 		return "", "", err
 	}
@@ -54,39 +54,39 @@ func (s *Store) CreateDevice(ctx context.Context, projectID, name, hostname, osN
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO devices (id, project_id, name, hostname, os, arch, token_hash, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, deviceID, projectID, name, hostname, osName, arch, hashToken(token), unixTime(now))
+	`, connectorID, projectID, name, hostname, osName, arch, hashToken(token), unixTime(now))
 	if err != nil {
 		return "", "", fmt.Errorf("create device: %w", err)
 	}
-	return deviceID, token, nil
+	return connectorID, token, nil
 }
 
-// DeviceByToken authenticates a connector.
-func (s *Store) DeviceByToken(ctx context.Context, token string) (*Device, error) {
-	return s.scanDevice(s.db.QueryRowContext(ctx, deviceSelect+` WHERE token_hash = ?`, hashToken(token)))
+// ConnectorByToken authenticates a connector.
+func (s *Store) ConnectorByToken(ctx context.Context, token string) (*Connector, error) {
+	return s.scanConnector(s.db.QueryRowContext(ctx, connectorSelect+` WHERE token_hash = ?`, hashToken(token)))
 }
 
-// DeviceByID loads one worker.
-func (s *Store) DeviceByID(ctx context.Context, deviceID string) (*Device, error) {
-	if !id.Is(id.Device, deviceID) {
-		return nil, fmt.Errorf("%w: %s", ErrBadDeviceID, deviceID)
+// ConnectorByID loads one worker.
+func (s *Store) ConnectorByID(ctx context.Context, connectorID string) (*Connector, error) {
+	if !id.Is(id.Connector, connectorID) {
+		return nil, fmt.Errorf("%w: %s", ErrBadConnectorID, connectorID)
 	}
-	return s.scanDevice(s.db.QueryRowContext(ctx, deviceSelect+` WHERE id = ?`, deviceID))
+	return s.scanConnector(s.db.QueryRowContext(ctx, connectorSelect+` WHERE id = ?`, connectorID))
 }
 
-// ListDevices returns every worker for a project, oldest first.
-func (s *Store) ListDevices(ctx context.Context, projectID string) ([]Device, error) {
+// ListConnectors returns every worker for a project, oldest first.
+func (s *Store) ListConnectors(ctx context.Context, projectID string) ([]Connector, error) {
 	if !id.Is(id.Project, projectID) {
 		return nil, fmt.Errorf("%w: %s", ErrBadProjectID, projectID)
 	}
-	rows, err := s.db.QueryContext(ctx, deviceSelect+` WHERE project_id = ? ORDER BY created_at ASC, id ASC`, projectID)
+	rows, err := s.db.QueryContext(ctx, connectorSelect+` WHERE project_id = ? ORDER BY created_at ASC, id ASC`, projectID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Device
+	var out []Connector
 	for rows.Next() {
-		d, err := scanDeviceRow(rows)
+		d, err := scanConnectorRow(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -95,18 +95,18 @@ func (s *Store) ListDevices(ctx context.Context, projectID string) ([]Device, er
 	return out, rows.Err()
 }
 
-// UpdateDeviceOnConnect records hello fields and last_seen.
-func (s *Store) UpdateDeviceOnConnect(ctx context.Context, deviceID, hostname, osName, arch string) error {
+// UpdateConnectorOnConnect records hello fields and last_seen.
+func (s *Store) UpdateConnectorOnConnect(ctx context.Context, connectorID, hostname, osName, arch string) error {
 	_, err := s.db.ExecContext(ctx, `
 		UPDATE devices SET hostname = ?, os = ?, arch = ?, last_seen = ? WHERE id = ?
-	`, hostname, osName, arch, unixTime(time.Now().UTC()), deviceID)
+	`, hostname, osName, arch, unixTime(time.Now().UTC()), connectorID)
 	return err
 }
 
-const deviceSelect = `SELECT id, project_id, name, hostname, os, arch, created_at, last_seen FROM devices`
+const connectorSelect = `SELECT id, project_id, name, hostname, os, arch, created_at, last_seen FROM devices`
 
-func (s *Store) scanDevice(row *sql.Row) (*Device, error) {
-	d, err := scanDeviceRow(row)
+func (s *Store) scanConnector(row *sql.Row) (*Connector, error) {
+	d, err := scanConnectorRow(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -120,12 +120,12 @@ type deviceRow interface {
 	Scan(dest ...any) error
 }
 
-func scanDeviceRow(row deviceRow) (Device, error) {
-	var d Device
+func scanConnectorRow(row deviceRow) (Connector, error) {
+	var d Connector
 	var created, lastSeen int64
 	err := row.Scan(&d.ID, &d.ProjectID, &d.Name, &d.Hostname, &d.OS, &d.Arch, &created, &lastSeen)
 	if err != nil {
-		return Device{}, err
+		return Connector{}, err
 	}
 	d.CreatedAt = created
 	d.LastSeen = lastSeen

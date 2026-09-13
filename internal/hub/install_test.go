@@ -67,13 +67,13 @@ func TestInstallScriptEmbedsHubHost(t *testing.T) {
 	}
 }
 
-func TestListDevicesAsksGateway(t *testing.T) {
+func TestListConnectorsAsksGateway(t *testing.T) {
 	gw, err := gateway.Open(gateway.Options{DataDir: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = gw.Close() })
-	if _, _, err := gw.Store().CreateDevice(context.Background(), gw.Project().ID, "box", "box", "linux", "amd64"); err != nil {
+	if _, _, err := gw.Store().CreateConnector(context.Background(), gw.Project().ID, "box", "box", "linux", "amd64"); err != nil {
 		t.Fatal(err)
 	}
 	ts := httptest.NewServer(gw.Handler())
@@ -81,13 +81,13 @@ func TestListDevicesAsksGateway(t *testing.T) {
 
 	srv := newTestServer(t, "v0.1.0")
 	srv.opts.GatewayURL = ts.URL
-	req := httptest.NewRequest("GET", "/api/devices", nil)
+	req := httptest.NewRequest("GET", "/api/connectors", nil)
 	w := httptest.NewRecorder()
-	srv.handleListDevices(w, req, operatorCred)
+	srv.handleListConnectors(w, req, operatorCred)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}
-	var views []gateway.DeviceView
+	var views []gateway.ConnectorView
 	if err := json.Unmarshal(w.Body.Bytes(), &views); err != nil {
 		t.Fatal(err)
 	}
@@ -145,15 +145,15 @@ func TestCreateEnrollTokenAsksGateway(t *testing.T) {
 
 func TestCreateSessionOfflineWithoutGateway(t *testing.T) {
 	srv := newTestServer(t, "v0.1.0")
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/device-01/sessions", strings.NewReader(`{"name":"claude-1"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/connector-01/sessions", strings.NewReader(`{"name":"claude-1"}`))
 	req.Header.Set("Content-Type", "application/json")
-	req.SetPathValue("id", "device-01")
+	req.SetPathValue("id", "connector-01")
 	w := httptest.NewRecorder()
 	srv.handleCreateSession(w, req, operatorCred)
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}
-	if !strings.Contains(w.Body.String(), "device is offline") {
+	if !strings.Contains(w.Body.String(), "connector is offline") {
 		t.Fatalf("body = %s", w.Body.String())
 	}
 }
@@ -172,15 +172,15 @@ func TestCreateSessionAsksGateway(t *testing.T) {
 
 	srv := newTestServer(t, "v0.1.0")
 	srv.opts.GatewayURL = gw.URL
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/device-01/sessions", strings.NewReader(`{"name":"claude-1"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/connector-01/sessions", strings.NewReader(`{"name":"claude-1"}`))
 	req.Header.Set("Content-Type", "application/json")
-	req.SetPathValue("id", "device-01")
+	req.SetPathValue("id", "connector-01")
 	w := httptest.NewRecorder()
 	srv.handleCreateSession(w, req, operatorCred)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}
-	if gotMethod != http.MethodPost || gotPath != "/api/devices/device-01/sessions" {
+	if gotMethod != http.MethodPost || gotPath != "/api/connectors/connector-01/sessions" {
 		t.Fatalf("proxied %s %s", gotMethod, gotPath)
 	}
 	if !strings.Contains(gotBody, "claude-1") {
@@ -190,7 +190,7 @@ func TestCreateSessionAsksGateway(t *testing.T) {
 
 func TestListSessionsAsksGateway(t *testing.T) {
 	gw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/api/devices/device-01/sessions" {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/connectors/connector-01/sessions" {
 			http.Error(w, "unexpected "+r.Method+" "+r.URL.Path, http.StatusBadRequest)
 			return
 		}
@@ -201,8 +201,8 @@ func TestListSessionsAsksGateway(t *testing.T) {
 
 	srv := newTestServer(t, "v0.1.0")
 	srv.opts.GatewayURL = gw.URL
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/device-01/sessions", nil)
-	req.SetPathValue("id", "device-01")
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/connector-01/sessions", nil)
+	req.SetPathValue("id", "connector-01")
 	w := httptest.NewRecorder()
 	srv.handleListSessions(w, req, operatorCred)
 	if w.Code != http.StatusOK {
@@ -213,7 +213,7 @@ func TestListSessionsAsksGateway(t *testing.T) {
 	}
 }
 
-// projectWithDevice plants a project whose fx worker is a device the hub's
+// projectWithConnector plants a project whose fx worker is a device the hub's
 // registry does not hold, which is exactly the self-host layout (the worker
 // dials the gateway, not the hub).
 func projectWithDevice(t *testing.T, srv *Server) *Project {
@@ -222,7 +222,7 @@ func projectWithDevice(t *testing.T, srv *Server) *Project {
 	if err != nil {
 		t.Fatal(err)
 	}
-	project, err := srv.store.CreateProject(org.Id, "Storefront", "device-01", "/srv/store", "", "", "", "")
+	project, err := srv.store.CreateProject(org.Id, "Storefront", "connector-01", "/srv/store", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +240,7 @@ func TestProjectExecOfflineWithoutGateway(t *testing.T) {
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}
-	if !strings.Contains(w.Body.String(), "project device is offline") {
+	if !strings.Contains(w.Body.String(), "project connector is offline") {
 		t.Fatalf("body = %s", w.Body.String())
 	}
 }
@@ -268,7 +268,7 @@ func TestProjectExecAsksGateway(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}
-	if gotMethod != http.MethodPost || gotPath != "/api/devices/device-01/exec" {
+	if gotMethod != http.MethodPost || gotPath != "/api/connectors/connector-01/exec" {
 		t.Fatalf("proxied %s %s", gotMethod, gotPath)
 	}
 	if gotExec.Command != "pwd" || gotExec.Cwd != "/srv/store" || gotExec.TimeoutSec != 120 {
@@ -281,14 +281,14 @@ func TestProjectExecAsksGateway(t *testing.T) {
 
 func TestFsListOfflineWithoutGateway(t *testing.T) {
 	srv := newTestServer(t, "v0.1.0")
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/device-01/fs", nil)
-	req.SetPathValue("id", "device-01")
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/connector-01/fs", nil)
+	req.SetPathValue("id", "connector-01")
 	w := httptest.NewRecorder()
 	srv.handleFsList(w, req, operatorCred)
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}
-	if !strings.Contains(w.Body.String(), "device is offline") {
+	if !strings.Contains(w.Body.String(), "connector is offline") {
 		t.Fatalf("body = %s", w.Body.String())
 	}
 }
@@ -304,14 +304,14 @@ func TestFsListAsksGateway(t *testing.T) {
 
 	srv := newTestServer(t, "v0.1.0")
 	srv.opts.GatewayURL = gw.URL
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/device-01/fs?path=/home", nil)
-	req.SetPathValue("id", "device-01")
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/connector-01/fs?path=/home", nil)
+	req.SetPathValue("id", "connector-01")
 	w := httptest.NewRecorder()
 	srv.handleFsList(w, req, operatorCred)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}
-	if gotPath != "/api/devices/device-01/fs?path=/home" {
+	if gotPath != "/api/connectors/connector-01/fs?path=/home" {
 		t.Fatalf("proxied %q", gotPath)
 	}
 	if !strings.Contains(w.Body.String(), "a.txt") {
@@ -321,7 +321,7 @@ func TestFsListAsksGateway(t *testing.T) {
 
 func TestFsDownloadAsksGateway(t *testing.T) {
 	gw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/devices/device-01/fs/download" {
+		if r.URL.Path != "/api/connectors/connector-01/fs/download" {
 			http.Error(w, "unexpected", http.StatusBadRequest)
 			return
 		}
@@ -333,8 +333,8 @@ func TestFsDownloadAsksGateway(t *testing.T) {
 
 	srv := newTestServer(t, "v0.1.0")
 	srv.opts.GatewayURL = gw.URL
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/device-01/fs/download?path=/srv/report.txt", nil)
-	req.SetPathValue("id", "device-01")
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/connector-01/fs/download?path=/srv/report.txt", nil)
+	req.SetPathValue("id", "connector-01")
 	w := httptest.NewRecorder()
 	srv.handleFsDownload(w, req, operatorCred)
 	if w.Code != http.StatusOK {
@@ -371,15 +371,15 @@ func TestFsUploadAsksGateway(t *testing.T) {
 	fw, _ := mw.CreateFormFile("file", "up.txt")
 	_, _ = fw.Write([]byte("uploaded"))
 	_ = mw.Close()
-	req := httptest.NewRequest(http.MethodPost, "/api/devices/device-01/fs/upload?dir=/srv", &buf)
+	req := httptest.NewRequest(http.MethodPost, "/api/connectors/connector-01/fs/upload?dir=/srv", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
-	req.SetPathValue("id", "device-01")
+	req.SetPathValue("id", "connector-01")
 	w := httptest.NewRecorder()
 	srv.handleFsUpload(w, req, operatorCred)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", w.Code, w.Body.String())
 	}
-	if gotMethod != http.MethodPost || gotPath != "/api/devices/device-01/fs/upload?dir=/srv" {
+	if gotMethod != http.MethodPost || gotPath != "/api/connectors/connector-01/fs/upload?dir=/srv" {
 		t.Fatalf("proxied %s %s", gotMethod, gotPath)
 	}
 	if gotForm != "uploaded" {
@@ -389,7 +389,7 @@ func TestFsUploadAsksGateway(t *testing.T) {
 
 func TestSetupStatusAsksGateway(t *testing.T) {
 	gw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/devices/device-01/setup" {
+		if r.URL.Path != "/api/connectors/connector-01/setup" {
 			http.Error(w, "unexpected", http.StatusBadRequest)
 			return
 		}
@@ -400,8 +400,8 @@ func TestSetupStatusAsksGateway(t *testing.T) {
 
 	srv := newTestServer(t, "v0.1.0")
 	srv.opts.GatewayURL = gw.URL
-	req := httptest.NewRequest(http.MethodGet, "/api/devices/device-01/setup", nil)
-	req.SetPathValue("id", "device-01")
+	req := httptest.NewRequest(http.MethodGet, "/api/connectors/connector-01/setup", nil)
+	req.SetPathValue("id", "connector-01")
 	w := httptest.NewRecorder()
 	srv.handleSetupStatus(w, req, operatorCred)
 	if w.Code != http.StatusOK {

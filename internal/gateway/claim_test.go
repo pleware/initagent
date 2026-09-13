@@ -12,7 +12,7 @@ import (
 
 func mustDevice(t *testing.T) string {
 	t.Helper()
-	dev, err := id.New(id.Device)
+	dev, err := id.New(id.Connector)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,8 +121,8 @@ func TestClaimRejectsBadIDs(t *testing.T) {
 	if !errors.Is(err, ErrBadProjectID) {
 		t.Fatalf("project: %v", err)
 	}
-	_, _, err = g.Store().Claim(ctx, g.Project().ID, "not-a-device", time.Minute)
-	if !errors.Is(err, ErrBadDeviceID) {
+	_, _, err = g.Store().Claim(ctx, g.Project().ID, "not-a-connector", time.Minute)
+	if !errors.Is(err, ErrBadConnectorID) {
 		t.Fatalf("device: %v", err)
 	}
 }
@@ -227,7 +227,7 @@ func TestHeartbeatRejectsBadIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := g.Store().Heartbeat(ctx, missing, "not-a-device", time.Minute); !errors.Is(err, ErrBadDeviceID) {
+	if err := g.Store().Heartbeat(ctx, missing, "not-a-connector", time.Minute); !errors.Is(err, ErrBadConnectorID) {
 		t.Fatalf("device: %v", err)
 	}
 	if err := g.Store().Heartbeat(ctx, missing, mustDevice(t), time.Minute); err != scheduler.ErrTaskNotFound {

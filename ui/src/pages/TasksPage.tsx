@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api, forProject } from '../api'
-import type { Device, TaskLaunch, TaskView } from '../types'
+import type { Connector, TaskLaunch, TaskView } from '../types'
 
 const LAUNCH_MODES: readonly TaskLaunch[] = ['exec', 'process', 'send_keys']
 
@@ -14,9 +14,9 @@ export default function TasksPage() {
   // which the hub resolves — the free plan never needs the parameter.
   const [searchParams] = useSearchParams()
   const projectId = searchParams.get('project') ?? undefined
-  const [devices, setDevices] = useState<Device[]>([])
+  const [connectors, setConnectors] = useState<Connector[]>([])
   const [command, setCommand] = useState('')
-  const [deviceId, setDeviceId] = useState('')
+  const [connectorId, setConnectorId] = useState('')
   const [launch, setLaunch] = useState<TaskLaunch>('exec')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<TaskView | null>(null)
@@ -24,7 +24,7 @@ export default function TasksPage() {
 
   const load = useCallback(async () => {
     try {
-      setDevices(await api.get<Device[]>(forProject('/api/devices', projectId)))
+      setConnectors(await api.get<Connector[]>(forProject('/api/connectors', projectId)))
     } catch {
       /* preserve the last snapshot during a short disconnect */
     }
@@ -34,7 +34,7 @@ export default function TasksPage() {
     load()
   }, [load])
 
-  const online = devices.filter((d) => d.online)
+  const online = connectors.filter((d) => d.online)
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -43,11 +43,11 @@ export default function TasksPage() {
     setError('')
     setResult(null)
     try {
-      const body: { command: string; deviceId?: string; launch: TaskLaunch } = {
+      const body: { command: string; connectorId?: string; launch: TaskLaunch } = {
         command: command.trim(),
         launch,
       }
-      if (deviceId) body.deviceId = deviceId
+      if (connectorId) body.connectorId = connectorId
       setResult(await api.post<TaskView>(forProject('/api/tasks', projectId), body))
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -79,13 +79,13 @@ export default function TasksPage() {
         />
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <label className="flex items-center gap-2 text-[11px] font-medium text-zinc-500">
-            <span>{t('tasks.deviceLabel')}</span>
+            <span>{t('tasks.connectorLabel')}</span>
             <SimpleSelect
-              value={deviceId}
-              onValueChange={setDeviceId}
-              aria-label={t('tasks.deviceLabel')}
+              value={connectorId}
+              onValueChange={setConnectorId}
+              aria-label={t('tasks.connectorLabel')}
               items={[
-                { value: '', label: t('tasks.anyDevice') },
+                { value: '', label: t('tasks.anyConnector') },
                 ...online.map((d) => ({ value: d.id, label: d.name })),
               ]}
             />
@@ -126,7 +126,7 @@ export default function TasksPage() {
             {result.launch && <Fact label={t('tasks.launch')} value={result.launch} />}
             <Fact label={t('tasks.exitCode')} value={String(result.exitCode)} />
             {result.reason && <Fact label={t('tasks.reason')} value={result.reason} />}
-            {result.assignedWorkerId && <Fact label={t('tasks.deviceLabel')} value={result.assignedWorkerId} />}
+            {result.assignedWorkerId && <Fact label={t('tasks.connectorLabel')} value={result.assignedWorkerId} />}
           </div>
           {result.stdout && <pre className="mt-4 overflow-x-auto rounded-lg bg-black/30 p-3 font-mono text-xs text-zinc-200">{result.stdout}</pre>}
           {result.stderr && <pre className="mt-2 overflow-x-auto rounded-lg bg-black/30 p-3 font-mono text-xs text-rose-300">{result.stderr}</pre>}

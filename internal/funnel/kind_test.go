@@ -21,7 +21,7 @@ func TestKnownKindsStayQualified(t *testing.T) {
 		KindInviteRedeem,
 		KindLogin,
 		KindProjectCreated,
-		KindDeviceEnrolled,
+		KindConnectorEnrolled,
 		KindTaskFinished,
 		KindPlanLimitHit,
 		KindIdleWarned,

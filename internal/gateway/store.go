@@ -21,14 +21,14 @@ import (
 )
 
 var (
-	ErrProjectNotFound = errors.New("project not found")
-	ErrBadProjectID    = errors.New("project id must be a project- identifier")
-	ErrBadTaskID       = errors.New("task id must be a task- identifier")
-	ErrBadDeviceID     = errors.New("device id must be a device- identifier")
-	ErrDeviceOffline   = errors.New("device is not connected")
-	ErrDeviceDraining  = errors.New("device is draining")
-	ErrEmptyCommand    = errors.New("task command is empty")
-	ErrUnknownLaunch   = errors.New("unknown launch mode")
+	ErrProjectNotFound   = errors.New("project not found")
+	ErrBadProjectID      = errors.New("project id must be a project- identifier")
+	ErrBadTaskID         = errors.New("task id must be a task- identifier")
+	ErrBadConnectorID    = errors.New("connector id must be a connector- identifier")
+	ErrConnectorOffline  = errors.New("connector is not connected")
+	ErrConnectorDraining = errors.New("connector is draining")
+	ErrEmptyCommand      = errors.New("task command is empty")
+	ErrUnknownLaunch     = errors.New("unknown launch mode")
 )
 
 // EnrollTTL is how long a minted enroll token can be exchanged.

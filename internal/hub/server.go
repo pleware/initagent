@@ -22,6 +22,7 @@ import (
 
 	"github.com/pleware/initagent/internal/agent"
 	"github.com/pleware/initagent/internal/authz"
+	"github.com/pleware/initagent/internal/billing"
 	"github.com/pleware/initagent/internal/brand"
 	"github.com/pleware/initagent/internal/join"
 	"github.com/pleware/initagent/internal/mailer"
@@ -70,6 +71,15 @@ type Options struct {
 	ResendAPIKey string
 	MailFrom     string
 
+	// Stripe and Fakturownia are hosted-only. Empty keys leave Plans
+	// visible and Checkout refused. Self-host ignores them.
+	StripeSecretKey     string
+	StripeWebhookSecret string
+	StripePriceStarter  string
+	StripePriceTeam     string
+	FakturowniaToken    string
+	FakturowniaDomain   string
+
 	// TrustedProxies is a comma-separated list of CIDRs or addresses
 	// allowed to set X-Forwarded-For. Empty means the rate-limit key is
 	// the TCP peer, which is correct for a hub that is not behind a
@@ -97,6 +107,7 @@ type Server struct {
 	updateApplied atomic.Bool
 	mail          mailer.Sender
 	mailWake      chan struct{}
+	billing       *billing.Service
 
 	// internalURL is a loopback-only plain-HTTP address serving the same mux.
 	// The embedded agent and the MCP endpoint use it so they work identically
@@ -151,15 +162,24 @@ func NewServer(opts Options) (*Server, error) {
 			GithubRepo: opts.GithubRepo,
 			Version:    opts.Version,
 		},
-		store:                store,
-		sessions:             newSessionManager(),
-		loginRL:              newRateLimiter(),
-		registerRL:           newRateLimiter(),
-		events:               events,
-		registry:             newRegistry(events),
-		mux:                  http.NewServeMux(),
-		mail:                 sender,
-		mailWake:             make(chan struct{}, 1),
+		store:      store,
+		sessions:   newSessionManager(),
+		loginRL:    newRateLimiter(),
+		registerRL: newRateLimiter(),
+		events:     events,
+		registry:   newRegistry(events),
+		mux:        http.NewServeMux(),
+		mail:       sender,
+		mailWake:   make(chan struct{}, 1),
+		billing: billing.New(billing.Config{
+			Offering:          opts.Offering,
+			StripeSecret:      opts.StripeSecretKey,
+			WebhookSecret:     opts.StripeWebhookSecret,
+			PriceStarter:      opts.StripePriceStarter,
+			PriceTeam:         opts.StripePriceTeam,
+			FakturowniaToken:  opts.FakturowniaToken,
+			FakturowniaDomain: opts.FakturowniaDomain,
+		}),
 		trusted:              trusted,
 		selfhostWorkerReady:  workerReady,
 		signalSelfhostWorker: sync.OnceFunc(func() { close(workerReady) }),
@@ -343,7 +363,7 @@ func (s *Server) runEmbeddedAgent(ctx context.Context) {
 		if name == "" {
 			name = "hub"
 		}
-		_, tok, err := s.store.CreateDevice(name, hostname, "", "", true)
+		_, tok, err := s.store.CreateConnector(name, hostname, "", "", true)
 		if err != nil {
 			log.Printf("embedded agent: registering hub device: %v", err)
 			return
@@ -375,6 +395,10 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/me", s.handleMe)
 	m.HandleFunc("PATCH /api/me", s.requireSession(s.handlePatchMe))
 	m.HandleFunc("GET /api/plans", s.handleListPlans)
+	m.HandleFunc("POST /api/billing/webhook", s.handleBillingWebhook)
+	m.HandleFunc("GET /api/orgs/{id}/billing", s.requireCredential(s.handleGetBilling))
+	m.HandleFunc("PATCH /api/orgs/{id}/billing", s.requireCredential(s.handlePatchBilling))
+	m.HandleFunc("POST /api/orgs/{id}/checkout", s.requireCredential(s.handleCheckout))
 	m.HandleFunc("GET /r/cta/{which}", s.handleCTA)
 	m.HandleFunc("POST /api/enroll", s.handleEnroll)
 	m.HandleFunc("GET /install/", s.installer.ServeScript)
@@ -385,36 +409,36 @@ func (s *Server) routes() {
 	m.HandleFunc("/mcp", s.handleMCPHTTP)
 
 	// Authenticated API. Every route below names exactly one capability, and
-	// the middleware it uses says where the boundary comes from: the machine
-	// in the path (requireDevice), a query parameter or the credential's own
+	// the middleware it uses says where the boundary comes from: the connector
+	// in the path (requireConnector), a query parameter or the credential's own
 	// grant (requireFleet), a row the handler has to load first
 	// (requireCredential), or the installation itself.
-	m.HandleFunc("GET /api/devices", s.requireFleet(authz.ReadDevice, s.handleListDevices))
-	m.HandleFunc("PATCH /api/devices/{id}", s.requireDevice(authz.AdminDevice, plain(s.handleRenameDevice)))
-	m.HandleFunc("DELETE /api/devices/{id}", s.requireDevice(authz.AdminDevice, plain(s.handleDeleteDevice)))
-	m.HandleFunc("POST /api/enroll-tokens", s.requireFleet(authz.EnrollDevice, s.handleCreateEnrollToken))
-	m.HandleFunc("GET /api/devices/{id}/sessions", s.requireDevice(authz.ReadTerminal, s.handleListSessions))
-	m.HandleFunc("POST /api/devices/{id}/sessions", s.requireDevice(authz.AttachTerminal, s.handleCreateSession))
-	m.HandleFunc("DELETE /api/devices/{id}/sessions/{name}", s.requireDevice(authz.AttachTerminal, s.handleKillSession))
-	m.HandleFunc("POST /api/devices/{id}/sessions/{name}/input", s.requireDevice(authz.AttachTerminal, s.handleSessionInput))
-	m.HandleFunc("GET /api/devices/{id}/sessions/{name}/output", s.requireDevice(authz.ReadTerminal, s.handleSessionOutput))
-	m.HandleFunc("POST /api/devices/{id}/exec", s.requireDevice(authz.ExecDevice, s.handleExec))
-	m.HandleFunc("GET /api/devices/{id}/setup", s.requireDevice(authz.ReadDevice, s.handleSetupStatus))
-	m.HandleFunc("GET /api/devices/{id}/fs", s.requireDevice(authz.ReadFile, s.handleFsList))
-	m.HandleFunc("GET /api/devices/{id}/fs/download", s.requireDevice(authz.ReadFile, s.handleFsDownload))
-	m.HandleFunc("POST /api/devices/{id}/fs/upload", s.requireDevice(authz.WriteFile, s.handleFsUpload))
+	m.HandleFunc("GET /api/connectors", s.requireFleet(authz.ReadConnector, s.handleListConnectors))
+	m.HandleFunc("PATCH /api/connectors/{id}", s.requireConnector(authz.AdminConnector, plain(s.handleRenameConnector)))
+	m.HandleFunc("DELETE /api/connectors/{id}", s.requireConnector(authz.AdminConnector, plain(s.handleDeleteConnector)))
+	m.HandleFunc("POST /api/enroll-tokens", s.requireFleet(authz.EnrollConnector, s.handleCreateEnrollToken))
+	m.HandleFunc("GET /api/connectors/{id}/sessions", s.requireConnector(authz.ReadTerminal, s.handleListSessions))
+	m.HandleFunc("POST /api/connectors/{id}/sessions", s.requireConnector(authz.AttachTerminal, s.handleCreateSession))
+	m.HandleFunc("DELETE /api/connectors/{id}/sessions/{name}", s.requireConnector(authz.AttachTerminal, s.handleKillSession))
+	m.HandleFunc("POST /api/connectors/{id}/sessions/{name}/input", s.requireConnector(authz.AttachTerminal, s.handleSessionInput))
+	m.HandleFunc("GET /api/connectors/{id}/sessions/{name}/output", s.requireConnector(authz.ReadTerminal, s.handleSessionOutput))
+	m.HandleFunc("POST /api/connectors/{id}/exec", s.requireConnector(authz.ExecConnector, s.handleExec))
+	m.HandleFunc("GET /api/connectors/{id}/setup", s.requireConnector(authz.ReadConnector, s.handleSetupStatus))
+	m.HandleFunc("GET /api/connectors/{id}/fs", s.requireConnector(authz.ReadFile, s.handleFsList))
+	m.HandleFunc("GET /api/connectors/{id}/fs/download", s.requireConnector(authz.ReadFile, s.handleFsDownload))
+	m.HandleFunc("POST /api/connectors/{id}/fs/upload", s.requireConnector(authz.WriteFile, s.handleFsUpload))
 	m.HandleFunc("GET /api/templates", s.requireFleet(authz.ReadTemplate, plain(s.handleListTemplates)))
 	m.HandleFunc("GET /api/projects", s.requireCredential(s.handleListProjects))
 	m.HandleFunc("POST /api/projects", s.requireCredential(s.handleCreateProject))
 	m.HandleFunc("PATCH /api/projects/{id}", s.requireCredential(s.handleUpdateProject))
 	m.HandleFunc("DELETE /api/projects/{id}", s.requireCredential(s.handleDeleteProject))
-	m.HandleFunc("POST /api/projects/{id}/devices", s.requireCredential(s.handleAttachProjectDevice))
-	m.HandleFunc("DELETE /api/projects/{id}/devices/{deviceId}", s.requireCredential(s.handleDetachProjectDevice))
+	m.HandleFunc("POST /api/projects/{id}/connectors", s.requireCredential(s.handleAttachProjectConnector))
+	m.HandleFunc("DELETE /api/projects/{id}/connectors/{connectorId}", s.requireCredential(s.handleDetachProjectConnector))
 	m.HandleFunc("POST /api/projects/{id}/activity", s.requireCredential(s.handleProjectActivity))
 	m.HandleFunc("POST /api/projects/{id}/exec", s.requireCredential(s.handleProjectExec))
 	m.HandleFunc("POST /api/tasks", s.requireFleet(authz.CreateTask, s.handleCreateTask))
 	m.HandleFunc("GET /api/tasks/{id}", s.requireFleet(authz.ReadTask, s.handleGetTask))
-	m.HandleFunc("GET /api/agents", s.requireFleet(authz.ReadDevice, s.handleFleetAgents))
+	m.HandleFunc("GET /api/agents", s.requireFleet(authz.ReadConnector, s.handleFleetAgents))
 	m.HandleFunc("GET /api/presets", s.requireFleet(authz.ReadPreset, plain(s.handleListPresets)))
 	m.HandleFunc("POST /api/presets", s.requireFleet(authz.AdminPreset, plain(s.handleCreatePreset)))
 	m.HandleFunc("DELETE /api/presets/{id}", s.requireFleet(authz.AdminPreset, plain(s.handleDeletePreset)))

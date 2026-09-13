@@ -5,7 +5,7 @@ import Modal from './Modal'
 
 // projectId names which project the new device joins. Omitting it is correct
 // on a hub with one project, which the hub resolves for us.
-export default function AddDeviceModal({ onClose, projectId }: { onClose: () => void; projectId?: string }) {
+export default function AddConnectorModal({ onClose, projectId }: { onClose: () => void; projectId?: string }) {
   const [command, setCommand] = useState('')
   const [windowsCommand, setWindowsCommand] = useState('')
   const [platform, setPlatform] = useState<'unix' | 'windows'>('unix')
@@ -25,7 +25,7 @@ export default function AddDeviceModal({ onClose, projectId }: { onClose: () => 
 
   // The modal celebrates live when the new device connects.
   useHubEvents((e) => {
-    if (e.type === 'device.online') setJoined(true)
+    if (e.type === 'connector.online') setJoined(true)
   })
 
   const copy = async () => {
@@ -37,9 +37,9 @@ export default function AddDeviceModal({ onClose, projectId }: { onClose: () => 
   const activeCommand = platform === 'windows' ? windowsCommand : command
 
   return (
-    <Modal title="Add a device" onClose={onClose}>
+    <Modal title="Add a connector" onClose={onClose}>
       <p className="mb-4 text-sm text-zinc-400">
-        Paste this on the device you want to add. It installs the agent,
+        Paste this on the machine you want to add. It installs the agent,
         connects it to this hub, and keeps it running in the background.
       </p>
       {error ? (
@@ -86,12 +86,12 @@ export default function AddDeviceModal({ onClose, projectId }: { onClose: () => 
       )}
       <p className="mb-4 text-xs text-zinc-500">
         The link is single-use and expires in 15 minutes. Generate a new one
-        per device.
+        per connector.
       </p>
       {joined ? (
         <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
           <span className="text-sm font-medium text-emerald-300">
-            Device connected
+            Connector connected
           </span>
           <button
             onClick={onClose}
@@ -103,7 +103,7 @@ export default function AddDeviceModal({ onClose, projectId }: { onClose: () => 
       ) : (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <span className="h-2 w-2 animate-pulse rounded-full bg-lime-400" />
-          Waiting for the device to join…
+          Waiting for the connector to join…
         </div>
       )}
     </Modal>

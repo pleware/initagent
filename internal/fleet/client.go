@@ -139,7 +139,7 @@ func (c *Client) do(method, path string, body any, out any) error {
 
 // --- typed API surface ---
 
-type Device struct {
+type Connector struct {
 	Id       string `json:"id"`
 	Name     string `json:"name"`
 	Hostname string `json:"hostname"`
@@ -159,8 +159,8 @@ type Session struct {
 	LastActivity int64  `json:"lastActivity"`
 	Attached     bool   `json:"attached"`
 	Ephemeral    bool   `json:"ephemeral"`
-	DeviceId     string `json:"deviceId,omitempty"`
-	DeviceName   string `json:"deviceName,omitempty"`
+	ConnectorId     string `json:"connectorId,omitempty"`
+	ConnectorName   string `json:"connectorName,omitempty"`
 }
 
 type ExecResult struct {
@@ -170,24 +170,24 @@ type ExecResult struct {
 	Truncated bool   `json:"truncated"`
 }
 
-func (c *Client) Devices() ([]Device, error) {
-	var out []Device
-	err := c.do("GET", "/api/devices", nil, &out)
+func (c *Client) Connectors() ([]Connector, error) {
+	var out []Connector
+	err := c.do("GET", "/api/connectors", nil, &out)
 	return out, err
 }
 
-// ResolveDevice accepts a device id or (case-insensitive) name.
-func (c *Client) ResolveDevice(ref string) (*Device, error) {
-	devices, err := c.Devices()
+// ResolveConnector accepts a connector id or (case-insensitive) name.
+func (c *Client) ResolveConnector(ref string) (*Connector, error) {
+	connectors, err := c.Connectors()
 	if err != nil {
 		return nil, err
 	}
-	for i := range devices {
-		if devices[i].Id == ref || strings.EqualFold(devices[i].Name, ref) {
-			return &devices[i], nil
+	for i := range connectors {
+		if connectors[i].Id == ref || strings.EqualFold(connectors[i].Name, ref) {
+			return &connectors[i], nil
 		}
 	}
-	return nil, fmt.Errorf("no device named %q — run `%s fleet devices` to list", ref, brand.Binary)
+	return nil, fmt.Errorf("no connector named %q — run `%s fleet connectors` to list", ref, brand.Binary)
 }
 
 func (c *Client) FleetSessions() ([]Session, error) {
@@ -196,38 +196,38 @@ func (c *Client) FleetSessions() ([]Session, error) {
 	return out, err
 }
 
-func (c *Client) Sessions(deviceId string) ([]Session, error) {
+func (c *Client) Sessions(connectorId string) ([]Session, error) {
 	var out []Session
-	err := c.do("GET", "/api/devices/"+deviceId+"/sessions", nil, &out)
+	err := c.do("GET", "/api/connectors/"+connectorId+"/sessions", nil, &out)
 	return out, err
 }
 
-func (c *Client) CreateSession(deviceId, name, cwd, command, kind string) error {
+func (c *Client) CreateSession(connectorId, name, cwd, command, kind string) error {
 	body := map[string]string{"name": name, "cwd": cwd, "command": command, "kind": kind}
-	return c.do("POST", "/api/devices/"+deviceId+"/sessions", body, nil)
+	return c.do("POST", "/api/connectors/"+connectorId+"/sessions", body, nil)
 }
 
-func (c *Client) KillSession(deviceId, name string) error {
-	return c.do("DELETE", "/api/devices/"+deviceId+"/sessions/"+name, nil, nil)
+func (c *Client) KillSession(connectorId, name string) error {
+	return c.do("DELETE", "/api/connectors/"+connectorId+"/sessions/"+name, nil, nil)
 }
 
-func (c *Client) SendInput(deviceId, session, text string, enter bool) error {
+func (c *Client) SendInput(connectorId, session, text string, enter bool) error {
 	body := map[string]any{"text": text, "enter": enter}
-	return c.do("POST", "/api/devices/"+deviceId+"/sessions/"+session+"/input", body, nil)
+	return c.do("POST", "/api/connectors/"+connectorId+"/sessions/"+session+"/input", body, nil)
 }
 
-func (c *Client) ReadOutput(deviceId, session string, lines int) (string, error) {
+func (c *Client) ReadOutput(connectorId, session string, lines int) (string, error) {
 	var out struct {
 		Output string `json:"output"`
 	}
-	path := fmt.Sprintf("/api/devices/%s/sessions/%s/output?lines=%d", deviceId, session, lines)
+	path := fmt.Sprintf("/api/connectors/%s/sessions/%s/output?lines=%d", connectorId, session, lines)
 	err := c.do("GET", path, nil, &out)
 	return out.Output, err
 }
 
-func (c *Client) Run(deviceId, command, cwd string, timeoutSec int) (ExecResult, error) {
+func (c *Client) Run(connectorId, command, cwd string, timeoutSec int) (ExecResult, error) {
 	var out ExecResult
 	body := map[string]any{"command": command, "cwd": cwd, "timeoutSec": timeoutSec}
-	err := c.do("POST", "/api/devices/"+deviceId+"/exec", body, &out)
+	err := c.do("POST", "/api/connectors/"+connectorId+"/exec", body, &out)
 	return out, err
 }

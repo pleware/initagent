@@ -8,9 +8,9 @@ import (
 	"github.com/pleware/initagent/internal/authz"
 )
 
-func (f *adminFixture) addDevice(t *testing.T) string {
+func (f *adminFixture) addConnector(t *testing.T) string {
 	t.Helper()
-	id, _, err := f.srv.store.CreateDevice("studio", "studio.local", "linux", "amd64", false)
+	id, _, err := f.srv.store.CreateConnector("studio", "studio.local", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,10 +20,10 @@ func (f *adminFixture) addDevice(t *testing.T) string {
 func TestCreateProjectLandsInTheSoleOrg(t *testing.T) {
 	f := hostedCustomer(t)
 	f.srv.opts.GatewayURL = "http://gateway.test"
-	device := f.addDevice(t)
+	device := f.addConnector(t)
 
 	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
-		"name": "Storefront", "deviceId": device, "path": "/srv/store",
+		"name": "Storefront", "connectorId": device, "path": "/srv/store",
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create: %d, want 201", resp.StatusCode)
@@ -53,10 +53,10 @@ func TestMemberCannotCreateAProject(t *testing.T) {
 	f := hostedCustomer(t)
 	f.addMember(t, "dev@example.com", "correct-horse-battery-staple", authz.RoleMember)
 	dev := f.signIn(t, "dev@example.com", "correct-horse-battery-staple")
-	device := f.addDevice(t)
+	device := f.addConnector(t)
 
 	resp := requestJSON(t, f.ts, dev, http.MethodPost, "/api/projects", map[string]string{
-		"name": "Nope", "deviceId": device, "path": "/tmp",
+		"name": "Nope", "connectorId": device, "path": "/tmp",
 	})
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("member create: %d, want 403", resp.StatusCode)
@@ -69,7 +69,7 @@ func TestProjectInAnotherOrgIsNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	device := f.addDevice(t)
+	device := f.addConnector(t)
 	hidden, err := f.srv.store.CreateProject(other.Id, "Secret", device, "/secret", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +128,7 @@ func TestCreateProjectWithoutDevice(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&p); err != nil {
 		t.Fatal(err)
 	}
-	if p.Name != "Storefront" || p.TemplateId != "software" || p.DeviceId != "" {
+	if p.Name != "Storefront" || p.TemplateId != "software" || p.ConnectorId != "" {
 		t.Fatalf("project = %+v", p)
 	}
 

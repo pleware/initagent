@@ -22,8 +22,8 @@ z pamięci; token wygasa po 15 minutach.
 | `wsl -l -v` | lista dystrybucji / tryb WSL | cz. 2 |
 | `systemctl status docker` | czy Docker w WSL wstaje sam | cz. 2 |
 | `docker run --hostname dell-worker-01 …` | kontener o jawnej nazwie = worker | cz. 2 |
-| `initagent fleet devices` | lista urządzeń (weryfikacja) | obie |
-| `initagent fleet run <DEVICE> -- initagent version` | smoke test | obie |
+| `initagent fleet connectors` | lista urządzeń (weryfikacja) | obie |
+| `initagent fleet run <CONNECTOR> -- initagent version` | smoke test | obie |
 | `wsl --unregister Ubuntu` | **kasuje** dystrybucję i całą jej zawartość | cz. 2 |
 
 ## Słownik
@@ -42,7 +42,7 @@ z pamięci; token wygasa po 15 minutach.
 - dostęp do maszyny (konsola, RDP, SSH),
 - nazwa workera: agent bierze ją z **hostname'a** środowiska, więc ustal ją
   przed dołączeniem (`dell-worker-01`) — mechanika w każdej części. Hub umie
-  ją zmienić po fakcie (`PATCH /api/devices/{id}`), ale panel nie ma na to
+  ją zmienić po fakcie (`PATCH /api/connectors/{id}`), ale panel nie ma na to
   przycisku.
 
 ## Czego ta instrukcja świadomie nie ustala

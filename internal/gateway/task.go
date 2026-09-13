@@ -200,8 +200,8 @@ func (s *Store) Claim(ctx context.Context, projectID, workerID string, lease tim
 	if !id.Is(id.Project, projectID) {
 		return nil, nil, fmt.Errorf("%w: %s", ErrBadProjectID, projectID)
 	}
-	if !id.Is(id.Device, workerID) {
-		return nil, nil, fmt.Errorf("%w: %s", ErrBadDeviceID, workerID)
+	if !id.Is(id.Connector, workerID) {
+		return nil, nil, fmt.Errorf("%w: %s", ErrBadConnectorID, workerID)
 	}
 	if lease <= 0 {
 		lease = DefaultLease
@@ -284,8 +284,8 @@ func (s *Store) Heartbeat(ctx context.Context, taskID, workerID string, lease ti
 	if !id.Is(id.Task, taskID) {
 		return fmt.Errorf("%w: %s", ErrBadTaskID, taskID)
 	}
-	if !id.Is(id.Device, workerID) {
-		return fmt.Errorf("%w: %s", ErrBadDeviceID, workerID)
+	if !id.Is(id.Connector, workerID) {
+		return fmt.Errorf("%w: %s", ErrBadConnectorID, workerID)
 	}
 	if lease <= 0 {
 		lease = DefaultLease

@@ -358,7 +358,11 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring org plan column: %w", err)
 	}
-	if err := s.ensureProjectDevices(); err != nil {
+	if err := s.ensureOrgBilling(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring org billing: %w", err)
+	}
+	if err := s.ensureProjectConnectors(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring project devices: %w", err)
 	}
@@ -542,7 +546,7 @@ func (s *Store) ensureAccountLocale() error {
 // ensureProjectDevices creates the enrollment set for a live hub and copies
 // the inherited selected machine into it. projects.device_id stays the fx
 // target; the join table is who may run there (48).
-func (s *Store) ensureProjectDevices() error {
+func (s *Store) ensureProjectConnectors() error {
 	createdAt := "INTEGER NOT NULL"
 	if s.db.Dialect() == store.Postgres {
 		createdAt = "BIGINT NOT NULL"
@@ -558,7 +562,7 @@ func (s *Store) ensureProjectDevices() error {
 	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS project_devices_device_id ON project_devices(device_id)`); err != nil {
 		return err
 	}
-	return s.backfillProjectDevices()
+	return s.backfillProjectConnectors()
 }
 
 // ensureMailOutbox creates the hub mail queue on a live store. CREATE TABLE
@@ -646,7 +650,7 @@ func (s *Store) ensureApiTokens() error {
 	return err
 }
 
-func (s *Store) backfillProjectDevices() error {
+func (s *Store) backfillProjectConnectors() error {
 	_, err := s.db.Exec(`INSERT INTO project_devices (project_id, device_id, created_at)
 		SELECT id, device_id, created_at FROM projects WHERE device_id != ''
 		ON CONFLICT DO NOTHING`)
@@ -1236,7 +1240,7 @@ func (s *Store) RemoveOrgMember(orgId, accountId string) error {
 
 // --- devices ---
 
-type Device struct {
+type Connector struct {
 	Id        string `json:"id"`
 	Name      string `json:"name"`
 	Hostname  string `json:"hostname"`
@@ -1258,33 +1262,33 @@ func randomToken() string {
 	return hex.EncodeToString(b)
 }
 
-// CreateDevice registers a device and returns its id and plaintext token.
-func (s *Store) CreateDevice(name, hostname, osName, arch string, isHub bool) (string, string, error) {
-	deviceId, err := id.New(id.Device)
+// CreateConnector registers a device and returns its id and plaintext token.
+func (s *Store) CreateConnector(name, hostname, osName, arch string, isHub bool) (string, string, error) {
+	connectorId, err := id.New(id.Connector)
 	if err != nil {
 		return "", "", err
 	}
 	token := randomToken()
 	_, err = s.db.Exec(`INSERT INTO devices (id, name, hostname, os, arch, token_hash, is_hub, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		deviceId, name, hostname, osName, arch, hashToken(token), boolInt(isHub), time.Now().Unix())
-	return deviceId, token, err
+		connectorId, name, hostname, osName, arch, hashToken(token), boolInt(isHub), time.Now().Unix())
+	return connectorId, token, err
 }
 
-// DeviceByToken authenticates an agent connection.
-func (s *Store) DeviceByToken(token string) (*Device, error) {
-	return s.scanDevice(s.db.QueryRow(
+// ConnectorByToken authenticates an agent connection.
+func (s *Store) ConnectorByToken(token string) (*Connector, error) {
+	return s.scanConnector(s.db.QueryRow(
 		`SELECT id, name, hostname, os, arch, is_hub, created_at, last_seen FROM devices WHERE token_hash = ?`,
 		hashToken(token)))
 }
 
-func (s *Store) DeviceById(id string) (*Device, error) {
-	return s.scanDevice(s.db.QueryRow(
+func (s *Store) ConnectorById(id string) (*Connector, error) {
+	return s.scanConnector(s.db.QueryRow(
 		`SELECT id, name, hostname, os, arch, is_hub, created_at, last_seen FROM devices WHERE id = ?`, id))
 }
 
-func (s *Store) scanDevice(row *sql.Row) (*Device, error) {
-	var d Device
+func (s *Store) scanConnector(row *sql.Row) (*Connector, error) {
+	var d Connector
 	var isHub int
 	err := row.Scan(&d.Id, &d.Name, &d.Hostname, &d.OS, &d.Arch, &isHub, &d.CreatedAt, &d.LastSeen)
 	if err == sql.ErrNoRows {
@@ -1297,16 +1301,16 @@ func (s *Store) scanDevice(row *sql.Row) (*Device, error) {
 	return &d, nil
 }
 
-func (s *Store) ListDevices() ([]Device, error) {
+func (s *Store) ListConnectors() ([]Connector, error) {
 	rows, err := s.db.Query(`SELECT id, name, hostname, os, arch, is_hub, created_at, last_seen
 		FROM devices ORDER BY is_hub DESC, created_at ASC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Device
+	var out []Connector
 	for rows.Next() {
-		var d Device
+		var d Connector
 		var isHub int
 		if err := rows.Scan(&d.Id, &d.Name, &d.Hostname, &d.OS, &d.Arch, &isHub, &d.CreatedAt, &d.LastSeen); err != nil {
 			return nil, err
@@ -1317,31 +1321,31 @@ func (s *Store) ListDevices() ([]Device, error) {
 	return out, rows.Err()
 }
 
-func (s *Store) UpdateDeviceOnConnect(id, hostname, osName, arch string) error {
+func (s *Store) UpdateConnectorOnConnect(id, hostname, osName, arch string) error {
 	now := time.Now()
 	_, err := s.db.Exec(`UPDATE devices SET hostname = ?, os = ?, arch = ?, last_seen = ? WHERE id = ?`,
 		hostname, osName, arch, now.Unix(), id)
 	if err != nil {
 		return err
 	}
-	return s.touchProjectsForDevice(id, now)
+	return s.touchProjectsForConnector(id, now)
 }
 
-func (s *Store) TouchDevice(id string) error {
+func (s *Store) TouchConnector(id string) error {
 	now := time.Now()
 	_, err := s.db.Exec(`UPDATE devices SET last_seen = ? WHERE id = ?`, now.Unix(), id)
 	if err != nil {
 		return err
 	}
-	return s.touchProjectsForDevice(id, now)
+	return s.touchProjectsForConnector(id, now)
 }
 
-func (s *Store) RenameDevice(id, name string) error {
+func (s *Store) RenameConnector(id, name string) error {
 	_, err := s.db.Exec(`UPDATE devices SET name = ? WHERE id = ?`, name, id)
 	return err
 }
 
-func (s *Store) DeleteDevice(id string) error {
+func (s *Store) DeleteConnector(id string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -1367,9 +1371,9 @@ func (s *Store) DeleteDevice(id string) error {
 
 // --- projects ---
 
-// Project is a catalogue entry. DeviceId and Path are the inherited fx
+// Project is a catalogue entry. ConnectorId and Path are the inherited fx
 // workspace pair and may be empty: boarding creates the row before a worker
-// exists (26). DeviceIds is every machine enrolled on this project; DeviceId
+// exists (26). ConnectorIds is every machine enrolled on this project; ConnectorId
 // is the one fx currently runs on. TemplateId is a catalogue key, not a
 // project.kind. RepoRemote is the canonical clone URL when the template's
 // contract is change (14).
@@ -1379,25 +1383,25 @@ func (s *Store) DeleteDevice(id string) error {
 // answers "where does this project run" without provisioning a second
 // process (`02`).
 type Project struct {
-	Id         string   `json:"id"`
-	Name       string   `json:"name"`
-	OrgId      string   `json:"orgId"`
-	GatewayURL string   `json:"gatewayUrl"`
-	DeviceId   string   `json:"deviceId,omitempty"`
-	DeviceIds  []string `json:"deviceIds"`
-	Path       string   `json:"path,omitempty"`
-	TemplateId string   `json:"templateId,omitempty"`
-	RepoRemote string   `json:"repoRemote,omitempty"`
-	RepoHost   string   `json:"repoHost,omitempty"`
-	CreatedAt  int64    `json:"createdAt"`
-	UpdatedAt  int64    `json:"updatedAt"`
+	Id           string   `json:"id"`
+	Name         string   `json:"name"`
+	OrgId        string   `json:"orgId"`
+	GatewayURL   string   `json:"gatewayUrl"`
+	ConnectorId  string   `json:"connectorId,omitempty"`
+	ConnectorIds []string `json:"connectorIds"`
+	Path         string   `json:"path,omitempty"`
+	TemplateId   string   `json:"templateId,omitempty"`
+	RepoRemote   string   `json:"repoRemote,omitempty"`
+	RepoHost     string   `json:"repoHost,omitempty"`
+	CreatedAt    int64    `json:"createdAt"`
+	UpdatedAt    int64    `json:"updatedAt"`
 }
 
 const projectColumns = `id, name, org_id, gateway_url, device_id, path, template_id, repo_remote, repo_host, created_at, updated_at`
 
 func scanProject(scan func(dest ...any) error) (*Project, error) {
 	var p Project
-	err := scan(&p.Id, &p.Name, &p.OrgId, &p.GatewayURL, &p.DeviceId, &p.Path,
+	err := scan(&p.Id, &p.Name, &p.OrgId, &p.GatewayURL, &p.ConnectorId, &p.Path,
 		&p.TemplateId, &p.RepoRemote, &p.RepoHost, &p.CreatedAt, &p.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -1405,11 +1409,11 @@ func scanProject(scan func(dest ...any) error) (*Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.DeviceIds = []string{}
+	p.ConnectorIds = []string{}
 	return &p, nil
 }
 
-func (s *Store) CreateProject(orgId, name, deviceId, path, gatewayURL, templateId, repoRemote, repoHost string) (*Project, error) {
+func (s *Store) CreateProject(orgId, name, connectorId, path, gatewayURL, templateId, repoRemote, repoHost string) (*Project, error) {
 	if orgId == "" {
 		return nil, fmt.Errorf("create project: org_id is required")
 	}
@@ -1427,7 +1431,7 @@ func (s *Store) CreateProject(orgId, name, deviceId, path, gatewayURL, templateI
 	now := time.Now().Unix()
 	p := &Project{
 		Id: projectId, Name: name, OrgId: orgId, GatewayURL: gatewayURL,
-		DeviceId: deviceId, DeviceIds: []string{}, Path: path, TemplateId: templateId,
+		ConnectorId: connectorId, ConnectorIds: []string{}, Path: path, TemplateId: templateId,
 		RepoRemote: repoRemote, RepoHost: repoHost, CreatedAt: now, UpdatedAt: now,
 	}
 	tx, err := s.db.Begin()
@@ -1437,15 +1441,15 @@ func (s *Store) CreateProject(orgId, name, deviceId, path, gatewayURL, templateI
 	defer tx.Rollback()
 	if _, err := tx.Exec(`INSERT INTO projects (`+projectColumns+`, activity_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.Id, p.Name, p.OrgId, p.GatewayURL, p.DeviceId, p.Path,
+		p.Id, p.Name, p.OrgId, p.GatewayURL, p.ConnectorId, p.Path,
 		p.TemplateId, p.RepoRemote, p.RepoHost, p.CreatedAt, p.UpdatedAt, now); err != nil {
 		return nil, err
 	}
-	if deviceId != "" {
-		if _, err := tx.Exec(attachProjectDeviceSQL, p.Id, deviceId, now); err != nil {
+	if connectorId != "" {
+		if _, err := tx.Exec(attachProjectConnectorSQL, p.Id, connectorId, now); err != nil {
 			return nil, err
 		}
-		p.DeviceIds = []string{deviceId}
+		p.ConnectorIds = []string{connectorId}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
@@ -1458,7 +1462,7 @@ func (s *Store) ProjectById(id string) (*Project, error) {
 	if err != nil || p == nil {
 		return p, err
 	}
-	if err := s.fillProjectDeviceIds(p); err != nil {
+	if err := s.fillProjectConnectorIds(p); err != nil {
 		return nil, err
 	}
 	return p, nil
@@ -1517,25 +1521,25 @@ func (s *Store) listProjects(where string, args ...any) ([]Project, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	if err := s.fillProjectsDeviceIds(projects); err != nil {
+	if err := s.fillProjectsConnectorIds(projects); err != nil {
 		return nil, err
 	}
 	return projects, nil
 }
 
-func (s *Store) UpdateProject(id, name, deviceId, path, templateId, repoRemote, repoHost string) (*Project, error) {
+func (s *Store) UpdateProject(id, name, connectorId, path, templateId, repoRemote, repoHost string) (*Project, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	if deviceId != "" {
-		if _, err := tx.Exec(attachProjectDeviceSQL, id, deviceId, time.Now().Unix()); err != nil {
+	if connectorId != "" {
+		if _, err := tx.Exec(attachProjectConnectorSQL, id, connectorId, time.Now().Unix()); err != nil {
 			return nil, err
 		}
 	}
 	res, err := tx.Exec(`UPDATE projects SET name = ?, device_id = ?, path = ?, template_id = ?, repo_remote = ?, repo_host = ?, updated_at = ? WHERE id = ?`,
-		name, deviceId, path, templateId, repoRemote, repoHost, time.Now().Unix(), id)
+		name, connectorId, path, templateId, repoRemote, repoHost, time.Now().Unix(), id)
 	if err != nil {
 		return nil, err
 	}
@@ -1571,28 +1575,28 @@ func (s *Store) DeleteProject(id string) error {
 	return tx.Commit()
 }
 
-const attachProjectDeviceSQL = `INSERT INTO project_devices (project_id, device_id, created_at)
+const attachProjectConnectorSQL = `INSERT INTO project_devices (project_id, device_id, created_at)
 	VALUES (?, ?, ?) ON CONFLICT DO NOTHING`
 
-// AttachProjectDevice enrolls a machine on a project. It is idempotent.
+// AttachProjectConnector enrolls a machine on a project. It is idempotent.
 // When the project has no selected fx target yet, this machine becomes it.
-func (s *Store) AttachProjectDevice(projectId, deviceId string) (bool, error) {
-	if projectId == "" || deviceId == "" {
+func (s *Store) AttachProjectConnector(projectId, connectorId string) (bool, error) {
+	if projectId == "" || connectorId == "" {
 		return false, fmt.Errorf("attach project device: project_id and device_id are required")
 	}
-	res, err := s.db.Exec(attachProjectDeviceSQL, projectId, deviceId, time.Now().Unix())
+	res, err := s.db.Exec(attachProjectConnectorSQL, projectId, connectorId, time.Now().Unix())
 	if err != nil {
 		return false, err
 	}
 	n, _ := res.RowsAffected()
 	added := n > 0
-	if err := s.selectDeviceIfEmpty(projectId, deviceId); err != nil {
+	if err := s.selectConnectorIfEmpty(projectId, connectorId); err != nil {
 		return added, err
 	}
 	return added, nil
 }
 
-func (s *Store) selectDeviceIfEmpty(projectId, deviceId string) error {
+func (s *Store) selectConnectorIfEmpty(projectId, connectorId string) error {
 	var selected string
 	err := s.db.QueryRow(`SELECT device_id FROM projects WHERE id = ?`, projectId).Scan(&selected)
 	if err == sql.ErrNoRows {
@@ -1602,22 +1606,22 @@ func (s *Store) selectDeviceIfEmpty(projectId, deviceId string) error {
 		return err
 	}
 	_, err = s.db.Exec(`UPDATE projects SET device_id = ?, updated_at = ? WHERE id = ?`,
-		deviceId, time.Now().Unix(), projectId)
+		connectorId, time.Now().Unix(), projectId)
 	return err
 }
 
-// DetachProjectDevice drops a machine from a project. If it was the selected
+// DetachProjectConnector drops a machine from a project. If it was the selected
 // fx target, another enrolled machine takes its place, or the slot clears.
-func (s *Store) DetachProjectDevice(projectId, deviceId string) error {
+func (s *Store) DetachProjectConnector(projectId, connectorId string) error {
 	if _, err := s.db.Exec(`DELETE FROM project_devices WHERE project_id = ? AND device_id = ?`,
-		projectId, deviceId); err != nil {
+		projectId, connectorId); err != nil {
 		return err
 	}
 	return s.repairSelectedDevice(projectId)
 }
 
 func (s *Store) repairSelectedDevice(projectId string) error {
-	ids, err := s.ListProjectDeviceIds(projectId)
+	ids, err := s.ListProjectConnectorIds(projectId)
 	if err != nil {
 		return err
 	}
@@ -1641,10 +1645,10 @@ func (s *Store) repairSelectedDevice(projectId string) error {
 	return err
 }
 
-func (s *Store) ProjectHasDevice(projectId, deviceId string) (bool, error) {
+func (s *Store) ProjectHasConnector(projectId, connectorId string) (bool, error) {
 	var n int
 	err := s.db.QueryRow(`SELECT 1 FROM project_devices WHERE project_id = ? AND device_id = ?`,
-		projectId, deviceId).Scan(&n)
+		projectId, connectorId).Scan(&n)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -1660,24 +1664,24 @@ func (s *Store) CountProjectDevices(projectId string) (int, error) {
 	return n, err
 }
 
-func (s *Store) ListProjectDeviceIds(projectId string) ([]string, error) {
-	ids, err := s.deviceIdsByProjects([]string{projectId})
+func (s *Store) ListProjectConnectorIds(projectId string) ([]string, error) {
+	ids, err := s.connectorIdsByProjects([]string{projectId})
 	if err != nil {
 		return nil, err
 	}
 	return ids[projectId], nil
 }
 
-func (s *Store) fillProjectDeviceIds(p *Project) error {
-	ids, err := s.ListProjectDeviceIds(p.Id)
+func (s *Store) fillProjectConnectorIds(p *Project) error {
+	ids, err := s.ListProjectConnectorIds(p.Id)
 	if err != nil {
 		return err
 	}
-	p.DeviceIds = ids
+	p.ConnectorIds = ids
 	return nil
 }
 
-func (s *Store) fillProjectsDeviceIds(projects []Project) error {
+func (s *Store) fillProjectsConnectorIds(projects []Project) error {
 	if len(projects) == 0 {
 		return nil
 	}
@@ -1685,41 +1689,41 @@ func (s *Store) fillProjectsDeviceIds(projects []Project) error {
 	for i, p := range projects {
 		ids[i] = p.Id
 	}
-	byProject, err := s.deviceIdsByProjects(ids)
+	byProject, err := s.connectorIdsByProjects(ids)
 	if err != nil {
 		return err
 	}
 	for i := range projects {
-		projects[i].DeviceIds = byProject[projects[i].Id]
+		projects[i].ConnectorIds = byProject[projects[i].Id]
 	}
 	return nil
 }
 
-// DeviceBoundary is one place a machine is reachable from: the project it is
+// ConnectorBoundary is one place a machine is reachable from: the project it is
 // attached to, and the organization that owns that project.
-type DeviceBoundary struct {
+type ConnectorBoundary struct {
 	OrgId     string
 	ProjectId string
 }
 
-// DeviceBoundaries lists where a machine lives.
+// ConnectorBoundaries lists where a machine lives.
 //
 // A machine can serve several projects, so this is a list and a credential
 // reaching any one entry reaches the machine. An empty result means the
 // machine is attached to nothing, which no scoped credential can reach —
 // there is no owner to check against, and treating an orphan as everyone's
 // would make it the one device every token could touch.
-func (s *Store) DeviceBoundaries(deviceId string) ([]DeviceBoundary, error) {
+func (s *Store) ConnectorBoundaries(connectorId string) ([]ConnectorBoundary, error) {
 	rows, err := s.db.Query(`SELECT p.org_id, p.id FROM project_devices pd
 		JOIN projects p ON p.id = pd.project_id
-		WHERE pd.device_id = ? ORDER BY p.id`, deviceId)
+		WHERE pd.device_id = ? ORDER BY p.id`, connectorId)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []DeviceBoundary
+	var out []ConnectorBoundary
 	for rows.Next() {
-		var b DeviceBoundary
+		var b ConnectorBoundary
 		if err := rows.Scan(&b.OrgId, &b.ProjectId); err != nil {
 			return nil, err
 		}
@@ -1728,7 +1732,7 @@ func (s *Store) DeviceBoundaries(deviceId string) ([]DeviceBoundary, error) {
 	return out, rows.Err()
 }
 
-func (s *Store) deviceIdsByProjects(projectIds []string) (map[string][]string, error) {
+func (s *Store) connectorIdsByProjects(projectIds []string) (map[string][]string, error) {
 	out := make(map[string][]string, len(projectIds))
 	for _, id := range projectIds {
 		out[id] = []string{}
@@ -1750,11 +1754,11 @@ func (s *Store) deviceIdsByProjects(projectIds []string) (map[string][]string, e
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var projectId, deviceId string
-		if err := rows.Scan(&projectId, &deviceId); err != nil {
+		var projectId, connectorId string
+		if err := rows.Scan(&projectId, &connectorId); err != nil {
 			return nil, err
 		}
-		out[projectId] = append(out[projectId], deviceId)
+		out[projectId] = append(out[projectId], connectorId)
 	}
 	return out, rows.Err()
 }

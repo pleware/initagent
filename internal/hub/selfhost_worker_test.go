@@ -17,7 +17,7 @@ import (
 
 func TestShouldBindSelfhostWorker(t *testing.T) {
 	first := &Project{Id: "project-1"}
-	withDevice := &Project{Id: "project-1", DeviceId: "device-1"}
+	withConnector := &Project{Id: "project-1", ConnectorId: "connector-1"}
 	cases := []struct {
 		name    string
 		kind    offering.Kind
@@ -30,7 +30,7 @@ func TestShouldBindSelfhostWorker(t *testing.T) {
 		{name: "hosted first project", kind: offering.Hosted, gateway: "http://gw", project: first, count: 1, want: false},
 		{name: "zero offering is not selfhost", kind: "", gateway: "http://gw", project: first, count: 1, want: false},
 		{name: "no gateway", kind: offering.Selfhost, gateway: "", project: first, count: 1, want: false},
-		{name: "already has a device", kind: offering.Selfhost, gateway: "http://gw", project: withDevice, count: 1, want: false},
+		{name: "already has a device", kind: offering.Selfhost, gateway: "http://gw", project: withConnector, count: 1, want: false},
 		{name: "second project", kind: offering.Selfhost, gateway: "http://gw", project: first, count: 2, want: false},
 		{name: "nil project", kind: offering.Selfhost, gateway: "http://gw", project: nil, count: 1, want: false},
 	}
@@ -65,7 +65,7 @@ func TestSelfhostFirstProjectEnrollsThisBox(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
 		t.Fatal(err)
 	}
-	if project.DeviceId == "" {
+	if project.ConnectorId == "" {
 		t.Fatal("first self-host project should have this box attached")
 	}
 
@@ -73,14 +73,14 @@ func TestSelfhostFirstProjectEnrollsThisBox(t *testing.T) {
 	if err != nil {
 		t.Fatalf("connector in hub data dir: %v", err)
 	}
-	if cfg.DeviceId != project.DeviceId {
-		t.Fatalf("connector device %s, project device %s", cfg.DeviceId, project.DeviceId)
+	if cfg.ConnectorId != project.ConnectorId {
+		t.Fatalf("connector device %s, project device %s", cfg.ConnectorId, project.ConnectorId)
 	}
 	if cfg.HubURL != gwURL.URL {
 		t.Fatalf("connector hubUrl = %q, want the gateway", cfg.HubURL)
 	}
 
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, gwURL.URL+"/api/devices", nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, gwURL.URL+"/api/connectors", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,12 +93,12 @@ func TestSelfhostFirstProjectEnrollsThisBox(t *testing.T) {
 	if list.StatusCode != http.StatusOK {
 		t.Fatalf("gateway devices: %d", list.StatusCode)
 	}
-	var devices []gateway.DeviceView
+	var devices []gateway.ConnectorView
 	if err := json.NewDecoder(list.Body).Decode(&devices); err != nil {
 		t.Fatal(err)
 	}
-	if len(devices) != 1 || devices[0].ID != project.DeviceId {
-		t.Fatalf("gateway devices = %+v, want %s", devices, project.DeviceId)
+	if len(devices) != 1 || devices[0].ID != project.ConnectorId {
+		t.Fatalf("gateway devices = %+v, want %s", devices, project.ConnectorId)
 	}
 
 	second := f.do(t, http.MethodPost, "/api/projects", map[string]string{
@@ -111,8 +111,8 @@ func TestSelfhostFirstProjectEnrollsThisBox(t *testing.T) {
 	if err := json.NewDecoder(second.Body).Decode(&other); err != nil {
 		t.Fatal(err)
 	}
-	if other.DeviceId != "" {
-		t.Fatalf("second project should not auto-bind, got %s", other.DeviceId)
+	if other.ConnectorId != "" {
+		t.Fatalf("second project should not auto-bind, got %s", other.ConnectorId)
 	}
 }
 
@@ -137,8 +137,8 @@ func TestHostedFirstProjectDoesNotEnrollTheHubBox(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
 		t.Fatal(err)
 	}
-	if project.DeviceId != "" {
-		t.Fatalf("hosted must not enroll the hub box, got %s", project.DeviceId)
+	if project.ConnectorId != "" {
+		t.Fatalf("hosted must not enroll the hub box, got %s", project.ConnectorId)
 	}
 	if _, err := os.Stat(filepath.Join(f.srv.opts.DataDir, brand.ConnectorConfigFile)); !os.IsNotExist(err) {
 		t.Fatalf("hosted wrote a connector config: %v", err)
@@ -165,7 +165,7 @@ func TestRecoverSelfhostWorkerBindsExistingFirstProject(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
 		t.Fatal(err)
 	}
-	if created.DeviceId != "" {
+	if created.ConnectorId != "" {
 		t.Fatal("project created with no gateway should not auto-bind")
 	}
 
@@ -176,7 +176,7 @@ func TestRecoverSelfhostWorkerBindsExistingFirstProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if row == nil || row.DeviceId == "" {
+	if row == nil || row.ConnectorId == "" {
 		t.Fatal("recover should attach this box once a gateway exists")
 	}
 }

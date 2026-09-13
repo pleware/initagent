@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { api, forProject } from '../api'
 import { usePoll } from '../hooks'
-import type { Device, Me, Project, ProjectTemplate, TaskView } from '../types'
+import type { Connector, Me, Project, ProjectTemplate, TaskView } from '../types'
 import { HubError, isMissingGateway } from './PlanWall'
 import {
   isHostedOperator,
@@ -27,13 +27,13 @@ const firstTaskBoxClass =
 
 export default function Boarding({
   me,
-  devices,
+  connectors,
   initialProject,
   onMeChanged,
   onFinished,
 }: {
   me: Me
-  devices: Device[]
+  connectors: Connector[]
   initialProject?: Project
   onMeChanged: () => Promise<void> | void
   onFinished: (project: Project) => void
@@ -48,7 +48,7 @@ export default function Boarding({
   const [project, setProject] = useState<Project | null>(initialProject ?? null)
   const [resumed, setResumed] = useState(false)
   const [repoRemote, setRepoRemote] = useState(initialProject?.repoRemote ?? '')
-  const [fleet, setFleet] = useState<Device[]>(devices)
+  const [fleet, setFleet] = useState<Connector[]>(connectors)
   const [command, setCommand] = useState('')
   const [windowsCommand, setWindowsCommand] = useState('')
   const [platform, setPlatform] = useState<'unix' | 'windows'>('unix')
@@ -61,20 +61,20 @@ export default function Boarding({
 
   const loadFleet = useCallback(async () => {
     try {
-      setFleet(await api.get<Device[]>('/api/devices'))
+      setFleet(await api.get<Connector[]>('/api/connectors'))
     } catch {
       /* keep the last snapshot */
     }
   }, [])
 
-  const online = fleet.filter((device) => device.online)
+  const online = fleet.filter((item) => item.online)
   const joined = online.length > 0
 
   usePoll(loadFleet, step === 'worker' || step === 'task' ? 4000 : 30_000)
 
   useEffect(() => {
-    setFleet(devices)
-  }, [devices])
+    setFleet(connectors)
+  }, [connectors])
 
   useEffect(() => {
     api.get<ProjectTemplate[]>('/api/templates').then((list) => {

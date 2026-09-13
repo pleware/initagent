@@ -28,19 +28,19 @@
       "happeningPrefix": "fleet.attachment"
     },
     {
-      "name": "initagent.fleet.device",
+      "name": "initagent.fleet.connector",
       "context": "fleet",
-      "entity": "device",
-      "identifierPrefix": "device-",
+      "entity": "connector",
+      "identifierPrefix": "connector-",
       "mints": true,
       "lifetime": "enroll → delete",
       "capabilities": [
-        "admin:fleet.device",
-        "create:fleet.device",
-        "exec:fleet.device",
-        "read:fleet.device"
+        "admin:fleet.connector",
+        "create:fleet.connector",
+        "exec:fleet.connector",
+        "read:fleet.connector"
       ],
-      "happeningPrefix": "fleet.device"
+      "happeningPrefix": "fleet.connector"
     },
     {
       "name": "initagent.fleet.enrollment",
@@ -71,7 +71,7 @@
       "entity": "host",
       "identifierPrefix": "host-",
       "mints": true,
-      "lifetime": "first enroll → last device removed",
+      "lifetime": "first enroll → last connector removed",
       "capabilities": [],
       "happeningPrefix": "fleet.host"
     },
@@ -515,20 +515,20 @@
     }
   ],
   "capabilities": [
-    "admin:fleet.device",
+    "admin:fleet.connector",
     "admin:hub.account",
     "admin:hub.org",
     "admin:hub.preset",
     "admin:hub.project",
     "admin:hub.update",
     "attach:fleet.terminal",
-    "create:fleet.device",
+    "create:fleet.connector",
     "create:hub.project",
     "create:project.task",
     "delete:hub.org",
     "delete:hub.project",
-    "exec:fleet.device",
-    "read:fleet.device",
+    "exec:fleet.connector",
+    "read:fleet.connector",
     "read:fleet.file",
     "read:fleet.terminal",
     "read:hub.event",
@@ -542,7 +542,7 @@
   ],
   "happeningPrefixes": [
     "fleet.attachment",
-    "fleet.device",
+    "fleet.connector",
     "fleet.enrollment",
     "fleet.file",
     "fleet.host",

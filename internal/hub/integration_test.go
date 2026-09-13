@@ -76,19 +76,19 @@ func connectAgent(t *testing.T, srv *Server, base string) string {
 		t.Fatalf("enroll: %s", resp.Status)
 	}
 	var er struct {
-		DeviceId    string `json:"deviceId"`
-		DeviceToken string `json:"deviceToken"`
+		ConnectorId    string `json:"connectorId"`
+		ConnectorToken string `json:"connectorToken"`
 	}
 	json.NewDecoder(resp.Body).Decode(&er)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	go agent.New(agent.Config{HubURL: base, Token: er.DeviceToken}, "test").Run(ctx)
+	go agent.New(agent.Config{HubURL: base, Token: er.ConnectorToken}, "test").Run(ctx)
 
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		if srv.registry.get(er.DeviceId) != nil {
-			return er.DeviceId
+		if srv.registry.get(er.ConnectorId) != nil {
+			return er.ConnectorId
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
@@ -98,8 +98,8 @@ func connectAgent(t *testing.T, srv *Server, base string) string {
 
 func TestEndToEnd(t *testing.T) {
 	srv, base := startHub(t)
-	deviceId := connectAgent(t, srv, base)
-	conn := srv.registry.get(deviceId)
+	connectorId := connectAgent(t, srv, base)
+	conn := srv.registry.get(connectorId)
 
 	t.Run("exec round trip", func(t *testing.T) {
 		res, err := srv.execOnDevice(conn, "echo overseer-$((20+22))", "", 15)
@@ -208,7 +208,7 @@ func TestAuthFlow(t *testing.T) {
 	}
 
 	// Protected route without auth.
-	if resp, _ := client.Get(ts.URL + "/api/devices"); resp.StatusCode != 401 {
+	if resp, _ := client.Get(ts.URL + "/api/connectors"); resp.StatusCode != 401 {
 		t.Fatalf("unauthenticated devices: %d, want 401", resp.StatusCode)
 	}
 	// Without the bootstrap token the hub is not claimable, which is the
@@ -230,7 +230,7 @@ func TestAuthFlow(t *testing.T) {
 	if resp := post("/api/setup", map[string]string{"email": email, "password": password, "token": token}); resp.StatusCode != 200 {
 		t.Fatalf("claim: %d", resp.StatusCode)
 	}
-	if resp, _ := client.Get(ts.URL + "/api/devices"); resp.StatusCode != 200 {
+	if resp, _ := client.Get(ts.URL + "/api/connectors"); resp.StatusCode != 200 {
 		t.Fatalf("authed devices: %d, want 200", resp.StatusCode)
 	}
 	// The token is spent, and a claimed hub answers 409 whatever arrives, so
@@ -267,8 +267,8 @@ func TestAuthFlow(t *testing.T) {
 	}
 	// API token auth.
 	var resp *http.Response
-	apiToken := fleetToken(t, srv.store, "", authz.ReadDevice, authz.ReadProject)
-	req, _ := http.NewRequest("GET", ts.URL+"/api/devices", nil)
+	apiToken := fleetToken(t, srv.store, "", authz.ReadConnector, authz.ReadProject)
+	req, _ := http.NewRequest("GET", ts.URL+"/api/connectors", nil)
 	req.Header.Set("Authorization", "Bearer "+apiToken)
 	resp, _ = http.DefaultClient.Do(req)
 	if resp.StatusCode != 200 {

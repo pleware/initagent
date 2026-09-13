@@ -2,16 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { api, formatBytes, timeAgo } from '../api'
 import { usePoll } from '../hooks'
-import type { Device, Session } from '../types'
+import type { Connector, Session } from '../types'
 import Terminal from '../components/Terminal'
 import FileBrowser from '../components/FileBrowser'
 import LaunchSessionModal from '../components/LaunchSessionModal'
 import StatusBadge from '../components/StatusBadge'
 
-export default function DevicePage() {
+export default function ConnectorPage() {
   const { id = '' } = useParams()
   const [searchParams] = useSearchParams()
-  const [device, setDevice] = useState<Device | null>(null)
+  const [connector, setConnector] = useState<Connector | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
   const [active, setActive] = useState<string | null>(null)
   const requestedSession = searchParams.get('session')
@@ -20,11 +20,11 @@ export default function DevicePage() {
 
   const load = useCallback(async () => {
     try {
-      const devices = await api.get<Device[]>('/api/devices')
-      const d = devices.find((x) => x.id === id) ?? null
-      setDevice(d)
+      const connectors = await api.get<Connector[]>('/api/connectors')
+      const d = connectors.find((x) => x.id === id) ?? null
+      setConnector(d)
       if (d?.online) {
-        const s = await api.get<Session[]>(`/api/devices/${id}/sessions`)
+        const s = await api.get<Session[]>(`/api/connectors/${id}/sessions`)
         setSessions(s)
         setActive((a) => a ?? requestedSession ?? s[0]?.name ?? null)
       }
@@ -35,11 +35,11 @@ export default function DevicePage() {
 
   usePoll(load, 10000)
 
-  // Reset when navigating between devices.
+  // Reset when navigating between connectors.
   useEffect(() => {
     setActive(null)
     setSessions([])
-    setDevice(null)
+    setConnector(null)
     setTab(requestedSession ? 'terminal' : 'overview')
   }, [id, requestedSession])
 
@@ -58,7 +58,7 @@ export default function DevicePage() {
         createdAt: Date.now() / 1000,
         lastActivity: Date.now() / 1000,
         attached: false,
-        ephemeral: device ? !device.tmux : false,
+        ephemeral: connector ? !connector.tmux : false,
       },
     ])
     setActive(name)
@@ -68,7 +68,7 @@ export default function DevicePage() {
   const killSession = async (name: string) => {
     if (!confirm(`Kill session "${name}"? Anything running in it will stop.`)) return
     try {
-      await api.del(`/api/devices/${id}/sessions/${encodeURIComponent(name)}`)
+      await api.del(`/api/connectors/${id}/sessions/${encodeURIComponent(name)}`)
     } catch {
       /* it may already be gone */
     }
@@ -77,7 +77,7 @@ export default function DevicePage() {
     load()
   }
 
-  if (device === null) {
+  if (connector === null) {
     return <div className="p-8 text-zinc-500">Loading…</div>
   }
 
@@ -89,11 +89,11 @@ export default function DevicePage() {
             ←
           </Link>
           <span
-            className={`h-2.5 w-2.5 rounded-full ${device.online ? 'bg-emerald-400' : 'bg-zinc-600'}`}
+            className={`h-2.5 w-2.5 rounded-full ${connector.online ? 'bg-emerald-400' : 'bg-zinc-600'}`}
           />
-          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">{device.name}</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">{connector.name}</h1>
           <span className="font-mono text-xs text-zinc-600">
-            {device.os}/{device.arch}
+            {connector.os}/{connector.arch}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -109,14 +109,14 @@ export default function DevicePage() {
         </div>
       </header>
 
-      {!device.online ? (
+      {!connector.online ? (
         <div className="flex flex-1 items-center justify-center text-zinc-500">
-          This device is offline.
+          This connector is offline.
         </div>
       ) : tab === 'overview' ? (
-        <DeviceOverview device={device} onTerminal={() => setTab('terminal')} onFiles={() => setTab('files')} />
+        <ConnectorOverview connector={connector} onTerminal={() => setTab('terminal')} onFiles={() => setTab('files')} />
       ) : tab === 'files' ? (
-        <FileBrowser deviceId={id} />
+        <FileBrowser connectorId={id} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-center gap-1 overflow-x-auto border-b border-white/[0.07] bg-white/[0.015] px-3 py-2">
@@ -168,7 +168,7 @@ export default function DevicePage() {
             {active ? (
               <Terminal
                 key={`${id}:${active}`}
-                deviceId={id}
+                connectorId={id}
                 session={active}
                 onExit={() => load()}
               />
@@ -183,9 +183,9 @@ export default function DevicePage() {
         </div>
       )}
 
-      {showLaunch && device && (
+      {showLaunch && connector && (
         <LaunchSessionModal
-          devices={[device]}
+          connectors={[connector]}
           onLaunched={(_, name) => {
             setShowLaunch(false)
             load().then(() => {
@@ -223,16 +223,16 @@ function TabButton({
   )
 }
 
-function DeviceOverview({ device, onTerminal, onFiles }: { device: Device; onTerminal: () => void; onFiles: () => void }) {
-  const s = device.stats
+function ConnectorOverview({ connector, onTerminal, onFiles }: { connector: Connector; onTerminal: () => void; onFiles: () => void }) {
+  const s = connector.stats
   const pct = (used = 0, total = 0) => total ? (used / total) * 100 : 0
   return (
     <div className="page-shell flex-1">
       <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="eyebrow mb-2">Machine health</p>
-          <h2 className="text-2xl font-semibold tracking-[-0.035em] text-white">{device.platform || device.os} {device.platformVersion}</h2>
-          <p className="mt-2 font-mono text-xs text-zinc-600">{device.hostname} · {device.arch} · agent {device.agentVersion || 'unknown'}</p>
+          <h2 className="text-2xl font-semibold tracking-[-0.035em] text-white">{connector.platform || connector.os} {connector.platformVersion}</h2>
+          <p className="mt-2 font-mono text-xs text-zinc-600">{connector.hostname} · {connector.arch} · agent {connector.agentVersion || 'unknown'}</p>
         </div>
         <div className="flex gap-2"><button onClick={onTerminal} className="btn-primary">Open terminal</button><button onClick={onFiles} className="btn-secondary">Browse files</button></div>
       </div>
@@ -248,11 +248,11 @@ function DeviceOverview({ device, onTerminal, onFiles }: { device: Device; onTer
             <Detail label="Network received" value={formatBytes(s.netRxBytes)} />
             <Detail label="Network sent" value={formatBytes(s.netTxBytes)} />
             <Detail label="Processes" value={String(s.processCount || '—')} />
-            <Detail label="Last contact" value={timeAgo(device.lastSeen)} />
+            <Detail label="Last contact" value={timeAgo(connector.lastSeen)} />
           </section>
           <section className="mt-6 grid gap-4 lg:grid-cols-2">
-            <div className="surface rounded-2xl p-5"><p className="eyebrow">Terminal continuity</p><p className="mt-3 text-lg font-semibold text-zinc-100">{device.tmux ? 'Reconnectable sessions ready' : device.os === 'windows' ? 'Windows terminal sessions are live' : 'Install tmux for persistence'}</p><p className="mt-2 text-sm leading-6 text-zinc-500">{device.tmux ? 'Agents and shells continue running after the browser closes.' : 'Commands still work, but sessions may end when the connection closes.'}</p></div>
-            <div className="surface rounded-2xl p-5"><p className="eyebrow">Kernel</p><p className="mt-3 break-words font-mono text-sm text-zinc-300">{device.kernelVersion || 'Not reported by this agent version'}</p><p className="mt-2 text-sm text-zinc-600">Architecture: {device.arch}</p></div>
+            <div className="surface rounded-2xl p-5"><p className="eyebrow">Terminal continuity</p><p className="mt-3 text-lg font-semibold text-zinc-100">{connector.tmux ? 'Reconnectable sessions ready' : connector.os === 'windows' ? 'Windows terminal sessions are live' : 'Install tmux for persistence'}</p><p className="mt-2 text-sm leading-6 text-zinc-500">{connector.tmux ? 'Agents and shells continue running after the browser closes.' : 'Commands still work, but sessions may end when the connection closes.'}</p></div>
+            <div className="surface rounded-2xl p-5"><p className="eyebrow">Kernel</p><p className="mt-3 break-words font-mono text-sm text-zinc-300">{connector.kernelVersion || 'Not reported by this agent version'}</p><p className="mt-2 text-sm text-zinc-600">Architecture: {connector.arch}</p></div>
           </section>
         </>
       ) : <div className="surface rounded-2xl p-10 text-center text-sm text-zinc-500">Waiting for the first health snapshot…</div>}

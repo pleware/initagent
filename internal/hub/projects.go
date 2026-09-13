@@ -21,18 +21,18 @@ const (
 )
 
 type projectInput struct {
-	Name       string `json:"name"`
-	OrgId      string `json:"orgId"`
-	DeviceId   string `json:"deviceId"`
-	Path       string `json:"path"`
-	TemplateId string `json:"templateId"`
-	RepoRemote string `json:"repoRemote"`
+	Name        string `json:"name"`
+	OrgId       string `json:"orgId"`
+	ConnectorId string `json:"connectorId"`
+	Path        string `json:"path"`
+	TemplateId  string `json:"templateId"`
+	RepoRemote  string `json:"repoRemote"`
 }
 
 func cleanProjectFields(input projectInput) (projectInput, string) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.OrgId = strings.TrimSpace(input.OrgId)
-	input.DeviceId = strings.TrimSpace(input.DeviceId)
+	input.ConnectorId = strings.TrimSpace(input.ConnectorId)
 	input.Path = strings.TrimSpace(input.Path)
 	input.TemplateId = strings.TrimSpace(input.TemplateId)
 	input.RepoRemote = strings.TrimSpace(input.RepoRemote)
@@ -69,17 +69,17 @@ func repoFields(remote string) (string, string, string) {
 	return remote, string(host), ""
 }
 
-func (s *Server) validateProjectDevice(w http.ResponseWriter, deviceId string) bool {
-	if deviceId == "" {
+func (s *Server) validateProjectConnector(w http.ResponseWriter, connectorId string) bool {
+	if connectorId == "" {
 		return true
 	}
-	device, err := s.store.DeviceById(deviceId)
+	device, err := s.store.ConnectorById(connectorId)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return false
 	}
 	if device == nil {
-		httpError(w, http.StatusBadRequest, "device does not exist")
+		httpError(w, http.StatusBadRequest, "connector does not exist")
 		return false
 	}
 	return true
@@ -188,10 +188,10 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, cre
 	if s.refuseAnotherProject(w, orgId, cred.Actor.Account) {
 		return
 	}
-	if !s.validateProjectDevice(w, input.DeviceId) {
+	if !s.validateProjectConnector(w, input.ConnectorId) {
 		return
 	}
-	if s.refuseAnotherMachine(w, orgId, "", cred.Actor.Account, input.DeviceId) {
+	if s.refuseAnotherMachine(w, orgId, "", cred.Actor.Account, input.ConnectorId) {
 		return
 	}
 	remote, host, message := repoFields(input.RepoRemote)
@@ -199,7 +199,7 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, cre
 		httpError(w, http.StatusBadRequest, message)
 		return
 	}
-	project, err := s.store.CreateProject(orgId, input.Name, input.DeviceId, input.Path, s.opts.GatewayURL, input.TemplateId, remote, host)
+	project, err := s.store.CreateProject(orgId, input.Name, input.ConnectorId, input.Path, s.opts.GatewayURL, input.TemplateId, remote, host)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -210,13 +210,13 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, cre
 		AccountID: cred.Actor.Account,
 		ProjectID: project.Id,
 	})
-	if input.DeviceId != "" {
+	if input.ConnectorId != "" {
 		s.recordEvent(funnel.Event{
-			Kind:      funnel.KindDeviceEnrolled,
-			OrgID:     orgId,
-			AccountID: cred.Actor.Account,
-			ProjectID: project.Id,
-			DeviceID:  input.DeviceId,
+			Kind:        funnel.KindConnectorEnrolled,
+			OrgID:       orgId,
+			AccountID:   cred.Actor.Account,
+			ProjectID:   project.Id,
+			ConnectorID: input.ConnectorId,
 		})
 	}
 	project = s.bindSelfhostWorker(r.Context(), project)
@@ -240,9 +240,9 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, cre
 		return
 	}
 	name := cmp.Or(input.Name, existing.Name)
-	deviceId := existing.DeviceId
-	if input.DeviceId != "" {
-		deviceId = input.DeviceId
+	connectorId := existing.ConnectorId
+	if input.ConnectorId != "" {
+		connectorId = input.ConnectorId
 	}
 	path := existing.Path
 	if input.Path != "" {
@@ -252,10 +252,10 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, cre
 	if input.TemplateId != "" {
 		templateId = input.TemplateId
 	}
-	if !s.validateProjectDevice(w, deviceId) {
+	if !s.validateProjectConnector(w, connectorId) {
 		return
 	}
-	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, cred.Actor.Account, deviceId) {
+	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, cred.Actor.Account, connectorId) {
 		return
 	}
 	remote, host := existing.RepoRemote, existing.RepoHost
@@ -266,7 +266,7 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, cre
 			return
 		}
 	}
-	project, err := s.store.UpdateProject(existing.Id, name, deviceId, path, templateId, remote, host)
+	project, err := s.store.UpdateProject(existing.Id, name, connectorId, path, templateId, remote, host)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -279,30 +279,30 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, cre
 	writeJSON(w, project)
 }
 
-func (s *Server) handleAttachProjectDevice(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+func (s *Server) handleAttachProjectConnector(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	existing, ok := s.projectFor(w, r.PathValue("id"), cred, authz.AdminProject)
 	if !ok {
 		return
 	}
 	var input struct {
-		DeviceId string `json:"deviceId"`
+		ConnectorId string `json:"connectorId"`
 	}
 	if err := readJSON(r, &input); err != nil {
-		httpError(w, http.StatusBadRequest, "invalid device")
+		httpError(w, http.StatusBadRequest, "invalid connector")
 		return
 	}
-	deviceId := strings.TrimSpace(input.DeviceId)
-	if deviceId == "" {
-		httpError(w, http.StatusBadRequest, "deviceId is required")
+	connectorId := strings.TrimSpace(input.ConnectorId)
+	if connectorId == "" {
+		httpError(w, http.StatusBadRequest, "connectorId is required")
 		return
 	}
-	if !s.validateProjectDevice(w, deviceId) {
+	if !s.validateProjectConnector(w, connectorId) {
 		return
 	}
-	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, cred.Actor.Account, deviceId) {
+	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, cred.Actor.Account, connectorId) {
 		return
 	}
-	added, err := s.store.AttachProjectDevice(existing.Id, deviceId)
+	added, err := s.store.AttachProjectConnector(existing.Id, connectorId)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -318,37 +318,37 @@ func (s *Server) handleAttachProjectDevice(w http.ResponseWriter, r *http.Reques
 	}
 	if added {
 		s.recordEvent(funnel.Event{
-			Kind:      funnel.KindDeviceEnrolled,
-			OrgID:     existing.OrgId,
-			AccountID: cred.Actor.Account,
-			ProjectID: existing.Id,
-			DeviceID:  deviceId,
+			Kind:        funnel.KindConnectorEnrolled,
+			OrgID:       existing.OrgId,
+			AccountID:   cred.Actor.Account,
+			ProjectID:   existing.Id,
+			ConnectorID: connectorId,
 		})
 		w.WriteHeader(http.StatusCreated)
 	}
 	writeJSON(w, project)
 }
 
-func (s *Server) handleDetachProjectDevice(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+func (s *Server) handleDetachProjectConnector(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	existing, ok := s.projectFor(w, r.PathValue("id"), cred, authz.AdminProject)
 	if !ok {
 		return
 	}
-	deviceId := strings.TrimSpace(r.PathValue("deviceId"))
-	if deviceId == "" {
-		httpError(w, http.StatusBadRequest, "deviceId is required")
+	connectorId := strings.TrimSpace(r.PathValue("connectorId"))
+	if connectorId == "" {
+		httpError(w, http.StatusBadRequest, "connectorId is required")
 		return
 	}
-	enrolled, err := s.store.ProjectHasDevice(existing.Id, deviceId)
+	enrolled, err := s.store.ProjectHasConnector(existing.Id, connectorId)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if !enrolled {
-		httpError(w, http.StatusNotFound, "device is not on this project")
+		httpError(w, http.StatusNotFound, "connector is not on this project")
 		return
 	}
-	if err := s.store.DetachProjectDevice(existing.Id, deviceId); err != nil {
+	if err := s.store.DetachProjectConnector(existing.Id, connectorId); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -388,12 +388,12 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request, cre
 // handleProjectExec is the narrow host boundary used by browser-hosted fx.
 // The browser supplies only a command; the hub owns the selected node and cwd.
 func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	project, ok := s.projectFor(w, r.PathValue("id"), cred, authz.ExecDevice)
+	project, ok := s.projectFor(w, r.PathValue("id"), cred, authz.ExecConnector)
 	if !ok {
 		return
 	}
-	if project.DeviceId == "" {
-		httpError(w, http.StatusServiceUnavailable, "project has no device")
+	if project.ConnectorId == "" {
+		httpError(w, http.StatusServiceUnavailable, "project has no connector")
 		return
 	}
 	var input struct {
@@ -415,7 +415,7 @@ func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, cred 
 	if timeoutSec > 600 {
 		timeoutSec = 600
 	}
-	if c := s.registry.get(project.DeviceId); c != nil {
+	if c := s.registry.get(project.ConnectorId); c != nil {
 		result, err := s.execOnDevice(c, input.Command, project.Path, timeoutSec)
 		if err != nil {
 			httpError(w, http.StatusBadGateway, err.Error())
@@ -427,16 +427,16 @@ func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, cred 
 		return
 	}
 	// The worker lives on the gateway (self-host enroll, 10/16): rewrite the
-	// command into the device-exec shape and hop, exactly as the session and
-	// device-exec routes do.
+	// command into the connector-exec shape and hop, exactly as the session and
+	// connector-exec routes do.
 	target := s.projectGateway(project)
 	if target == "" {
-		httpError(w, http.StatusServiceUnavailable, "project device is offline")
+		httpError(w, http.StatusServiceUnavailable, "project connector is offline")
 		return
 	}
 	s.stampProjectActivity(project.Id)
 	s.proxyGatewayJSON(w, r, placement{projectID: project.Id, gatewayURL: target},
-		http.MethodPost, "/api/devices/"+project.DeviceId+"/exec", deviceProxyTimeout,
+		http.MethodPost, "/api/connectors/"+project.ConnectorId+"/exec", connectorProxyTimeout,
 		protocol.Exec{Command: input.Command, Cwd: project.Path, TimeoutSec: timeoutSec})
 }
 

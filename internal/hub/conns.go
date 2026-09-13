@@ -11,15 +11,15 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/pleware/initagent/internal/deviceops"
+	"github.com/pleware/initagent/internal/connectorops"
 	"github.com/pleware/initagent/internal/protocol"
 )
 
 // agentConn is one live device connection on the hub side.
 type agentConn struct {
-	deviceId string
-	hello    protocol.Hello
-	ws       *websocket.Conn
+	connectorId string
+	hello       protocol.Hello
+	ws          *websocket.Conn
 
 	writeMu sync.Mutex
 
@@ -39,13 +39,13 @@ type hubChannel struct {
 	onControl func(protocol.Msg)
 }
 
-func newAgentConn(deviceId string, hello protocol.Hello, ws *websocket.Conn) *agentConn {
+func newAgentConn(connectorId string, hello protocol.Hello, ws *websocket.Conn) *agentConn {
 	return &agentConn{
-		deviceId: deviceId,
-		hello:    hello,
-		ws:       ws,
-		pending:  map[uint64]chan protocol.Msg{},
-		channels: map[uint32]*hubChannel{},
+		connectorId: connectorId,
+		hello:       hello,
+		ws:          ws,
+		pending:     map[uint64]chan protocol.Msg{},
+		channels:    map[uint32]*hubChannel{},
 	}
 }
 
@@ -72,7 +72,7 @@ func (c *agentConn) request(ctx context.Context, typ string, v any) (protocol.Ms
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
-		return protocol.Msg{}, fmt.Errorf("device disconnected")
+		return protocol.Msg{}, fmt.Errorf("connector disconnected")
 	}
 	c.pending[id] = ch
 	c.mu.Unlock()
@@ -90,7 +90,7 @@ func (c *agentConn) request(ctx context.Context, typ string, v any) (protocol.Ms
 		if !ok {
 			// Channel closed by serveAgent's teardown: the device dropped
 			// mid-request. Never report this as an empty success.
-			return protocol.Msg{}, fmt.Errorf("device disconnected")
+			return protocol.Msg{}, fmt.Errorf("connector disconnected")
 		}
 		if reply.Error != "" {
 			return reply, fmt.Errorf("%s", reply.Error)
@@ -128,14 +128,14 @@ func (c *agentConn) closeChannel(id uint32) {
 	c.mu.Unlock()
 }
 
-// The exported methods below adapt *agentConn to deviceops.Conn so the hub
+// The exported methods below adapt *agentConn to connectorops.Conn so the hub
 // and the gateway share one implementation of exec, fs, and setup probing.
 
 func (c *agentConn) Call(ctx context.Context, typ string, payload, out any) error {
 	return c.requestInto(ctx, typ, payload, out)
 }
 
-func (c *agentConn) OpenChannel(h *deviceops.Channel) uint32 {
+func (c *agentConn) OpenChannel(h *connectorops.Channel) uint32 {
 	return c.openChannel(&hubChannel{onBinary: h.OnBinary, onControl: h.OnControl})
 }
 
@@ -161,34 +161,34 @@ func newRegistry(events *eventBus) *registry {
 
 func (r *registry) add(c *agentConn) {
 	r.mu.Lock()
-	old := r.agents[c.deviceId]
-	r.agents[c.deviceId] = c
+	old := r.agents[c.connectorId]
+	r.agents[c.connectorId] = c
 	r.mu.Unlock()
 	if old != nil {
 		old.ws.Close()
 	}
-	r.events.publish(event{Type: "device.online", DeviceId: c.deviceId})
+	r.events.publish(event{Type: "connector.online", ConnectorId: c.connectorId})
 }
 
 func (r *registry) remove(c *agentConn) {
 	r.mu.Lock()
-	removed := r.agents[c.deviceId] == c
+	removed := r.agents[c.connectorId] == c
 	if removed {
-		delete(r.agents, c.deviceId)
+		delete(r.agents, c.connectorId)
 	}
 	r.mu.Unlock()
 	// Only announce offline if this was the live connection. On a reconnect the
 	// superseded old conn also calls remove(); publishing then would emit a
 	// spurious offline right after the new conn's online.
 	if removed {
-		r.events.publish(event{Type: "device.offline", DeviceId: c.deviceId})
+		r.events.publish(event{Type: "connector.offline", ConnectorId: c.connectorId})
 	}
 }
 
-func (r *registry) get(deviceId string) *agentConn {
+func (r *registry) get(connectorId string) *agentConn {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.agents[deviceId]
+	return r.agents[connectorId]
 }
 
 func (r *registry) all() []*agentConn {
@@ -215,15 +215,15 @@ func (s *Server) serveAgent(c *agentConn) {
 		for _, ch := range pending {
 			close(ch)
 		}
-		exit := protocol.Msg{Type: protocol.TypeTermExit, Error: "device disconnected"}
+		exit := protocol.Msg{Type: protocol.TypeTermExit, Error: "connector disconnected"}
 		for _, h := range channels {
 			if h.onControl != nil {
 				h.onControl(exit)
 			}
 		}
 		s.registry.remove(c)
-		s.store.TouchDevice(c.deviceId)
-		log.Printf("device %s disconnected", c.deviceId)
+		s.store.TouchConnector(c.connectorId)
+		log.Printf("device %s disconnected", c.connectorId)
 	}()
 
 	c.ws.SetReadLimit(16 * 1024 * 1024)
@@ -272,7 +272,7 @@ func (s *Server) handleAgentMsg(c *agentConn, m protocol.Msg) {
 			c.mu.Lock()
 			c.stats = &st
 			c.mu.Unlock()
-			s.events.publish(event{Type: "device.stats", DeviceId: c.deviceId, Stats: &st})
+			s.events.publish(event{Type: "connector.stats", ConnectorId: c.connectorId, Stats: &st})
 		}
 	case m.Channel != 0:
 		c.mu.Lock()
@@ -287,9 +287,9 @@ func (s *Server) handleAgentMsg(c *agentConn, m protocol.Msg) {
 // --- event bus (hub -> browsers) ---
 
 type event struct {
-	Type     string          `json:"type"`
-	DeviceId string          `json:"deviceId,omitempty"`
-	Stats    *protocol.Stats `json:"stats,omitempty"`
+	Type        string          `json:"type"`
+	ConnectorId string          `json:"connectorId,omitempty"`
+	Stats       *protocol.Stats `json:"stats,omitempty"`
 }
 
 type eventBus struct {

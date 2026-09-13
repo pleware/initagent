@@ -14,7 +14,7 @@ import (
 	"github.com/pleware/initagent/internal/auth"
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/brand"
-	"github.com/pleware/initagent/internal/deviceops"
+	"github.com/pleware/initagent/internal/connectorops"
 	"github.com/pleware/initagent/internal/funnel"
 	"github.com/pleware/initagent/internal/offering"
 	"github.com/pleware/initagent/internal/protocol"
@@ -388,14 +388,14 @@ func (s *Server) handleEnroll(w http.ResponseWriter, r *http.Request) {
 	}
 	name := req.Hostname
 	if name == "" {
-		name = "device"
+		name = "connector"
 	}
-	id, token, err := s.store.CreateDevice(name, req.Hostname, req.OS, req.Arch, false)
+	id, token, err := s.store.CreateConnector(name, req.Hostname, req.OS, req.Arch, false)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, map[string]string{"deviceId": id, "deviceToken": token})
+	writeJSON(w, map[string]string{"connectorId": id, "connectorToken": token})
 }
 
 func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
@@ -408,8 +408,8 @@ func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request,
 
 // --- devices ---
 
-type deviceView struct {
-	Device
+type connectorView struct {
+	Connector
 	Online          bool            `json:"online"`
 	Stats           *protocol.Stats `json:"stats,omitempty"`
 	Tmux            bool            `json:"tmux"`
@@ -419,14 +419,14 @@ type deviceView struct {
 	KernelVersion   string          `json:"kernelVersion,omitempty"`
 }
 
-func (s *Server) deviceViews() ([]deviceView, error) {
-	devices, err := s.store.ListDevices()
+func (s *Server) connectorViews() ([]connectorView, error) {
+	devices, err := s.store.ListConnectors()
 	if err != nil {
 		return nil, err
 	}
-	out := make([]deviceView, 0, len(devices))
+	out := make([]connectorView, 0, len(devices))
 	for _, d := range devices {
-		v := deviceView{Device: d}
+		v := connectorView{Connector: d}
 		if c := s.registry.get(d.Id); c != nil {
 			v.Online = true
 			v.Tmux = c.hello.Tmux
@@ -443,7 +443,7 @@ func (s *Server) deviceViews() ([]deviceView, error) {
 	return out, nil
 }
 
-func (s *Server) handleListDevices(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+func (s *Server) handleListConnectors(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	// The flag still decides whether this hub has a gateway plane at all;
 	// without one the inherited single-plane path below is the answer.
 	if s.opts.GatewayURL != "" {
@@ -451,20 +451,20 @@ func (s *Server) handleListDevices(w http.ResponseWriter, r *http.Request, cred 
 		if !ok {
 			return
 		}
-		s.proxyGateway(w, r, p, http.MethodGet, "/api/devices", gatewayProxyTimeout)
+		s.proxyGateway(w, r, p, http.MethodGet, "/api/connectors", gatewayProxyTimeout)
 		return
 	}
-	views, err := s.deviceViews()
+	views, err := s.connectorViews()
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	visible, err := s.deviceFilter(cred)
+	visible, err := s.connectorFilter(cred)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	mine := make([]deviceView, 0, len(views))
+	mine := make([]connectorView, 0, len(views))
 	for _, v := range views {
 		if visible(v.Id) {
 			mine = append(mine, v)
@@ -473,7 +473,7 @@ func (s *Server) handleListDevices(w http.ResponseWriter, r *http.Request, cred 
 	writeJSON(w, mine)
 }
 
-func (s *Server) handleRenameDevice(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleRenameConnector(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name string `json:"name"`
 	}
@@ -481,29 +481,29 @@ func (s *Server) handleRenameDevice(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusBadRequest, "name required")
 		return
 	}
-	if err := s.store.RenameDevice(r.PathValue("id"), strings.TrimSpace(req.Name)); err != nil {
+	if err := s.store.RenameConnector(r.PathValue("id"), strings.TrimSpace(req.Name)); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
-func (s *Server) handleDeleteDevice(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleDeleteConnector(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	d, err := s.store.DeviceById(id)
+	d, err := s.store.ConnectorById(id)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if d == nil {
-		httpError(w, http.StatusNotFound, "no such device")
+		httpError(w, http.StatusNotFound, "no such connector")
 		return
 	}
 	if d.IsHub {
 		httpError(w, http.StatusBadRequest, "cannot remove the hub itself")
 		return
 	}
-	if err := s.store.DeleteDevice(id); err != nil {
+	if err := s.store.DeleteConnector(id); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -518,7 +518,7 @@ func (s *Server) handleDeleteDevice(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleUpdateStatus(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	status := s.updates.snapshot()
 	// Hub plane: count the devices this installation holds directly.
-	views, err := s.deviceViews()
+	views, err := s.connectorViews()
 	if err == nil {
 		for _, device := range views {
 			if device.IsHub {
@@ -539,7 +539,7 @@ func (s *Server) handleUpdateStatus(w http.ResponseWriter, r *http.Request, cred
 				IsHub        bool   `json:"isHub"`
 				AgentVersion string `json:"agentVersion"`
 			}
-			if s.getGatewayJSON(r.Context(), p, "/api/devices", &gwViews) != nil {
+			if s.getGatewayJSON(r.Context(), p, "/api/connectors", &gwViews) != nil {
 				continue
 			}
 			for _, d := range gwViews {
@@ -611,7 +611,7 @@ func (s *Server) handleUpdateRollback(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
-// resolveLiveDevice returns the hub-registry connection, or the placement to
+// resolveLiveConnector returns the hub-registry connection, or the placement to
 // proxy to when the worker lives on the gateway (self-host enroll, 10/16).
 // A false ok means the request was already answered (an error was written)
 // and the caller must stop.
@@ -621,7 +621,7 @@ func (s *Server) resolveLiveDevice(w http.ResponseWriter, r *http.Request, cred 
 		return c, placement{}, true
 	}
 	if strings.TrimSpace(s.opts.GatewayURL) == "" {
-		httpError(w, http.StatusServiceUnavailable, "device is offline")
+		httpError(w, http.StatusServiceUnavailable, "connector is offline")
 		return nil, placement{}, false
 	}
 	p, ok := s.gatewayFor(w, r, cred)
@@ -631,7 +631,7 @@ func (s *Server) resolveLiveDevice(w http.ResponseWriter, r *http.Request, cred 
 	return nil, p, true
 }
 
-// liveDevice returns a hub-registry connection, or answers the request via
+// liveConnector returns a hub-registry connection, or answers the request via
 // the project gateway when the worker lives there. A nil return means the
 // caller must stop: either an error was written or the gateway answered.
 func (s *Server) liveDevice(w http.ResponseWriter, r *http.Request, cred authz.Credential) *agentConn {
@@ -640,7 +640,7 @@ func (s *Server) liveDevice(w http.ResponseWriter, r *http.Request, cred authz.C
 		return nil
 	}
 	if c == nil {
-		s.proxyGateway(w, r, p, r.Method, r.URL.RequestURI(), deviceProxyTimeout)
+		s.proxyGateway(w, r, p, r.Method, r.URL.RequestURI(), connectorProxyTimeout)
 		return nil
 	}
 	return c
@@ -682,7 +682,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request, cre
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	s.events.publish(event{Type: "sessions.changed", DeviceId: c.deviceId})
+	s.events.publish(event{Type: "sessions.changed", ConnectorId: c.connectorId})
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
@@ -698,7 +698,7 @@ func (s *Server) handleKillSession(w http.ResponseWriter, r *http.Request, cred 
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	s.events.publish(event{Type: "sessions.changed", DeviceId: c.deviceId})
+	s.events.publish(event{Type: "sessions.changed", ConnectorId: c.connectorId})
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
@@ -720,13 +720,13 @@ func (s *Server) handleSessionInput(w http.ResponseWriter, r *http.Request, cred
 	name := r.PathValue("name")
 	cmd := ""
 	if req.Text != "" {
-		cmd = fmt.Sprintf("tmux send-keys -t %s -l %s", deviceops.ShellQuote(name), deviceops.ShellQuote(req.Text))
+		cmd = fmt.Sprintf("tmux send-keys -t %s -l %s", connectorops.ShellQuote(name), connectorops.ShellQuote(req.Text))
 	}
 	if req.Enter {
 		if cmd != "" {
 			cmd += " && "
 		}
-		cmd += fmt.Sprintf("tmux send-keys -t %s Enter", deviceops.ShellQuote(name))
+		cmd += fmt.Sprintf("tmux send-keys -t %s Enter", connectorops.ShellQuote(name))
 	}
 	if cmd == "" {
 		httpError(w, http.StatusBadRequest, "nothing to send")
@@ -755,7 +755,7 @@ func (s *Server) handleSessionOutput(w http.ResponseWriter, r *http.Request, cre
 		lines = l
 	}
 	name := r.PathValue("name")
-	cmd := fmt.Sprintf("tmux capture-pane -p -t %s -S -%d", deviceops.ShellQuote(name), lines)
+	cmd := fmt.Sprintf("tmux capture-pane -p -t %s -S -%d", connectorops.ShellQuote(name), lines)
 	res, err := s.execOnDevice(c, cmd, "", 15)
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
@@ -771,7 +771,7 @@ func (s *Server) handleSessionOutput(w http.ResponseWriter, r *http.Request, cre
 // --- exec ---
 
 func (s *Server) execOnDevice(c *agentConn, command, cwd string, timeoutSec int) (protocol.ExecResult, error) {
-	return deviceops.Exec(context.Background(), c, command, cwd, timeoutSec)
+	return connectorops.Exec(context.Background(), c, command, cwd, timeoutSec)
 }
 
 func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
@@ -796,12 +796,12 @@ func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, cred authz.C
 
 type fleetSession struct {
 	protocol.Session
-	DeviceId   string `json:"deviceId"`
-	DeviceName string `json:"deviceName"`
+	ConnectorId   string `json:"connectorId"`
+	ConnectorName string `json:"connectorName"`
 }
 
 func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	devices, err := s.store.ListDevices()
+	devices, err := s.store.ListConnectors()
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -809,7 +809,7 @@ func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request, cred 
 	// The registry is installation-wide, so this view has to be narrowed
 	// before it is fanned out: without it a member of one organization would
 	// see every terminal session running on the hub.
-	visible, err := s.deviceFilter(cred)
+	visible, err := s.connectorFilter(cred)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -825,7 +825,7 @@ func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request, cred 
 
 	// Hub plane: fan out the live registry.
 	for _, c := range s.registry.all() {
-		if !visible(c.deviceId) {
+		if !visible(c.connectorId) {
 			continue
 		}
 		wg.Add(1)
@@ -839,7 +839,7 @@ func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request, cred 
 			}
 			mu.Lock()
 			for _, sess := range res.Sessions {
-				out = append(out, fleetSession{Session: sess, DeviceId: c.deviceId, DeviceName: nameById[c.deviceId]})
+				out = append(out, fleetSession{Session: sess, ConnectorId: c.connectorId, ConnectorName: nameById[c.connectorId]})
 			}
 			mu.Unlock()
 		}(c)
@@ -869,8 +869,8 @@ func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request, cred 
 
 	wg.Wait()
 	sort.Slice(out, func(i, j int) bool {
-		if out[i].DeviceName != out[j].DeviceName {
-			return out[i].DeviceName < out[j].DeviceName
+		if out[i].ConnectorName != out[j].ConnectorName {
+			return out[i].ConnectorName < out[j].ConnectorName
 		}
 		return out[i].Name < out[j].Name
 	})
@@ -1043,7 +1043,7 @@ func (s *Server) handleFsList(w http.ResponseWriter, r *http.Request, cred authz
 	}
 	ctx, cancel := deviceCtx()
 	defer cancel()
-	res, err := deviceops.ListDir(ctx, c, r.URL.Query().Get("path"))
+	res, err := connectorops.ListDir(ctx, c, r.URL.Query().Get("path"))
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
@@ -1073,7 +1073,7 @@ func (s *Server) handleFsDownload(w http.ResponseWriter, r *http.Request, cred a
 	base := path[strings.LastIndex(path, "/")+1:]
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", base))
 	w.Header().Set("Content-Type", "application/octet-stream")
-	if err := deviceops.Download(c, path, w); err != nil {
+	if err := connectorops.Download(c, path, w); err != nil {
 		// A failure before the first byte is unreportable once the stream
 		// headers are set; a dropped device surfaces as a truncated download.
 		return
@@ -1106,7 +1106,7 @@ func (s *Server) handleFsUpload(w http.ResponseWriter, r *http.Request, cred aut
 		return
 	}
 	target := strings.TrimRight(dir, "/") + "/" + name
-	if err := deviceops.Upload(c, target, file); err != nil {
+	if err := connectorops.Upload(c, target, file); err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
 	}

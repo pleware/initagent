@@ -130,7 +130,7 @@ function SoftwareUpdates() {
       <div className="mt-5 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-3">
         <div className="bg-zinc-950/70 p-4"><p className="eyebrow">Installed</p><p className="mt-2 font-mono text-sm text-zinc-200">{status?.currentVersion || 'Loading…'}</p></div>
         <div className="bg-zinc-950/70 p-4"><p className="eyebrow">Stable release</p><p className="mt-2 font-mono text-sm text-zinc-200">{status?.latestVersion || 'Not checked'}</p></div>
-        <div className="bg-zinc-950/70 p-4"><p className="eyebrow">Device fleet</p><p className="mt-2 text-sm text-zinc-200">{status ? `${status.fleetTotal - status.fleetOutdated}/${status.fleetTotal} current` : 'Loading…'}</p></div>
+        <div className="bg-zinc-950/70 p-4"><p className="eyebrow">Connector fleet</p><p className="mt-2 text-sm text-zinc-200">{status ? `${status.fleetTotal - status.fleetOutdated}/${status.fleetTotal} current` : 'Loading…'}</p></div>
       </div>
 
       {!status?.managed && status && (
@@ -168,7 +168,7 @@ function scopeGroups(scopes: string[]) {
 // The form is deliberately wider than "name it and press create". A token
 // with no boundary and no verb list is exactly the credential that put
 // arbitrary command execution on every enrolled machine behind one bearer,
-// so the boundary is required and the verbs are opt-in. `exec:fleet.device`
+// so the boundary is required and the verbs are opt-in. `exec:fleet.connector`
 // sits apart and unchecked: it is the one scope whose misuse is not a data
 // leak but a command running on someone's machine.
 function ApiTokens({ me }: { me: Me }) {
@@ -500,7 +500,7 @@ function McpHelp() {
       <p className="mb-4 text-sm text-zinc-400">
         Run a coding agent on any machine with the{' '}
         <code className="text-lime-300">initagent</code> binary and an API token,
-        and it can see every device, launch worker agents, read their output,
+        and it can see every connector, launch worker agents, read their output,
         and steer them. For Claude Code:
       </p>
       <pre className="overflow-x-auto rounded-lg border border-zinc-700 bg-zinc-950 p-4 font-mono text-[13px] leading-relaxed text-zinc-300">
@@ -512,8 +512,8 @@ claude mcp add initagent -- initagent mcp`}
         homelab box and have it fix the failing tests.”
       </p>
       <p className="mt-2 text-xs text-zinc-500">
-        An agent needs the device, task and terminal scopes to do that, plus{' '}
-        <code className="font-mono text-zinc-400">exec:fleet.device</code> if
+        An agent needs the connector, task and terminal scopes to do that, plus{' '}
+        <code className="font-mono text-zinc-400">exec:fleet.connector</code> if
         you want it running commands directly. If a tool comes back refused,
         the hub names the scope the token is missing — mint a new one with it
         rather than widening the old.
@@ -533,7 +533,7 @@ claude mcp add initagent -- initagent mcp`}
         </pre>
         <div className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/8 p-3 text-xs text-amber-200/90">
           ⚠️ This is a remote shell — the tools run commands and write files on
-          your devices. Only expose it over HTTPS ({''}
+          your connectors. Only expose it over HTTPS ({''}
           <code className="font-mono">--tls-domain</code> or a TLS proxy), and
           treat the API token like an SSH key. Revoke it above if it leaks.
         </div>

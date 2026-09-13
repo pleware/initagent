@@ -45,16 +45,16 @@ func checkOrigin(r *http.Request) bool {
 func (s *Server) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Bearer ") {
-		httpError(w, http.StatusUnauthorized, "missing device token")
+		httpError(w, http.StatusUnauthorized, "missing connector token")
 		return
 	}
-	device, err := s.store.DeviceByToken(strings.TrimPrefix(auth, "Bearer "))
+	device, err := s.store.ConnectorByToken(strings.TrimPrefix(auth, "Bearer "))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if device == nil {
-		httpError(w, http.StatusForbidden, "unknown device token")
+		httpError(w, http.StatusForbidden, "unknown connector token")
 		return
 	}
 	ws, err := upgrader.Upgrade(w, r, nil)
@@ -72,13 +72,13 @@ func (s *Server) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(hello.Data, &h)
 	ws.SetReadDeadline(time.Time{})
 
-	s.store.UpdateDeviceOnConnect(device.Id, h.Hostname, h.OS, h.Arch)
+	s.store.UpdateConnectorOnConnect(device.Id, h.Hostname, h.OS, h.Arch)
 
 	conn := newAgentConn(device.Id, h, ws)
 	welcome, _ := protocol.NewMsg(protocol.TypeWelcome, 0, 0, protocol.Welcome{
-		DeviceId: device.Id,
-		Version:  s.opts.Version,
-		Repo:     s.opts.GithubRepo,
+		ConnectorId: device.Id,
+		Version:     s.opts.Version,
+		Repo:        s.opts.GithubRepo,
 	})
 	if err := conn.sendJSON(welcome); err != nil {
 		ws.Close()
@@ -94,25 +94,25 @@ func (s *Server) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 // final JSON {"type":"exit","error":?}.
 func (s *Server) handleTermWS(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	q := r.URL.Query()
-	deviceId := q.Get("device")
+	connectorId := q.Get("connector")
 	session := q.Get("session")
 	cols := clampInt(q.Get("cols"), 80, 10, 500)
 	rows := clampInt(q.Get("rows"), 24, 5, 300)
-	if deviceId == "" || session == "" {
-		httpError(w, http.StatusBadRequest, "device and session required")
+	if connectorId == "" || session == "" {
+		httpError(w, http.StatusBadRequest, "connector and session required")
 		return
 	}
-	c := s.registry.get(deviceId)
+	c := s.registry.get(connectorId)
 	if c == nil {
 		if s.opts.GatewayURL == "" {
-			httpError(w, http.StatusServiceUnavailable, "device is offline")
+			httpError(w, http.StatusServiceUnavailable, "connector is offline")
 			return
 		}
 		p, ok := s.gatewayFor(w, r, cred)
 		if !ok {
 			return
 		}
-		s.proxyTermWS(w, r, p, deviceId, session, cols, rows)
+		s.proxyTermWS(w, r, p, connectorId, session, cols, rows)
 		return
 	}
 	browser, err := upgrader.Upgrade(w, r, nil)
@@ -156,7 +156,7 @@ func (s *Server) handleTermWS(w http.ResponseWriter, r *http.Request, cred authz
 
 	open, _ := protocol.NewMsg(protocol.TypeTermOpen, 0, ch, protocol.TermOpen{Session: session, Cols: cols, Rows: rows})
 	if err := c.sendJSON(open); err != nil {
-		sendBrowser(websocket.TextMessage, exitJSON("device connection lost"))
+		sendBrowser(websocket.TextMessage, exitJSON("connector connection lost"))
 		return
 	}
 
@@ -196,8 +196,8 @@ func (s *Server) handleTermWS(w http.ResponseWriter, r *http.Request, cred authz
 
 // proxyTermWS copies a browser terminal onto the project's gateway. The
 // worker lives on that socket after self-host enroll (10), not on the hub.
-func (s *Server) proxyTermWS(w http.ResponseWriter, r *http.Request, p placement, deviceId, session string, cols, rows int) {
-	u, err := termGatewayURL(p.gatewayURL, deviceId, session, cols, rows)
+func (s *Server) proxyTermWS(w http.ResponseWriter, r *http.Request, p placement, connectorId, session string, cols, rows int) {
+	u, err := termGatewayURL(p.gatewayURL, connectorId, session, cols, rows)
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
@@ -241,7 +241,7 @@ func (s *Server) proxyTermWS(w http.ResponseWriter, r *http.Request, p placement
 	wg.Wait()
 }
 
-func termGatewayURL(gatewayURL, deviceId, session string, cols, rows int) (string, error) {
+func termGatewayURL(gatewayURL, connectorId, session string, cols, rows int) (string, error) {
 	raw := strings.TrimRight(gatewayURL, "/") + "/api/ws/term"
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -254,7 +254,7 @@ func termGatewayURL(gatewayURL, deviceId, session string, cols, rows int) (strin
 		u.Scheme = "ws"
 	}
 	q := u.Query()
-	q.Set("device", deviceId)
+	q.Set("connector", connectorId)
 	q.Set("session", session)
 	q.Set("cols", strconv.Itoa(cols))
 	q.Set("rows", strconv.Itoa(rows))

@@ -207,7 +207,9 @@
     "email": "Invoice email",
     "saveInvoice": "Save invoice details",
     "notWired": "Checkout is not configured on this hub yet. Invoice details still save.",
-    "failed": "Could not update billing"
+    "failed": "Could not update billing",
+    "countryInvalid": "Enter a two-letter country code (e.g. PL)",
+    "nipInvalid": "Enter a valid NIP (10 digits)"
   },
   "people": {
     "eyebrow": "Organization",

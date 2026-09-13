@@ -28,6 +28,28 @@ const LABELS: Record<PlanSlug, string> = {
   enterprise: 'Enterprise',
 }
 
+type BillingField = 'name' | 'taxNo' | 'street' | 'city' | 'postCode' | 'country' | 'email'
+type BillingErrors = Partial<Record<BillingField, string>>
+
+// Mirrors billing.ValidNIP: 10 digits + the Polish checksum, ignoring
+// spaces and dashes. Keeps the client from sending a bad NIP and showing
+// the raw server error at the bottom of the page.
+function validNip(raw: string): boolean {
+  const digits: number[] = []
+  for (const r of raw) {
+    if (r === ' ' || r === '-') continue
+    if (r < '0' || r > '9') return false
+    digits.push(r.charCodeAt(0) - 48)
+  }
+  if (digits.length !== 10) return false
+  const weights = [6, 5, 7, 2, 3, 4, 5, 6, 7]
+  let sum = 0
+  for (let i = 0; i < 9; i += 1) sum += digits[i] * weights[i]
+  const check = sum % 11
+  if (check === 10) return false
+  return check === digits[9]
+}
+
 export default function PlansPage({ me }: { me: Me }) {
   const { t } = useTranslation()
   const [params] = useSearchParams()
@@ -36,8 +58,40 @@ export default function PlansPage({ me }: { me: Me }) {
   const [billing, setBilling] = useState<OrgBilling | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [busy, setBusy] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<BillingErrors>({})
   const current = memberships.find((m) => m.orgId === orgId)
   const canPay = current?.role === 'owner' || current?.role === 'admin'
+
+  // Same rules as billing.Buyer.Validate, translated for the form.
+  const validate = (): BillingErrors => {
+    const errors: BillingErrors = {}
+    const name = (billing?.name ?? '').trim()
+    const street = (billing?.street ?? '').trim()
+    const city = (billing?.city ?? '').trim()
+    const postCode = (billing?.postCode ?? '').trim()
+    const email = (billing?.email || me.email || '').trim()
+    const country = (billing?.country || 'PL').trim().toUpperCase()
+    const taxNo = (billing?.taxNo ?? '').trim()
+
+    if (!name) errors.name = t('validation.required')
+    if (!street) errors.street = t('validation.required')
+    if (!city) errors.city = t('validation.required')
+    if (!postCode) errors.postCode = t('validation.required')
+    if (!email || !email.includes('@')) errors.email = t('validation.email')
+    if (country.length !== 2) errors.country = t('plans.countryInvalid')
+    if (country === 'PL' && !validNip(taxNo)) errors.taxNo = t('plans.nipInvalid')
+    return errors
+  }
+
+  // Update one field and clear its error as the user types.
+  const update = (patch: Partial<Pick<OrgBilling, BillingField>>) => {
+    setBilling((b) => (b ? { ...b, ...patch } : b))
+    setFieldErrors((prev) => {
+      const next = { ...prev }
+      for (const key of Object.keys(patch) as BillingField[]) next[key] = undefined
+      return next
+    })
+  }
 
   const load = useCallback(async () => {
     if (!orgId) {
@@ -59,6 +113,13 @@ export default function PlansPage({ me }: { me: Me }) {
   const saveBuyer = async (event: FormEvent) => {
     event.preventDefault()
     if (!billing) return
+    const errors = validate()
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setError(null)
+      return
+    }
+    setFieldErrors({})
     setBusy('save')
     setError(null)
     try {
@@ -79,6 +140,13 @@ export default function PlansPage({ me }: { me: Me }) {
   }
 
   const checkout = async (plan: PlanSlug) => {
+    const errors = validate()
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setError(null)
+      return
+    }
+    setFieldErrors({})
     setBusy(plan)
     setError(null)
     try {
@@ -163,13 +231,13 @@ export default function PlansPage({ me }: { me: Me }) {
           <h2 className="text-lg font-semibold text-zinc-100">{t('plans.invoiceTitle')}</h2>
           <p className="text-sm text-zinc-500">{t('plans.invoiceHint')}</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t('plans.company')} value={billing?.name ?? ''} onChange={(name) => setBilling((b) => b && { ...b, name })} />
-            <Field label={t('plans.nip')} value={billing?.taxNo ?? ''} onChange={(taxNo) => setBilling((b) => b && { ...b, taxNo })} />
-            <Field label={t('plans.street')} value={billing?.street ?? ''} onChange={(street) => setBilling((b) => b && { ...b, street })} className="sm:col-span-2" />
-            <Field label={t('plans.postCode')} value={billing?.postCode ?? ''} onChange={(postCode) => setBilling((b) => b && { ...b, postCode })} />
-            <Field label={t('plans.city')} value={billing?.city ?? ''} onChange={(city) => setBilling((b) => b && { ...b, city })} />
-            <Field label={t('plans.country')} value={billing?.country || 'PL'} onChange={(country) => setBilling((b) => b && { ...b, country })} />
-            <Field label={t('plans.email')} value={billing?.email || me.email || ''} onChange={(email) => setBilling((b) => b && { ...b, email })} />
+            <Field label={t('plans.company')} value={billing?.name ?? ''} error={fieldErrors.name} onChange={(name) => update({ name })} />
+            <Field label={t('plans.nip')} value={billing?.taxNo ?? ''} error={fieldErrors.taxNo} onChange={(taxNo) => update({ taxNo })} />
+            <Field label={t('plans.street')} value={billing?.street ?? ''} error={fieldErrors.street} onChange={(street) => update({ street })} className="sm:col-span-2" />
+            <Field label={t('plans.postCode')} value={billing?.postCode ?? ''} error={fieldErrors.postCode} onChange={(postCode) => update({ postCode })} />
+            <Field label={t('plans.city')} value={billing?.city ?? ''} error={fieldErrors.city} onChange={(city) => update({ city })} />
+            <Field label={t('plans.country')} value={billing?.country || 'PL'} error={fieldErrors.country} onChange={(country) => update({ country })} />
+            <Field label={t('plans.email')} value={billing?.email || me.email || ''} error={fieldErrors.email} onChange={(email) => update({ email })} />
           </div>
           <button type="submit" disabled={busy === 'save' || !billing} className="btn-secondary">
             {busy === 'save' ? t('common.loading') : t('plans.saveInvoice')}
@@ -191,21 +259,31 @@ function Field({
   label,
   value,
   onChange,
+  error,
   className = '',
 }: {
   label: string
   value: string
   onChange: (value: string) => void
+  error?: string
   className?: string
 }) {
   return (
-    <label className={`text-sm text-zinc-300 ${className}`}>
-      {label}
+    <label className={`block text-sm text-zinc-300 ${className}`}>
+      <span className="mb-1 block">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+        aria-invalid={error ? true : undefined}
+        className={`w-full rounded-lg border bg-white/5 px-3 py-2 text-zinc-100 ${
+          error ? 'border-fail/60' : 'border-white/10'
+        }`}
       />
+      {error && (
+        <span role="alert" className="mt-1 block text-xs text-fail-fg">
+          {error}
+        </span>
+      )}
     </label>
   )
 }

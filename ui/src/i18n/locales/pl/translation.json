@@ -207,7 +207,9 @@
     "email": "E-mail do faktury",
     "saveInvoice": "Zapisz dane do faktury",
     "notWired": "Checkout nie jest jeszcze skonfigurowany na tym hubie. Dane do faktury i tak się zapiszą.",
-    "failed": "Nie udało się zapisać rozliczenia"
+    "failed": "Nie udało się zapisać rozliczenia",
+    "countryInvalid": "Podaj dwuliterowy kod kraju (np. PL)",
+    "nipInvalid": "Podaj poprawny NIP (10 cyfr)"
   },
   "people": {
     "eyebrow": "Organizacja",

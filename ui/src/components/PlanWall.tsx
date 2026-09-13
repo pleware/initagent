@@ -1,6 +1,6 @@
 import { ApiError } from '../api'
 
-const publicPlans = 'https://initagent.dev/plans'
+const publicPlans = '/plans'
 
 export default function PlanWall({ error }: { error: unknown }) {
   if (!(error instanceof ApiError) || error.code !== 'plan_limit') {

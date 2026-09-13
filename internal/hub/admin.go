@@ -171,5 +171,6 @@ func (s *Server) handleRemoveOrgMember(w http.ResponseWriter, r *http.Request, c
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	s.syncBillingQuantity(orgId)
 	writeJSON(w, map[string]bool{"ok": true})
 }

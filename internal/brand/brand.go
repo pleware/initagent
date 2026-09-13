@@ -121,6 +121,28 @@ const (
 	// `initAgent <noreply@initagent.dev>`. Required when the key is set.
 	EnvMailFrom = EnvPrefix + "MAIL_FROM"
 
+	// EnvStripeSecretKey is the hosted Stripe secret. Empty on self-host
+	// and on hosted until ops fills it. Never a flag.
+	EnvStripeSecretKey = EnvPrefix + "STRIPE_SECRET_KEY"
+
+	// EnvStripeWebhookSecret verifies POST /api/billing/webhook. Empty
+	// refuses every Stripe event.
+	EnvStripeWebhookSecret = EnvPrefix + "STRIPE_WEBHOOK_SECRET"
+
+	// EnvStripePriceStarter / EnvStripePriceTeam override the catalogue
+	// Price ids when the YAML slug is still empty (first deploy). They
+	// are not secrets.
+	EnvStripePriceStarter = EnvPrefix + "STRIPE_PRICE_STARTER"
+	EnvStripePriceTeam    = EnvPrefix + "STRIPE_PRICE_TEAM"
+
+	// EnvFakturowniaToken is the Fakturownia.pl API token. Fiscal
+	// invoices (and KSeF) are issued after Stripe marks a payment paid.
+	EnvFakturowniaToken = EnvPrefix + "FAKTUROWNIA_API_TOKEN"
+
+	// EnvFakturowniaDomain is the account host, e.g.
+	// `acme.fakturownia.pl`. Empty skips invoice create.
+	EnvFakturowniaDomain = EnvPrefix + "FAKTUROWNIA_DOMAIN"
+
 	// EnvGatewaySecret is the shared secret the hub presents to a gateway on
 	// the control routes. Empty leaves them open, which is the single-box
 	// self-host default; ops sets it wherever the gateway is reachable. It
@@ -134,7 +156,7 @@ const (
 
 	// EnvGdeskChat, EnvGdeskSTT and EnvGdeskTTS bind one glass-desk role to a
 	// provider and a model, written `provider/model`. An unset role leaves
-	// the desk without it — the connector still serves devices and MCP, so a
+	// the desk without it — the connector still serves connectors and MCP, so a
 	// missing voice must not stop it starting (`53`).
 	EnvGdeskChat = EnvPrefix + "GDESK_CHAT"
 	EnvGdeskSTT  = EnvPrefix + "GDESK_STT"

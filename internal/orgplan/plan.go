@@ -74,13 +74,15 @@ type Limits struct {
 var Unlimited Limits
 
 // Plan is one shipped organization plan. The slug is ID; there is no
-// label. GET /api/plans uses the same struct.
+// label. GET /api/plans uses the same struct. StripePriceID stays off
+// that JSON: the cockpit never needs it, and the hub reads it here.
 type Plan struct {
-	ID          ID          `json:"id"`
-	SelfServe   bool        `json:"selfServe"`
-	Charge      Charge      `json:"charge"`
-	ThemeFamily ThemeFamily `json:"themeFamily"`
-	Limits      Limits      `json:"limits"`
+	ID            ID          `json:"id"`
+	SelfServe     bool        `json:"selfServe"`
+	Charge        Charge      `json:"charge"`
+	ThemeFamily   ThemeFamily `json:"themeFamily"`
+	Limits        Limits      `json:"limits"`
+	StripePriceID string      `json:"-"`
 }
 
 type loadedCatalogue struct {
@@ -164,6 +166,17 @@ func Caps(kind offering.Kind, id ID) Limits {
 		return Default().Limits
 	}
 	return p.Limits
+}
+
+// CheckoutPrice is the Stripe Price id for a self-serve paid slug.
+// Empty means Checkout is not wired yet (ops still creating the Price,
+// or the YAML/env override has not landed).
+func CheckoutPrice(id ID) string {
+	p, ok := Lookup(string(id))
+	if !ok || p.Charge.Kind != ChargeUSD {
+		return ""
+	}
+	return strings.TrimSpace(p.StripePriceID)
 }
 
 // LogCutoff is the newest created_at that a purge may delete at `now`.

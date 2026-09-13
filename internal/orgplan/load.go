@@ -3,6 +3,7 @@ package orgplan
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -17,10 +18,11 @@ type catalogConfig struct {
 }
 
 type planYAML struct {
-	SelfServe   bool        `json:"selfServe" yaml:"selfServe"`
-	Charge      Charge      `json:"charge" yaml:"charge"`
-	ThemeFamily ThemeFamily `json:"themeFamily" yaml:"themeFamily"`
-	Limits      Limits      `json:"limits" yaml:"limits"`
+	SelfServe     bool        `json:"selfServe" yaml:"selfServe"`
+	Charge        Charge      `json:"charge" yaml:"charge"`
+	ThemeFamily   ThemeFamily `json:"themeFamily" yaml:"themeFamily"`
+	Limits        Limits      `json:"limits" yaml:"limits"`
+	StripePriceID string      `json:"stripePriceId,omitempty" yaml:"stripePriceId"`
 }
 
 // Load parses a catalogue YAML document. It does not consult the embedded
@@ -93,11 +95,12 @@ func Load(data []byte) ([]Plan, int, error) {
 			}
 		}
 		plans = append(plans, Plan{
-			ID:          id,
-			SelfServe:   row.SelfServe,
-			Charge:      row.Charge,
-			ThemeFamily: row.ThemeFamily,
-			Limits:      row.Limits,
+			ID:            id,
+			SelfServe:     row.SelfServe,
+			Charge:        row.Charge,
+			ThemeFamily:   row.ThemeFamily,
+			Limits:        row.Limits,
+			StripePriceID: strings.TrimSpace(row.StripePriceID),
 		})
 	}
 	for _, id := range want {
@@ -144,6 +147,13 @@ func validateRow(id ID, row planYAML) error {
 	}
 	if row.Limits.Projects < 0 || row.Limits.WorkersPerProject < 0 || row.Limits.People < 0 || row.Limits.IdleDays < 0 || row.Limits.LogDays < 0 {
 		return fmt.Errorf("orgplan: %s: limits must not be negative", id)
+	}
+	price := strings.TrimSpace(row.StripePriceID)
+	if row.Charge.Kind != ChargeUSD && price != "" {
+		return fmt.Errorf("orgplan: %s: stripePriceId is only for usd plans", id)
+	}
+	if price != "" && !strings.HasPrefix(price, "price_") {
+		return fmt.Errorf("orgplan: %s: stripePriceId must start with price_", id)
 	}
 	return nil
 }

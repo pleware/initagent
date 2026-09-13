@@ -21,6 +21,9 @@ config:
         logDays: 7
     starter:
       selfServe: true
+      # Stripe Price id (price_…) for hosted Checkout. Empty until ops
+      # creates the Price; INITAGENT_STRIPE_PRICE_STARTER can fill it.
+      stripePriceId: ""
       charge:
         kind: usd
         usd: 5
@@ -34,6 +37,7 @@ config:
         logDays: 14
     team:
       selfServe: true
+      stripePriceId: ""
       charge:
         kind: usd
         usd: 5

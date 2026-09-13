@@ -9,6 +9,7 @@
 ./internal/gdeskseam
 ./internal/gdeskconsole
 ./internal/gdeskfront
+./internal/gdesksensor
 ./internal/connectorops
 ./internal/store
 ./internal/scheduler
@@ -21,6 +22,7 @@
 ./internal/projecttemplate
 ./internal/repo
 ./internal/orgplan
+./internal/billing
 ./internal/registry/config
 ./internal/mailer
 ./internal/funnel

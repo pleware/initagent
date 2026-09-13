@@ -149,9 +149,11 @@ Above the log it lists what this box runs: every route this process holds with
 the address it took, how many callers are on the seam right now, and one row per
 desk role saying where its provider is or why it is silent. A row is either
 evidence or marked `declared` — local sensing (the camera process on a PWare OS
-box) is listed that way because the facts it writes have no reader in this
-connector yet. Omitting it would make the list read as complete; showing it as
-running would be a lie with an afternoon's cost.
+box) is listed that way because nothing on this desk starts one yet. The facts it
+writes do have a reader now (`internal/gdesksensor`, which reads the
+`os:desk-facts` contract from a child's stdout); what is missing is the
+configuration that names a camera. Omitting the row would make the list read as
+complete; showing it as running would be a lie with an afternoon's cost.
 
 The header also links to the desktop page when a browser is on the seam. That
 address is not configured anywhere: a browser states the origin its page came

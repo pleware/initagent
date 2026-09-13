@@ -130,6 +130,7 @@ func (s *Server) handleInviteRedeem(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	s.issueSession(w, r, account.Id)
+	s.syncBillingQuantity(preview.OrgId)
 	writeJSON(w, map[string]bool{"ok": true})
 }
 

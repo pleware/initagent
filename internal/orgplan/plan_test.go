@@ -72,6 +72,12 @@ func TestCatalogueLocksFreeCaps(t *testing.T) {
 	if team.Charge != (Charge{Kind: ChargeUSD, USD: PersonUSD(), PerPerson: true}) {
 		t.Fatalf("team charge = %+v, want $%d per person", team.Charge, PersonUSD())
 	}
+	if CheckoutPrice(Free) != "" || CheckoutPrice(Enterprise) != "" {
+		t.Fatal("free and enterprise have no Stripe Price")
+	}
+	if CheckoutPrice(Starter) != starter.StripePriceID || CheckoutPrice(Team) != team.StripePriceID {
+		t.Fatal("CheckoutPrice must follow the catalogue row")
+	}
 	ent, ok := Lookup(string(Enterprise))
 	if !ok || ent.ThemeFamily != ThemeEnterprise || ent.Charge.Kind != ChargeContact {
 		t.Fatalf("enterprise = %+v", ent)

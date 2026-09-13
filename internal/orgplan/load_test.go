@@ -200,6 +200,16 @@ func TestLoadRejects(t *testing.T) {
 			"unknown themeFamily",
 		},
 		{
+			"price on free",
+			bytes.Replace(config.YAML, []byte("    free:\n      selfServe: true\n"), []byte("    free:\n      stripePriceId: price_x\n      selfServe: true\n"), 1),
+			"stripePriceId is only for usd plans",
+		},
+		{
+			"price prefix",
+			bytes.Replace(config.YAML, []byte("      stripePriceId: \"\"\n      charge:\n        kind: usd\n        usd: 5\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 2"), []byte("      stripePriceId: not-a-price\n      charge:\n        kind: usd\n        usd: 5\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 2"), 1),
+			"must start with price_",
+		},
+		{
 			"not yaml",
 			[]byte("config: ["),
 			"parse catalogue",

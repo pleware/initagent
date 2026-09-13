@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/pleware/initagent/internal/gdesk"
-	"github.com/pleware/initagent/internal/gdesksensor"
 	"github.com/pleware/initagent/internal/gdeskseam"
+	"github.com/pleware/initagent/internal/gdesksensor"
 )
 
 func TestSensingRunsWhenVisionIsConfigured(t *testing.T) {

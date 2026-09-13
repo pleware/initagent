@@ -69,10 +69,10 @@ const (
 // kind — the glass would count it as unrecognised, and a fact nobody can read
 // is worse than one carried in the vocabulary that already exists.
 const (
-	EventSurfaceOpened   = "surface.opened"
-	EventSurfacePatched  = "surface.patched"
-	EventSurfaceAppended = "surface.appended"
-	EventSurfaceClosed   = "surface.closed"
+	EventSurfaceOpened     = "surface.opened"
+	EventSurfacePatched    = "surface.patched"
+	EventSurfaceAppended   = "surface.appended"
+	EventSurfaceClosed     = "surface.closed"
 	EventAttendanceChanged = "gdesk.attendance.changed"
 )
 

@@ -72,20 +72,20 @@ type Options struct {
 // Desk is one open front desk: the conversation loop, the views the glass
 // reads, and the socket it connects to.
 type Desk struct {
-	runner    *gdesk.Runner
-	views     *gdeskseam.Views
-	socket    *gdeskseam.Listener
-	config    gdesk.Config
-	listener  net.Listener
-	token     string
-	server    *http.Server
-	visionCfg gdesk.Vision
-	visionSet bool
-	visionRun VisionRun
-	sensors        *gdesksensor.Sensors
-	visionDone     chan struct{}
-	attendanceMu   sync.Mutex
-	lastAttendance gdesk.AttendanceChanged
+	runner            *gdesk.Runner
+	views             *gdeskseam.Views
+	socket            *gdeskseam.Listener
+	config            gdesk.Config
+	listener          net.Listener
+	token             string
+	server            *http.Server
+	visionCfg         gdesk.Vision
+	visionSet         bool
+	visionRun         VisionRun
+	sensors           *gdesksensor.Sensors
+	visionDone        chan struct{}
+	attendanceMu      sync.Mutex
+	lastAttendance    gdesk.AttendanceChanged
 	lastAttendanceSet bool
 }
 

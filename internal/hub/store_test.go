@@ -782,6 +782,81 @@ func TestProjectsDoNotCrossOrgs(t *testing.T) {
 	}
 }
 
+func TestOpenStoreRenamesInheritedDeviceNames(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "inherited-devices.db")
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ddl := range []string{
+		`CREATE TABLE devices (
+			id         TEXT PRIMARY KEY,
+			name       TEXT NOT NULL,
+			hostname   TEXT NOT NULL DEFAULT '',
+			os         TEXT NOT NULL DEFAULT '',
+			arch       TEXT NOT NULL DEFAULT '',
+			token_hash TEXT NOT NULL,
+			is_hub     INTEGER NOT NULL DEFAULT 0,
+			created_at INTEGER NOT NULL,
+			last_seen  INTEGER NOT NULL DEFAULT 0
+		)`,
+		`INSERT INTO devices (id, name, token_hash, created_at)
+			VALUES ('connector-kept', 'Reception', 'hash', 1)`,
+		`CREATE TABLE projects (
+			id         TEXT PRIMARY KEY,
+			name       TEXT NOT NULL,
+			device_id  TEXT NOT NULL,
+			path       TEXT NOT NULL,
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL
+		)`,
+		`INSERT INTO projects (id, name, device_id, path, created_at, updated_at)
+			VALUES ('project-old', 'Legacy', 'connector-kept', '/old', 1, 1)`,
+		`CREATE TABLE project_devices (
+			project_id TEXT NOT NULL,
+			device_id  TEXT NOT NULL,
+			created_at INTEGER NOT NULL,
+			PRIMARY KEY (project_id, device_id)
+		)`,
+		`CREATE INDEX project_devices_device_id ON project_devices(device_id)`,
+		`INSERT INTO project_devices (project_id, device_id, created_at)
+			VALUES ('project-old', 'connector-kept', 1)`,
+	} {
+		if _, err := db.Exec(ddl); err != nil {
+			t.Fatalf("building the inherited schema: %v", err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("OpenStore on an inherited device schema: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+
+	connectors, err := s.ListConnectors()
+	if err != nil || len(connectors) != 1 || connectors[0].Id != "connector-kept" {
+		t.Fatalf("an enrolled connector must survive the rename: %+v %v", connectors, err)
+	}
+	ids, err := s.ListProjectConnectorIds("project-old")
+	if err != nil || len(ids) != 1 || ids[0] != "connector-kept" {
+		t.Fatalf("the project's enrollment set must survive: %+v %v", ids, err)
+	}
+	// A second open must not find anything left to rename.
+	s.Close()
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopening an already-renamed store: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+	connectors, err = again.ListConnectors()
+	if err != nil || len(connectors) != 1 {
+		t.Fatalf("the rename must be idempotent: %+v %v", connectors, err)
+	}
+}
+
 func TestOpenStoreMigratesLegacyProjectsTable(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "legacy.db")
 	db, err := store.OpenDB(store.SQLite, path)

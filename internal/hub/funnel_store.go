@@ -22,7 +22,7 @@ func (s *Store) ensureFunnelEvents() error {
 		org_id      TEXT NOT NULL DEFAULT '',
 		account_id  TEXT NOT NULL DEFAULT '',
 		project_id  TEXT NOT NULL DEFAULT '',
-		device_id   TEXT NOT NULL DEFAULT '',
+		connector_id   TEXT NOT NULL DEFAULT '',
 		wall        TEXT NOT NULL DEFAULT ''
 	)`); err != nil {
 		return fmt.Errorf("funnel_events: %w", err)
@@ -48,7 +48,7 @@ func (s *Store) RecordFunnelEvent(e funnel.Event) error {
 		occurred = time.Now().Unix()
 	}
 	_, err := s.db.Exec(`INSERT INTO funnel_events
-		(id, kind, occurred_at, org_id, account_id, project_id, device_id, wall)
+		(id, kind, occurred_at, org_id, account_id, project_id, connector_id, wall)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		e.ID, e.Kind, occurred, e.OrgID, e.AccountID, e.ProjectID, e.ConnectorID, e.Wall)
 	return err
@@ -56,7 +56,7 @@ func (s *Store) RecordFunnelEvent(e funnel.Event) error {
 
 // ListFunnelEvents returns every stored counting row, oldest first.
 func (s *Store) ListFunnelEvents() ([]funnel.Event, error) {
-	rows, err := s.db.Query(`SELECT id, kind, occurred_at, org_id, account_id, project_id, device_id, wall
+	rows, err := s.db.Query(`SELECT id, kind, occurred_at, org_id, account_id, project_id, connector_id, wall
 		FROM funnel_events ORDER BY occurred_at, id`)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (s *Store) FunnelFacts() (funnel.Facts, error) {
 
 	orgRows, err := s.db.Query(`SELECT o.id, o.created_at, o.plan,
 		(SELECT COUNT(*) FROM projects p WHERE p.org_id = o.id),
-		(SELECT COUNT(*) FROM project_devices pd
+		(SELECT COUNT(*) FROM project_connectors pd
 			INNER JOIN projects p ON p.id = pd.project_id WHERE p.org_id = o.id),
 		(SELECT MIN(created_at) FROM task_outputs t WHERE t.org_id = o.id)
 		FROM orgs o ORDER BY o.created_at, o.id`)
@@ -111,14 +111,14 @@ func (s *Store) FunnelFacts() (funnel.Facts, error) {
 	for orgRows.Next() {
 		var o funnel.OrgFact
 		var created int64
-		var projects, devices int
+		var projects, connectors int
 		var first sql.NullInt64
-		if err := orgRows.Scan(&o.ID, &created, &o.Plan, &projects, &devices, &first); err != nil {
+		if err := orgRows.Scan(&o.ID, &created, &o.Plan, &projects, &connectors, &first); err != nil {
 			return facts, err
 		}
 		o.CreatedAt = time.Unix(created, 0).UTC()
 		o.HasProject = projects > 0
-		o.HasConnector = devices > 0
+		o.HasConnector = connectors > 0
 		if first.Valid {
 			o.FirstTaskAt = time.Unix(first.Int64, 0).UTC()
 		}

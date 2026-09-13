@@ -52,7 +52,7 @@ func (s *Store) CreateConnector(ctx context.Context, projectID, name, hostname, 
 	}
 	now := time.Now().UTC()
 	_, err = s.db.ExecContext(ctx, `
-		INSERT INTO devices (id, project_id, name, hostname, os, arch, token_hash, created_at)
+		INSERT INTO connectors (id, project_id, name, hostname, os, arch, token_hash, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`, connectorID, projectID, name, hostname, osName, arch, hashToken(token), unixTime(now))
 	if err != nil {
@@ -98,12 +98,12 @@ func (s *Store) ListConnectors(ctx context.Context, projectID string) ([]Connect
 // UpdateConnectorOnConnect records hello fields and last_seen.
 func (s *Store) UpdateConnectorOnConnect(ctx context.Context, connectorID, hostname, osName, arch string) error {
 	_, err := s.db.ExecContext(ctx, `
-		UPDATE devices SET hostname = ?, os = ?, arch = ?, last_seen = ? WHERE id = ?
+		UPDATE connectors SET hostname = ?, os = ?, arch = ?, last_seen = ? WHERE id = ?
 	`, hostname, osName, arch, unixTime(time.Now().UTC()), connectorID)
 	return err
 }
 
-const connectorSelect = `SELECT id, project_id, name, hostname, os, arch, created_at, last_seen FROM devices`
+const connectorSelect = `SELECT id, project_id, name, hostname, os, arch, created_at, last_seen FROM connectors`
 
 func (s *Store) scanConnector(row *sql.Row) (*Connector, error) {
 	d, err := scanConnectorRow(row)

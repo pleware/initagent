@@ -1,14 +1,12 @@
 package hub
 
 import (
-	"database/sql"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/pleware/initagent/internal/id"
 	"github.com/pleware/initagent/internal/mailer"
-	"github.com/pleware/initagent/internal/store"
 )
 
 func TestEnqueueAndSendMail(t *testing.T) {
@@ -198,20 +196,4 @@ func TestDrainOnceNilSenderLeavesPending(t *testing.T) {
 	if saved.Status != mailPending {
 		t.Fatalf("status %s", saved.Status)
 	}
-}
-
-func (s *Store) hasTable(name string) (bool, error) {
-	var n int
-	var err error
-	switch s.db.Dialect() {
-	case store.Postgres:
-		err = s.db.QueryRow(`SELECT 1 FROM information_schema.tables
-			WHERE table_schema = 'public' AND table_name = ?`, name).Scan(&n)
-	default:
-		err = s.db.QueryRow(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`, name).Scan(&n)
-	}
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	return err == nil, err
 }

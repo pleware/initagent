@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-13 — store: carry the device tables over to connector names
 - 2026-09-13 — names: the enrolled thing is a connector, not a device
 - 2026-09-13 — hosted: Plans in the cockpit, Stripe Checkout, Fakturownia+KSeF after payment
 - 2026-09-12 — wdrozenie: command cheat sheet, a tighter guide, and Ubuntu in the diagram

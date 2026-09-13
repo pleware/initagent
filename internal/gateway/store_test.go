@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -15,6 +16,67 @@ import (
 	"github.com/pleware/initagent/internal/id"
 	"github.com/pleware/initagent/internal/scheduler"
 )
+
+func TestRenameInheritedDeviceTableKeepsEnrolledRows(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "inherited.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	for _, ddl := range []string{
+		`CREATE TABLE devices (
+			id         TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL,
+			name       TEXT NOT NULL,
+			hostname   TEXT NOT NULL DEFAULT '',
+			os         TEXT NOT NULL DEFAULT '',
+			arch       TEXT NOT NULL DEFAULT '',
+			token_hash TEXT NOT NULL,
+			created_at INTEGER NOT NULL,
+			last_seen  INTEGER NOT NULL DEFAULT 0
+		)`,
+		`CREATE INDEX devices_project_id ON devices(project_id)`,
+		`INSERT INTO devices (id, project_id, name, token_hash, created_at)
+			VALUES ('connector-kept', 'project-old', 'Reception', 'hash', 1)`,
+	} {
+		if _, err := db.Exec(ddl); err != nil {
+			t.Fatalf("building the inherited schema: %v", err)
+		}
+	}
+
+	if err := renameInheritedDeviceTable(db); err != nil {
+		t.Fatalf("renameInheritedDeviceTable: %v", err)
+	}
+	var name string
+	if err := db.QueryRow(`SELECT name FROM connectors WHERE id = ?`, "connector-kept").Scan(&name); err != nil {
+		t.Fatalf("an enrolled connector must survive the rename: %v", err)
+	}
+	if name != "Reception" {
+		t.Errorf("name after rename = %q, want Reception", name)
+	}
+
+	// Running it again must be a no-op rather than an error, because every
+	// open calls it.
+	if err := renameInheritedDeviceTable(db); err != nil {
+		t.Fatalf("second call must be a no-op: %v", err)
+	}
+}
+
+func TestRenameInheritedDeviceTableLeavesAFreshFileAlone(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "fresh.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if _, err := db.Exec(`CREATE TABLE connectors (id TEXT PRIMARY KEY)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := renameInheritedDeviceTable(db); err != nil {
+		t.Fatalf("a file that never held devices must pass through: %v", err)
+	}
+}
 
 func openTest(t *testing.T, projectID string) *Gateway {
 	t.Helper()

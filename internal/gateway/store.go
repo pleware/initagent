@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 CREATE INDEX IF NOT EXISTS tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS tasks_project_state ON tasks(project_id, state);
-CREATE TABLE IF NOT EXISTS devices (
+CREATE TABLE IF NOT EXISTS connectors (
 	id         TEXT PRIMARY KEY,
 	project_id TEXT NOT NULL,
 	name       TEXT NOT NULL,
@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS devices (
 	last_seen  INTEGER NOT NULL DEFAULT 0,
 	FOREIGN KEY(project_id) REFERENCES projects(id)
 );
-CREATE INDEX IF NOT EXISTS devices_project_id ON devices(project_id);
+CREATE INDEX IF NOT EXISTS connectors_project_id ON connectors(project_id);
 CREATE TABLE IF NOT EXISTS enroll_tokens (
 	token_hash TEXT PRIMARY KEY,
 	project_id TEXT NOT NULL,
@@ -235,6 +235,10 @@ func openStore(path string) (*Store, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
+	if err := renameInheritedDeviceTable(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("renaming the inherited device table: %w", err)
+	}
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("applying schema: %w", err)
@@ -243,6 +247,42 @@ func openStore(path string) (*Store, error) {
 	_, _ = db.Exec(`ALTER TABLE tasks ADD COLUMN command TEXT NOT NULL DEFAULT ''`)
 	_, _ = db.Exec(`ALTER TABLE tasks ADD COLUMN launch_mode TEXT NOT NULL DEFAULT 'exec'`)
 	return &Store{db: db}, nil
+}
+
+// renameInheritedDeviceTable carries a gateway file written against the
+// inherited device vocabulary over to the connector one (05). It runs before
+// the schema batch, and the order is the whole point: CREATE TABLE IF NOT
+// EXISTS would otherwise add an empty connectors table beside the populated
+// devices one, leave both in place, and every connector enrolled into this
+// project would silently stop being listed.
+func renameInheritedDeviceTable(db *sql.DB) error {
+	hasTable := func(name string) (bool, error) {
+		var n int
+		err := db.QueryRow(`SELECT 1 FROM sqlite_master
+			WHERE type = 'table' AND name = ?`, name).Scan(&n)
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return err == nil, err
+	}
+	old, err := hasTable("devices")
+	if err != nil {
+		return err
+	}
+	current, err := hasTable("connectors")
+	if err != nil {
+		return err
+	}
+	if !old || current {
+		return nil
+	}
+	if _, err := db.Exec(`ALTER TABLE devices RENAME TO connectors`); err != nil {
+		return err
+	}
+	// The renamed table keeps its index under the old name; the schema batch
+	// creates connectors_project_id.
+	_, err = db.Exec(`DROP INDEX IF EXISTS devices_project_id`)
+	return err
 }
 
 // Close releases the database.

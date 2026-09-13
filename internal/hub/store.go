@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS settings (
 	key   TEXT PRIMARY KEY,
 	value TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS devices (
+CREATE TABLE IF NOT EXISTS connectors (
 	id         TEXT PRIMARY KEY,
 	name       TEXT NOT NULL,
 	hostname   TEXT NOT NULL DEFAULT '',
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS projects (
 	name         TEXT NOT NULL,
 	org_id       TEXT NOT NULL DEFAULT '',
 	gateway_url  TEXT NOT NULL DEFAULT '',
-	device_id    TEXT NOT NULL DEFAULT '',
+	connector_id    TEXT NOT NULL DEFAULT '',
 	path         TEXT NOT NULL DEFAULT '',
 	template_id  TEXT NOT NULL DEFAULT '',
 	repo_remote  TEXT NOT NULL DEFAULT '',
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS projects (
 	activity_at     INTEGER NOT NULL DEFAULT 0,
 	idle_warned_at  INTEGER NOT NULL DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
+CREATE INDEX IF NOT EXISTS projects_connector_id ON projects(connector_id);
 CREATE TABLE IF NOT EXISTS accounts (
 	id            TEXT PRIMARY KEY,
 	email         TEXT NOT NULL UNIQUE,
@@ -109,13 +109,13 @@ CREATE TABLE IF NOT EXISTS org_members (
 	FOREIGN KEY(account_id) REFERENCES accounts(id)
 );
 CREATE INDEX IF NOT EXISTS org_members_account ON org_members(account_id);
-CREATE TABLE IF NOT EXISTS project_devices (
+CREATE TABLE IF NOT EXISTS project_connectors (
 	project_id TEXT NOT NULL,
-	device_id  TEXT NOT NULL,
+	connector_id  TEXT NOT NULL,
 	created_at INTEGER NOT NULL,
-	PRIMARY KEY (project_id, device_id)
+	PRIMARY KEY (project_id, connector_id)
 );
-CREATE INDEX IF NOT EXISTS project_devices_device_id ON project_devices(device_id);
+CREATE INDEX IF NOT EXISTS project_connectors_connector_id ON project_connectors(connector_id);
 CREATE TABLE IF NOT EXISTS mail_outbox (
 	id           TEXT PRIMARY KEY,
 	kind         TEXT NOT NULL,
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS funnel_events (
 	org_id      TEXT NOT NULL DEFAULT '',
 	account_id  TEXT NOT NULL DEFAULT '',
 	project_id  TEXT NOT NULL DEFAULT '',
-	device_id   TEXT NOT NULL DEFAULT '',
+	connector_id   TEXT NOT NULL DEFAULT '',
 	wall        TEXT NOT NULL DEFAULT ''
 );
 `
@@ -181,7 +181,7 @@ CREATE TABLE IF NOT EXISTS settings (
 	key   TEXT PRIMARY KEY,
 	value TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS devices (
+CREATE TABLE IF NOT EXISTS connectors (
 	id         TEXT PRIMARY KEY,
 	name       TEXT NOT NULL,
 	hostname   TEXT NOT NULL DEFAULT '',
@@ -221,7 +221,7 @@ CREATE TABLE IF NOT EXISTS projects (
 	name         TEXT NOT NULL,
 	org_id       TEXT NOT NULL DEFAULT '',
 	gateway_url  TEXT NOT NULL DEFAULT '',
-	device_id    TEXT NOT NULL DEFAULT '',
+	connector_id    TEXT NOT NULL DEFAULT '',
 	path         TEXT NOT NULL DEFAULT '',
 	template_id  TEXT NOT NULL DEFAULT '',
 	repo_remote  TEXT NOT NULL DEFAULT '',
@@ -231,7 +231,7 @@ CREATE TABLE IF NOT EXISTS projects (
 	activity_at     BIGINT NOT NULL DEFAULT 0,
 	idle_warned_at  BIGINT NOT NULL DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS projects_device_id ON projects(device_id);
+CREATE INDEX IF NOT EXISTS projects_connector_id ON projects(connector_id);
 CREATE TABLE IF NOT EXISTS accounts (
 	id            TEXT PRIMARY KEY,
 	email         TEXT NOT NULL UNIQUE,
@@ -257,13 +257,13 @@ CREATE TABLE IF NOT EXISTS org_members (
 	FOREIGN KEY(account_id) REFERENCES accounts(id)
 );
 CREATE INDEX IF NOT EXISTS org_members_account ON org_members(account_id);
-CREATE TABLE IF NOT EXISTS project_devices (
+CREATE TABLE IF NOT EXISTS project_connectors (
 	project_id TEXT NOT NULL,
-	device_id  TEXT NOT NULL,
+	connector_id  TEXT NOT NULL,
 	created_at BIGINT NOT NULL,
-	PRIMARY KEY (project_id, device_id)
+	PRIMARY KEY (project_id, connector_id)
 );
-CREATE INDEX IF NOT EXISTS project_devices_device_id ON project_devices(device_id);
+CREATE INDEX IF NOT EXISTS project_connectors_connector_id ON project_connectors(connector_id);
 CREATE TABLE IF NOT EXISTS mail_outbox (
 	id           TEXT PRIMARY KEY,
 	kind         TEXT NOT NULL,
@@ -316,7 +316,7 @@ CREATE TABLE IF NOT EXISTS funnel_events (
 	org_id      TEXT NOT NULL DEFAULT '',
 	account_id  TEXT NOT NULL DEFAULT '',
 	project_id  TEXT NOT NULL DEFAULT '',
-	device_id   TEXT NOT NULL DEFAULT '',
+	connector_id   TEXT NOT NULL DEFAULT '',
 	wall        TEXT NOT NULL DEFAULT ''
 );
 `
@@ -337,11 +337,15 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	s := &Store{db: db}
+	if err := s.renameInheritedDeviceNames(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("renaming inherited device names: %w", err)
+	}
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("applying schema: %w", err)
 	}
-	s := &Store{db: db}
 	if err := s.ensureProjectOrgColumns(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring project org columns: %w", err)
@@ -364,7 +368,7 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	}
 	if err := s.ensureProjectConnectors(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("ensuring project devices: %w", err)
+		return nil, fmt.Errorf("ensuring project connectors: %w", err)
 	}
 	if err := s.ensureMailOutbox(); err != nil {
 		db.Close()
@@ -479,6 +483,81 @@ func (s *Store) hasColumn(table, column string) (bool, error) {
 	return err == nil, err
 }
 
+func (s *Store) hasTable(table string) (bool, error) {
+	var n int
+	var err error
+	switch s.db.Dialect() {
+	case store.Postgres:
+		err = s.db.QueryRow(`SELECT 1 FROM information_schema.tables
+			WHERE table_schema = 'public' AND table_name = ?`, table).Scan(&n)
+	default:
+		err = s.db.QueryRow(`SELECT 1 FROM sqlite_master
+			WHERE type = 'table' AND name = ?`, table).Scan(&n)
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// renameInheritedDeviceNames carries a store written against the inherited
+// device vocabulary over to the connector one. A device is hardware; the
+// enrolled thing that holds the socket is a connector (05).
+//
+// This runs before the schema batch, and the order is the whole point:
+// CREATE TABLE IF NOT EXISTS would otherwise add an empty connectors table
+// beside a populated devices one, leave both in place, and the connectors a
+// customer had enrolled would silently stop being listed.
+func (s *Store) renameInheritedDeviceNames() error {
+	for _, t := range []struct{ from, to string }{
+		{"devices", "connectors"},
+		{"project_devices", "project_connectors"},
+	} {
+		old, err := s.hasTable(t.from)
+		if err != nil {
+			return err
+		}
+		current, err := s.hasTable(t.to)
+		if err != nil {
+			return err
+		}
+		if !old || current {
+			continue
+		}
+		if _, err := s.db.Exec(`ALTER TABLE ` + t.from + ` RENAME TO ` + t.to); err != nil {
+			return err
+		}
+	}
+	for _, c := range []struct{ table, from, to string }{
+		{"projects", "device_id", "connector_id"},
+		{"project_connectors", "device_id", "connector_id"},
+		{"funnel_events", "device_id", "connector_id"},
+	} {
+		old, err := s.hasColumn(c.table, c.from)
+		if err != nil {
+			return err
+		}
+		current, err := s.hasColumn(c.table, c.to)
+		if err != nil {
+			return err
+		}
+		if !old || current {
+			continue
+		}
+		if _, err := s.db.Exec(`ALTER TABLE ` + c.table + ` RENAME COLUMN ` + c.from + ` TO ` + c.to); err != nil {
+			return err
+		}
+	}
+	// A renamed table keeps its indexes under their old names. Drop those and
+	// let the schema batch below create the ones it names.
+	for _, index := range []string{"projects_device_id", "project_devices_device_id"} {
+		if _, err := s.db.Exec(`DROP INDEX IF EXISTS ` + index); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *Store) backfillProjectOrgs() error {
 	var orgs int
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM orgs`).Scan(&orgs); err != nil {
@@ -507,7 +586,7 @@ func (s *Store) ensureProjectBoardingColumns() error {
 	if s.db.Dialect() != store.Postgres {
 		return nil
 	}
-	_, err := s.db.Exec(`ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_device_id_fkey`)
+	_, err := s.db.Exec(`ALTER TABLE projects DROP CONSTRAINT IF EXISTS projects_connector_id_fkey`)
 	return err
 }
 
@@ -544,22 +623,22 @@ func (s *Store) ensureAccountLocale() error {
 }
 
 // ensureProjectDevices creates the enrollment set for a live hub and copies
-// the inherited selected machine into it. projects.device_id stays the fx
+// the inherited selected machine into it. projects.connector_id stays the fx
 // target; the join table is who may run there (48).
 func (s *Store) ensureProjectConnectors() error {
 	createdAt := "INTEGER NOT NULL"
 	if s.db.Dialect() == store.Postgres {
 		createdAt = "BIGINT NOT NULL"
 	}
-	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS project_devices (
+	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS project_connectors (
 		project_id TEXT NOT NULL,
-		device_id  TEXT NOT NULL,
+		connector_id  TEXT NOT NULL,
 		created_at ` + createdAt + `,
-		PRIMARY KEY (project_id, device_id)
+		PRIMARY KEY (project_id, connector_id)
 	)`); err != nil {
 		return err
 	}
-	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS project_devices_device_id ON project_devices(device_id)`); err != nil {
+	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS project_connectors_connector_id ON project_connectors(connector_id)`); err != nil {
 		return err
 	}
 	return s.backfillProjectConnectors()
@@ -651,8 +730,8 @@ func (s *Store) ensureApiTokens() error {
 }
 
 func (s *Store) backfillProjectConnectors() error {
-	_, err := s.db.Exec(`INSERT INTO project_devices (project_id, device_id, created_at)
-		SELECT id, device_id, created_at FROM projects WHERE device_id != ''
+	_, err := s.db.Exec(`INSERT INTO project_connectors (project_id, connector_id, created_at)
+		SELECT id, connector_id, created_at FROM projects WHERE connector_id != ''
 		ON CONFLICT DO NOTHING`)
 	return err
 }
@@ -1238,7 +1317,7 @@ func (s *Store) RemoveOrgMember(orgId, accountId string) error {
 	return err
 }
 
-// --- devices ---
+// --- connectors ---
 
 type Connector struct {
 	Id        string `json:"id"`
@@ -1269,7 +1348,7 @@ func (s *Store) CreateConnector(name, hostname, osName, arch string, isHub bool)
 		return "", "", err
 	}
 	token := randomToken()
-	_, err = s.db.Exec(`INSERT INTO devices (id, name, hostname, os, arch, token_hash, is_hub, created_at)
+	_, err = s.db.Exec(`INSERT INTO connectors (id, name, hostname, os, arch, token_hash, is_hub, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		connectorId, name, hostname, osName, arch, hashToken(token), boolInt(isHub), time.Now().Unix())
 	return connectorId, token, err
@@ -1278,13 +1357,13 @@ func (s *Store) CreateConnector(name, hostname, osName, arch string, isHub bool)
 // ConnectorByToken authenticates an agent connection.
 func (s *Store) ConnectorByToken(token string) (*Connector, error) {
 	return s.scanConnector(s.db.QueryRow(
-		`SELECT id, name, hostname, os, arch, is_hub, created_at, last_seen FROM devices WHERE token_hash = ?`,
+		`SELECT id, name, hostname, os, arch, is_hub, created_at, last_seen FROM connectors WHERE token_hash = ?`,
 		hashToken(token)))
 }
 
 func (s *Store) ConnectorById(id string) (*Connector, error) {
 	return s.scanConnector(s.db.QueryRow(
-		`SELECT id, name, hostname, os, arch, is_hub, created_at, last_seen FROM devices WHERE id = ?`, id))
+		`SELECT id, name, hostname, os, arch, is_hub, created_at, last_seen FROM connectors WHERE id = ?`, id))
 }
 
 func (s *Store) scanConnector(row *sql.Row) (*Connector, error) {
@@ -1303,7 +1382,7 @@ func (s *Store) scanConnector(row *sql.Row) (*Connector, error) {
 
 func (s *Store) ListConnectors() ([]Connector, error) {
 	rows, err := s.db.Query(`SELECT id, name, hostname, os, arch, is_hub, created_at, last_seen
-		FROM devices ORDER BY is_hub DESC, created_at ASC`)
+		FROM connectors ORDER BY is_hub DESC, created_at ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1323,7 +1402,7 @@ func (s *Store) ListConnectors() ([]Connector, error) {
 
 func (s *Store) UpdateConnectorOnConnect(id, hostname, osName, arch string) error {
 	now := time.Now()
-	_, err := s.db.Exec(`UPDATE devices SET hostname = ?, os = ?, arch = ?, last_seen = ? WHERE id = ?`,
+	_, err := s.db.Exec(`UPDATE connectors SET hostname = ?, os = ?, arch = ?, last_seen = ? WHERE id = ?`,
 		hostname, osName, arch, now.Unix(), id)
 	if err != nil {
 		return err
@@ -1333,7 +1412,7 @@ func (s *Store) UpdateConnectorOnConnect(id, hostname, osName, arch string) erro
 
 func (s *Store) TouchConnector(id string) error {
 	now := time.Now()
-	_, err := s.db.Exec(`UPDATE devices SET last_seen = ? WHERE id = ?`, now.Unix(), id)
+	_, err := s.db.Exec(`UPDATE connectors SET last_seen = ? WHERE id = ?`, now.Unix(), id)
 	if err != nil {
 		return err
 	}
@@ -1341,7 +1420,7 @@ func (s *Store) TouchConnector(id string) error {
 }
 
 func (s *Store) RenameConnector(id, name string) error {
-	_, err := s.db.Exec(`UPDATE devices SET name = ? WHERE id = ?`, name, id)
+	_, err := s.db.Exec(`UPDATE connectors SET name = ? WHERE id = ?`, name, id)
 	return err
 }
 
@@ -1351,19 +1430,19 @@ func (s *Store) DeleteConnector(id string) error {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`DELETE FROM project_devices WHERE device_id = ?`, id); err != nil {
+	if _, err := tx.Exec(`DELETE FROM project_connectors WHERE connector_id = ?`, id); err != nil {
 		return err
 	}
 	now := time.Now().Unix()
-	if _, err := tx.Exec(`UPDATE projects SET device_id = COALESCE((
-			SELECT pd.device_id FROM project_devices pd
+	if _, err := tx.Exec(`UPDATE projects SET connector_id = COALESCE((
+			SELECT pd.connector_id FROM project_connectors pd
 			WHERE pd.project_id = projects.id
-			ORDER BY pd.created_at ASC, pd.device_id ASC
+			ORDER BY pd.created_at ASC, pd.connector_id ASC
 			LIMIT 1
-		), ''), updated_at = ? WHERE device_id = ?`, now, id); err != nil {
+		), ''), updated_at = ? WHERE connector_id = ?`, now, id); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`DELETE FROM devices WHERE id = ?`, id); err != nil {
+	if _, err := tx.Exec(`DELETE FROM connectors WHERE id = ?`, id); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -1397,7 +1476,7 @@ type Project struct {
 	UpdatedAt    int64    `json:"updatedAt"`
 }
 
-const projectColumns = `id, name, org_id, gateway_url, device_id, path, template_id, repo_remote, repo_host, created_at, updated_at`
+const projectColumns = `id, name, org_id, gateway_url, connector_id, path, template_id, repo_remote, repo_host, created_at, updated_at`
 
 func scanProject(scan func(dest ...any) error) (*Project, error) {
 	var p Project
@@ -1538,7 +1617,7 @@ func (s *Store) UpdateProject(id, name, connectorId, path, templateId, repoRemot
 			return nil, err
 		}
 	}
-	res, err := tx.Exec(`UPDATE projects SET name = ?, device_id = ?, path = ?, template_id = ?, repo_remote = ?, repo_host = ?, updated_at = ? WHERE id = ?`,
+	res, err := tx.Exec(`UPDATE projects SET name = ?, connector_id = ?, path = ?, template_id = ?, repo_remote = ?, repo_host = ?, updated_at = ? WHERE id = ?`,
 		name, connectorId, path, templateId, repoRemote, repoHost, time.Now().Unix(), id)
 	if err != nil {
 		return nil, err
@@ -1563,7 +1642,7 @@ func (s *Store) DeleteProject(id string) error {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`DELETE FROM project_devices WHERE project_id = ?`, id); err != nil {
+	if _, err := tx.Exec(`DELETE FROM project_connectors WHERE project_id = ?`, id); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM task_outputs WHERE project_id = ?`, id); err != nil {
@@ -1575,14 +1654,14 @@ func (s *Store) DeleteProject(id string) error {
 	return tx.Commit()
 }
 
-const attachProjectConnectorSQL = `INSERT INTO project_devices (project_id, device_id, created_at)
+const attachProjectConnectorSQL = `INSERT INTO project_connectors (project_id, connector_id, created_at)
 	VALUES (?, ?, ?) ON CONFLICT DO NOTHING`
 
 // AttachProjectConnector enrolls a machine on a project. It is idempotent.
 // When the project has no selected fx target yet, this machine becomes it.
 func (s *Store) AttachProjectConnector(projectId, connectorId string) (bool, error) {
 	if projectId == "" || connectorId == "" {
-		return false, fmt.Errorf("attach project device: project_id and device_id are required")
+		return false, fmt.Errorf("attach project device: project_id and connector_id are required")
 	}
 	res, err := s.db.Exec(attachProjectConnectorSQL, projectId, connectorId, time.Now().Unix())
 	if err != nil {
@@ -1598,14 +1677,14 @@ func (s *Store) AttachProjectConnector(projectId, connectorId string) (bool, err
 
 func (s *Store) selectConnectorIfEmpty(projectId, connectorId string) error {
 	var selected string
-	err := s.db.QueryRow(`SELECT device_id FROM projects WHERE id = ?`, projectId).Scan(&selected)
+	err := s.db.QueryRow(`SELECT connector_id FROM projects WHERE id = ?`, projectId).Scan(&selected)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("attach project device: project %q does not exist", projectId)
 	}
 	if err != nil || selected != "" {
 		return err
 	}
-	_, err = s.db.Exec(`UPDATE projects SET device_id = ?, updated_at = ? WHERE id = ?`,
+	_, err = s.db.Exec(`UPDATE projects SET connector_id = ?, updated_at = ? WHERE id = ?`,
 		connectorId, time.Now().Unix(), projectId)
 	return err
 }
@@ -1613,7 +1692,7 @@ func (s *Store) selectConnectorIfEmpty(projectId, connectorId string) error {
 // DetachProjectConnector drops a machine from a project. If it was the selected
 // fx target, another enrolled machine takes its place, or the slot clears.
 func (s *Store) DetachProjectConnector(projectId, connectorId string) error {
-	if _, err := s.db.Exec(`DELETE FROM project_devices WHERE project_id = ? AND device_id = ?`,
+	if _, err := s.db.Exec(`DELETE FROM project_connectors WHERE project_id = ? AND connector_id = ?`,
 		projectId, connectorId); err != nil {
 		return err
 	}
@@ -1626,7 +1705,7 @@ func (s *Store) repairSelectedDevice(projectId string) error {
 		return err
 	}
 	var selected string
-	err = s.db.QueryRow(`SELECT device_id FROM projects WHERE id = ?`, projectId).Scan(&selected)
+	err = s.db.QueryRow(`SELECT connector_id FROM projects WHERE id = ?`, projectId).Scan(&selected)
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -1640,14 +1719,14 @@ func (s *Store) repairSelectedDevice(projectId string) error {
 	if len(ids) > 0 {
 		next = ids[0]
 	}
-	_, err = s.db.Exec(`UPDATE projects SET device_id = ?, updated_at = ? WHERE id = ?`,
+	_, err = s.db.Exec(`UPDATE projects SET connector_id = ?, updated_at = ? WHERE id = ?`,
 		next, time.Now().Unix(), projectId)
 	return err
 }
 
 func (s *Store) ProjectHasConnector(projectId, connectorId string) (bool, error) {
 	var n int
-	err := s.db.QueryRow(`SELECT 1 FROM project_devices WHERE project_id = ? AND device_id = ?`,
+	err := s.db.QueryRow(`SELECT 1 FROM project_connectors WHERE project_id = ? AND connector_id = ?`,
 		projectId, connectorId).Scan(&n)
 	if err == sql.ErrNoRows {
 		return false, nil
@@ -1660,7 +1739,7 @@ func (s *Store) CountProjectDevices(projectId string) (int, error) {
 		return 0, nil
 	}
 	var n int
-	err := s.db.QueryRow(`SELECT COUNT(*) FROM project_devices WHERE project_id = ?`, projectId).Scan(&n)
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM project_connectors WHERE project_id = ?`, projectId).Scan(&n)
 	return n, err
 }
 
@@ -1714,9 +1793,9 @@ type ConnectorBoundary struct {
 // there is no owner to check against, and treating an orphan as everyone's
 // would make it the one device every token could touch.
 func (s *Store) ConnectorBoundaries(connectorId string) ([]ConnectorBoundary, error) {
-	rows, err := s.db.Query(`SELECT p.org_id, p.id FROM project_devices pd
+	rows, err := s.db.Query(`SELECT p.org_id, p.id FROM project_connectors pd
 		JOIN projects p ON p.id = pd.project_id
-		WHERE pd.device_id = ? ORDER BY p.id`, connectorId)
+		WHERE pd.connector_id = ? ORDER BY p.id`, connectorId)
 	if err != nil {
 		return nil, err
 	}
@@ -1746,9 +1825,9 @@ func (s *Store) connectorIdsByProjects(projectIds []string) (map[string][]string
 		placeholders[i] = "?"
 		args[i] = id
 	}
-	rows, err := s.db.Query(`SELECT project_id, device_id FROM project_devices
+	rows, err := s.db.Query(`SELECT project_id, connector_id FROM project_connectors
 		WHERE project_id IN (`+strings.Join(placeholders, ", ")+`)
-		ORDER BY created_at ASC, device_id ASC`, args...)
+		ORDER BY created_at ASC, connector_id ASC`, args...)
 	if err != nil {
 		return nil, err
 	}

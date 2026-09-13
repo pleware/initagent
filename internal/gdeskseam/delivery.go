@@ -5,6 +5,7 @@ import (
 	"maps"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pleware/initagent/internal/gdesk"
 )
@@ -136,6 +137,8 @@ func (d *Delivery) Record(fact gdesk.Fact) {
 		d.ask(got)
 	case gdesk.Failed:
 		d.failed(got)
+	case gdesk.AttendanceChanged:
+		d.attendance(got)
 	}
 	// gdesk.FloorMoved stays here. Who holds the floor is the connector's
 	// bookkeeping; the glass draws no floor, so an event for it would be one
@@ -203,6 +206,22 @@ func (d *Delivery) ask(fact gdesk.AddressingUnclear) {
 		Chrome:    "bordered",
 	}}
 	d.log.Append(EventSurfaceOpened, surface, d.replyTo(fact.Utterance))
+}
+
+func (d *Delivery) attendance(fact gdesk.AttendanceChanged) {
+	faces := make([]attendanceFace, len(fact.Faces))
+	for i, face := range fact.Faces {
+		faces[i] = attendanceFace{Rank: face.Rank, Range: face.Range, Gaze: face.Gaze}
+	}
+	d.log.Append(EventAttendanceChanged, attendanceChanged{
+		At:     fact.At.UTC().Format(time.RFC3339Nano),
+		Sensor: fact.Sensor,
+		Source: fact.Source,
+		Total:  fact.Total,
+		Near:   fact.Near,
+		Far:    fact.Far,
+		Faces:  faces,
+	}, "")
 }
 
 func (d *Delivery) failed(fact gdesk.Failed) {
@@ -318,4 +337,20 @@ type surfaceAppended struct {
 	Slot  SlotID    `json:"slot"`
 	Chunk string    `json:"chunk"`
 	Done  bool      `json:"done,omitempty"`
+}
+
+type attendanceFace struct {
+	Rank  int    `json:"rank"`
+	Range string `json:"range"`
+	Gaze  string `json:"gaze,omitempty"`
+}
+
+type attendanceChanged struct {
+	At     string           `json:"at"`
+	Sensor string           `json:"sensor"`
+	Source string           `json:"source,omitempty"`
+	Total  int              `json:"total"`
+	Near   int              `json:"near"`
+	Far    int              `json:"far"`
+	Faces  []attendanceFace `json:"faces"`
 }

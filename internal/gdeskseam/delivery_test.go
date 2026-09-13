@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pleware/initagent/internal/gdesk"
 )
@@ -208,6 +209,50 @@ func TestRecordAsksWhoWasMeant(t *testing.T) {
 	}
 	if _, streaming := block["streaming"]; streaming {
 		t.Fatal("a question is finished when it is asked")
+	}
+}
+
+func TestRecordCarriesAttendanceToTheSeam(t *testing.T) {
+	delivery, log := newTestDelivery(t)
+	at := time.Date(2026, 3, 8, 20, 0, 0, 0, time.UTC)
+	delivery.Record(gdesk.AttendanceChanged{
+		At:     at,
+		Sensor: "camera-0",
+		Source: "vision",
+		Total:  2,
+		Near:   1,
+		Far:    1,
+		Faces: []gdesk.AttendanceFace{
+			{Rank: 1, Range: "near", Gaze: "center"},
+			{Rank: 2, Range: "far"},
+		},
+	})
+
+	events := log.Since(0)
+	if len(events) != 1 || events[0].Kind != EventAttendanceChanged {
+		t.Fatalf("events = %+v", events)
+	}
+	payload := payloadOf(t, events[0])
+	if payload["at"] != at.Format(time.RFC3339Nano) {
+		t.Fatalf("at = %v", payload["at"])
+	}
+	if payload["sensor"] != "camera-0" || payload["source"] != "vision" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if payload["total"] != float64(2) || payload["near"] != float64(1) || payload["far"] != float64(1) {
+		t.Fatalf("counts = %+v", payload)
+	}
+	faces := payload["faces"].([]any)
+	if len(faces) != 2 {
+		t.Fatalf("faces = %+v", payload["faces"])
+	}
+	first := faces[0].(map[string]any)
+	if first["rank"] != float64(1) || first["range"] != "near" || first["gaze"] != "center" {
+		t.Fatalf("first face = %+v", first)
+	}
+	second := faces[1].(map[string]any)
+	if _, present := second["gaze"]; present {
+		t.Fatalf("second face should omit empty gaze: %+v", second)
 	}
 }
 

@@ -73,6 +73,7 @@ const (
 	FactSaid              FactKind = "gdesk.said"
 	FactAddressingUnclear FactKind = "gdesk.addressing.unclear"
 	FactFailed            FactKind = "gdesk.failed"
+	FactAttendanceChanged FactKind = "gdesk.attendance.changed"
 )
 
 // Fact is something that happened at the desk.
@@ -130,17 +131,42 @@ type Failed struct {
 	Failure Failure
 }
 
+// AttendanceFace is one face in a room snapshot: ordering, distance band, and
+// whether the largest face is turned this way. Rank is not an identity.
+type AttendanceFace struct {
+	Rank  int
+	Range string
+	Gaze  string
+}
+
+// AttendanceChanged is who is at the glass at one moment.
+//
+// It is a snapshot, not a delta — the same discipline as a sensor fact on
+// `os:desk-facts`, so a dropped or re-delivered seam event does not double a
+// count or read as a departure.
+type AttendanceChanged struct {
+	At     time.Time
+	Sensor string
+	Source string
+	Total  int
+	Near   int
+	Far    int
+	Faces  []AttendanceFace
+}
+
 func (FloorMoved) Kind() FactKind        { return FactFloorMoved }
 func (TurnOpened) Kind() FactKind        { return FactTurnOpened }
 func (Said) Kind() FactKind              { return FactSaid }
 func (AddressingUnclear) Kind() FactKind { return FactAddressingUnclear }
 func (Failed) Kind() FactKind            { return FactFailed }
+func (AttendanceChanged) Kind() FactKind { return FactAttendanceChanged }
 
 func (FloorMoved) fact()        {}
 func (TurnOpened) fact()        {}
 func (Said) fact()              {}
 func (AddressingUnclear) fact() {}
 func (Failed) fact()            {}
+func (AttendanceChanged) fact() {}
 
 // Facts is where the desk writes what happened.
 //

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/pleware/initagent/internal/gdesk"
@@ -81,8 +82,11 @@ type Desk struct {
 	visionCfg gdesk.Vision
 	visionSet bool
 	visionRun VisionRun
-	sensors   *gdesksensor.Sensors
-	visionDone chan struct{}
+	sensors        *gdesksensor.Sensors
+	visionDone     chan struct{}
+	attendanceMu   sync.Mutex
+	lastAttendance gdesk.AttendanceChanged
+	lastAttendanceSet bool
 }
 
 // Open builds the desk and takes the port.

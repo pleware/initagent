@@ -73,6 +73,7 @@ const (
 	EventSurfacePatched  = "surface.patched"
 	EventSurfaceAppended = "surface.appended"
 	EventSurfaceClosed   = "surface.closed"
+	EventAttendanceChanged = "gdesk.attendance.changed"
 )
 
 // MaxChunkChars mirrors `SURFACE_LIMITS.chunkChars`. The glass rejects a

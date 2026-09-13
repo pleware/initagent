@@ -770,10 +770,10 @@ func TestFailureOfMapsOntoTheSeamsCodes(t *testing.T) {
 
 func TestFactKindsAreTheSeamsNames(t *testing.T) {
 	facts := []Fact{
-		FloorMoved{}, TurnOpened{}, Said{}, AddressingUnclear{}, Failed{},
+		FloorMoved{}, TurnOpened{}, Said{}, AddressingUnclear{}, Failed{}, AttendanceChanged{},
 	}
 	want := []FactKind{
-		FactFloorMoved, FactTurnOpened, FactSaid, FactAddressingUnclear, FactFailed,
+		FactFloorMoved, FactTurnOpened, FactSaid, FactAddressingUnclear, FactFailed, FactAttendanceChanged,
 	}
 	for i, fact := range facts {
 		if got := fact.Kind(); got != want[i] {

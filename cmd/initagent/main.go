@@ -42,7 +42,6 @@ Usage:
   {{bin}} serve --tls-domain d.com --tls-email you@d.com   Run the hub with automatic HTTPS (Let's Encrypt)
   {{bin}} gateway [--addr :4201] [--data-dir ~/{{cfg}}] [--project project-…] [--public-url URL]
                                                              Run the project gateway (enroll + tasks)
-  {{bin}} gdesk                                           Run the glass desk (local voice seam for the glass)
   {{bin}} agent enroll --hub URL --token TOKEN            Enroll this connector with a hub
   {{bin}} agent run                                       Run the connector agent (foreground)
   {{bin}} agent install-service                           Install + start the agent as a service
@@ -73,11 +72,6 @@ func main() {
 		err = cmdServe(os.Args[2:])
 	case "gateway":
 		err = cmdGateway(os.Args[2:])
-	// "desk" is the name this had before the glass desk became the gdesk
-	// context (workspace draft 05). Still accepted: a rename is not a reason
-	// for somebody's shortcut to stop working.
-	case "gdesk", "desk":
-		err = cmdGdesk(os.Args[2:])
 	case "agent":
 		err = cmdAgent(os.Args[2:])
 	case "fleet":
@@ -200,26 +194,30 @@ func cmdServe(args []string) error {
 	}
 
 	srv, err := hub.NewServer(hub.Options{
-		Addr:                *addr,
-		DataDir:             resolvedDir,
-		Version:             version,
-		GithubRepo:          brand.ReleaseSource,
-		TLSDomain:           *tlsDomain,
-		TLSEmail:            *tlsEmail,
-		UI:                  uiFS(),
-		GatewayURL:          gwURL,
-		GatewaySecret:       os.Getenv(brand.EnvGatewaySecret),
-		DatabaseURL:         *databaseURL,
-		Offering:            kind,
-		ResendAPIKey:        os.Getenv(brand.EnvResendAPIKey),
-		MailFrom:            os.Getenv(brand.EnvMailFrom),
-		StripeSecretKey:     os.Getenv(brand.EnvStripeSecretKey),
-		StripeWebhookSecret: os.Getenv(brand.EnvStripeWebhookSecret),
-		StripePriceStarter:  os.Getenv(brand.EnvStripePriceStarter),
-		StripePriceTeam:     os.Getenv(brand.EnvStripePriceTeam),
-		FakturowniaToken:    os.Getenv(brand.EnvFakturowniaToken),
-		FakturowniaDomain:   os.Getenv(brand.EnvFakturowniaDomain),
-		TrustedProxies:      *trustedProxies,
+		Addr:                    *addr,
+		DataDir:                 resolvedDir,
+		Version:                 version,
+		GithubRepo:              brand.ReleaseSource,
+		TLSDomain:               *tlsDomain,
+		TLSEmail:                *tlsEmail,
+		UI:                      uiFS(),
+		GatewayURL:              gwURL,
+		GatewaySecret:           os.Getenv(brand.EnvGatewaySecret),
+		DatabaseURL:             *databaseURL,
+		Offering:                kind,
+		ResendAPIKey:            os.Getenv(brand.EnvResendAPIKey),
+		MailFrom:                os.Getenv(brand.EnvMailFrom),
+		StripeSecretKey:         os.Getenv(brand.EnvStripeSecretKey),
+		StripeWebhookSecret:     os.Getenv(brand.EnvStripeWebhookSecret),
+		StripePriceStarter:      os.Getenv(brand.EnvStripePriceStarter),
+		StripePriceTeam:         os.Getenv(brand.EnvStripePriceTeam),
+		StripeTestSecretKey:     os.Getenv(brand.EnvStripeTestSecretKey),
+		StripeTestWebhookSecret: os.Getenv(brand.EnvStripeTestWebhookSecret),
+		StripeTestPriceStarter:  os.Getenv(brand.EnvStripeTestPriceStarter),
+		StripeTestPriceTeam:     os.Getenv(brand.EnvStripeTestPriceTeam),
+		FakturowniaToken:        os.Getenv(brand.EnvFakturowniaToken),
+		FakturowniaDomain:       os.Getenv(brand.EnvFakturowniaDomain),
+		TrustedProxies:          *trustedProxies,
 	})
 	if err != nil {
 		return err

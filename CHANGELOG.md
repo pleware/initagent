@@ -2,7 +2,8 @@
 
 ## Unreleased — product
 
-- 2026-09-13 — hub: test organizations are exempt from plan limits
+- 2026-09-13 — Remove the gdesk packages; the desk now lives in pware-os-gdesk
+- 2026-09-13 — hub: org mode (standard / test / develop) — test lifts plan limits, develop keeps limits but pays on Stripe test without KSeF
 - 2026-09-13 — Report browser errors to shared GlitchTip (draft 55)
 - 2026-09-13 — billing: EUR catalogue pricing and buyer kind (company vs private person)
 - 2026-09-13 — billing: buyer kind (company vs private person); a private person has no NIP

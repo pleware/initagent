@@ -29,10 +29,7 @@ func TestExportedIdentity(t *testing.T) {
 		{"GatewayDBFile", brand.GatewayDBFile, "gateway.db"},
 		{"ConnectorConfigFile", brand.ConnectorConfigFile, "connector.json"},
 		{"FleetConfigFile", brand.FleetConfigFile, "fleet.json"},
-		{"GdeskConfigFile", brand.GdeskConfigFile, "gdesk.yaml"},
-		{"LegacyDeskConfigFile", brand.LegacyDeskConfigFile, "desk.yaml"},
 		{"OfferingFile", brand.OfferingFile, "offering"},
-		{"EnvGdeskConfig", brand.EnvGdeskConfig, "INITAGENT_GDESK_CONFIG"},
 		{"ClaimTokenFile", brand.ClaimTokenFile, "bootstrap-token"},
 		{"EnvOffering", brand.EnvOffering, "INITAGENT_OFFERING"},
 		{"EnvResendAPIKey", brand.EnvResendAPIKey, "INITAGENT_RESEND_API_KEY"},
@@ -44,13 +41,6 @@ func TestExportedIdentity(t *testing.T) {
 		{"EnvFakturowniaToken", brand.EnvFakturowniaToken, "INITAGENT_FAKTUROWNIA_API_TOKEN"},
 		{"EnvFakturowniaDomain", brand.EnvFakturowniaDomain, "INITAGENT_FAKTUROWNIA_DOMAIN"},
 		{"EnvTrustedProxies", brand.EnvTrustedProxies, "INITAGENT_TRUSTED_PROXIES"},
-		{"EnvGdeskSeamAddr", brand.EnvGdeskSeamAddr, "INITAGENT_GDESK_SEAM_ADDR"},
-		{"EnvGdeskSeamToken", brand.EnvGdeskSeamToken, "INITAGENT_GDESK_SEAM_TOKEN"},
-		{"EnvGdeskVisionCamera", brand.EnvGdeskVisionCamera, "INITAGENT_GDESK_VISION_CAMERA"},
-		{"EnvGdeskVisionSensor", brand.EnvGdeskVisionSensor, "INITAGENT_GDESK_VISION_SENSOR"},
-		{"EnvGdeskVisionCommand", brand.EnvGdeskVisionCommand, "INITAGENT_GDESK_VISION_COMMAND"},
-		{"LegacyGdeskEnvPrefix", brand.LegacyGdeskEnvPrefix, "INITAGENT_DESK_"},
-		{"GdeskEnvPrefix", brand.GdeskEnvPrefix, "INITAGENT_GDESK_"},
 		{"TokenPrefix", brand.TokenPrefix, "iagt_"},
 		{"SessionCookie", brand.SessionCookie, "initagent_auth"},
 		{"EnvPrefix", brand.EnvPrefix, "INITAGENT_"},
@@ -104,59 +94,5 @@ func TestReleaseAsset(t *testing.T) {
 	want := brand.Binary + "_linux_amd64"
 	if got != want {
 		t.Fatalf("ReleaseAsset = %q, want %q", got, want)
-	}
-}
-
-// TestEnvAPIKey locks the derivation an operator has to type. A secret kind
-// is configuration and travels in bug reports; only the variable this names
-// holds the value, so getting the name wrong looks like a missing key.
-func TestEnvAPIKey(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		kind string
-		want string
-	}{
-		{"openai", brand.EnvPrefix + "OPENAI_API_KEY"},
-		{"azure-openai", brand.EnvPrefix + "AZURE_OPENAI_API_KEY"},
-		{"elevenlabs", brand.EnvPrefix + "ELEVENLABS_API_KEY"},
-	}
-	for _, tc := range cases {
-		if got := brand.EnvAPIKey(tc.kind); got != tc.want {
-			t.Errorf("EnvAPIKey(%q) = %q, want %q", tc.kind, got, tc.want)
-		}
-	}
-}
-
-func TestEnvAPIKeyAliasIsTheVendorName(t *testing.T) {
-	t.Parallel()
-	if got := brand.EnvAPIKeyAlias("openai"); got != "OPENAI_API_KEY" {
-		t.Errorf("EnvAPIKeyAlias(openai) = %q, want OPENAI_API_KEY", got)
-	}
-	if got := brand.EnvAPIKeyAlias("azure-openai"); got != "AZURE_OPENAI_API_KEY" {
-		t.Errorf("EnvAPIKeyAlias(azure-openai) = %q, want AZURE_OPENAI_API_KEY", got)
-	}
-}
-
-func TestLookupAPIKeyPrefersThePrefixedName(t *testing.T) {
-	t.Parallel()
-	got := brand.LookupAPIKey(map[string]string{
-		brand.EnvAPIKey("openai"):      "from-prefixed",
-		brand.EnvAPIKeyAlias("openai"): "from-alias",
-	}, "openai")
-	if got != "from-prefixed" {
-		t.Errorf("LookupAPIKey = %q, want from-prefixed", got)
-	}
-}
-
-func TestLookupAPIKeyFallsBackToTheVendorName(t *testing.T) {
-	t.Parallel()
-	got := brand.LookupAPIKey(map[string]string{
-		brand.EnvAPIKeyAlias("openai"): "from-alias",
-	}, "openai")
-	if got != "from-alias" {
-		t.Errorf("LookupAPIKey = %q, want from-alias", got)
-	}
-	if got := brand.LookupAPIKey(map[string]string{}, "openai"); got != "" {
-		t.Errorf("LookupAPIKey empty env = %q, want empty", got)
 	}
 }

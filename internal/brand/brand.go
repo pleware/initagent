@@ -13,11 +13,6 @@
 // applied to the cockpit or the site.
 package brand
 
-import (
-	"cmp"
-	"strings"
-)
-
 const (
 	// Name is the machine name: binary stem, GitHub, hostnames, env.
 	Name = "initagent"
@@ -50,17 +45,6 @@ const (
 
 	// FleetConfigFile is the fleet CLI config inside ConfigDir.
 	FleetConfigFile = "fleet.json"
-
-	// GdeskConfigFile is the glass-desk YAML inside ConfigDir. Optional:
-	// missing means environment only. A present file is configuration, and
-	// the process environment overrides every field.
-	GdeskConfigFile = "gdesk.yaml"
-
-	// LegacyDeskConfigFile is the name that file had before the desk became
-	// the `gdesk` context (workspace draft 05). Read when GdeskConfigFile is
-	// absent: a developer's home directory is not a place to break, and the
-	// file holds a token that cannot be regenerated from anywhere else.
-	LegacyDeskConfigFile = "desk.yaml"
 
 	// OfferingFile names the hub offering token inside ConfigDir.
 	// Missing means selfhost. Values: hosted | selfhost. No secrets.
@@ -135,6 +119,20 @@ const (
 	EnvStripePriceStarter = EnvPrefix + "STRIPE_PRICE_STARTER"
 	EnvStripePriceTeam    = EnvPrefix + "STRIPE_PRICE_TEAM"
 
+	// EnvStripeTestSecretKey is the Stripe test-mode secret a develop org
+	// checks out against. Empty leaves develop orgs unable to checkout.
+	EnvStripeTestSecretKey = EnvPrefix + "STRIPE_TEST_SECRET_KEY"
+
+	// EnvStripeTestWebhookSecret verifies Stripe test-mode events (a develop
+	// org's payment). Empty refuses every test-mode event.
+	EnvStripeTestWebhookSecret = EnvPrefix + "STRIPE_TEST_WEBHOOK_SECRET"
+
+	// EnvStripeTestPriceStarter / EnvStripeTestPriceTeam are the test-mode
+	// Price ids. Stripe Price objects never cross the live/test boundary, so
+	// these come only from env, never from the catalogue.
+	EnvStripeTestPriceStarter = EnvPrefix + "STRIPE_TEST_PRICE_STARTER"
+	EnvStripeTestPriceTeam    = EnvPrefix + "STRIPE_TEST_PRICE_TEAM"
+
 	// EnvFakturowniaToken is the Fakturownia.pl API token. Fiscal
 	// invoices (and KSeF) are issued after Stripe marks a payment paid.
 	EnvFakturowniaToken = EnvPrefix + "FAKTUROWNIA_API_TOKEN"
@@ -153,87 +151,7 @@ const (
 	// X-Forwarded-For header the hub may use as the client address. Empty
 	// means the connection address, which is the self-host default (`26`).
 	EnvTrustedProxies = EnvPrefix + "TRUSTED_PROXIES"
-
-	// EnvGdeskChat, EnvGdeskSTT and EnvGdeskTTS bind one glass-desk role to a
-	// provider and a model, written `provider/model`. An unset role leaves
-	// the desk without it — the connector still serves connectors and MCP, so a
-	// missing voice must not stop it starting (`53`).
-	EnvGdeskChat = EnvPrefix + "GDESK_CHAT"
-	EnvGdeskSTT  = EnvPrefix + "GDESK_STT"
-	EnvGdeskTTS  = EnvPrefix + "GDESK_TTS"
-
-	// EnvGdeskProviderPrefix begins a provider entry. After it comes the
-	// provider id — uppercased, dashes as underscores — then one field:
-	// SHAPE, BASE_URL, API_PATH or SECRET_KIND. The value of the key itself
-	// is never here; SECRET_KIND names it (`41`, `24`).
-	EnvGdeskProviderPrefix = EnvPrefix + "GDESK_PROVIDER_"
-
-	// EnvGdeskConfig is an explicit path to the glass-desk YAML. Unset means
-	// ~/ConfigDir/GdeskConfigFile when that file exists. Set and missing
-	// is a configuration error, not a silent fallback to env-only.
-	EnvGdeskConfig = EnvPrefix + "GDESK_CONFIG"
-
-	// EnvGdeskSeamAddr is where the desk's local seam listens. Loopback only:
-	// a remote device reaches the desk through the hub as a relay, so this
-	// number never faces the network (workspace docs/GDESK-SCOPES.md).
-	EnvGdeskSeamAddr = EnvPrefix + "GDESK_SEAM_ADDR"
-
-	// EnvGdeskSeamToken is what a caller presents to join the desk on that
-	// address. Unset closes the seam rather than opening it to anything on
-	// the box. Never a flag, for the same reason as a provider key.
-	EnvGdeskSeamToken = EnvPrefix + "GDESK_SEAM_TOKEN"
-
-	// EnvGdeskVisionCamera names the camera index for the walk-up sensor.
-	// Set — including to 0 — starts pware-vision as a child of the desk.
-	// Unset leaves local sensing declared rather than running.
-	EnvGdeskVisionCamera = EnvPrefix + "GDESK_VISION_CAMERA"
-
-	// EnvGdeskVisionSensor stamps facts from that process. Empty means
-	// camera-<index>, which is stable on one box.
-	EnvGdeskVisionSensor = EnvPrefix + "GDESK_VISION_SENSOR"
-
-	// EnvGdeskVisionCommand overrides the executable. Tests use it; production
-	// leaves it empty and launches pware-vision from PATH.
-	EnvGdeskVisionCommand = EnvPrefix + "GDESK_VISION_COMMAND"
-
-	// GdeskEnvPrefix is what every glass-desk variable above begins with.
-	GdeskEnvPrefix = EnvPrefix + "GDESK_"
-
-	// LegacyGdeskEnvPrefix is what every variable above began with before the
-	// desk became the `gdesk` context. A caller still exporting one is
-	// honoured — see gdesk.AliasLegacyEnv — because the alternative is a
-	// working box going silent on an upgrade with nothing to point at.
-	LegacyGdeskEnvPrefix = EnvPrefix + "DESK_"
-
-	// EnvAPIKeySuffix ends the variable holding one provider key. Never a
-	// flag: a flag lands in ps output and shell history.
-	EnvAPIKeySuffix = "_API_KEY"
 )
-
-// EnvAPIKey names the environment variable holding the value for a named
-// secret kind, e.g. "openai" becomes INITAGENT_OPENAI_API_KEY. The kind is
-// configuration and travels freely; only this variable holds the secret, and
-// a `sec-` row replaces it later without renaming anything else (`24`, `41`).
-func EnvAPIKey(secretKind string) string {
-	return EnvPrefix + EnvAPIKeyAlias(secretKind)
-}
-
-// EnvAPIKeyAlias is the unprefixed name operators already have on the
-// machine — OPENAI_API_KEY for kind openai. Lookup tries EnvAPIKey first,
-// then this, so a filled INITAGENT_* still wins and a laptop that only
-// exported the vendor name does not need a second copy.
-func EnvAPIKeyAlias(secretKind string) string {
-	return strings.ToUpper(strings.ReplaceAll(secretKind, "-", "_")) + EnvAPIKeySuffix
-}
-
-// LookupAPIKey reads the value for a secret kind from an env snapshot.
-// Empty means the key has not arrived; a Silence, not a refusal.
-func LookupAPIKey(env map[string]string, secretKind string) string {
-	return cmp.Or(
-		strings.TrimSpace(env[EnvAPIKey(secretKind)]),
-		strings.TrimSpace(env[EnvAPIKeyAlias(secretKind)]),
-	)
-}
 
 // Service identities. Renaming these breaks upgrades of an already-installed
 // connector, so they change in one commit rather than gradually.

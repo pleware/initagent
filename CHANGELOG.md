@@ -2,6 +2,8 @@
 
 ## Unreleased — product
 
+- 2026-09-13 — wdrozenie: add the Raspberry Pi OS path for a clean 64-bit box
+- 2026-09-13 — wdrozenie: Raspberry Pi OS worker join for a clean 64-bit Pi
 - 2026-09-13 — chore: normalize line endings via .gitattributes
 - 2026-09-13 — gdeskfront: a sensor's stderr reaches the operator, and a dead sensor is named
 - 2026-09-13 — gitignore: stop offering build and coverage artifacts as commitable

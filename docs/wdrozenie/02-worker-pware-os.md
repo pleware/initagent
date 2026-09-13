@@ -18,9 +18,10 @@ Windows
                      hub app.initagent.dev
 ```
 
-Na VPS jest tak samo, bez WSL: Docker prosto na hoście. Workerem jest zawsze
-**kontener** — w nim uruchamiasz komendę dołączenia; sama maszyna nie dołącza
-niczego i pozostaje jedną konfiguracją.
+Na VPS albo na Raspberry Pi jest tak samo, bez WSL: Docker prosto na hoście.
+Jedno Pi, jeden worker, bez kontenerów → [ścieżka 3](03-worker-raspberry-pi.md).
+Workerem jest zawsze **kontener** — w nim uruchamiasz komendę dołączenia;
+sama maszyna nie dołącza niczego i pozostaje jedną konfiguracją.
 
 ## Wymagania
 

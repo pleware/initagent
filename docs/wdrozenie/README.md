@@ -7,6 +7,7 @@ Jak podłączyć **workera** do huba initAgent na maszynie klienta. Hub stoi na
 | --- | --- | --- |
 | **1. Domyślna** | jedna maszyna = jeden worker | [`01-worker-windows.md`](01-worker-windows.md) |
 | **2. PWare OS** | kilka workerów na jednej maszynie — **tylko kontenery** (Docker w WSL albo na VPS) | [`02-worker-pware-os.md`](02-worker-pware-os.md) |
+| **3. Raspberry Pi** | jedna Malina z już wgranym Raspberry Pi OS (64-bit) = jeden worker | [`03-worker-raspberry-pi.md`](03-worker-raspberry-pi.md) |
 
 ## Komendy w skrócie
 
@@ -16,14 +17,18 @@ z pamięci; token wygasa po 15 minutach.
 | Komenda | Po co | Gdzie |
 | --- | --- | --- |
 | `irm <ADRES>/install/<TOKEN>.ps1 \| iex` | dołącza workera (Windows) | cz. 1 |
-| `curl -fsSL <ADRES>/install/<TOKEN>.sh \| sh` | dołącza workera (Linux/kontener) | cz. 2 |
+| `curl -fsSL <ADRES>/install/<TOKEN>.sh \| sh` | dołącza workera (Linux / Pi / kontener) | cz. 2, 3 |
+| `uname -m` | czy Pi jest 64-bit (`aarch64`) | cz. 3 |
+| `sudo hostnamectl set-hostname …` | nazwa Pi przed dołączeniem | cz. 3 |
+| `sudo loginctl enable-linger "$USER"` | worker wstaje po restarcie i po zamknięciu SSH | cz. 3 |
+| `systemctl --user status initagent-connector` | czy usługa na Pi działa | cz. 3 |
 | `wsl --install -d Ubuntu` | zakłada WSL2 + Ubuntu | cz. 2 |
 | `wsl --shutdown` | restart dystrybucji po zmianie `/etc/wsl.conf` | cz. 2 |
 | `wsl -l -v` | lista dystrybucji / tryb WSL | cz. 2 |
 | `systemctl status docker` | czy Docker w WSL wstaje sam | cz. 2 |
 | `docker run --hostname dell-worker-01 …` | kontener o jawnej nazwie = worker | cz. 2 |
-| `initagent fleet connectors` | lista urządzeń (weryfikacja) | obie |
-| `initagent fleet run <CONNECTOR> -- initagent version` | smoke test | obie |
+| `initagent fleet connectors` | lista urządzeń (weryfikacja) | wszystkie |
+| `initagent fleet run <CONNECTOR> -- initagent version` | smoke test | wszystkie |
 | `wsl --unregister Ubuntu` | **kasuje** dystrybucję i całą jej zawartość | cz. 2 |
 
 ## Słownik
@@ -39,7 +44,7 @@ z pamięci; token wygasa po 15 minutach.
 ## Zanim zaczniesz
 
 - konto na `app.initagent.dev` z dostępem do projektu klienta,
-- dostęp do maszyny (konsola, RDP, SSH),
+- dostęp do maszyny (konsola, RDP, SSH; na Pi: ekran albo `ssh JAN@raspberrypi.local`),
 - nazwa workera: agent bierze ją z **hostname'a** środowiska, więc ustal ją
   przed dołączeniem (`dell-worker-01`) — mechanika w każdej części. Hub umie
   ją zmienić po fakcie (`PATCH /api/connectors/{id}`), ale panel nie ma na to

@@ -10,6 +10,7 @@ Nadaj sensowną nazwę **przed** dołączeniem — zmiana nazwy komputera w Wind
 urządzenia w hubie (`PATCH /api/connectors/{id}`; przycisku w panelu nie ma).
 
 Więcej niż jeden worker na maszynie → [ścieżka 2](02-worker-pware-os.md).
+Raspberry Pi z już wgranym Raspberry Pi OS → [ścieżka 3](03-worker-raspberry-pi.md).
 
 ## Krok 1 — komenda z huba
 

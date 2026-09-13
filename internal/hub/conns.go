@@ -88,7 +88,7 @@ func (c *agentConn) request(ctx context.Context, typ string, v any) (protocol.Ms
 	select {
 	case reply, ok := <-ch:
 		if !ok {
-			// Channel closed by serveAgent's teardown: the device dropped
+			// Channel closed by serveAgent's teardown: the connector dropped
 			// mid-request. Never report this as an empty success.
 			return protocol.Msg{}, fmt.Errorf("connector disconnected")
 		}

@@ -10,7 +10,7 @@ import (
 	"github.com/pleware/initagent/internal/protocol"
 )
 
-func TestFleetAgentsListsSessionsAcrossDevices(t *testing.T) {
+func TestFleetAgentsListsSessionsAcrossConnectors(t *testing.T) {
 	g := openTest(t, "")
 	connectorID, agent, ts := connectAgentWS(t, g)
 	echoRPC(t, agent, func(m protocol.Msg) (any, error) {

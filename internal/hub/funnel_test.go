@@ -29,11 +29,11 @@ func TestFunnelFactsFromLiveRows(t *testing.T) {
 	if _, _, err := s.CreateConnector("box", "box", "linux", "amd64", false); err != nil {
 		t.Fatal(err)
 	}
-	devices, err := s.ListConnectors()
-	if err != nil || len(devices) == 0 {
-		t.Fatalf("devices: %v %v", devices, err)
+	connectors, err := s.ListConnectors()
+	if err != nil || len(connectors) == 0 {
+		t.Fatalf("connectors: %v %v", connectors, err)
 	}
-	if _, err := s.AttachProjectConnector(project.Id, devices[0].Id); err != nil {
+	if _, err := s.AttachProjectConnector(project.Id, connectors[0].Id); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.SaveTaskOutput(TaskOutput{

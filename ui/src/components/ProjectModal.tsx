@@ -36,9 +36,9 @@ export default function ProjectModal({
   const [error, setError] = useState<unknown>(null)
 
   const editing = Boolean(project)
-  const deviceById = useMemo(() => new Map(connectors.map((device) => [device.id, device])), [connectors])
-  const available = connectors.filter((device) => !enrolled.includes(device.id))
-  const runOnIds = enrolled.length > 0 ? enrolled : connectors.map((device) => device.id)
+  const connectorById = useMemo(() => new Map(connectors.map((connector) => [connector.id, connector])), [connectors])
+  const available = connectors.filter((connector) => !enrolled.includes(connector.id))
+  const runOnIds = enrolled.length > 0 ? enrolled : connectors.map((connector) => connector.id)
 
   const apply = (saved: Project) => {
     setEnrolled(enrolledIds(saved))
@@ -117,12 +117,12 @@ export default function ProjectModal({
                 <li className="text-xs text-zinc-600">No machine on this project yet.</li>
               ) : (
                 enrolled.map((id) => {
-                  const device = deviceById.get(id)
+                  const connector = connectorById.get(id)
                   return (
                     <li key={id} className="flex items-center gap-2 rounded-lg border border-white/[0.07] px-3 py-2">
                       <span className="min-w-0 flex-1 truncate text-sm text-zinc-200">
-                        {device?.name ?? id}
-                        <span className="ml-2 text-xs text-zinc-600">{device?.online ? 'online' : 'offline'}</span>
+                        {connector?.name ?? id}
+                        <span className="ml-2 text-xs text-zinc-600">{connector?.online ? 'online' : 'offline'}</span>
                       </span>
                       <button
                         type="button"
@@ -146,9 +146,9 @@ export default function ProjectModal({
                   className="min-w-0 flex-1"
                   items={[
                     { value: '', label: 'Add a machine…' },
-                    ...available.map((device) => ({
-                      value: device.id,
-                      label: `${device.name} ${device.online ? '· online' : '· offline'}`,
+                    ...available.map((connector) => ({
+                      value: connector.id,
+                      label: `${connector.name} ${connector.online ? '· online' : '· offline'}`,
                     })),
                   ]}
                 />
@@ -169,10 +169,10 @@ export default function ProjectModal({
               onValueChange={setConnectorId}
               className="w-full"
               items={runOnIds.map((id) => {
-                const device = deviceById.get(id)
+                const connector = connectorById.get(id)
                 return {
                   value: id,
-                  label: `${device?.name ?? id} ${device?.online ? '· online' : '· offline'}`,
+                  label: `${connector?.name ?? id} ${connector?.online ? '· online' : '· offline'}`,
                 }
               })}
             />

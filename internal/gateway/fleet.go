@@ -18,7 +18,7 @@ type fleetAgent struct {
 	ConnectorName string `json:"connectorName"`
 }
 
-// handleFleetAgents lists every session across the project's online devices.
+// handleFleetAgents lists every session across the project's online connectors.
 // The hub calls it once per reachable gateway and merges the answer with its
 // own registry, so a worker that dialed this gateway still shows up on the
 // fleet view (16).
@@ -27,13 +27,13 @@ func (g *Gateway) handleFleetAgents(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	devices, err := g.store.ListConnectors(r.Context(), projectID)
+	connectors, err := g.store.ListConnectors(r.Context(), projectID)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	nameByID := make(map[string]string, len(devices))
-	for _, d := range devices {
+	nameByID := make(map[string]string, len(connectors))
+	for _, d := range connectors {
 		nameByID[d.ID] = d.Name
 	}
 

@@ -33,7 +33,7 @@ Multi-user/teams, native mobile apps, per-agent structured chat UIs, built-in in
 
 Single WebSocket. Text frames = JSON control messages `{type, id?, channel?, ...}`. Binary frames = `[4-byte big-endian channel id][payload]` for streams (terminal I/O, file transfer).
 
-- Agent connects to `/api/ws/agent` with `Authorization: Bearer <device token>`, sends `hello {hostname, os, arch, version, tmux}`; hub replies `welcome {deviceId}`.
+- Agent connects to `/api/ws/agent` with `Authorization: Bearer <device token>`, sends `hello {hostname, os, arch, version, tmux}`; hub replies `welcome {connectorId}`.
 - `stats` pushed every 5s: cpu%, mem used/total, disk used/total, uptime.
 - Request/response pairs carry `id`; streams carry `channel` allocated by the hub.
 - Messages: `term.open/opened/resize/close/exit`, `sessions.list`, `session.create`, `session.kill`, `exec` (capped output, timeout), `fs.list`, `fs.read` (download stream), `fs.write` (upload stream).
@@ -47,7 +47,7 @@ Single WebSocket. Text frames = JSON control messages `{type, id?, channel?, ...
 
 ## Join flow
 
-1. UI **Add device** → POST creates single-use enrollment token (15 min expiry) → shows `curl -fsSL http://HUB:4200/install/<token>.sh | sh`.
+1. UI **Add connector** → POST creates single-use enrollment token (15 min expiry) → shows `curl -fsSL http://HUB:4200/install/<token>.sh | sh`.
 2. Script detects OS/arch, downloads the agent binary **from the hub itself** (`/api/agent-binary?os=&arch=`: serves the hub's own executable when platform matches, else from `<data-dir>/binaries/overseer_<os>_<arch>`, else instructs cross-compile/GitHub release), runs `overseer agent enroll --hub URL --token T` (exchanges enrollment token for a permanent per-device secret, writes `~/.overseer/agent.json`), installs a systemd (Linux) or launchd (macOS) service, starts it.
 3. Device appears on the dashboard; the Add-device modal live-updates when it joins.
 4. Deleting a device revokes its token and disconnects it.

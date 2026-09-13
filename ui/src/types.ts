@@ -263,7 +263,7 @@ export interface ApiTokenInfo {
 }
 
 // TokenScope is one verb the hub will accept in a mint. `dangerous` is what
-// keeps arbitrary command execution off the same footing as reading a device
+// keeps arbitrary command execution off the same footing as reading a connector
 // list: the mint form separates it and leaves it unchecked.
 export interface TokenScope {
   scope: string

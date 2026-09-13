@@ -34,7 +34,7 @@ func (s *Store) BindProject(ctx context.Context, projectID, address string) (Pro
 }
 
 // EnsureProject makes sure a project the hub routed here has a row, because
-// tasks, devices and enroll tokens all reference projects(id). Placement is a
+// tasks, connectors and enroll tokens all reference projects(id). Placement is a
 // column on the hub's project row (18), so admitting the second project is
 // this insert rather than a provisioned process, a port and a certificate.
 //

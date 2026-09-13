@@ -162,8 +162,8 @@ func TestNoProjectHeaderUsesTheBootstrapProject(t *testing.T) {
 	}
 }
 
-// Devices are listed per project, so one project's fleet is not another's.
-func TestDeviceListIsScopedToItsProject(t *testing.T) {
+// Connectors are listed per project, so one project's fleet is not another's.
+func TestConnectorListIsScopedToItsProject(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
 	other := mustProject(t)
@@ -241,14 +241,14 @@ func TestClaimDoesNotCrossProjects(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	claimed, _, err := g.Claim(ctx, g.Project().ID, mustDevice(t))
+	claimed, _, err := g.Claim(ctx, g.Project().ID, mustConnector(t))
 	if !errors.Is(err, scheduler.ErrNoFreeSlot) {
 		t.Fatalf("Claim = %+v, %v; want nothing claimable from another project's queue", claimed, err)
 	}
 
 	// The same queue is claimable by its own project, which proves the test
 	// above failed on scope rather than on an empty table.
-	own, _, err := g.Claim(ctx, other, mustDevice(t))
+	own, _, err := g.Claim(ctx, other, mustConnector(t))
 	if err != nil || own == nil || own.ProjectID != other {
 		t.Fatalf("own claim = %+v, %v", own, err)
 	}

@@ -3,7 +3,7 @@ import { Terminal as Xterm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { wsURL } from '../api'
 
-// Terminal renders one xterm attached to a device session via the hub bridge.
+// Terminal renders one xterm attached to a connector session via the hub bridge.
 export default function Terminal({
   connectorId,
   session,

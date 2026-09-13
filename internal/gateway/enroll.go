@@ -49,7 +49,7 @@ func (s *Store) CreateEnrollToken(ctx context.Context, projectID string, ttl tim
 }
 
 // ConsumeEnrollToken atomically validates and burns a token. The project id
-// is returned so enroll can bind the device to the same project-.
+// is returned so enroll can bind the connector to the same project-.
 func (s *Store) ConsumeEnrollToken(ctx context.Context, token string) (projectID string, ok bool, err error) {
 	now := unixTime(time.Now().UTC())
 	res, err := s.db.ExecContext(ctx, `

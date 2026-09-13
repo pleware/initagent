@@ -305,7 +305,7 @@ func TestAgentWSHelloMarksOnline(t *testing.T) {
 	}
 	dev, err := g.Store().ConnectorByToken(ctx, token)
 	if err != nil || dev == nil {
-		t.Fatalf("device: %v %+v", err, dev)
+		t.Fatalf("connector: %v %+v", err, dev)
 	}
 
 	ts := httptest.NewServer(g.Handler())
@@ -405,7 +405,7 @@ func TestConnectorByIDAndBadID(t *testing.T) {
 
 // A device credential has to answer which project it belongs to: one gateway
 // process serves many projects, so the socket cannot inherit one (18).
-func TestDeviceCarriesItsProject(t *testing.T) {
+func TestConnectorCarriesItsProject(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
 	did, token, err := g.Store().CreateConnector(ctx, g.Project().ID, "box", "box", "linux", "amd64")
@@ -462,9 +462,9 @@ func TestEnrollDefaultConnectorName(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d %s", rec.Code, rec.Body.String())
 	}
-	devices, err := g.Store().ListConnectors(context.Background(), g.Project().ID)
-	if err != nil || len(devices) != 1 || devices[0].Name != "connector" {
-		t.Fatalf("connectors = %+v %v", devices, err)
+	connectors, err := g.Store().ListConnectors(context.Background(), g.Project().ID)
+	if err != nil || len(connectors) != 1 || connectors[0].Name != "connector" {
+		t.Fatalf("connectors = %+v %v", connectors, err)
 	}
 }
 

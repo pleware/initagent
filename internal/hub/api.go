@@ -420,12 +420,12 @@ type connectorView struct {
 }
 
 func (s *Server) connectorViews() ([]connectorView, error) {
-	devices, err := s.store.ListConnectors()
+	connectors, err := s.store.ListConnectors()
 	if err != nil {
 		return nil, err
 	}
-	out := make([]connectorView, 0, len(devices))
-	for _, d := range devices {
+	out := make([]connectorView, 0, len(connectors))
+	for _, d := range connectors {
 		v := connectorView{Connector: d}
 		if c := s.registry.get(d.Id); c != nil {
 			v.Online = true
@@ -517,20 +517,20 @@ func (s *Server) handleDeleteConnector(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUpdateStatus(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	status := s.updates.snapshot()
-	// Hub plane: count the devices this installation holds directly.
+	// Hub plane: count the connectors this installation holds directly.
 	views, err := s.connectorViews()
 	if err == nil {
-		for _, device := range views {
-			if device.IsHub {
+		for _, view := range views {
+			if view.IsHub {
 				continue
 			}
 			status.FleetTotal++
-			if device.AgentVersion == "" || updater.IsNewer(s.opts.Version, device.AgentVersion) {
+			if view.AgentVersion == "" || updater.IsNewer(s.opts.Version, view.AgentVersion) {
 				status.FleetOutdated++
 			}
 		}
 	}
-	// Gateway plane: each reachable gateway owns its own devices, so count
+	// Gateway plane: each reachable gateway owns its own connectors, so count
 	// those too (16).
 	targets, err := s.gatewayTargets(cred)
 	if err == nil {
@@ -801,7 +801,7 @@ type fleetSession struct {
 }
 
 func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	devices, err := s.store.ListConnectors()
+	connectors, err := s.store.ListConnectors()
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -815,7 +815,7 @@ func (s *Server) handleFleetAgents(w http.ResponseWriter, r *http.Request, cred 
 		return
 	}
 	nameById := map[string]string{}
-	for _, d := range devices {
+	for _, d := range connectors {
 		nameById[d.Id] = d.Name
 	}
 

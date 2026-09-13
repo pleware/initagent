@@ -365,7 +365,7 @@ func (s *Server) runEmbeddedAgent(ctx context.Context) {
 		}
 		_, tok, err := s.store.CreateConnector(name, hostname, "", "", true)
 		if err != nil {
-			log.Printf("embedded agent: registering hub device: %v", err)
+			log.Printf("embedded agent: registering hub connector: %v", err)
 			return
 		}
 		if err := s.store.SetSetting("hub_device_token", tok); err != nil {

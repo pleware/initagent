@@ -12,7 +12,7 @@ import (
 	"github.com/pleware/initagent/internal/protocol"
 )
 
-func TestOutdatedDeviceTakesNoNewTask(t *testing.T) {
+func TestOutdatedConnectorTakesNoNewTask(t *testing.T) {
 	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201", Version: "v0.3.9"})
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func TestMatchingVersionIsClaimable(t *testing.T) {
 	}
 }
 
-func TestFirstOnlineSkipsDrainingDevice(t *testing.T) {
+func TestFirstOnlineSkipsDrainingConnector(t *testing.T) {
 	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201", Version: "v0.3.9"})
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +72,7 @@ func TestFirstOnlineSkipsDrainingDevice(t *testing.T) {
 		Hostname: "new", OS: "linux", Version: "v0.3.9",
 	})
 	if oldID == currentID {
-		t.Fatal("expected two devices")
+		t.Fatal("expected two connectors")
 	}
 	replyExec(t, conn, 0)
 

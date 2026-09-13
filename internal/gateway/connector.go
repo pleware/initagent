@@ -116,11 +116,11 @@ func (s *Store) scanConnector(row *sql.Row) (*Connector, error) {
 	return &d, nil
 }
 
-type deviceRow interface {
+type connectorRow interface {
 	Scan(dest ...any) error
 }
 
-func scanConnectorRow(row deviceRow) (Connector, error) {
+func scanConnectorRow(row connectorRow) (Connector, error) {
 	var d Connector
 	var created, lastSeen int64
 	err := row.Scan(&d.ID, &d.ProjectID, &d.Name, &d.Hostname, &d.OS, &d.Arch, &created, &lastSeen)

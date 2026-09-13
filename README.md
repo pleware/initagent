@@ -12,7 +12,7 @@ installers). Hosted hub: **[app.initagent.dev](https://app.initagent.dev)**
 (cloud control plane on PostgreSQL). The site leads with Open app →
 `app`; Self-host is the $0, unmetered door.
 
-Install one hub, paste one command on every other device, and run terminals and
+Install one hub, paste one command on every other machine, and run terminals and
 coding agents across your whole fleet — from your desk or your phone.
 
 </div>
@@ -21,7 +21,7 @@ coding agents across your whole fleet — from your desk or your phone.
 
 initagent is a small, self-hosted tool for people who run more than one machine:
 a desktop, a laptop, a homelab box, a cloud VM. You install the **hub** on one
-of them, then join every other device with a single pasted command. From then
+of them, then join every other machine with a single pasted command. From then
 on you drive them all from one web UI: live terminals, coding agents (Claude
 Code, Codex, or any CLI), a fleet dashboard, and a file browser.
 
@@ -38,12 +38,12 @@ without copying provider credentials onto every node.
 
 ## Why it's easy
 
-- **One paste to join a device.** No SSH keys, no port forwarding, no config
-  files. Devices dial *out* to the hub over a single WebSocket, so it works
+- **One paste to join a connector.** No SSH keys, no port forwarding, no config
+  files. Connectors dial *out* to the hub over a single WebSocket, so it works
   behind NAT and firewalls untouched.
-- **One binary.** The hub, the device agent, the CLI, and the MCP server are
+- **One binary.** The hub, the connector agent, the CLI, and the MCP server are
   all the same static `initagent` binary. The web UI is baked into it.
-- **Sessions survive.** Terminals run in tmux on each device — close your
+- **Sessions survive.** Terminals run in tmux on each machine — close your
   laptop, reopen on your phone, your agent is still running right where it was.
 
 ## Quick start
@@ -182,7 +182,7 @@ and that token. A claimed hub skips the line. The token is what stops a
 hub that is reachable from anywhere being claimed by whoever finds the
 address first; it stops working the moment the hub is claimed, and a
 restart mints a new one if you lose it. The hub machine shows up as your
-first device automatically.
+first connector automatically.
 
 Claiming also creates the hub's first organization and makes you its owner.
 On a hosted hub the form asks for a name; left blank — and always on
@@ -214,15 +214,15 @@ once, for one hour.
 
 The Vercel deployment is the public static product site. The authenticated hub
 remains a durable install on Linux, macOS, or Windows because it owns the local
-SQLite database and the persistent device/terminal connections.
+SQLite database and the persistent connector/terminal connections.
 
 > **Prebuilt binaries:** once a release is tagged, grab one from the
 > [releases page](https://github.com/pleware/initagent/releases) instead of
 > building — download `initagent_<os>_<arch>`, `chmod +x`, and `./initagent serve`.
 
-### 2. Add a device
+### 2. Add a connector
 
-Click **Add device** in the UI, choose the target platform, and paste the
+Click **Add connector** in the UI, choose the target platform, and paste the
 command it gives you on any other Linux, macOS, or Windows machine:
 
 ```sh
@@ -233,9 +233,9 @@ curl -fsSL http://YOUR-HUB:4200/install/TOKEN.sh | sh
 powershell -NoProfile -ExecutionPolicy Bypass -Command "irm http://YOUR-HUB:4200/install/TOKEN.ps1 | iex"
 ```
 
-It downloads the agent, enrolls the device, installs a background service, and
-connects. The device pops up on your dashboard within seconds. If the joining
-device runs the same OS/arch as your hub, the binary comes straight from the
+It downloads the agent, enrolls the connector, installs a background service, and
+connects. The connector pops up on your dashboard within seconds. If the joining
+machine runs the same OS/arch as your hub, the binary comes straight from the
 hub (works on air-gapped LANs); otherwise the hub redirects the installer to
 the matching GitHub release build. For fully offline cross-platform setups,
 drop a cross-compiled `initagent_<os>_<arch>` into
@@ -243,7 +243,7 @@ drop a cross-compiled `initagent_<os>_<arch>` into
 
 Linux agents install with systemd, macOS agents install as a launchd user
 agent, and Windows agents install as a user logon Scheduled Task. Persistent
-terminal sessions use `tmux`, so Linux/macOS devices with `tmux` installed get
+terminal sessions use `tmux`, so Linux/macOS machines with `tmux` installed get
 reattachable sessions. Windows uses the native ConPTY API for fully interactive
 PowerShell and coding-agent terminals; those sessions are live but not yet
 reattachable after a disconnect.
@@ -255,7 +255,7 @@ reattachable after a disconnect.
 
 ### 3. Launch an agent
 
-Open a device, hit **Launch agent**, pick Claude Code / Codex / a shell, choose
+Open a connector, hit **Launch agent**, pick Claude Code / Codex / a shell, choose
 a working directory, go. Watch it — and every other agent across your fleet —
 on the **Agents** page.
 
@@ -316,12 +316,12 @@ that client becomes a full coding agent on your machines.
    supply the API token as a Bearer credential.
 
 > ⚠️ **This is a remote shell.** `run_command` and `write_file` execute
-> arbitrary commands and write files on your devices. The endpoint refuses
+> arbitrary commands and write files on your machines. The endpoint refuses
 > requests without a valid API token and must only be exposed over HTTPS —
 > anyone who gets the token owns the box, so treat it like an SSH key. Rotate it
 > in Settings if it leaks. There is no separate "read-only" mode yet.
 
-## Keeping devices up to date
+## Keeping connectors up to date
 
 Open **Settings → Software updates** to see the installed release, the newest
 stable release, fleet rollout progress, and the version available for rollback.
@@ -335,7 +335,7 @@ the running `.exe` exits. The previous verified binary is retained beside the
 new one, so **Restore previous version** can roll the hub back with one click.
 Release CI also publishes signed GitHub build provenance for the raw binaries.
 
-Managed device agents follow the hub's stable version automatically. Failed
+Managed connector agents follow the hub's stable version automatically. Failed
 downloads leave the current agent running and retry later, while successful
 updates restart through systemd, launchd, or the named Windows Scheduled Task.
 A foreground `initagent agent run` used for debugging is never replaced.
@@ -391,7 +391,7 @@ The Postgres driver is `pgx`; self-host stays SQLite with no extra setup.
      Browser ─── HTTPS + WebSocket ───►  ┌─────────┐
      (or phone)                          │   Hub   │  ← web UI, API, SQLite
                                          └────┬────┘
-                          one outbound WS per device
+                          one outbound WS per connector
                     ┌───────────────┬─────────┴───────┐
                  ┌──┴──┐         ┌───┴──┐          ┌────┴───┐
                  │agent│         │agent │          │ agent  │   ← tmux, PTYs,
@@ -400,7 +400,7 @@ The Postgres driver is `pgx`; self-host stays SQLite with no extra setup.
 ```
 
 Everything — terminal streams, stats, file transfers, control — is multiplexed
-over each device's single outbound WebSocket. Design details live in
+over each connector's single outbound WebSocket. Design details live in
 [`docs/superpowers/specs`](docs/superpowers/specs/).
 
 ## Development
@@ -417,7 +417,7 @@ make cross       # cross-compile darwin/linux/windows × amd64/arm64 into dist/
 ```
 
 Project layout: `cmd/initagent` (entrypoint + subcommands), `internal/protocol`
-(wire format), `internal/hub` (server), `internal/agent` (device side),
+(wire format), `internal/hub` (server), `internal/agent` (connector side),
 `internal/fleet` (API client), `internal/mcp` (MCP server), `ui` (React app),
 `names` (the naming registry, below).
 

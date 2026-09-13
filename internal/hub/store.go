@@ -340,7 +340,7 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	s := &Store{db: db}
 	if err := s.renameInheritedDeviceNames(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("renaming inherited device names: %w", err)
+		return nil, fmt.Errorf("renaming inherited connector names: %w", err)
 	}
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
@@ -626,7 +626,7 @@ func (s *Store) ensureAccountLocale() error {
 	return s.ensureColumn("accounts", "locale", "TEXT NOT NULL DEFAULT 'en'")
 }
 
-// ensureProjectDevices creates the enrollment set for a live hub and copies
+// ensureProjectConnectors creates the enrollment set for a live hub and copies
 // the inherited selected machine into it. projects.connector_id stays the fx
 // target; the join table is who may run there (48).
 func (s *Store) ensureProjectConnectors() error {

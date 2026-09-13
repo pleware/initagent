@@ -171,14 +171,14 @@ func (s *Server) retainIdleProjects(ctx context.Context, now time.Time) (warned,
 
 func (s *Server) projectHasOnlineWorker(ctx context.Context, p projectIdleRow) bool {
 	if p.GatewayURL != "" {
-		var devices []struct {
+		var connectors []struct {
 			Online bool `json:"online"`
 		}
 		if err := s.getGatewayJSON(ctx, placement{projectID: p.ID, gatewayURL: p.GatewayURL},
-			"/api/connectors", &devices); err != nil {
+			"/api/connectors", &connectors); err != nil {
 			return false
 		}
-		for _, d := range devices {
+		for _, d := range connectors {
 			if d.Online {
 				return true
 			}

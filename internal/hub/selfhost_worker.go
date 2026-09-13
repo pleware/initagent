@@ -67,7 +67,7 @@ func (s *Server) bindSelfhostWorker(ctx context.Context, project *Project) *Proj
 	}
 	updated, err := s.store.UpdateProject(project.Id, project.Name, cfg.ConnectorId, project.Path, project.TemplateId, project.RepoRemote, project.RepoHost)
 	if err != nil {
-		log.Printf("self-host worker: attach device: %v", err)
+		log.Printf("self-host worker: attach connector: %v", err)
 		return project
 	}
 	if updated == nil {

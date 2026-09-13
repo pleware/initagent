@@ -98,7 +98,7 @@ func TestSelfhostFirstProjectEnrollsThisBox(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(devices) != 1 || devices[0].ID != project.ConnectorId {
-		t.Fatalf("gateway devices = %+v, want %s", devices, project.ConnectorId)
+		t.Fatalf("gateway connectors = %+v, want %s", devices, project.ConnectorId)
 	}
 
 	second := f.do(t, http.MethodPost, "/api/projects", map[string]string{

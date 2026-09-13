@@ -57,7 +57,7 @@ func (g *Gateway) fromHub(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// Handler serves health, enroll, devices, binaries, the agent websocket,
+// Handler serves health, enroll, connectors, binaries, the agent websocket,
 // the terminal hop the hub proxies (16), session/exec HTTP the hub
 // proxies the same way, and task enqueue/dispatch.
 func (g *Gateway) Handler() http.Handler {
@@ -178,13 +178,13 @@ func (g *Gateway) handleListConnectors(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	devices, err := g.store.ListConnectors(r.Context(), projectID)
+	connectors, err := g.store.ListConnectors(r.Context(), projectID)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	out := make([]ConnectorView, 0, len(devices))
-	for _, d := range devices {
+	out := make([]ConnectorView, 0, len(connectors))
+	for _, d := range connectors {
 		v := ConnectorView{Connector: d}
 		if p, ok := g.presence(d.ID); ok {
 			v.Online = true

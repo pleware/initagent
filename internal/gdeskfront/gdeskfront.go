@@ -32,7 +32,7 @@ import (
 
 // ErrClosed is the desk this box was not told how to open: no chat provider,
 // or no token for the local seam. It is a distinct error because the connector
-// still serves devices and MCP without a desk, so a caller decides whether to
+// still serves connectors and MCP without a desk, so a caller decides whether to
 // carry on rather than being handed a generic configuration failure.
 var ErrClosed = errors.New("gdeskfront: not configured")
 

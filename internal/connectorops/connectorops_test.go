@@ -182,7 +182,7 @@ func TestDownloadStreamsToWriter(t *testing.T) {
 	}
 }
 
-func TestDownloadReportsDeviceError(t *testing.T) {
+func TestDownloadReportsConnectorError(t *testing.T) {
 	fc := newFakeConn()
 	var out bytes.Buffer
 	done := make(chan error, 1)
@@ -219,7 +219,7 @@ func TestUploadStreamsFromReader(t *testing.T) {
 	}
 }
 
-func TestUploadReportsDeviceError(t *testing.T) {
+func TestUploadReportsConnectorError(t *testing.T) {
 	fc := newFakeConn()
 	r := strings.NewReader("x")
 	done := make(chan error, 1)

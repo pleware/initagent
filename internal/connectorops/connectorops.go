@@ -37,7 +37,7 @@ func ShellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// Exec runs a command to completion on the device. The device gets its own
+// Exec runs a command to completion on the connector. The device gets its own
 // timeout plus slack for the round trip.
 func Exec(parent context.Context, c Conn, command, cwd string, timeoutSec int) (protocol.ExecResult, error) {
 	d := 75 * time.Second
@@ -51,16 +51,16 @@ func Exec(parent context.Context, c Conn, command, cwd string, timeoutSec int) (
 	return res, err
 }
 
-// ListDir lists a directory on the device.
+// ListDir lists a directory on the connector.
 func ListDir(ctx context.Context, c Conn, path string) (protocol.FsListResult, error) {
 	var res protocol.FsListResult
 	err := c.Call(ctx, protocol.TypeFsList, protocol.FsList{Path: path}, &res)
 	return res, err
 }
 
-// Download streams path from the device to w. It reads through an internal
+// Download streams path from the connector to w. It reads through an internal
 // pipe so a slow or dropped reader fails the connector-side write fast
-// instead of blocking the device's single read loop.
+// instead of blocking the connector's single read loop.
 func Download(c Conn, path string, w io.Writer) error {
 	done := make(chan string, 1)
 	pr, pw := io.Pipe()
@@ -103,8 +103,8 @@ func Download(c Conn, path string, w io.Writer) error {
 	return err
 }
 
-// Upload streams r into target on the device. The reader is exhausted before
-// this returns; a send failure tells the device to discard its partial temp
+// Upload streams r into target on the connector. The reader is exhausted before
+// this returns; a send failure tells the connector to discard its partial temp
 // file.
 func Upload(c Conn, target string, r io.Reader) error {
 	done := make(chan string, 1)
@@ -155,6 +155,6 @@ func Upload(c Conn, target string, r io.Reader) error {
 		}
 		return nil
 	case <-timer.C:
-		return fmt.Errorf("device did not confirm upload")
+		return fmt.Errorf("connector did not confirm upload")
 	}
 }

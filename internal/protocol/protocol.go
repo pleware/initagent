@@ -135,7 +135,7 @@ type SessionKill struct {
 	Name string `json:"name"`
 }
 
-// Exec runs a command to completion on the device.
+// Exec runs a command to completion on the connector.
 type Exec struct {
 	Command    string `json:"command"` // run via the user's shell
 	Cwd        string `json:"cwd,omitempty"`

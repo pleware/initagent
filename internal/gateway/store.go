@@ -79,7 +79,7 @@ const DefaultLease = 5 * time.Minute
 // workerSlots is the Milestone 0 capacity stub: one active task per device.
 const workerSlots = 1
 
-// presence is a live device socket. projectID is copied from the device row
+// presence is a live connector socket. projectID is copied from the connector row
 // at connect so worker selection can be scoped without a query per pick — a
 // task for one project must never land on another project's machine.
 type presence struct {

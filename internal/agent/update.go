@@ -37,7 +37,7 @@ func (a *Agent) maybeSelfUpdate(ctx context.Context, hubVersion, repo string) bo
 		return false
 	}
 	// A failure can be retried without reconnecting, but avoid hammering GitHub
-	// or flapping a device when a release asset is temporarily unavailable.
+	// or flapping a connector when a release asset is temporarily unavailable.
 	a.nextUpdateAttempt = time.Now().Add(time.Hour)
 	a.mu.Unlock()
 
@@ -99,7 +99,7 @@ func (a *Agent) restartWhenIdle(ctx context.Context) {
 }
 
 // autoUpdateLoop retries a failed fleet update while a connection remains
-// healthy. A successful swap closes the socket once the device is idle;
+// healthy. A successful swap closes the socket once the connector is idle;
 // runOnce observes the flag and exits so the service manager can restart the
 // verified binary.
 func (a *Agent) autoUpdateLoop(ctx context.Context, hubVersion, repo string) {

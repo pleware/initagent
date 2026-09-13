@@ -10,7 +10,7 @@ import (
 	"github.com/pleware/initagent/internal/scheduler"
 )
 
-func mustDevice(t *testing.T) string {
+func mustConnector(t *testing.T) string {
 	t.Helper()
 	dev, err := id.New(id.Connector)
 	if err != nil {
@@ -34,7 +34,7 @@ func enqueueQueued(t *testing.T, g *Gateway, command string) scheduler.Task {
 func TestClaimAssignsOldestAndLease(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	worker := mustDevice(t)
+	worker := mustConnector(t)
 	first := enqueueQueued(t, g, "true")
 	second := enqueueQueued(t, g, "false")
 
@@ -72,7 +72,7 @@ func TestClaimAssignsOldestAndLease(t *testing.T) {
 
 func TestClaimNoQueued(t *testing.T) {
 	g := openTest(t, "")
-	_, _, err := g.Claim(context.Background(), g.Project().ID, mustDevice(t))
+	_, _, err := g.Claim(context.Background(), g.Project().ID, mustConnector(t))
 	if err != scheduler.ErrNoFreeSlot {
 		t.Fatalf("err = %v, want ErrNoFreeSlot", err)
 	}
@@ -81,7 +81,7 @@ func TestClaimNoQueued(t *testing.T) {
 func TestClaimOneSlotPerWorker(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	worker := mustDevice(t)
+	worker := mustConnector(t)
 	enqueueQueued(t, g, "")
 	enqueueQueued(t, g, "")
 
@@ -99,7 +99,7 @@ func TestClaimTwoWorkers(t *testing.T) {
 	ctx := context.Background()
 	a := enqueueQueued(t, g, "")
 	b := enqueueQueued(t, g, "")
-	w1, w2 := mustDevice(t), mustDevice(t)
+	w1, w2 := mustConnector(t), mustConnector(t)
 
 	c1, _, err := g.Claim(ctx, g.Project().ID, w1)
 	if err != nil {
@@ -117,20 +117,20 @@ func TestClaimTwoWorkers(t *testing.T) {
 func TestClaimRejectsBadIDs(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	_, _, err := g.Store().Claim(ctx, "not-a-project", mustDevice(t), time.Minute)
+	_, _, err := g.Store().Claim(ctx, "not-a-project", mustConnector(t), time.Minute)
 	if !errors.Is(err, ErrBadProjectID) {
 		t.Fatalf("project: %v", err)
 	}
 	_, _, err = g.Store().Claim(ctx, g.Project().ID, "not-a-connector", time.Minute)
 	if !errors.Is(err, ErrBadConnectorID) {
-		t.Fatalf("device: %v", err)
+		t.Fatalf("connector: %v", err)
 	}
 }
 
 func TestWalkingSkeletonReachDone(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	worker := mustDevice(t)
+	worker := mustConnector(t)
 	first := enqueueQueued(t, g, "echo")
 	second := enqueueQueued(t, g, "")
 
@@ -174,7 +174,7 @@ func TestFinishRejectsQueued(t *testing.T) {
 func TestHeartbeatExtendsLease(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	worker := mustDevice(t)
+	worker := mustConnector(t)
 	enqueueQueued(t, g, "")
 	claimed, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
@@ -199,8 +199,8 @@ func TestHeartbeatExtendsLease(t *testing.T) {
 func TestHeartbeatWrongWorkerAndExpired(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	worker := mustDevice(t)
-	other := mustDevice(t)
+	worker := mustConnector(t)
+	other := mustConnector(t)
 	enqueueQueued(t, g, "")
 	claimed, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
@@ -220,7 +220,7 @@ func TestHeartbeatWrongWorkerAndExpired(t *testing.T) {
 func TestHeartbeatRejectsBadIDs(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	if err := g.Store().Heartbeat(ctx, "not-a-task", mustDevice(t), time.Minute); !errors.Is(err, ErrBadTaskID) {
+	if err := g.Store().Heartbeat(ctx, "not-a-task", mustConnector(t), time.Minute); !errors.Is(err, ErrBadTaskID) {
 		t.Fatalf("task: %v", err)
 	}
 	missing, err := id.New(id.Task)
@@ -228,9 +228,9 @@ func TestHeartbeatRejectsBadIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := g.Store().Heartbeat(ctx, missing, "not-a-connector", time.Minute); !errors.Is(err, ErrBadConnectorID) {
-		t.Fatalf("device: %v", err)
+		t.Fatalf("connector: %v", err)
 	}
-	if err := g.Store().Heartbeat(ctx, missing, mustDevice(t), time.Minute); err != scheduler.ErrTaskNotFound {
+	if err := g.Store().Heartbeat(ctx, missing, mustConnector(t), time.Minute); err != scheduler.ErrTaskNotFound {
 		t.Fatalf("missing: %v", err)
 	}
 }
@@ -238,7 +238,7 @@ func TestHeartbeatRejectsBadIDs(t *testing.T) {
 func TestHeartbeatInactiveAfterDone(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	worker := mustDevice(t)
+	worker := mustConnector(t)
 	enqueueQueued(t, g, "")
 	claimed, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
@@ -258,7 +258,7 @@ func TestHeartbeatInactiveAfterDone(t *testing.T) {
 func TestClaimReapsExpiredLease(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
-	worker := mustDevice(t)
+	worker := mustConnector(t)
 	task := enqueueQueued(t, g, "")
 	claimed, _, err := g.Claim(ctx, g.Project().ID, worker)
 	if err != nil {
@@ -290,7 +290,7 @@ func TestClaimZeroLeaseUsesDefault(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
 	enqueueQueued(t, g, "")
-	claimed, lease, err := g.Store().Claim(ctx, g.Project().ID, mustDevice(t), 0)
+	claimed, lease, err := g.Store().Claim(ctx, g.Project().ID, mustConnector(t), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -13,7 +13,7 @@ import (
 
 func systemdUnitText(exe, user string) string {
 	return fmt.Sprintf(`[Unit]
-Description=%s device connector
+Description=%s connector agent
 After=network-online.target
 Wants=network-online.target
 

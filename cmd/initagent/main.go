@@ -1,4 +1,4 @@
-// Command initagent is the single binary: hub, gateway, device agent, fleet CLI, and MCP.
+// Command initagent is the single binary: hub, gateway, connector agent, fleet CLI, and MCP.
 package main
 
 import (
@@ -43,8 +43,8 @@ Usage:
   {{bin}} gateway [--addr :4201] [--data-dir ~/{{cfg}}] [--project project-…] [--public-url URL]
                                                              Run the project gateway (enroll + tasks)
   {{bin}} gdesk                                           Run the glass desk (local voice seam for the glass)
-  {{bin}} agent enroll --hub URL --token TOKEN            Enroll this device with a hub
-  {{bin}} agent run                                       Run the device agent (foreground)
+  {{bin}} agent enroll --hub URL --token TOKEN            Enroll this connector with a hub
+  {{bin}} agent run                                       Run the connector agent (foreground)
   {{bin}} agent install-service                           Install + start the agent as a service
   {{bin}} fleet login --hub URL --token API_TOKEN         Save fleet CLI credentials
   {{bin}} fleet connectors                                   List connectors
@@ -314,13 +314,13 @@ func cmdFleet(args []string) error {
 
 	switch sub {
 	case "connectors":
-		devices, err := client.Connectors()
+		connectors, err := client.Connectors()
 		if err != nil {
 			return err
 		}
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
 		fmt.Fprintln(tw, "NAME\tID\tOS/ARCH\tSTATUS\tLAST SEEN")
-		for _, d := range devices {
+		for _, d := range connectors {
 			status := "offline"
 			if d.Online {
 				status = "online"
@@ -357,7 +357,7 @@ func cmdFleet(args []string) error {
 			}
 		}
 		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
-		fmt.Fprintln(tw, "SESSION\tDEVICE\tKIND\tSTATUS")
+		fmt.Fprintln(tw, "SESSION\tCONNECTOR\tKIND\tSTATUS")
 		for _, s := range sessions {
 			kind := s.Kind
 			if kind == "" {

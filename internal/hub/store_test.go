@@ -24,7 +24,7 @@ func testStore(t *testing.T) *Store {
 	return s
 }
 
-func TestDeviceLifecycle(t *testing.T) {
+func TestConnectorLifecycle(t *testing.T) {
 	s := testStore(t)
 	id, token, err := s.CreateConnector("laptop", "laptop.local", "linux", "amd64", false)
 	if err != nil {
@@ -783,7 +783,7 @@ func TestProjectsDoNotCrossOrgs(t *testing.T) {
 }
 
 func TestOpenStoreRenamesInheritedDeviceNames(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "inherited-devices.db")
+	path := filepath.Join(t.TempDir(), "inherited-connectors.db")
 	db, err := store.OpenDB(store.SQLite, path)
 	if err != nil {
 		t.Fatal(err)
@@ -918,8 +918,8 @@ func TestOpenStoreMigratesOrgPlan(t *testing.T) {
 	}
 }
 
-func TestOpenStoreBackfillsProjectDevices(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "legacy-devices.db")
+func TestOpenStoreBackfillsProjectConnectors(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy-connectors.db")
 	db, err := store.OpenDB(store.SQLite, path)
 	if err != nil {
 		t.Fatal(err)
@@ -964,7 +964,7 @@ func TestBackfillProjectOrgsAttachesOrphansToTheOnlyOrg(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Reproduce a row written before org_id existed.
-	if _, err := s.db.Exec(`INSERT INTO projects (id, name, org_id, gateway_url, device_id, path, created_at, updated_at)
+	if _, err := s.db.Exec(`INSERT INTO projects (id, name, org_id, gateway_url, connector_id, path, created_at, updated_at)
 		VALUES ('project-orphan', 'Legacy', '', '', ?, '/old', 1, 1)`, connectorId); err != nil {
 		t.Fatal(err)
 	}

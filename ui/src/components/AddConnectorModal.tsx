@@ -3,7 +3,7 @@ import { api, forProject } from '../api'
 import { useHubEvents } from '../hooks'
 import Modal from './Modal'
 
-// projectId names which project the new device joins. Omitting it is correct
+// projectId names which project the new connector joins. Omitting it is correct
 // on a hub with one project, which the hub resolves for us.
 export default function AddConnectorModal({ onClose, projectId }: { onClose: () => void; projectId?: string }) {
   const [command, setCommand] = useState('')
@@ -23,7 +23,7 @@ export default function AddConnectorModal({ onClose, projectId }: { onClose: () 
       .catch((e) => setError(e.message))
   }, [projectId])
 
-  // The modal celebrates live when the new device connects.
+  // The modal celebrates live when the new connector connects.
   useHubEvents((e) => {
     if (e.type === 'connector.online') setJoined(true)
   })

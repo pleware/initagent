@@ -244,12 +244,12 @@ func callTool(client *fleet.Client, name string, rawArgs json.RawMessage) (strin
 
 	switch name {
 	case "list_connectors":
-		devices, err := client.Connectors()
+		connectors, err := client.Connectors()
 		if err != nil {
 			return "", err
 		}
 		var b strings.Builder
-		for _, d := range devices {
+		for _, d := range connectors {
 			status := "offline"
 			if d.Online {
 				status = "online"

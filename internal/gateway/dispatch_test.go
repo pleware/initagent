@@ -349,7 +349,7 @@ func TestCreateTaskBadJSON(t *testing.T) {
 	}
 }
 
-func TestCreateTaskOfflineDevice(t *testing.T) {
+func TestCreateTaskOfflineConnector(t *testing.T) {
 	g := openTest(t, "")
 	dev, _, err := g.Store().CreateConnector(context.Background(), g.Project().ID, "box", "box", "linux", "amd64")
 	if err != nil {
@@ -409,7 +409,7 @@ func TestRunQueuedTimeoutFails(t *testing.T) {
 	g := openTest(t, "")
 	connectorID, _, _ := connectAgentWS(t, g)
 	// The budget also covers claiming the task, which is a database write. Too
-	// short and a loaded runner spends it before the device is ever asked, so
+	// short and a loaded runner spends it before the connector is ever asked, so
 	// RunQueued returns the deadline instead of a task it never started.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -468,7 +468,7 @@ func TestRunQueuedDisconnectFails(t *testing.T) {
 
 func TestRunQueuedOffline(t *testing.T) {
 	g := openTest(t, "")
-	_, err := g.RunQueued(context.Background(), g.Project().ID, mustDevice(t))
+	_, err := g.RunQueued(context.Background(), g.Project().ID, mustConnector(t))
 	if err != ErrConnectorOffline {
 		t.Fatalf("err = %v", err)
 	}
@@ -591,7 +591,7 @@ func TestGetTaskAfterClose(t *testing.T) {
 
 func TestProcessOnOffline(t *testing.T) {
 	g := openTest(t, "")
-	_, err := g.processOn(t.Context(), &scheduler.Task{AssignedWorkerID: mustDevice(t)})
+	_, err := g.processOn(t.Context(), &scheduler.Task{AssignedWorkerID: mustConnector(t)})
 	if err != ErrConnectorOffline {
 		t.Fatalf("err = %v", err)
 	}
@@ -599,7 +599,7 @@ func TestProcessOnOffline(t *testing.T) {
 
 func TestSendKeysOnOffline(t *testing.T) {
 	g := openTest(t, "")
-	_, err := g.sendKeysOn(t.Context(), &scheduler.Task{AssignedWorkerID: mustDevice(t)}, "0123456789abcdef0123456789abcdef")
+	_, err := g.sendKeysOn(t.Context(), &scheduler.Task{AssignedWorkerID: mustConnector(t)}, "0123456789abcdef0123456789abcdef")
 	if err != ErrConnectorOffline {
 		t.Fatalf("err = %v", err)
 	}

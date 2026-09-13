@@ -5,8 +5,8 @@ import type { Connector, Preset } from '../types'
 import Modal from './Modal'
 
 // LaunchSessionModal starts a named session (usually a coding agent) on a
-// device. Used from both the device page (single device) and the agents page
-// (device picker).
+// connector. Used from both the connector page (single connector) and the agents page
+// (connector picker).
 export default function LaunchSessionModal({
   connectors,
   onLaunched,

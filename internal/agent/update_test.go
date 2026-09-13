@@ -62,7 +62,7 @@ func TestMaybeSelfUpdateWaitsForARunningCommand(t *testing.T) {
 	}
 }
 
-func TestRestartWhenIdleReleasesAnIdleDevice(t *testing.T) {
+func TestRestartWhenIdleReleasesAnIdleConnector(t *testing.T) {
 	a := New(Config{HubURL: "http://127.0.0.1:1"}, "v0.1.0")
 
 	a.restartWhenIdle(context.Background())
@@ -70,7 +70,7 @@ func TestRestartWhenIdleReleasesAnIdleDevice(t *testing.T) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if !a.updateApplied {
-		t.Error("an idle device should restart into the staged binary")
+		t.Error("an idle connector should restart into the staged binary")
 	}
 }
 

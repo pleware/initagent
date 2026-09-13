@@ -16,8 +16,8 @@ import (
 // remote — so regenerating them is a deliberate edit, the same discipline the
 // name registry's pinned copy already lives under.
 const (
-	fixtureCrowd = `{"at":"2026-03-08T20:00:00.000+00:00","faces":[{"gaze":"center","range":"near","rank":1},{"range":"far","rank":2}],"far":1,"kind":"gdesk.attendance.changed","near":1,"p":2,"sensor":"camera-0","source":"vision","total":2}`
-	fixtureEmpty = `{"at":"2026-03-08T20:00:00.000+00:00","faces":[],"far":0,"kind":"gdesk.attendance.changed","near":0,"p":2,"sensor":"camera-0","source":"vision","total":0}`
+	fixtureCrowd = FixtureCrowd
+	fixtureEmpty = FixtureEmpty
 )
 
 var fixtureAt = time.Date(2026, 3, 8, 20, 0, 0, 0, time.UTC)

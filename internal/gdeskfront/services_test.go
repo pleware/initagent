@@ -195,6 +195,9 @@ func TestSensingIsListedAsDeclaredAndNotAsRunning(t *testing.T) {
 	if !strings.Contains(sensing.Note, sensingProducer) {
 		t.Errorf("note %q does not name who produces the facts", sensing.Note)
 	}
+	if !strings.Contains(sensing.Note, "vision.camera") {
+		t.Errorf("note %q should say how to start a sensor", sensing.Note)
+	}
 	if strings.Contains(sensing.Where, ":") {
 		t.Errorf("where = %q: sensing has no port, and inventing one is the lie this test exists for", sensing.Where)
 	}

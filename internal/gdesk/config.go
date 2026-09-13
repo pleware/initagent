@@ -112,13 +112,18 @@ func (s Seam) Open() bool { return s.Token != "" }
 // identity and the fleet stay hub rows; this is the inventory that renders
 // them.
 type Config struct {
-	bindings map[Role]Binding
-	silences []Silence
-	seam     Seam
+	bindings  map[Role]Binding
+	silences  []Silence
+	seam      Seam
+	vision    Vision
+	visionSet bool
 }
 
 // Seam is the local address and token, defaults applied.
 func (c Config) Seam() Seam { return c.seam }
+
+// Vision returns the configured camera sensor, if any.
+func (c Config) Vision() (Vision, bool) { return c.vision, c.visionSet }
 
 // Binding returns the binding for a role, and whether the role can answer.
 func (c Config) Binding(role Role) (Binding, bool) {
@@ -181,8 +186,12 @@ func LoadConfig(env map[string]string) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	vision, visionSet, err := parseVision(env)
+	if err != nil {
+		return Config{}, err
+	}
 
-	cfg := Config{bindings: make(map[Role]Binding, len(Roles)), seam: seam}
+	cfg := Config{bindings: make(map[Role]Binding, len(Roles)), seam: seam, vision: vision, visionSet: visionSet}
 	for _, role := range Roles {
 		spec := strings.TrimSpace(env[roleEnv[role]])
 		if spec == "" {
@@ -331,9 +340,12 @@ func completeProvider(p *Provider) error {
 // mistyped role name is otherwise a desk that is quietly deaf.
 func rejectUnknownKeys(env map[string]string) error {
 	known := map[string]bool{
-		brand.EnvGdeskConfig:    true,
-		brand.EnvGdeskSeamAddr:  true,
-		brand.EnvGdeskSeamToken: true,
+		brand.EnvGdeskConfig:        true,
+		brand.EnvGdeskSeamAddr:      true,
+		brand.EnvGdeskSeamToken:     true,
+		brand.EnvGdeskVisionCamera:  true,
+		brand.EnvGdeskVisionSensor:  true,
+		brand.EnvGdeskVisionCommand: true,
 	}
 	for _, name := range roleEnv {
 		known[name] = true

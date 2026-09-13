@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -22,8 +23,15 @@ import (
 type fileConfig struct {
 	Seam      *fileSeam         `yaml:"seam"`
 	Roles     *fileRoles        `yaml:"roles"`
+	Vision    *fileVision       `yaml:"vision"`
 	Providers []fileProvider    `yaml:"providers"`
 	Secrets   map[string]string `yaml:"secrets"`
+}
+
+type fileVision struct {
+	Camera  *int   `yaml:"camera"`
+	Sensor  string `yaml:"sensor"`
+	Command string `yaml:"command"`
 }
 
 type fileSeam struct {
@@ -192,6 +200,15 @@ func deskFileToEnv(raw []byte) (map[string]string, error) {
 		put(env, brand.EnvGdeskChat, file.Roles.Chat)
 		put(env, brand.EnvGdeskSTT, file.Roles.STT)
 		put(env, brand.EnvGdeskTTS, file.Roles.TTS)
+	}
+	if file.Vision != nil {
+		camera := 0
+		if file.Vision.Camera != nil {
+			camera = *file.Vision.Camera
+		}
+		env[brand.EnvGdeskVisionCamera] = strconv.Itoa(camera)
+		put(env, brand.EnvGdeskVisionSensor, file.Vision.Sensor)
+		put(env, brand.EnvGdeskVisionCommand, file.Vision.Command)
 	}
 	for i, provider := range file.Providers {
 		if strings.TrimSpace(provider.ID) == "" {

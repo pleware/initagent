@@ -28,6 +28,7 @@ import (
 	"github.com/pleware/initagent/internal/gdesk"
 	"github.com/pleware/initagent/internal/gdeskconsole"
 	"github.com/pleware/initagent/internal/gdeskseam"
+	"github.com/pleware/initagent/internal/gdesksensor"
 )
 
 // ErrClosed is the desk this box was not told how to open: no chat provider,
@@ -62,18 +63,26 @@ type Options struct {
 
 	// Now defaults to time.Now.
 	Now func() time.Time
+
+	// VisionRun replaces gdesksensor.Run in tests. Production leaves it nil.
+	VisionRun VisionRun
 }
 
 // Desk is one open front desk: the conversation loop, the views the glass
 // reads, and the socket it connects to.
 type Desk struct {
-	runner   *gdesk.Runner
-	views    *gdeskseam.Views
-	socket   *gdeskseam.Listener
-	config   gdesk.Config
-	listener net.Listener
-	token    string
-	server   *http.Server
+	runner    *gdesk.Runner
+	views     *gdeskseam.Views
+	socket    *gdeskseam.Listener
+	config    gdesk.Config
+	listener  net.Listener
+	token     string
+	server    *http.Server
+	visionCfg gdesk.Vision
+	visionSet bool
+	visionRun VisionRun
+	sensors   *gdesksensor.Sensors
+	visionDone chan struct{}
 }
 
 // Open builds the desk and takes the port.
@@ -134,7 +143,11 @@ func Open(opts Options) (*Desk, error) {
 	// rather than now: a role's silence and a client count both change while
 	// the process lives. Every field Services reads is set below, before the
 	// port is ever answered.
-	desk := &Desk{runner: runner, views: views, config: opts.Config, token: seam.Token}
+	visionCfg, visionSet := opts.Config.Vision()
+	desk := &Desk{
+		runner: runner, views: views, config: opts.Config, token: seam.Token,
+		visionCfg: visionCfg, visionSet: visionSet, visionRun: opts.VisionRun,
+	}
 
 	// The local caller is the person at this box, which is the desk's own
 	// conversation. A second person is a second credential, and that arrives
@@ -202,6 +215,7 @@ func (d *Desk) Views() *gdeskseam.Views { return d.views }
 // Serve answers until the context ends, then gives open connections a moment
 // to finish. It returns nil on a clean stop.
 func (d *Desk) Serve(ctx context.Context) error {
+	d.startVision(ctx)
 	done := make(chan error, 1)
 	go func() { done <- d.server.Serve(d.listener) }()
 
@@ -219,6 +233,7 @@ func (d *Desk) Serve(ctx context.Context) error {
 // Close stops the socket. It is safe to call twice, which is what makes
 // `defer d.Close()` correct beside Serve.
 func (d *Desk) Close() error {
+	d.waitVision()
 	stopping, cancel := context.WithTimeout(context.Background(), shutdownGrace)
 	defer cancel()
 	if err := d.server.Shutdown(stopping); err != nil && !errors.Is(err, http.ErrServerClosed) {

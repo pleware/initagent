@@ -34,6 +34,12 @@ roles:
   # stt: openai/whisper-1
   # tts: openai/gpt-4o-mini-tts
 
+# Optional walk-up camera on this box. Uncomment to start pware-vision as a
+# child of initagent gdesk. Facts arrive on stdout; the glass never sees a frame.
+# vision:
+#   camera: 0
+#   sensor: camera-0
+
 providers:
   - id: openai
     shape: openai

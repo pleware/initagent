@@ -183,6 +183,19 @@ const (
 	// the box. Never a flag, for the same reason as a provider key.
 	EnvGdeskSeamToken = EnvPrefix + "GDESK_SEAM_TOKEN"
 
+	// EnvGdeskVisionCamera names the camera index for the walk-up sensor.
+	// Set — including to 0 — starts pware-vision as a child of the desk.
+	// Unset leaves local sensing declared rather than running.
+	EnvGdeskVisionCamera = EnvPrefix + "GDESK_VISION_CAMERA"
+
+	// EnvGdeskVisionSensor stamps facts from that process. Empty means
+	// camera-<index>, which is stable on one box.
+	EnvGdeskVisionSensor = EnvPrefix + "GDESK_VISION_SENSOR"
+
+	// EnvGdeskVisionCommand overrides the executable. Tests use it; production
+	// leaves it empty and launches pware-vision from PATH.
+	EnvGdeskVisionCommand = EnvPrefix + "GDESK_VISION_COMMAND"
+
 	// GdeskEnvPrefix is what every glass-desk variable above begins with.
 	GdeskEnvPrefix = EnvPrefix + "GDESK_"
 

@@ -18,11 +18,7 @@ import (
 // never an identity — and this connector is the reader, as the parent that
 // spawns it.
 //
-// The reader is `internal/gdesksensor`. What is still missing is anybody
-// starting a sensor: no configuration names a camera and no desk holds the
-// state, so this row stays declared instead of becoming evidence. A list that
-// quietly omitted it would read as complete, and somebody would go looking for
-// the row instead of reading that the work is still open.
+// sensingProducer is the sibling repository that implements pware-vision.
 const sensingProducer = "pware-os-input-vision"
 
 // Services is what this box runs, for the operator console's list.
@@ -68,12 +64,22 @@ func (d *Desk) Services() []gdeskseam.Service {
 
 	out = append(out, d.roleServices()...)
 
-	return append(out, gdeskseam.Service{
+	return append(out, d.sensingService())
+}
+
+func (d *Desk) sensingService() gdeskseam.Service {
+	row := gdeskseam.Service{
 		Name:  "local sensing",
 		Where: "stdout, no port",
-		State: gdeskseam.ServiceDeclared,
-		Note:  sensingProducer + " writes NDJSON facts; nothing starts one on this desk yet",
-	})
+	}
+	if d.sensors == nil {
+		row.State = gdeskseam.ServiceDeclared
+		row.Note = sensingProducer + " writes NDJSON facts; set vision.camera to start one"
+		return row
+	}
+	row.State = gdeskseam.ServiceListening
+	row.Note = sensingNote(d.sensors.State(), sensingProducer)
+	return row
 }
 
 // roleServices is one row per desk role: where its provider is, or why it is

@@ -320,6 +320,12 @@ var unminted = []Spec{
 		Lifetime:    "until the next reading",
 	},
 	{
+		Name:        "initagent.gdesk.soundscape",
+		Context:     ContextGDesk,
+		Description: "What a glass can hear in the room right now: whether somebody is speaking, whether music is playing, whether it is quiet. The sibling of `attendance` on the other sense, and the same shape for the same reason — a reading replaces the last one and nothing refers back to it, so it mints nothing. `soundscape` and not `audio`, because a name here says what the thing *is* and not which wire carried it; and not `noise`, which would decide in the name that the sound is unwanted. Several states hold at once on purpose: a person can speak over a radio, so speech present and music present are independent readings rather than one label, and a rule that switched listening off when it heard music would deafen the desk in exactly the room it was bought for. What this name may never carry is who is speaking or how they feel about it: a stable speaker pseudonym across visits is re-identification, and emotion inference in a workplace is a prohibited practice — a voice is not a loophole in either. It may not carry the words either. What was said is content of communication and lives under `utterance` inside a conversation somebody opened, never under a reading of a room. Produced on the box by a microphone sensor over the `os:desk-facts` contract and read by the connector. Registering it gives `gdesk.soundscape.<verb>` to the fact producers, whose first happening is `gdesk.soundscape.changed`.",
+		Lifetime:    "until the next reading",
+	},
+	{
 		Name:        "initagent.hub.identity",
 		Context:     ContextHub,
 		Description: "One identity-provider subject linked to an account — a Google or a GitHub login. The provider owns the key, so the pair (provider, subject) identifies it and there is nothing for us to mint. It is a row rather than a column so one person can hold several logins.",

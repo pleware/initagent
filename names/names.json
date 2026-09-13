@@ -109,6 +109,16 @@
       "happeningPrefix": "gdesk.conversation"
     },
     {
+      "name": "initagent.gdesk.soundscape",
+      "context": "gdesk",
+      "entity": "soundscape",
+      "identifierPrefix": "",
+      "mints": false,
+      "lifetime": "until the next reading",
+      "capabilities": [],
+      "happeningPrefix": "gdesk.soundscape"
+    },
+    {
       "name": "initagent.gdesk.stream",
       "context": "gdesk",
       "entity": "stream",
@@ -559,6 +569,7 @@
     "fleet.terminal",
     "gdesk.attendance",
     "gdesk.conversation",
+    "gdesk.soundscape",
     "gdesk.stream",
     "gdesk.surface",
     "gdesk.turn",

@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-13 — gdesksensor: Care widens this reader; Assist does not belong here
 - 2026-09-13 — gdesksensor: the narrow reader is one edition's, and that is the point
 - 2026-09-13 — names: register initagent.gdesk.soundscape
 - 2026-09-13 — style: gofmt the seam and sensing files the format gate refused

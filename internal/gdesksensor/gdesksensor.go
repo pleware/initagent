@@ -21,6 +21,14 @@
 // there the answer is not to do it carefully. This reader has no field to put
 // any of it in, which is the only enforcement that survives a new sensor
 // written by somebody who has not read the drafts.
+//
+// That narrowness is one edition's, not the connector's. PWare OS ships four
+// editions over one engine (pware-os-workspace/drafts/08), and the assistive
+// edition reads a fall and a vital sign from the same camera. Widening this
+// reader is therefore an edition decision arriving from outside this repository,
+// and the narrow struct above is deliberately the thing that has to change for
+// it — a reader that already had the fields would let a capability arrive with
+// nobody deciding it should.
 package gdesksensor
 
 import (

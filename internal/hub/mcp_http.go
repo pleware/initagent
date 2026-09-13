@@ -15,7 +15,7 @@ import (
 // https://<hub>/mcp with an API token as a Bearer credential, and it gets the
 // fleet's coding tools (run_command, read_file, write_file, list_files, ...).
 //
-// SECURITY: these tools run arbitrary commands and write files on your devices.
+// SECURITY: these tools run arbitrary commands and write files on your machines.
 // This endpoint is a remote shell. It requires a valid API token and should
 // only ever be exposed over HTTPS (use --tls-domain, or a TLS reverse proxy /
 // Tailscale). Anyone with the token owns the box — treat it like an SSH key.

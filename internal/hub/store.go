@@ -402,6 +402,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring fleet connector scopes: %w", err)
 	}
+	if err := s.ensureHubConnectorTokenSetting(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring hub connector token setting: %w", err)
+	}
 	if err := s.seedPresets(); err != nil {
 		db.Close()
 		return nil, err
@@ -749,6 +753,13 @@ func (s *Store) ensureFleetConnectorScopes() error {
 			'admin:fleet.device', 'admin:fleet.connector'),
 			'exec:fleet.device', 'exec:fleet.connector')
 		WHERE scopes LIKE '%fleet.device%'`)
+	return err
+}
+
+// ensureHubConnectorTokenSetting carries the embedded hub agent's persisted
+// token from the inherited settings key over to hub_connector_token.
+func (s *Store) ensureHubConnectorTokenSetting() error {
+	_, err := s.db.Exec(`UPDATE settings SET key = 'hub_connector_token' WHERE key = 'hub_device_token'`)
 	return err
 }
 
@@ -1364,7 +1375,7 @@ func randomToken() string {
 	return hex.EncodeToString(b)
 }
 
-// CreateConnector registers a device and returns its id and plaintext token.
+// CreateConnector registers a connector and returns its id and plaintext token.
 func (s *Store) CreateConnector(name, hostname, osName, arch string, isHub bool) (string, string, error) {
 	connectorId, err := id.New(id.Connector)
 	if err != nil {
@@ -1684,7 +1695,7 @@ const attachProjectConnectorSQL = `INSERT INTO project_connectors (project_id, c
 // When the project has no selected fx target yet, this machine becomes it.
 func (s *Store) AttachProjectConnector(projectId, connectorId string) (bool, error) {
 	if projectId == "" || connectorId == "" {
-		return false, fmt.Errorf("attach project device: project_id and connector_id are required")
+		return false, fmt.Errorf("attach project connector: project_id and connector_id are required")
 	}
 	res, err := s.db.Exec(attachProjectConnectorSQL, projectId, connectorId, time.Now().Unix())
 	if err != nil {
@@ -1702,7 +1713,7 @@ func (s *Store) selectConnectorIfEmpty(projectId, connectorId string) error {
 	var selected string
 	err := s.db.QueryRow(`SELECT connector_id FROM projects WHERE id = ?`, projectId).Scan(&selected)
 	if err == sql.ErrNoRows {
-		return fmt.Errorf("attach project device: project %q does not exist", projectId)
+		return fmt.Errorf("attach project connector: project %q does not exist", projectId)
 	}
 	if err != nil || selected != "" {
 		return err
@@ -1719,10 +1730,10 @@ func (s *Store) DetachProjectConnector(projectId, connectorId string) error {
 		projectId, connectorId); err != nil {
 		return err
 	}
-	return s.repairSelectedDevice(projectId)
+	return s.repairSelectedConnector(projectId)
 }
 
-func (s *Store) repairSelectedDevice(projectId string) error {
+func (s *Store) repairSelectedConnector(projectId string) error {
 	ids, err := s.ListProjectConnectorIds(projectId)
 	if err != nil {
 		return err
@@ -1757,7 +1768,7 @@ func (s *Store) ProjectHasConnector(projectId, connectorId string) (bool, error)
 	return err == nil, err
 }
 
-func (s *Store) CountProjectDevices(projectId string) (int, error) {
+func (s *Store) CountProjectConnectors(projectId string) (int, error) {
 	if projectId == "" {
 		return 0, nil
 	}
@@ -1814,7 +1825,7 @@ type ConnectorBoundary struct {
 // reaching any one entry reaches the machine. An empty result means the
 // machine is attached to nothing, which no scoped credential can reach —
 // there is no owner to check against, and treating an orphan as everyone's
-// would make it the one device every token could touch.
+// would make it the one connector every token could touch.
 func (s *Store) ConnectorBoundaries(connectorId string) ([]ConnectorBoundary, error) {
 	rows, err := s.db.Query(`SELECT p.org_id, p.id FROM project_connectors pd
 		JOIN projects p ON p.id = pd.project_id

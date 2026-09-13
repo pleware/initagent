@@ -84,7 +84,7 @@ func (s *Server) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 		ws.Close()
 		return
 	}
-	log.Printf("device %s (%s) connected", device.Name, device.Id)
+	log.Printf("connector %s (%s) connected", device.Name, device.Id)
 	s.serveAgent(conn)
 }
 

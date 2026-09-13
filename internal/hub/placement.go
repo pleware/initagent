@@ -94,11 +94,11 @@ func (s *Server) readableProjects(cred authz.Credential) ([]Project, error) {
 // It returns a predicate rather than a set so the "whole installation" case
 // stays honest: the operator of a hub with no organizations owns the orphan
 // machines too, and materialising that as a set would mean listing every
-// device just to answer one question.
+// connector just to answer one question.
 //
 // Everything else is reached through the projects the credential can read,
 // so a machine attached to nothing is invisible to a scoped caller. That is
-// the same fail-closed rule the middleware applies per device.
+// the same fail-closed rule the middleware applies per connector.
 func (s *Server) connectorFilter(cred authz.Credential) (func(string) bool, error) {
 	if cred.Can(authz.ReadConnector, "", "") {
 		return func(string) bool { return true }, nil

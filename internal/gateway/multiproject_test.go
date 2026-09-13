@@ -42,7 +42,7 @@ func asProject(method, path, projectID string, body []byte) *http.Request {
 	return req
 }
 
-// connectAs enrols a device into projectID and holds its socket open. It
+// connectAs enrols a connector into projectID and holds its socket open. It
 // answers exec so a claimed task can finish.
 func connectAs(t *testing.T, g *Gateway, ts *httptest.Server, projectID string) string {
 	t.Helper()
@@ -184,7 +184,7 @@ func TestConnectorListIsScopedToItsProject(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(views) != 1 || views[0].Name != "theirs" {
-		t.Fatalf("views = %+v, want only the other project's device", views)
+		t.Fatalf("views = %+v, want only the other project's connector", views)
 	}
 }
 
@@ -209,7 +209,7 @@ func TestAnotherProjectsWorkerIsNotPicked(t *testing.T) {
 }
 
 // Naming another project's connector- explicitly must not reach that machine.
-func TestNamedForeignDeviceIsRefused(t *testing.T) {
+func TestNamedForeignConnectorIsRefused(t *testing.T) {
 	g := openTest(t, "")
 	ts := httptest.NewServer(g.Handler())
 	t.Cleanup(ts.Close)
@@ -390,7 +390,7 @@ func TestCorrectSecretIsAdmitted(t *testing.T) {
 }
 
 // The routes a worker or an installer uses are not behind the secret: they
-// authenticate with an enroll token or a device credential, and the install
+// authenticate with an enroll token or a connector credential, and the install
 // script has to answer a machine that has no credential yet.
 func TestWorkerRoutesStayOpenUnderTheSecret(t *testing.T) {
 	g := openSecured(t, "shared-secret")
@@ -420,7 +420,7 @@ func TestWorkerRoutesStayOpenUnderTheSecret(t *testing.T) {
 		t.Fatalf("/api/enroll = %d %s", enroll.Code, enroll.Body.String())
 	}
 
-	// The websocket rejects for the *device* credential, not the secret.
+	// The websocket rejects for the *connector* credential, not the secret.
 	ws := httptest.NewRecorder()
 	g.Handler().ServeHTTP(ws, httptest.NewRequest(http.MethodGet, "/api/ws/agent", nil))
 	if ws.Code != http.StatusUnauthorized || !strings.Contains(ws.Body.String(), "connector token") {

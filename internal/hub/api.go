@@ -406,7 +406,7 @@ func (s *Server) handleCreateEnrollToken(w http.ResponseWriter, r *http.Request,
 	s.proxyGateway(w, r, p, http.MethodPost, "/api/enroll-tokens", gatewayProxyTimeout)
 }
 
-// --- devices ---
+// --- connectors ---
 
 type connectorView struct {
 	Connector
@@ -615,7 +615,7 @@ func (s *Server) handleUpdateRollback(w http.ResponseWriter, r *http.Request) {
 // proxy to when the worker lives on the gateway (self-host enroll, 10/16).
 // A false ok means the request was already answered (an error was written)
 // and the caller must stop.
-func (s *Server) resolveLiveDevice(w http.ResponseWriter, r *http.Request, cred authz.Credential) (*agentConn, placement, bool) {
+func (s *Server) resolveLiveConnector(w http.ResponseWriter, r *http.Request, cred authz.Credential) (*agentConn, placement, bool) {
 	id := r.PathValue("id")
 	if c := s.registry.get(id); c != nil {
 		return c, placement{}, true
@@ -634,8 +634,8 @@ func (s *Server) resolveLiveDevice(w http.ResponseWriter, r *http.Request, cred 
 // liveConnector returns a hub-registry connection, or answers the request via
 // the project gateway when the worker lives there. A nil return means the
 // caller must stop: either an error was written or the gateway answered.
-func (s *Server) liveDevice(w http.ResponseWriter, r *http.Request, cred authz.Credential) *agentConn {
-	c, p, ok := s.resolveLiveDevice(w, r, cred)
+func (s *Server) liveConnector(w http.ResponseWriter, r *http.Request, cred authz.Credential) *agentConn {
+	c, p, ok := s.resolveLiveConnector(w, r, cred)
 	if !ok {
 		return nil
 	}
@@ -649,11 +649,11 @@ func (s *Server) liveDevice(w http.ResponseWriter, r *http.Request, cred authz.C
 // --- sessions ---
 
 func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	c := s.liveDevice(w, r, cred)
+	c := s.liveConnector(w, r, cred)
 	if c == nil {
 		return
 	}
-	ctx, cancel := deviceCtx()
+	ctx, cancel := connectorCtx()
 	defer cancel()
 	var res protocol.SessionsListResult
 	if err := c.requestInto(ctx, protocol.TypeSessionsList, nil, &res); err != nil {
@@ -667,7 +667,7 @@ func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request, cred
 }
 
 func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	c := s.liveDevice(w, r, cred)
+	c := s.liveConnector(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -676,7 +676,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request, cre
 		httpError(w, http.StatusBadRequest, "session name required")
 		return
 	}
-	ctx, cancel := deviceCtx()
+	ctx, cancel := connectorCtx()
 	defer cancel()
 	if err := c.requestInto(ctx, protocol.TypeSessionCreate, req, nil); err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
@@ -687,11 +687,11 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request, cre
 }
 
 func (s *Server) handleKillSession(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	c := s.liveDevice(w, r, cred)
+	c := s.liveConnector(w, r, cred)
 	if c == nil {
 		return
 	}
-	ctx, cancel := deviceCtx()
+	ctx, cancel := connectorCtx()
 	defer cancel()
 	err := c.requestInto(ctx, protocol.TypeSessionKill, protocol.SessionKill{Name: r.PathValue("name")}, nil)
 	if err != nil {
@@ -705,7 +705,7 @@ func (s *Server) handleKillSession(w http.ResponseWriter, r *http.Request, cred 
 // handleSessionInput types text into a tmux session (used by MCP/CLI to steer
 // agents without holding a live terminal open).
 func (s *Server) handleSessionInput(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	c := s.liveDevice(w, r, cred)
+	c := s.liveConnector(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -732,7 +732,7 @@ func (s *Server) handleSessionInput(w http.ResponseWriter, r *http.Request, cred
 		httpError(w, http.StatusBadRequest, "nothing to send")
 		return
 	}
-	res, err := s.execOnDevice(c, cmd, "", 15)
+	res, err := s.execOnConnector(c, cmd, "", 15)
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
@@ -746,7 +746,7 @@ func (s *Server) handleSessionInput(w http.ResponseWriter, r *http.Request, cred
 
 // handleSessionOutput captures the last N lines of a tmux session's pane.
 func (s *Server) handleSessionOutput(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	c := s.liveDevice(w, r, cred)
+	c := s.liveConnector(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -756,7 +756,7 @@ func (s *Server) handleSessionOutput(w http.ResponseWriter, r *http.Request, cre
 	}
 	name := r.PathValue("name")
 	cmd := fmt.Sprintf("tmux capture-pane -p -t %s -S -%d", connectorops.ShellQuote(name), lines)
-	res, err := s.execOnDevice(c, cmd, "", 15)
+	res, err := s.execOnConnector(c, cmd, "", 15)
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
@@ -770,12 +770,12 @@ func (s *Server) handleSessionOutput(w http.ResponseWriter, r *http.Request, cre
 
 // --- exec ---
 
-func (s *Server) execOnDevice(c *agentConn, command, cwd string, timeoutSec int) (protocol.ExecResult, error) {
+func (s *Server) execOnConnector(c *agentConn, command, cwd string, timeoutSec int) (protocol.ExecResult, error) {
 	return connectorops.Exec(context.Background(), c, command, cwd, timeoutSec)
 }
 
 func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	c := s.liveDevice(w, r, cred)
+	c := s.liveConnector(w, r, cred)
 	if c == nil {
 		return
 	}
@@ -784,7 +784,7 @@ func (s *Server) handleExec(w http.ResponseWriter, r *http.Request, cred authz.C
 		httpError(w, http.StatusBadRequest, "command required")
 		return
 	}
-	res, err := s.execOnDevice(c, req.Command, req.Cwd, req.TimeoutSec)
+	res, err := s.execOnConnector(c, req.Command, req.Cwd, req.TimeoutSec)
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return
@@ -1037,11 +1037,11 @@ func (s *Server) handleDeleteApiToken(w http.ResponseWriter, r *http.Request, cr
 // --- file browser ---
 
 func (s *Server) handleFsList(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	c := s.liveDevice(w, r, cred)
+	c := s.liveConnector(w, r, cred)
 	if c == nil {
 		return
 	}
-	ctx, cancel := deviceCtx()
+	ctx, cancel := connectorCtx()
 	defer cancel()
 	res, err := connectorops.ListDir(ctx, c, r.URL.Query().Get("path"))
 	if err != nil {
@@ -1055,7 +1055,7 @@ func (s *Server) handleFsList(w http.ResponseWriter, r *http.Request, cred authz
 }
 
 func (s *Server) handleFsDownload(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	c, p, ok := s.resolveLiveDevice(w, r, cred)
+	c, p, ok := s.resolveLiveConnector(w, r, cred)
 	if !ok {
 		return
 	}
@@ -1075,13 +1075,13 @@ func (s *Server) handleFsDownload(w http.ResponseWriter, r *http.Request, cred a
 	w.Header().Set("Content-Type", "application/octet-stream")
 	if err := connectorops.Download(c, path, w); err != nil {
 		// A failure before the first byte is unreportable once the stream
-		// headers are set; a dropped device surfaces as a truncated download.
+		// headers are set; a dropped connector surfaces as a truncated download.
 		return
 	}
 }
 
 func (s *Server) handleFsUpload(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	c := s.liveDevice(w, r, cred)
+	c := s.liveConnector(w, r, cred)
 	if c == nil {
 		return
 	}

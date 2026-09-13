@@ -52,7 +52,7 @@ func TestFleetAgentsEmptyWithoutGateway(t *testing.T) {
 	}
 }
 
-func TestUpdateStatusCountsGatewayDevices(t *testing.T) {
+func TestUpdateStatusCountsGatewayConnectors(t *testing.T) {
 	gw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/connectors" {
 			http.Error(w, "unexpected "+r.URL.Path, http.StatusBadRequest)

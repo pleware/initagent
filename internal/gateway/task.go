@@ -231,7 +231,7 @@ func (s *Store) Claim(ctx context.Context, projectID, workerID string, lease tim
 		return nil, nil, scheduler.ErrNoFreeSlot
 	}
 
-	// Owner affinity needs a device→account map (11). Milestone 0 claims
+	// Owner affinity needs a connector→account map (11). Milestone 0 claims
 	// the oldest queued row for this project; owner_id is stored, not used
 	// as a placement key.
 	row := tx.QueryRowContext(ctx, taskSelect+`

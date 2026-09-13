@@ -44,7 +44,7 @@ func TestConnectorLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	if d3, _ := s.ConnectorByToken(token); d3 != nil {
-		t.Error("deleted device should not authenticate")
+		t.Error("deleted connector should not authenticate")
 	}
 }
 
@@ -653,7 +653,7 @@ func TestProjectLifecycle(t *testing.T) {
 	}
 }
 
-func TestCreateProjectWithoutADevice(t *testing.T) {
+func TestCreateProjectWithoutAConnector(t *testing.T) {
 	s := testStore(t)
 	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
 	if err != nil {
@@ -664,7 +664,7 @@ func TestCreateProjectWithoutADevice(t *testing.T) {
 		t.Fatal(err)
 	}
 	if p.ConnectorId != "" || p.Path != "" {
-		t.Fatalf("expected empty device/path, got %+v", p)
+		t.Fatalf("expected empty connector/path, got %+v", p)
 	}
 	if len(p.ConnectorIds) != 0 {
 		t.Fatalf("expected no enrolled machines, got %v", p.ConnectorIds)
@@ -678,7 +678,7 @@ func TestCreateProjectWithoutADevice(t *testing.T) {
 	}
 }
 
-func TestDeletingDeviceDetachesItFromProjects(t *testing.T) {
+func TestDeletingConnectorDetachesItFromProjects(t *testing.T) {
 	s := testStore(t)
 	connectorId, _, _ := s.CreateConnector("runner", "runner", "linux", "amd64", false)
 	_, org, err := s.ClaimHub("ops@example.com", "hash", "default")
@@ -701,7 +701,7 @@ func TestDeletingDeviceDetachesItFromProjects(t *testing.T) {
 	}
 }
 
-func TestDeletingDeviceKeepsTheOtherMachines(t *testing.T) {
+func TestDeletingConnectorKeepsTheOtherMachines(t *testing.T) {
 	s := testStore(t)
 	first, _, err := s.CreateConnector("one", "one", "linux", "amd64", false)
 	if err != nil {

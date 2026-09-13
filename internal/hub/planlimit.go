@@ -121,7 +121,7 @@ func (s *Server) refuseAnotherMachine(w http.ResponseWriter, orgId, projectId, a
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return true
 	}
-	n, err := s.store.CountProjectDevices(projectId)
+	n, err := s.store.CountProjectConnectors(projectId)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return true

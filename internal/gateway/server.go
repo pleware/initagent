@@ -38,7 +38,7 @@ func writeJSON(w http.ResponseWriter, v any) {
 
 // fromHub guards the control routes — the ones only the hub calls, which are
 // also the ones that now name a project. A worker's own routes are not on
-// this list: they authenticate with an enroll token or a device credential,
+// this list: they authenticate with an enroll token or a connector credential,
 // and the install script and health have to answer an unauthenticated
 // caller. An empty secret leaves the routes open, which is the single-box
 // self-host default; ops sets it wherever the gateway is reachable (18).

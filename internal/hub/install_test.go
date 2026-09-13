@@ -213,10 +213,10 @@ func TestListSessionsAsksGateway(t *testing.T) {
 	}
 }
 
-// projectWithConnector plants a project whose fx worker is a device the hub's
+// projectWithConnector plants a project whose fx worker is a connector the hub's
 // registry does not hold, which is exactly the self-host layout (the worker
 // dials the gateway, not the hub).
-func projectWithDevice(t *testing.T, srv *Server) *Project {
+func projectWithConnector(t *testing.T, srv *Server) *Project {
 	t.Helper()
 	org, err := srv.store.CreateOrg("Example Ops")
 	if err != nil {
@@ -231,7 +231,7 @@ func projectWithDevice(t *testing.T, srv *Server) *Project {
 
 func TestProjectExecOfflineWithoutGateway(t *testing.T) {
 	srv := newTestServer(t, "v0.1.0")
-	project := projectWithDevice(t, srv)
+	project := projectWithConnector(t, srv)
 	req := httptest.NewRequest(http.MethodPost, "/api/projects/"+project.Id+"/exec", strings.NewReader(`{"command":"ls"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.SetPathValue("id", project.Id)
@@ -259,7 +259,7 @@ func TestProjectExecAsksGateway(t *testing.T) {
 
 	srv := newTestServer(t, "v0.1.0")
 	srv.opts.GatewayURL = gw.URL
-	project := projectWithDevice(t, srv)
+	project := projectWithConnector(t, srv)
 	req := httptest.NewRequest(http.MethodPost, "/api/projects/"+project.Id+"/exec", strings.NewReader(`{"command":"pwd","timeoutMs":120000}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.SetPathValue("id", project.Id)

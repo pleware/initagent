@@ -267,7 +267,7 @@ func (s *Server) requireConnector(c authz.Capability, next credHandler) http.Han
 // not at all: creating a task, reading presets, watching events.
 //
 // Separate from requireConnector on purpose. Several of these routes have an
-// {id} of their own — a task, a preset — and reading that as a device id
+// {id} of their own — a task, a preset — and reading that as a connector id
 // would check the wrong boundary and refuse every caller.
 func (s *Server) requireFleet(c authz.Capability, next credHandler) http.HandlerFunc {
 	return s.requireAt(c, s.atFleet, next)
@@ -379,7 +379,7 @@ func (s *Server) boundsForProject(projectId string) ([]bound, error) {
 	return []bound{{org: project.OrgId, project: project.Id}}, nil
 }
 
-// credentialBounds is the fallback for a request that names neither a device
+// credentialBounds is the fallback for a request that names neither a connector
 // nor a project: listing machines, reading presets, watching events.
 //
 // A session is checked in every org it belongs to, which is the reach it

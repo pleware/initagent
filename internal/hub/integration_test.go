@@ -57,7 +57,7 @@ func startHub(t *testing.T) (*Server, string) {
 	return nil, ""
 }
 
-// connectAgent enrolls and runs an in-process device agent against the hub.
+// connectAgent enrolls and runs an in-process connector agent against the hub.
 func connectAgent(t *testing.T, srv *Server, base string) string {
 	t.Helper()
 	enrollToken, err := srv.store.CreateEnrollToken(time.Minute)
@@ -102,7 +102,7 @@ func TestEndToEnd(t *testing.T) {
 	conn := srv.registry.get(connectorId)
 
 	t.Run("exec round trip", func(t *testing.T) {
-		res, err := srv.execOnDevice(conn, "echo overseer-$((20+22))", "", 15)
+		res, err := srv.execOnConnector(conn, "echo overseer-$((20+22))", "", 15)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -112,7 +112,7 @@ func TestEndToEnd(t *testing.T) {
 	})
 
 	t.Run("exec nonzero exit", func(t *testing.T) {
-		res, err := srv.execOnDevice(conn, "exit 3", "", 15)
+		res, err := srv.execOnConnector(conn, "exit 3", "", 15)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -122,7 +122,7 @@ func TestEndToEnd(t *testing.T) {
 	})
 
 	t.Run("fs list", func(t *testing.T) {
-		ctx, cancel := deviceCtx()
+		ctx, cancel := connectorCtx()
 		defer cancel()
 		var res protocol.FsListResult
 		err := conn.requestInto(ctx, protocol.TypeFsList, protocol.FsList{Path: "/"}, &res)
@@ -139,7 +139,7 @@ func TestEndToEnd(t *testing.T) {
 			t.Skip("tmux not installed")
 		}
 		name := fmt.Sprintf("ovsr-test-%d", time.Now().UnixNano())
-		ctx, cancel := deviceCtx()
+		ctx, cancel := connectorCtx()
 		defer cancel()
 		err := conn.requestInto(ctx, protocol.TypeSessionCreate,
 			protocol.SessionCreate{Name: name, Kind: "shell"}, nil)
@@ -170,7 +170,7 @@ func TestEndToEnd(t *testing.T) {
 	})
 
 	t.Run("bad session name rejected", func(t *testing.T) {
-		ctx, cancel := deviceCtx()
+		ctx, cancel := connectorCtx()
 		defer cancel()
 		err := conn.requestInto(ctx, protocol.TypeSessionCreate,
 			protocol.SessionCreate{Name: "bad name; rm -rf /"}, nil)
@@ -209,7 +209,7 @@ func TestAuthFlow(t *testing.T) {
 
 	// Protected route without auth.
 	if resp, _ := client.Get(ts.URL + "/api/connectors"); resp.StatusCode != 401 {
-		t.Fatalf("unauthenticated devices: %d, want 401", resp.StatusCode)
+		t.Fatalf("unauthenticated connectors: %d, want 401", resp.StatusCode)
 	}
 	// Without the bootstrap token the hub is not claimable, which is the
 	// whole point: on a public name the form is otherwise a land grab.
@@ -231,7 +231,7 @@ func TestAuthFlow(t *testing.T) {
 		t.Fatalf("claim: %d", resp.StatusCode)
 	}
 	if resp, _ := client.Get(ts.URL + "/api/connectors"); resp.StatusCode != 200 {
-		t.Fatalf("authed devices: %d, want 200", resp.StatusCode)
+		t.Fatalf("authed connectors: %d, want 200", resp.StatusCode)
 	}
 	// The token is spent, and a claimed hub answers 409 whatever arrives, so
 	// the endpoint cannot be used to test tokens.

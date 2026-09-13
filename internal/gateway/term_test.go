@@ -69,7 +69,7 @@ func TestTermWSOfflineStatus(t *testing.T) {
 	u := "ws" + strings.TrimPrefix(ts.URL, "http") + "/api/ws/term?connector=" + connectorID + "&session=term-1"
 	_, resp, err := websocket.DefaultDialer.Dial(u, nil)
 	if err == nil {
-		t.Fatal("wanted offline device to refuse the socket")
+		t.Fatal("wanted offline connector to refuse the socket")
 	}
 	if resp == nil || resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("status = %v, want 503", resp)

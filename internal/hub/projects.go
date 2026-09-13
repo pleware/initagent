@@ -73,12 +73,12 @@ func (s *Server) validateProjectConnector(w http.ResponseWriter, connectorId str
 	if connectorId == "" {
 		return true
 	}
-	device, err := s.store.ConnectorById(connectorId)
+	connector, err := s.store.ConnectorById(connectorId)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return false
 	}
-	if device == nil {
+	if connector == nil {
 		httpError(w, http.StatusBadRequest, "connector does not exist")
 		return false
 	}
@@ -416,7 +416,7 @@ func (s *Server) handleProjectExec(w http.ResponseWriter, r *http.Request, cred 
 		timeoutSec = 600
 	}
 	if c := s.registry.get(project.ConnectorId); c != nil {
-		result, err := s.execOnDevice(c, input.Command, project.Path, timeoutSec)
+		result, err := s.execOnConnector(c, input.Command, project.Path, timeoutSec)
 		if err != nil {
 			httpError(w, http.StatusBadGateway, err.Error())
 			return

@@ -76,7 +76,7 @@ type Options struct {
 // DefaultLease is the Milestone 0 claim duration (capacity of one slot).
 const DefaultLease = 5 * time.Minute
 
-// workerSlots is the Milestone 0 capacity stub: one active task per device.
+// workerSlots is the Milestone 0 capacity stub: one active task per connector.
 const workerSlots = 1
 
 // presence is a live connector socket. projectID is copied from the connector row

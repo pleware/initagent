@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-13 — names: rename hub and gateway symbols from device to connector
 - 2026-09-13 — names: sweep inherited device copy to connector
 - 2026-09-13 — store: carry fleet.device scopes over to fleet.connector
 - 2026-09-13 — names: register initagent.gdesk.attendance, the first fact a sensor may say

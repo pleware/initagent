@@ -55,12 +55,12 @@ func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 		httpError(w, http.StatusUnauthorized, "missing connector token")
 		return
 	}
-	device, err := g.store.ConnectorByToken(r.Context(), strings.TrimPrefix(auth, "Bearer "))
+	connector, err := g.store.ConnectorByToken(r.Context(), strings.TrimPrefix(auth, "Bearer "))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if device == nil {
+	if connector == nil {
 		httpError(w, http.StatusForbidden, "unknown connector token")
 		return
 	}
@@ -79,13 +79,13 @@ func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 	_ = json.Unmarshal(hello.Data, &h)
 	ws.SetReadDeadline(time.Time{})
 
-	_ = g.store.UpdateConnectorOnConnect(r.Context(), device.ID, h.Hostname, h.OS, h.Arch)
+	_ = g.store.UpdateConnectorOnConnect(r.Context(), connector.ID, h.Hostname, h.OS, h.Arch)
 	ac := newAgentConn(ws)
-	g.attachConn(device.ID, device.ProjectID, h, ac)
-	defer g.markOffline(device.ID)
+	g.attachConn(connector.ID, connector.ProjectID, h, ac)
+	defer g.markOffline(connector.ID)
 
 	welcome, err := protocol.NewMsg(protocol.TypeWelcome, 0, 0, protocol.Welcome{
-		ConnectorId: device.ID,
+		ConnectorId: connector.ID,
 		Version:     g.joiner.Version,
 		Repo:        g.joiner.GithubRepo,
 	})
@@ -95,7 +95,7 @@ func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 	if err := ac.sendJSON(welcome); err != nil {
 		return
 	}
-	log.Printf("device %s (%s) connected", device.Name, device.ID)
+	log.Printf("connector %s (%s) connected", connector.Name, connector.ID)
 
 	ws.SetReadLimit(16 * 1024 * 1024)
 	for {
@@ -113,7 +113,7 @@ func (g *Gateway) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 			case m.Type == protocol.TypeStats:
 				var st protocol.Stats
 				if err := json.Unmarshal(m.Data, &st); err == nil {
-					g.setStats(device.ID, &st)
+					g.setStats(connector.ID, &st)
 				}
 			case m.Type == protocol.TypeResult:
 				ac.deliver(m)

@@ -350,7 +350,7 @@ func TestAgentWSHelloMarksOnline(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	conn.Close()
-	t.Fatal("device did not appear online")
+	t.Fatal("connector did not appear online")
 }
 
 func TestAgentWSRejectsUnknownToken(t *testing.T) {
@@ -403,7 +403,7 @@ func TestConnectorByIDAndBadID(t *testing.T) {
 	}
 }
 
-// A device credential has to answer which project it belongs to: one gateway
+// A connector credential has to answer which project it belongs to: one gateway
 // process serves many projects, so the socket cannot inherit one (18).
 func TestConnectorCarriesItsProject(t *testing.T) {
 	g := openTest(t, "")

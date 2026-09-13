@@ -12,7 +12,7 @@ import (
 
 // liveHello is liveConn plus the Hello handshake, which the setup probe
 // needs for OS/arch. Both resolve through the same project-scoped socket
-// so a device from another project answers offline here too (01).
+// so a connector from another project answers offline here too (01).
 func (g *Gateway) liveHello(w http.ResponseWriter, r *http.Request) (*agentConn, protocol.Hello, bool) {
 	c := g.liveConn(w, r)
 	if c == nil {
@@ -59,7 +59,7 @@ func (g *Gateway) handleFsDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	if err := connectorops.Download(c, path, w); err != nil {
 		// A failure before the first byte is unreportable once the stream
-		// headers are set; a dropped device surfaces as a truncated download.
+		// headers are set; a dropped connector surfaces as a truncated download.
 		return
 	}
 }

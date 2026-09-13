@@ -1,5 +1,5 @@
 // Package hub implements the initagent hub: web UI host, REST API, and the
-// rendezvous point every device agent dials into.
+// rendezvous point every connector agent dials into.
 package hub
 
 import (
@@ -232,7 +232,7 @@ func (s *Server) newHTTPServer(handler http.Handler) *http.Server {
 }
 
 // Run serves until ctx is cancelled. It also starts the embedded local agent
-// so the hub machine itself shows up as a device.
+// so the hub machine itself shows up as a connector.
 func (s *Server) Run(ctx context.Context) error {
 	runCtx, cancelRun := context.WithCancel(ctx)
 	defer cancelRun()
@@ -352,7 +352,7 @@ func (s *Server) runEmbeddedAgent(ctx context.Context) {
 		s.runSelfhostGatewayAgent(ctx)
 		return
 	}
-	token, err := s.store.Setting("hub_device_token")
+	token, err := s.store.Setting("hub_connector_token")
 	if err != nil {
 		log.Printf("embedded agent: %v", err)
 		return
@@ -368,7 +368,7 @@ func (s *Server) runEmbeddedAgent(ctx context.Context) {
 			log.Printf("embedded agent: registering hub connector: %v", err)
 			return
 		}
-		if err := s.store.SetSetting("hub_device_token", tok); err != nil {
+		if err := s.store.SetSetting("hub_connector_token", tok); err != nil {
 			log.Printf("embedded agent: %v", err)
 			return
 		}

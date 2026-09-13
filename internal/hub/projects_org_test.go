@@ -114,7 +114,7 @@ func TestListTemplates(t *testing.T) {
 	}
 }
 
-func TestCreateProjectWithoutDevice(t *testing.T) {
+func TestCreateProjectWithoutConnector(t *testing.T) {
 	f := hostedCustomer(t)
 	f.srv.opts.GatewayURL = "http://gateway.test"
 

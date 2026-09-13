@@ -56,7 +56,7 @@ func (s *Store) CreateConnector(ctx context.Context, projectID, name, hostname, 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`, connectorID, projectID, name, hostname, osName, arch, hashToken(token), unixTime(now))
 	if err != nil {
-		return "", "", fmt.Errorf("create device: %w", err)
+		return "", "", fmt.Errorf("create connector: %w", err)
 	}
 	return connectorID, token, nil
 }

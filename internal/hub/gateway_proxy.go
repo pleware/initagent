@@ -14,7 +14,7 @@ import (
 )
 
 // gatewayProxyTimeout is the ceiling for fast gateway reads and mints that
-// return immediately (device list, enroll token).
+// return immediately (connector list, enroll token).
 const gatewayProxyTimeout = 10 * time.Second
 
 // connectorProxyTimeout covers session create/list/kill and exec round-trips

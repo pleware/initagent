@@ -38,7 +38,7 @@ func (g *Gateway) handleFleetAgents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Collect the live sockets first, then release the lock, so the fan-out
-	// does not hold the connection map while waiting on each device's reply.
+	// does not hold the connection map while waiting on each connector's reply.
 	var ids []string
 	g.mu.Lock()
 	for id, p := range g.online {

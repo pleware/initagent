@@ -15,7 +15,7 @@ import (
 	"github.com/pleware/initagent/internal/protocol"
 )
 
-// agentConn is one live device connection on the hub side.
+// agentConn is one live connector connection on the hub side.
 type agentConn struct {
 	connectorId string
 	hello       protocol.Hello
@@ -223,7 +223,7 @@ func (s *Server) serveAgent(c *agentConn) {
 		}
 		s.registry.remove(c)
 		s.store.TouchConnector(c.connectorId)
-		log.Printf("device %s disconnected", c.connectorId)
+		log.Printf("connector %s disconnected", c.connectorId)
 	}()
 
 	c.ws.SetReadLimit(16 * 1024 * 1024)
@@ -324,8 +324,8 @@ func (b *eventBus) publish(e event) {
 	}
 }
 
-// deviceCtx returns a bounded context for device round-trips.
-func deviceCtx() (context.Context, context.CancelFunc) {
+// connectorCtx returns a bounded context for connector round-trips.
+func connectorCtx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), 30*time.Second)
 }
 

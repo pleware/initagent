@@ -107,23 +107,29 @@ func (s *Server) handleRenameOrg(w http.ResponseWriter, r *http.Request, cred au
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
-// handleSetOrgTest marks an organization as a test org, or clears the flag.
-// A test org is exempt from plan limits, so this is a platform-operator
-// action — a customer must not be able to lift their own walls.
-func (s *Server) handleSetOrgTest(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+// handleSetOrgMode sets how an organization behaves: standard, test, or
+// develop. Test lifts plan limits; develop pays on Stripe test without KSeF.
+// Either way it is a platform-operator action — a customer must not be able
+// to lift their own walls or move their own billing to Stripe test.
+func (s *Server) handleSetOrgMode(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	if !cred.Can(authz.AdminAccounts, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
 	orgId := r.PathValue("id")
 	var req struct {
-		IsTest *bool `json:"isTest"`
+		Mode *string `json:"mode"`
 	}
-	if err := readJSON(r, &req); err != nil || req.IsTest == nil {
-		httpError(w, http.StatusBadRequest, "isTest is required")
+	if err := readJSON(r, &req); err != nil || req.Mode == nil {
+		httpError(w, http.StatusBadRequest, "mode is required")
 		return
 	}
-	if err := s.store.SetOrgTest(orgId, *req.IsTest); err != nil {
+	mode, err := ParseOrgMode(*req.Mode)
+	if err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.store.SetOrgMode(orgId, mode); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

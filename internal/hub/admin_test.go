@@ -426,38 +426,48 @@ func TestRenameOrg(t *testing.T) {
 	}
 }
 
-func TestOperatorMarksATestOrg(t *testing.T) {
+func TestOperatorSetsOrgMode(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
 	customer, err := f.srv.store.CreateOrg("Customer Ltd")
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp := f.do(t, http.MethodPatch, "/api/admin/orgs/"+customer.Id, map[string]bool{"isTest": true})
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("mark test org: %d, want 200", resp.StatusCode)
-	}
-	org, err := f.srv.store.OrgById(customer.Id)
-	if err != nil || org == nil {
-		t.Fatal(err)
-	}
-	if !org.IsTest {
-		t.Fatalf("org.IsTest = false, want true")
-	}
-	resp = f.do(t, http.MethodPatch, "/api/admin/orgs/"+customer.Id, map[string]bool{"isTest": false})
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("clear test org: %d, want 200", resp.StatusCode)
-	}
-	org, _ = f.srv.store.OrgById(customer.Id)
-	if org.IsTest {
-		t.Fatalf("org.IsTest = true after clearing")
+	for _, tc := range []struct{ in, want string }{
+		{"test", "test"},
+		{"develop", "develop"},
+		{"standard", ""},
+	} {
+		resp := f.do(t, http.MethodPatch, "/api/admin/orgs/"+customer.Id, map[string]string{"mode": tc.in})
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("set mode %q: %d, want 200", tc.in, resp.StatusCode)
+		}
+		org, err := f.srv.store.OrgById(customer.Id)
+		if err != nil || org == nil {
+			t.Fatal(err)
+		}
+		if string(org.Mode) != tc.want {
+			t.Fatalf("mode = %q, want %q", org.Mode, tc.want)
+		}
 	}
 }
 
-func TestCustomerCannotMarkATestOrg(t *testing.T) {
+func TestOperatorRejectsUnknownOrgMode(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	customer, err := f.srv.store.CreateOrg("Customer Ltd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := f.do(t, http.MethodPatch, "/api/admin/orgs/"+customer.Id, map[string]string{"mode": "banana"})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("unknown mode: %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestCustomerCannotSetOrgMode(t *testing.T) {
 	f := hostedCustomer(t)
-	resp := f.do(t, http.MethodPatch, "/api/admin/orgs/"+f.orgId, map[string]bool{"isTest": true})
+	resp := f.do(t, http.MethodPatch, "/api/admin/orgs/"+f.orgId, map[string]string{"mode": "test"})
 	if resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("customer marking a test org: %d, want 403", resp.StatusCode)
+		t.Fatalf("customer setting org mode: %d, want 403", resp.StatusCode)
 	}
 }
 

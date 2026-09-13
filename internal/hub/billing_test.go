@@ -154,6 +154,24 @@ func TestBillingWebhookIgnoresUnknownEvents(t *testing.T) {
 	}
 }
 
+func TestDevelopOrgMintsNoFiscalInvoice(t *testing.T) {
+	f := hostedCustomer(t)
+	if err := f.srv.store.SetOrgMode(f.orgId, OrgModeDevelop); err != nil {
+		t.Fatal(err)
+	}
+	// A develop org returns before billing is touched, so a paid-looking
+	// event records no fiscal (KSeF) invoice.
+	if err := f.srv.issueFiscalInvoice(&http.Request{}, billing.Event{
+		OrgID: f.orgId, Kind: billing.KindInvoicePaid, InvoiceID: "in_1", AmountCents: 100,
+	}); err != nil {
+		t.Fatalf("develop invoice: %v", err)
+	}
+	seen, err := f.srv.store.HasBillingInvoice("in_1")
+	if err != nil || seen {
+		t.Fatalf("develop org must not record a fiscal invoice: seen=%v err=%v", seen, err)
+	}
+}
+
 func TestRecordBillingInvoiceIsIdempotent(t *testing.T) {
 	f := hostedCustomer(t)
 	ok, err := f.srv.store.RecordBillingInvoice("in_1", f.orgId, "88")

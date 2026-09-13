@@ -187,9 +187,9 @@ func (s *Store) refuseAnotherPersonTx(tx *store.Tx, orgID string) error {
 		return nil
 	}
 	var plan string
-	var isTest int
+	var mode string
 	var members int
-	if err := tx.QueryRow(`SELECT plan, is_test FROM orgs WHERE id = ?`, orgID).Scan(&plan, &isTest); err != nil {
+	if err := tx.QueryRow(`SELECT plan, mode FROM orgs WHERE id = ?`, orgID).Scan(&plan, &mode); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		}
@@ -198,7 +198,7 @@ func (s *Store) refuseAnotherPersonTx(tx *store.Tx, orgID string) error {
 	if err := tx.QueryRow(`SELECT COUNT(*) FROM org_members WHERE org_id = ?`, orgID).Scan(&members); err != nil {
 		return err
 	}
-	if isTest == 1 {
+	if OrgMode(mode).isTest() {
 		return nil
 	}
 	limit := orgplan.Caps(s.offering, orgplan.ID(plan)).People

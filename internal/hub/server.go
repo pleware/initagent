@@ -72,13 +72,18 @@ type Options struct {
 	MailFrom     string
 
 	// Stripe and Fakturownia are hosted-only. Empty keys leave Plans
-	// visible and Checkout refused. Self-host ignores them.
-	StripeSecretKey     string
-	StripeWebhookSecret string
-	StripePriceStarter  string
-	StripePriceTeam     string
-	FakturowniaToken    string
-	FakturowniaDomain   string
+	// visible and Checkout refused. Self-host ignores them. The test-mode
+	// Stripe keys serve develop orgs; empty leaves them unable to checkout.
+	StripeSecretKey         string
+	StripeWebhookSecret     string
+	StripePriceStarter      string
+	StripePriceTeam         string
+	StripeTestSecretKey     string
+	StripeTestWebhookSecret string
+	StripeTestPriceStarter  string
+	StripeTestPriceTeam     string
+	FakturowniaToken        string
+	FakturowniaDomain       string
 
 	// TrustedProxies is a comma-separated list of CIDRs or addresses
 	// allowed to set X-Forwarded-For. Empty means the rate-limit key is
@@ -177,6 +182,10 @@ func NewServer(opts Options) (*Server, error) {
 			WebhookSecret:     opts.StripeWebhookSecret,
 			PriceStarter:      opts.StripePriceStarter,
 			PriceTeam:         opts.StripePriceTeam,
+			StripeTestSecret:  opts.StripeTestSecretKey,
+			TestWebhookSecret: opts.StripeTestWebhookSecret,
+			TestPriceStarter:  opts.StripeTestPriceStarter,
+			TestPriceTeam:     opts.StripeTestPriceTeam,
 			FakturowniaToken:  opts.FakturowniaToken,
 			FakturowniaDomain: opts.FakturowniaDomain,
 		}),
@@ -467,7 +476,7 @@ func (s *Server) routes() {
 	// in hand rather than repeated here.
 	m.HandleFunc("GET /api/admin/accounts", s.requireCredential(s.handleListAccounts))
 	m.HandleFunc("GET /api/admin/orgs", s.requireCredential(s.handleListAllOrgs))
-	m.HandleFunc("PATCH /api/admin/orgs/{id}", s.requireCredential(s.handleSetOrgTest))
+	m.HandleFunc("PATCH /api/admin/orgs/{id}", s.requireCredential(s.handleSetOrgMode))
 	m.HandleFunc("GET /api/admin/kpis", s.requireCredential(s.handleAdminKPIs))
 	m.HandleFunc("PATCH /api/orgs/{id}", s.requireCredential(s.handleRenameOrg))
 	m.HandleFunc("GET /api/orgs/{id}/members", s.requireCredential(s.handleListOrgMembers))

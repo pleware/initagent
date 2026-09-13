@@ -91,7 +91,7 @@ func TestStarterAllowsTwoProjects(t *testing.T) {
 
 func TestTestOrgIgnoresProjectCap(t *testing.T) {
 	f := hostedCustomer(t)
-	if err := f.srv.store.SetOrgTest(f.orgId, true); err != nil {
+	if err := f.srv.store.SetOrgMode(f.orgId, OrgModeTest); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"One", "Two"} {
@@ -104,7 +104,7 @@ func TestTestOrgIgnoresProjectCap(t *testing.T) {
 
 func TestTestOrgIgnoresPeopleCap(t *testing.T) {
 	f := hostedCustomer(t)
-	if err := f.srv.store.SetOrgTest(f.orgId, true); err != nil {
+	if err := f.srv.store.SetOrgMode(f.orgId, OrgModeTest); err != nil {
 		t.Fatal(err)
 	}
 	hash, err := auth.HashPassword("another-long-password")
@@ -122,7 +122,7 @@ func TestTestOrgIgnoresPeopleCap(t *testing.T) {
 
 func TestTestOrgIgnoresMachineCap(t *testing.T) {
 	f := hostedCustomer(t)
-	if err := f.srv.store.SetOrgTest(f.orgId, true); err != nil {
+	if err := f.srv.store.SetOrgMode(f.orgId, OrgModeTest); err != nil {
 		t.Fatal(err)
 	}
 	first := f.addConnector(t)
@@ -143,6 +143,21 @@ func TestTestOrgIgnoresMachineCap(t *testing.T) {
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatalf("machine %s: %d, want 201", id, resp.StatusCode)
 		}
+	}
+}
+
+func TestDevelopOrgKeepsPlanCaps(t *testing.T) {
+	f := hostedCustomer(t)
+	if err := f.srv.store.SetOrgMode(f.orgId, OrgModeDevelop); err != nil {
+		t.Fatal(err)
+	}
+	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{"name": "One"})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("first project: %d, want 201", resp.StatusCode)
+	}
+	resp = f.do(t, http.MethodPost, "/api/projects", map[string]string{"name": "Two"})
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("second project on a develop org: %d, want 409", resp.StatusCode)
 	}
 }
 

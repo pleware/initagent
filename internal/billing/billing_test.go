@@ -235,6 +235,79 @@ func TestParseWebhookWithSecret(t *testing.T) {
 	}
 }
 
+func TestStartCheckoutUsesTestEnv(t *testing.T) {
+	t.Parallel()
+	var sawPrice string
+	s := New(Config{
+		Offering:         offering.Hosted,
+		StripeSecret:     "sk_live",
+		PriceStarter:     "price_live",
+		StripeTestSecret: "sk_test",
+		TestPriceStarter: "price_test",
+	})
+	s.testStart = func(_ context.Context, req CheckoutRequest, price string) (string, error) {
+		sawPrice = price
+		return "https://checkout.test/s", nil
+	}
+	got, err := s.StartCheckout(t.Context(), CheckoutRequest{
+		OrgID: "org-1", Plan: orgplan.Starter, TestMode: true,
+		Buyer: Buyer{
+			Name: "ACME", TaxNo: "5252445767", Street: "Prosta 1",
+			City: "Warszawa", PostCode: "00-001", Email: "a@b.c",
+		},
+	})
+	if err != nil || got.URL != "https://checkout.test/s" {
+		t.Fatalf("got %+v %v", got, err)
+	}
+	if sawPrice != "price_test" {
+		t.Fatalf("price = %q, want test price", sawPrice)
+	}
+}
+
+func TestParseWebhookPicksTestSecret(t *testing.T) {
+	t.Parallel()
+	payload, err := json.Marshal(map[string]any{
+		"livemode": false,
+		"id":       "evt_wh",
+		"type":     KindCheckout,
+		"data": map[string]any{
+			"object": map[string]any{
+				"client_reference_id": "org-1",
+				"customer":            "cus_1",
+				"subscription":        "sub_1",
+				"metadata":            map[string]string{"org_id": "org-1", "plan_id": "starter"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	signed := webhook.GenerateTestSignedPayload(&webhook.UnsignedPayload{
+		Payload: payload,
+		Secret:  "whsec_test",
+	})
+	s := New(Config{
+		Offering:          offering.Hosted,
+		StripeSecret:      "sk_live",
+		WebhookSecret:     "whsec_live",
+		StripeTestSecret:  "sk_test",
+		TestWebhookSecret: "whsec_test",
+		PriceStarter:      "price_x",
+	})
+	ev, err := s.ParseWebhook(signed.Payload, signed.Header)
+	if err != nil || ev.OrgID != "org-1" || ev.Plan != orgplan.Starter {
+		t.Fatalf("event = %+v err = %v", ev, err)
+	}
+}
+
+func TestParseWebhookTestModeNeedsTestSecret(t *testing.T) {
+	t.Parallel()
+	s := New(Config{Offering: offering.Hosted, StripeSecret: "sk_live", WebhookSecret: "whsec_live", PriceStarter: "price_x"})
+	if _, err := s.ParseWebhook([]byte(`{"livemode": false}`), "sig"); !errors.Is(err, ErrNotConfigured) {
+		t.Fatalf("parse = %v", err)
+	}
+}
+
 func TestStartCheckoutPropagatesStartError(t *testing.T) {
 	t.Parallel()
 	s := New(Config{Offering: offering.Hosted, PriceStarter: "price_x"})

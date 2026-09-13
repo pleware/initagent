@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS orgs (
 	id         TEXT PRIMARY KEY,
 	name       TEXT NOT NULL,
 	plan       TEXT NOT NULL DEFAULT 'free',
-	is_test    INTEGER NOT NULL DEFAULT 0,
+	mode       TEXT NOT NULL DEFAULT '',
 	created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_members (
@@ -246,7 +246,7 @@ CREATE TABLE IF NOT EXISTS orgs (
 	id         TEXT PRIMARY KEY,
 	name       TEXT NOT NULL,
 	plan       TEXT NOT NULL DEFAULT 'free',
-	is_test    INTEGER NOT NULL DEFAULT 0,
+	mode       TEXT NOT NULL DEFAULT '',
 	created_at BIGINT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_members (
@@ -364,9 +364,9 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring org plan column: %w", err)
 	}
-	if err := s.ensureOrgTestColumn(); err != nil {
+	if err := s.ensureOrgModeColumn(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("ensuring org test column: %w", err)
+		return nil, fmt.Errorf("ensuring org mode column: %w", err)
 	}
 	if err := s.ensureOrgBilling(); err != nil {
 		db.Close()
@@ -629,11 +629,33 @@ func (s *Store) ensureOrgPlanColumn() error {
 	return s.ensureColumn("orgs", "plan", "TEXT NOT NULL DEFAULT 'free'")
 }
 
-// ensureOrgTestColumn adds the test-org flag to a live orgs table. A test
-// organization is exempt from plan limits, so an operator can run an
-// unbilled trial against the same catalogue without touching plan rows.
-func (s *Store) ensureOrgTestColumn() error {
-	return s.ensureColumn("orgs", "is_test", "INTEGER NOT NULL DEFAULT 0")
+// ensureOrgModeColumn replaces the boolean is_test flag with the three-state
+// mode column. CREATE TABLE IF NOT EXISTS will not add it to a live table,
+// so a hub that shipped is_test gains mode here, carries any org an operator
+// had already flagged as a test org over to mode = 'test', and drops the old
+// boolean column.
+func (s *Store) ensureOrgModeColumn() error {
+	if err := s.ensureColumn("orgs", "mode", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	hasTest, err := s.hasColumn("orgs", "is_test")
+	if err != nil {
+		return err
+	}
+	if !hasTest {
+		return nil
+	}
+	if _, err := s.db.Exec(`UPDATE orgs SET mode = 'test' WHERE is_test = 1`); err != nil {
+		return err
+	}
+	return s.dropColumn("orgs", "is_test")
+}
+
+// dropColumn removes a column that a later schema superseded. The caller has
+// already checked the column exists; a missing column is a programming error.
+func (s *Store) dropColumn(table, column string) error {
+	_, err := s.db.Exec(`ALTER TABLE ` + table + ` DROP COLUMN ` + column)
+	return err
 }
 
 // ensureAccountLocale adds the UI language to a live accounts table.
@@ -1141,11 +1163,11 @@ func (s *Store) ListAccounts() ([]Account, error) {
 // there is exactly one, created when the hub is claimed; the hosted hub has
 // many.
 type Org struct {
-	Id        string `json:"id"`
-	Name      string `json:"name"`
-	Plan      string `json:"plan"`
-	IsTest    bool   `json:"isTest"`
-	CreatedAt int64  `json:"createdAt"`
+	Id        string  `json:"id"`
+	Name      string  `json:"name"`
+	Plan      string  `json:"plan"`
+	Mode      OrgMode `json:"mode,omitempty"`
+	CreatedAt int64   `json:"createdAt"`
 	// Members is the roster size. The platform operator's list of orgs shows
 	// it, which is deliberately as far as that surface goes: enumerating
 	// organizations is a hub capability, reading who is inside one is not
@@ -1189,9 +1211,9 @@ func (s *Store) CreateOrg(name string) (*Org, error) {
 
 // ListOrgs returns every organization with its roster size, oldest first.
 func (s *Store) ListOrgs() ([]Org, error) {
-	rows, err := s.db.Query(`SELECT o.id, o.name, o.plan, o.is_test, o.created_at, COUNT(m.account_id)
+	rows, err := s.db.Query(`SELECT o.id, o.name, o.plan, o.mode, o.created_at, COUNT(m.account_id)
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
-		GROUP BY o.id, o.name, o.plan, o.is_test, o.created_at
+		GROUP BY o.id, o.name, o.plan, o.mode, o.created_at
 		ORDER BY o.created_at, o.id`)
 	if err != nil {
 		return nil, err
@@ -1200,11 +1222,11 @@ func (s *Store) ListOrgs() ([]Org, error) {
 	out := []Org{}
 	for rows.Next() {
 		var o Org
-		var isTest int
-		if err := rows.Scan(&o.Id, &o.Name, &o.Plan, &isTest, &o.CreatedAt, &o.Members); err != nil {
+		var mode string
+		if err := rows.Scan(&o.Id, &o.Name, &o.Plan, &mode, &o.CreatedAt, &o.Members); err != nil {
 			return nil, err
 		}
-		o.IsTest = isTest == 1
+		o.Mode = OrgMode(mode)
 		out = append(out, o)
 	}
 	return out, rows.Err()
@@ -1213,19 +1235,19 @@ func (s *Store) ListOrgs() ([]Org, error) {
 // OrgById returns one organization, or (nil, nil) when it does not exist.
 func (s *Store) OrgById(orgId string) (*Org, error) {
 	var o Org
-	var isTest int
-	err := s.db.QueryRow(`SELECT o.id, o.name, o.plan, o.is_test, o.created_at, COUNT(m.account_id)
+	var mode string
+	err := s.db.QueryRow(`SELECT o.id, o.name, o.plan, o.mode, o.created_at, COUNT(m.account_id)
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
 		WHERE o.id = ?
-		GROUP BY o.id, o.name, o.plan, o.is_test, o.created_at`, orgId).
-		Scan(&o.Id, &o.Name, &o.Plan, &isTest, &o.CreatedAt, &o.Members)
+		GROUP BY o.id, o.name, o.plan, o.mode, o.created_at`, orgId).
+		Scan(&o.Id, &o.Name, &o.Plan, &mode, &o.CreatedAt, &o.Members)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	o.IsTest = isTest == 1
+	o.Mode = OrgMode(mode)
 	return &o, nil
 }
 
@@ -1247,19 +1269,30 @@ func (s *Store) SetOrgPlan(orgId string, id orgplan.ID) error {
 
 // orgCaps returns the walls that apply to an organization. A test org is
 // exempt: plan limits do not apply to it, so it behaves like self-host
-// (unlimited) whatever plan it carries.
+// (unlimited) whatever plan it carries. A develop org keeps its walls.
 func (s *Store) orgCaps(org *Org) orgplan.Limits {
-	if org.IsTest {
+	if org.Mode.isTest() {
 		return orgplan.Unlimited
 	}
 	return orgplan.Caps(s.offering, orgplan.ID(org.Plan))
 }
 
-// SetOrgTest marks or clears an organization as a test org. Test orgs are
-// exempt from plan limits. This is an operator action, not a customer one.
-func (s *Store) SetOrgTest(orgId string, test bool) error {
-	_, err := s.db.Exec(`UPDATE orgs SET is_test = ? WHERE id = ?`, boolInt(test), orgId)
+// SetOrgMode sets how an organization behaves: standard, test, or develop.
+// This is an operator action, not a customer one — a customer must not lift
+// their own walls or move their own billing to Stripe test.
+func (s *Store) SetOrgMode(orgId string, mode OrgMode) error {
+	_, err := s.db.Exec(`UPDATE orgs SET mode = ? WHERE id = ?`, string(mode), orgId)
 	return err
+}
+
+// orgMode reads an organization's mode, or standard when the row is missing.
+func (s *Store) orgMode(orgId string) (OrgMode, error) {
+	var m string
+	err := s.db.QueryRow(`SELECT mode FROM orgs WHERE id = ?`, orgId).Scan(&m)
+	if err == sql.ErrNoRows {
+		return OrgModeStandard, nil
+	}
+	return OrgMode(m), err
 }
 
 // ListAccountOrgs returns the organizations an account belongs to, with the

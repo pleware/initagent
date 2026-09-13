@@ -39,7 +39,15 @@ func (s *Server) handleGetBilling(w http.ResponseWriter, r *http.Request, cred a
 		httpError(w, http.StatusNotFound, "no such organization")
 		return
 	}
+	mode, err := s.store.orgMode(orgID)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	row.CheckoutReady = s.billing.Ready()
+	if mode.isDevelop() {
+		row.CheckoutReady = s.billing.TestReady()
+	}
 	row.InvoicesReady = s.billing.InvoicesReady()
 	writeJSON(w, row)
 }
@@ -99,6 +107,11 @@ func (s *Server) handleCheckout(w http.ResponseWriter, r *http.Request, cred aut
 		httpError(w, http.StatusNotFound, "no such organization")
 		return
 	}
+	mode, err := s.store.orgMode(orgID)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	buyer := billing.Buyer{
 		Kind: billing.Kind(row.Kind),
 		Name: row.Name, TaxNo: row.TaxNo, Street: row.Street,
@@ -122,6 +135,7 @@ func (s *Server) handleCheckout(w http.ResponseWriter, r *http.Request, cred aut
 		OrgID:      orgID,
 		Plan:       plan,
 		Quantity:   qty,
+		TestMode:   mode.isDevelop(),
 		SuccessURL: origin + "/plans?paid=1",
 		CancelURL:  origin + "/plans?canceled=1",
 		CustomerID: row.StripeCustomer,
@@ -172,6 +186,14 @@ func (s *Server) handleBillingWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) issueFiscalInvoice(r *http.Request, ev billing.Event) error {
+	mode, err := s.store.orgMode(ev.OrgID)
+	if err != nil {
+		return err
+	}
+	if mode.isDevelop() {
+		// Develop orgs pay on Stripe test; never mint a fiscal (KSeF) invoice.
+		return nil
+	}
 	if !s.billing.InvoicesReady() {
 		return nil
 	}
@@ -209,6 +231,12 @@ func (s *Server) issueFiscalInvoice(r *http.Request, ev billing.Event) error {
 
 func (s *Server) syncBillingQuantity(orgID string) {
 	if s.billing == nil || !s.billing.Ready() {
+		return
+	}
+	mode, err := s.store.orgMode(orgID)
+	if err != nil || mode.isDevelop() {
+		// A develop org's subscription lives in Stripe test; live quantity
+		// sync does not reach it.
 		return
 	}
 	row, err := s.store.GetOrgBilling(orgID)

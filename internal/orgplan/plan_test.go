@@ -49,7 +49,7 @@ func TestCatalogueLocksFreeCaps(t *testing.T) {
 	if free.Limits.IdleDays != 60 || free.Limits.LogDays != 7 {
 		t.Fatalf("free hygiene = %+v, want 60 idle / 7 log days", free.Limits)
 	}
-	if free.Charge.Kind != ChargeFree || free.Charge.USD != 0 {
+	if free.Charge.Kind != ChargeFree || free.Charge.EUR != 0 {
 		t.Fatalf("free charge = %+v", free.Charge)
 	}
 	starter, ok := Lookup(string(Starter))
@@ -59,8 +59,8 @@ func TestCatalogueLocksFreeCaps(t *testing.T) {
 	if starter.Limits.Projects != 2 || starter.Limits.WorkersPerProject != 3 || starter.Limits.LogDays != 14 {
 		t.Fatalf("starter caps = %+v, want 2 projects / 3 workers per project / 14 log days", starter.Limits)
 	}
-	if starter.Charge != (Charge{Kind: ChargeUSD, USD: PersonUSD(), PerPerson: true}) || PersonUSD() != 5 {
-		t.Fatalf("starter charge = %+v, want $%d per person", starter.Charge, PersonUSD())
+	if starter.Charge != (Charge{Kind: ChargeEUR, EUR: 5, PerPerson: true}) {
+		t.Fatalf("starter charge = %+v, want €5 per person", starter.Charge)
 	}
 	team, ok := Lookup(string(Team))
 	if !ok {
@@ -69,8 +69,8 @@ func TestCatalogueLocksFreeCaps(t *testing.T) {
 	if team.Limits.Projects != 5 || team.Limits.WorkersPerProject != 5 || team.Limits.LogDays != 14 {
 		t.Fatalf("team caps = %+v, want 5 projects / 5 workers per project / 14 log days", team.Limits)
 	}
-	if team.Charge != (Charge{Kind: ChargeUSD, USD: PersonUSD(), PerPerson: true}) {
-		t.Fatalf("team charge = %+v, want $%d per person", team.Charge, PersonUSD())
+	if team.Charge != (Charge{Kind: ChargeEUR, EUR: 7, PerPerson: true}) {
+		t.Fatalf("team charge = %+v, want €7 per person", team.Charge)
 	}
 	if CheckoutPrice(Free) != "" || CheckoutPrice(Enterprise) != "" {
 		t.Fatal("free and enterprise have no Stripe Price")

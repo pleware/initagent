@@ -216,7 +216,7 @@ func (s *Service) priceOf(id orgplan.ID) (string, error) {
 		return "", ErrUnknownPlan
 	}
 	p, ok := orgplan.Lookup(string(id))
-	if !ok || p.Charge.Kind != orgplan.ChargeUSD {
+	if !ok || p.Charge.Kind != orgplan.ChargeEUR {
 		return "", ErrUnknownPlan
 	}
 	price := s.prices[id]

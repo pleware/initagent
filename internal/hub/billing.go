@@ -100,6 +100,7 @@ func (s *Server) handleCheckout(w http.ResponseWriter, r *http.Request, cred aut
 		return
 	}
 	buyer := billing.Buyer{
+		Kind: billing.Kind(row.Kind),
 		Name: row.Name, TaxNo: row.TaxNo, Street: row.Street,
 		City: row.City, PostCode: row.PostCode, Country: row.Country, Email: row.Email,
 	}
@@ -183,6 +184,7 @@ func (s *Server) issueFiscalInvoice(r *http.Request, ev billing.Event) error {
 		return err
 	}
 	buyer := billing.Buyer{
+		Kind: billing.Kind(row.Kind),
 		Name: row.Name, TaxNo: row.TaxNo, Street: row.Street,
 		City: row.City, PostCode: row.PostCode, Country: row.Country, Email: row.Email,
 	}

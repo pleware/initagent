@@ -121,9 +121,13 @@ func fakturowniaPayload(token string, inv Invoice) fakturowniaCreate {
 			name = fmt.Sprintf("initAgent %s — %d people / month", plan, qty)
 		}
 	}
+	taxNo := ""
+	if inv.Buyer.Company() {
+		taxNo = CleanNIP(inv.Buyer.TaxNo)
+	}
 	return fakturowniaCreate{
 		APIToken:       token,
-		GovSaveAndSend: inv.Buyer.Company(),
+		GovSaveAndSend: inv.Buyer.Company() && ValidNIP(inv.Buyer.TaxNo),
 		Invoice: fakturowniaInvoice{
 			Kind:          "vat",
 			Status:        "paid",
@@ -133,7 +137,7 @@ func fakturowniaPayload(token string, inv Invoice) fakturowniaCreate {
 			Currency:      currency,
 			Oid:           inv.Idempotency,
 			BuyerName:     strings.TrimSpace(inv.Buyer.Name),
-			BuyerTaxNo:    CleanNIP(inv.Buyer.TaxNo),
+			BuyerTaxNo:    taxNo,
 			BuyerStreet:   strings.TrimSpace(inv.Buyer.Street),
 			BuyerPostCode: strings.TrimSpace(inv.Buyer.PostCode),
 			BuyerCity:     strings.TrimSpace(inv.Buyer.City),

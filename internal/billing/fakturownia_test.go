@@ -40,15 +40,42 @@ func TestFakturowniaPayloadForeignSkipsKSeF(t *testing.T) {
 		Description: "custom",
 		AmountCents: 0,
 		Buyer: Buyer{
-			Name: "ACME", Street: "1 Road", City: "Berlin",
+			Kind: KindCompany, Name: "ACME", Street: "1 Road", City: "Berlin",
 			PostCode: "10115", Country: "DE", Email: "a@b.c",
 		},
 	})
-	if got.GovSaveAndSend || got.Invoice.BuyerCompany || got.Invoice.Positions[0].Tax != 0 {
+	if got.GovSaveAndSend || got.Invoice.Positions[0].Tax != 0 {
 		t.Fatalf("foreign = %+v", got)
+	}
+	if !got.Invoice.BuyerCompany {
+		t.Fatalf("a foreign company is still a company: %+v", got.Invoice)
 	}
 	if got.Invoice.Positions[0].Name != "custom" || got.Invoice.Currency != "USD" {
 		t.Fatalf("defaults = %+v", got.Invoice)
+	}
+}
+
+func TestFakturowniaPayloadIndividualSkipsKSeFAndNIP(t *testing.T) {
+	t.Parallel()
+	got := fakturowniaPayload("tok", Invoice{
+		Plan:        orgplan.Starter,
+		Quantity:    1,
+		AmountCents: 500,
+		Currency:    "eur",
+		Idempotency: "in_person",
+		Buyer: Buyer{
+			Kind: KindIndividual, Name: "Jan Kowalski", Street: "Prosta 1",
+			City: "Warszawa", PostCode: "00-001", Country: "PL", Email: "jan@a.b",
+		},
+	})
+	if got.GovSaveAndSend || got.Invoice.BuyerCompany {
+		t.Fatalf("individual must not flag KSeF: %+v", got)
+	}
+	if got.Invoice.BuyerTaxNo != "" {
+		t.Fatalf("individual must not send a NIP: %+v", got.Invoice)
+	}
+	if got.Invoice.BuyerName != "Jan Kowalski" {
+		t.Fatalf("name = %+v", got.Invoice)
 	}
 }
 

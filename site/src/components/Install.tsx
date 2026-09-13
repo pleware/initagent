@@ -112,7 +112,7 @@ export function Install() {
             Self-host
           </p>
           <h2 className="mt-3 text-[2rem] leading-[1.1] font-semibold tracking-tight text-balance sm:text-[2.4rem]">
-            Run the hub on your machine. $0, single user.
+            Run the hub on your machine. €0, single user.
           </h2>
           <p className="mt-5 text-[16px] leading-relaxed text-fg-muted">
             Same binary as the hosted hub. One paste per device — no SSH keys,

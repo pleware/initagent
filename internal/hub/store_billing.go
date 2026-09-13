@@ -18,6 +18,7 @@ type OrgBilling struct {
 	People             int    `json:"people"`
 	CheckoutReady      bool   `json:"checkoutReady"`
 	InvoicesReady      bool   `json:"invoicesReady"`
+	Kind               string `json:"kind"`
 	Name               string `json:"name"`
 	TaxNo              string `json:"taxNo"`
 	Street             string `json:"street"`
@@ -31,8 +32,8 @@ type OrgBilling struct {
 
 func (s *Store) ensureOrgBilling() error {
 	for _, col := range []string{
-		"billing_name", "billing_tax_no", "billing_street", "billing_city",
-		"billing_postcode", "billing_country", "billing_email",
+		"billing_kind", "billing_name", "billing_tax_no", "billing_street",
+		"billing_city", "billing_postcode", "billing_country", "billing_email",
 		"stripe_customer", "stripe_subscription",
 	} {
 		if err := s.ensureColumn("orgs", col, "TEXT NOT NULL DEFAULT ''"); err != nil {
@@ -55,16 +56,17 @@ func (s *Store) ensureOrgBilling() error {
 func (s *Store) GetOrgBilling(orgID string) (*OrgBilling, error) {
 	var b OrgBilling
 	err := s.db.QueryRow(`SELECT o.id, o.plan, COUNT(m.account_id),
-		o.billing_name, o.billing_tax_no, o.billing_street, o.billing_city,
-		o.billing_postcode, o.billing_country, o.billing_email,
+		o.billing_kind, o.billing_name, o.billing_tax_no, o.billing_street,
+		o.billing_city, o.billing_postcode, o.billing_country, o.billing_email,
 		o.stripe_customer, o.stripe_subscription
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
 		WHERE o.id = ?
-		GROUP BY o.id, o.plan, o.billing_name, o.billing_tax_no, o.billing_street,
-			o.billing_city, o.billing_postcode, o.billing_country, o.billing_email,
-			o.stripe_customer, o.stripe_subscription`, orgID).
-		Scan(&b.OrgID, &b.Plan, &b.People, &b.Name, &b.TaxNo, &b.Street, &b.City,
-			&b.PostCode, &b.Country, &b.Email, &b.StripeCustomer, &b.StripeSubscription)
+		GROUP BY o.id, o.plan, o.billing_kind, o.billing_name, o.billing_tax_no,
+			o.billing_street, o.billing_city, o.billing_postcode, o.billing_country,
+			o.billing_email, o.stripe_customer, o.stripe_subscription`, orgID).
+		Scan(&b.OrgID, &b.Plan, &b.People, &b.Kind, &b.Name, &b.TaxNo, &b.Street,
+			&b.City, &b.PostCode, &b.Country, &b.Email, &b.StripeCustomer,
+			&b.StripeSubscription)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -79,10 +81,11 @@ func (s *Store) SaveOrgBilling(orgID string, buyer billing.Buyer) error {
 		return err
 	}
 	_, err := s.db.Exec(`UPDATE orgs SET
-		billing_name = ?, billing_tax_no = ?, billing_street = ?, billing_city = ?,
-		billing_postcode = ?, billing_country = ?, billing_email = ?
+		billing_kind = ?, billing_name = ?, billing_tax_no = ?, billing_street = ?,
+		billing_city = ?, billing_postcode = ?, billing_country = ?, billing_email = ?
 		WHERE id = ?`,
-		strings.TrimSpace(buyer.Name), billing.CleanNIP(buyer.TaxNo),
+		string(buyer.NormKind()), strings.TrimSpace(buyer.Name),
+		billing.CleanNIP(buyer.TaxNo),
 		strings.TrimSpace(buyer.Street), strings.TrimSpace(buyer.City),
 		strings.TrimSpace(buyer.PostCode), buyer.NormCountry(), strings.TrimSpace(buyer.Email),
 		orgID)

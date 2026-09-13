@@ -38,16 +38,16 @@ type ChargeKind string
 
 const (
 	ChargeFree    ChargeKind = "free"
-	ChargeUSD     ChargeKind = "usd"
+	ChargeEUR     ChargeKind = "eur"
 	ChargeContact ChargeKind = "contact"
 )
 
 // Charge is the advertised sale motion. Stripe Product/Price ids stay in ops.
-// PerPerson means USD is billed per org member (a person). Never per
+// PerPerson means EUR is billed per org member (a person). Never per
 // enrolled machine — workers stay the customer's hardware (01).
 type Charge struct {
 	Kind      ChargeKind `json:"kind" yaml:"kind"`
-	USD       int        `json:"usd" yaml:"usd"`
+	EUR       int        `json:"eur" yaml:"eur"`
 	PerPerson bool       `json:"perPerson" yaml:"perPerson"`
 }
 
@@ -86,16 +86,15 @@ type Plan struct {
 }
 
 type loadedCatalogue struct {
-	plans     []Plan
-	personUSD int
+	plans []Plan
 }
 
 var loaded = sync.OnceValue(func() loadedCatalogue {
-	plans, usd, err := Load(config.YAML)
+	plans, err := Load(config.YAML)
 	if err != nil {
 		panic(err)
 	}
-	return loadedCatalogue{plans: plans, personUSD: usd}
+	return loadedCatalogue{plans: plans}
 })
 
 func ids() []ID {
@@ -105,12 +104,6 @@ func ids() []ID {
 // Catalogue returns every shipped plan in signup order.
 func Catalogue() []Plan {
 	return slices.Clone(loaded().plans)
-}
-
-// PersonUSD is the advertised monthly USD per person on self-serve paid
-// plans. It is not a Stripe Price id and it is not a price per machine.
-func PersonUSD() int {
-	return loaded().personUSD
 }
 
 // Lookup finds a plan by its catalogue id.
@@ -173,7 +166,7 @@ func Caps(kind offering.Kind, id ID) Limits {
 // or the YAML/env override has not landed).
 func CheckoutPrice(id ID) string {
 	p, ok := Lookup(string(id))
-	if !ok || p.Charge.Kind != ChargeUSD {
+	if !ok || p.Charge.Kind != ChargeEUR {
 		return ""
 	}
 	return strings.TrimSpace(p.StripePriceID)

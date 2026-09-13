@@ -5,8 +5,8 @@ export const PLAN_ORDER = ["free", "starter", "team", "enterprise"] as const;
 export type PlanSlug = (typeof PLAN_ORDER)[number];
 
 export type PlanCharge = {
-  kind: "free" | "usd" | "contact";
-  usd: number;
+  kind: "free" | "eur" | "contact";
+  eur: number;
   perPerson: boolean;
 };
 
@@ -30,7 +30,7 @@ export const PLAN_BY_SLUG: Record<PlanSlug, PlanConfig> = {
     "selfServe": true,
     "charge": {
       "kind": "free",
-      "usd": 0,
+      "eur": 0,
       "perPerson": false
     },
     "themeFamily": "default",
@@ -45,8 +45,8 @@ export const PLAN_BY_SLUG: Record<PlanSlug, PlanConfig> = {
   "starter": {
     "selfServe": true,
     "charge": {
-      "kind": "usd",
-      "usd": 5,
+      "kind": "eur",
+      "eur": 5,
       "perPerson": true
     },
     "themeFamily": "default",
@@ -61,8 +61,8 @@ export const PLAN_BY_SLUG: Record<PlanSlug, PlanConfig> = {
   "team": {
     "selfServe": true,
     "charge": {
-      "kind": "usd",
-      "usd": 5,
+      "kind": "eur",
+      "eur": 7,
       "perPerson": true
     },
     "themeFamily": "default",
@@ -78,7 +78,7 @@ export const PLAN_BY_SLUG: Record<PlanSlug, PlanConfig> = {
     "selfServe": false,
     "charge": {
       "kind": "contact",
-      "usd": 0,
+      "eur": 0,
       "perPerson": false
     },
     "themeFamily": "enterprise",
@@ -91,5 +91,3 @@ export const PLAN_BY_SLUG: Record<PlanSlug, PlanConfig> = {
     }
   }
 };
-
-export const PERSON_USD = 5;

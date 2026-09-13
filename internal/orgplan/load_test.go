@@ -10,13 +10,13 @@ import (
 
 func TestLoadEmbedded(t *testing.T) {
 	t.Parallel()
-	got, usd, err := Load(config.YAML)
+	got, err := Load(config.YAML)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := Catalogue()
-	if len(got) != len(want) || usd != PersonUSD() || usd != 5 {
-		t.Fatalf("load = %d plans usd %d, catalogue %d usd %d", len(got), usd, len(want), PersonUSD())
+	if len(got) != len(want) {
+		t.Fatalf("load = %d plans, catalogue %d", len(got), len(want))
 	}
 	for i := range got {
 		if got[i] != want[i] {
@@ -50,9 +50,9 @@ func TestLoadRejects(t *testing.T) {
 			"unknown charge kind",
 		},
 		{
-			"usd mismatch",
-			bytes.Replace(config.YAML, []byte("        usd: 5\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 5"), []byte("        usd: 9\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 5"), 1),
-			"usd 9, want 5",
+			"eur not positive",
+			bytes.Replace(config.YAML, []byte("        eur: 5\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 2"), []byte("        eur: 0\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 2"), 1),
+			"eur > 0 and perPerson",
 		},
 		{
 			"hobby slug",
@@ -66,12 +66,12 @@ func TestLoadRejects(t *testing.T) {
       limits: {projects: 1, workersPerProject: 2, people: 1, idleDays: 60, logDays: 7}
     starter:
       selfServe: true
-      charge: {kind: usd, usd: 5, perPerson: true}
+      charge: {kind: eur, eur: 5, perPerson: true}
       themeFamily: default
       limits: {projects: 2, workersPerProject: 3, people: 0, idleDays: 0, logDays: 0}
     team:
       selfServe: true
-      charge: {kind: usd, usd: 5, perPerson: true}
+      charge: {kind: eur, eur: 5, perPerson: true}
       themeFamily: default
       limits: {projects: 5, workersPerProject: 5, people: 0, idleDays: 0, logDays: 0}
     enterprise:
@@ -107,12 +107,12 @@ func TestLoadRejects(t *testing.T) {
       limits: {projects: 1, workersPerProject: 2, people: 1, idleDays: 60, logDays: 7}
     starter:
       selfServe: true
-      charge: {kind: usd, usd: 5, perPerson: true}
+      charge: {kind: eur, eur: 5, perPerson: true}
       themeFamily: default
       limits: {projects: 2, workersPerProject: 3, people: 0, idleDays: 0, logDays: 0}
     team:
       selfServe: true
-      charge: {kind: usd, usd: 5, perPerson: true}
+      charge: {kind: eur, eur: 5, perPerson: true}
       themeFamily: default
       limits: {projects: 5, workersPerProject: 5, people: 0, idleDays: 0, logDays: 0}
 `),
@@ -130,12 +130,12 @@ func TestLoadRejects(t *testing.T) {
       limits: {projects: 1, workersPerProject: 2, people: 1, idleDays: 60, logDays: 7}
     starter:
       selfServe: true
-      charge: {kind: usd, usd: 5, perPerson: true}
+      charge: {kind: eur, eur: 5, perPerson: true}
       themeFamily: default
       limits: {projects: 2, workersPerProject: 3, people: 0, idleDays: 0, logDays: 0}
     team:
       selfServe: true
-      charge: {kind: usd, usd: 5, perPerson: true}
+      charge: {kind: eur, eur: 5, perPerson: true}
       themeFamily: default
       limits: {projects: 5, workersPerProject: 5, people: 0, idleDays: 0, logDays: 0}
     enterprise:
@@ -163,12 +163,12 @@ func TestLoadRejects(t *testing.T) {
       limits: {projects: 1, workersPerProject: 2, people: 1, idleDays: 60, logDays: 7}
     starter:
       selfServe: true
-      charge: {kind: usd, usd: 5, perPerson: true}
+      charge: {kind: eur, eur: 5, perPerson: true}
       themeFamily: default
       limits: {projects: 2, workersPerProject: 3, people: 0, idleDays: 0, logDays: 0}
     team:
       selfServe: true
-      charge: {kind: usd, usd: 5, perPerson: true}
+      charge: {kind: eur, eur: 5, perPerson: true}
       themeFamily: default
       limits: {projects: 5, workersPerProject: 5, people: 0, idleDays: 0, logDays: 0}
     enterprise:
@@ -180,14 +180,14 @@ func TestLoadRejects(t *testing.T) {
 			"duplicate slug",
 		},
 		{
-			"free with usd",
-			bytes.Replace(config.YAML, []byte("        kind: free\n"), []byte("        kind: free\n        usd: 5\n"), 1),
-			"free charge must be usd 0",
+			"free with eur",
+			bytes.Replace(config.YAML, []byte("        kind: free\n"), []byte("        kind: free\n        eur: 5\n"), 1),
+			"free charge must be eur 0",
 		},
 		{
-			"usd not per person",
-			bytes.Replace(config.YAML, []byte("        usd: 5\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 2"), []byte("        usd: 5\n        perPerson: false\n      themeFamily: default\n      limits:\n        projects: 2"), 1),
-			"usd > 0 and perPerson",
+			"eur not per person",
+			bytes.Replace(config.YAML, []byte("        eur: 5\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 2"), []byte("        eur: 5\n        perPerson: false\n      themeFamily: default\n      limits:\n        projects: 2"), 1),
+			"eur > 0 and perPerson",
 		},
 		{
 			"contact self-serve",
@@ -202,11 +202,11 @@ func TestLoadRejects(t *testing.T) {
 		{
 			"price on free",
 			bytes.Replace(config.YAML, []byte("    free:\n      selfServe: true\n"), []byte("    free:\n      stripePriceId: price_x\n      selfServe: true\n"), 1),
-			"stripePriceId is only for usd plans",
+			"stripePriceId is only for eur plans",
 		},
 		{
 			"price prefix",
-			bytes.Replace(config.YAML, []byte("      stripePriceId: \"\"\n      charge:\n        kind: usd\n        usd: 5\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 2"), []byte("      stripePriceId: not-a-price\n      charge:\n        kind: usd\n        usd: 5\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 2"), 1),
+			bytes.Replace(config.YAML, []byte("      stripePriceId: \"\"\n      charge:\n        kind: eur\n        eur: 5\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 2"), []byte("      stripePriceId: not-a-price\n      charge:\n        kind: eur\n        eur: 5\n        perPerson: true\n      themeFamily: default\n      limits:\n        projects: 2"), 1),
 			"must start with price_",
 		},
 		{
@@ -226,12 +226,12 @@ func TestLoadRejects(t *testing.T) {
       limits: {projects: 1, workersPerProject: 2, people: 1, idleDays: 60, logDays: 7}
     starter:
       selfServe: true
-      charge: {kind: usd, usd: 5, perPerson: true}
+      charge: {kind: eur, eur: 5, perPerson: true}
       themeFamily: default
       limits: {projects: 2, workersPerProject: 3, people: 0, idleDays: 0, logDays: 0}
     team:
       selfServe: true
-      charge: {kind: usd, usd: 5, perPerson: true}
+      charge: {kind: eur, eur: 5, perPerson: true}
       themeFamily: default
       limits: {projects: 5, workersPerProject: 5, people: 0, idleDays: 0, logDays: 0}
     enterprise:
@@ -246,7 +246,7 @@ func TestLoadRejects(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			_, _, err := Load(tc.data)
+			_, err := Load(tc.data)
 			if err == nil {
 				t.Fatal("want error")
 			}
@@ -263,8 +263,8 @@ func TestTypeScriptListsEverySlug(t *testing.T) {
 	if !strings.Contains(got, `export const PLAN_ORDER = ["free", "starter", "team", "enterprise"] as const;`) {
 		t.Fatalf("PLAN_ORDER = %s", got)
 	}
-	if !strings.Contains(got, "export const PERSON_USD = 5;") {
-		t.Fatal("missing PERSON_USD")
+	if !strings.Contains(got, `"eur": 5`) || !strings.Contains(got, `"eur": 7`) {
+		t.Fatal("missing per-plan eur prices")
 	}
 	for _, p := range Catalogue() {
 		needle := `  "` + string(p.ID) + `": {`

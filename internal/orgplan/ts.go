@@ -10,10 +10,10 @@ import (
 // TypeScript is the generated module for site and cockpit. Copy (CTA,
 // card names) stays in those apps; this file is structure and prices.
 func TypeScript() string {
-	return renderTS(Catalogue(), PersonUSD())
+	return renderTS(Catalogue())
 }
 
-func renderTS(plans []Plan, personUSD int) string {
+func renderTS(plans []Plan) string {
 	slugs := make([]string, len(plans))
 	for i, p := range plans {
 		slugs[i] = string(p.ID)
@@ -30,8 +30,8 @@ func renderTS(plans []Plan, personUSD int) string {
 	b.WriteString("] as const;\n\n")
 	b.WriteString("export type PlanSlug = (typeof PLAN_ORDER)[number];\n\n")
 	b.WriteString("export type PlanCharge = {\n")
-	b.WriteString("  kind: \"free\" | \"usd\" | \"contact\";\n")
-	b.WriteString("  usd: number;\n")
+	b.WriteString("  kind: \"free\" | \"eur\" | \"contact\";\n")
+	b.WriteString("  eur: number;\n")
 	b.WriteString("  perPerson: boolean;\n")
 	b.WriteString("};\n\n")
 	b.WriteString("export type PlanLimits = {\n")
@@ -49,8 +49,7 @@ func renderTS(plans []Plan, personUSD int) string {
 	b.WriteString("};\n\n")
 	b.WriteString("export const PLAN_BY_SLUG: Record<PlanSlug, PlanConfig> = ")
 	b.WriteString(marshalPlanObject(plans))
-	b.WriteString(";\n\n")
-	fmt.Fprintf(&b, "export const PERSON_USD = %d;\n", personUSD)
+	b.WriteString(";\n")
 	return b.String()
 }
 

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { HubError } from '../components/PlanWall'
-import { PLAN_BY_SLUG, PLAN_ORDER, PERSON_USD, type PlanSlug } from '../lib/org-plans.gen'
+import { PLAN_BY_SLUG, PLAN_ORDER, type PlanSlug } from '../lib/org-plans.gen'
 import type { Me } from '../types'
 
 type OrgBilling = {
@@ -12,6 +12,7 @@ type OrgBilling = {
   people: number
   checkoutReady: boolean
   invoicesReady: boolean
+  kind: string
   name: string
   taxNo: string
   street: string
@@ -28,7 +29,7 @@ const LABELS: Record<PlanSlug, string> = {
   enterprise: 'Enterprise',
 }
 
-type BillingField = 'name' | 'taxNo' | 'street' | 'city' | 'postCode' | 'country' | 'email'
+type BillingField = 'kind' | 'name' | 'taxNo' | 'street' | 'city' | 'postCode' | 'country' | 'email'
 type BillingErrors = Partial<Record<BillingField, string>>
 
 // Mirrors billing.ValidNIP: 10 digits + the Polish checksum, ignoring
@@ -65,6 +66,7 @@ export default function PlansPage({ me }: { me: Me }) {
   // Same rules as billing.Buyer.Validate, translated for the form.
   const validate = (): BillingErrors => {
     const errors: BillingErrors = {}
+    const isCompany = (billing?.kind ?? '') !== 'individual'
     const name = (billing?.name ?? '').trim()
     const street = (billing?.street ?? '').trim()
     const city = (billing?.city ?? '').trim()
@@ -79,7 +81,7 @@ export default function PlansPage({ me }: { me: Me }) {
     if (!postCode) errors.postCode = t('validation.required')
     if (!email || !email.includes('@')) errors.email = t('validation.email')
     if (country.length !== 2) errors.country = t('plans.countryInvalid')
-    if (country === 'PL' && !validNip(taxNo)) errors.taxNo = t('plans.nipInvalid')
+    if (isCompany && country === 'PL' && !validNip(taxNo)) errors.taxNo = t('plans.nipInvalid')
     return errors
   }
 
@@ -91,6 +93,12 @@ export default function PlansPage({ me }: { me: Me }) {
       for (const key of Object.keys(patch) as BillingField[]) next[key] = undefined
       return next
     })
+  }
+
+  // Switching the buyer kind clears the NIP error: a private person has no NIP.
+  const setKind = (kind: string) => {
+    setBilling((b) => (b ? { ...b, kind } : b))
+    setFieldErrors((prev) => ({ ...prev, taxNo: undefined }))
   }
 
   const load = useCallback(async () => {
@@ -122,10 +130,12 @@ export default function PlansPage({ me }: { me: Me }) {
     setFieldErrors({})
     setBusy('save')
     setError(null)
+    const isCompany = (billing.kind ?? '') !== 'individual'
     try {
       setBilling(await api.patch<OrgBilling>(`/api/orgs/${orgId}/billing`, {
+        kind: isCompany ? 'company' : 'individual',
         name: billing.name,
-        taxNo: billing.taxNo,
+        taxNo: isCompany ? billing.taxNo : '',
         street: billing.street,
         city: billing.city,
         postCode: billing.postCode,
@@ -178,6 +188,8 @@ export default function PlansPage({ me }: { me: Me }) {
     )
   }
 
+  const isCompany = (billing?.kind ?? '') !== 'individual'
+
   return (
     <div className="page-shell max-w-5xl">
       <p className="eyebrow mb-3">{t('plans.eyebrow')}</p>
@@ -195,7 +207,7 @@ export default function PlansPage({ me }: { me: Me }) {
         {PLAN_ORDER.map((id) => {
           const cfg = PLAN_BY_SLUG[id]
           const currentPlan = billing?.plan === id
-          const price = cfg.charge.kind === 'free' ? '$0' : cfg.charge.kind === 'contact' ? t('plans.talk') : `$${PERSON_USD}`
+          const price = cfg.charge.kind === 'free' ? '0 €' : cfg.charge.kind === 'contact' ? t('plans.talk') : `${cfg.charge.eur} €`
           return (
             <article key={id} className={`flex flex-col rounded-2xl border p-5 ${currentPlan ? 'border-lime-400/35 bg-lime-400/5' : 'border-white/10 bg-white/[0.02]'}`}>
               <h2 className="text-base font-semibold text-zinc-100">{LABELS[id]}</h2>
@@ -230,9 +242,38 @@ export default function PlansPage({ me }: { me: Me }) {
         <form className="mt-10 max-w-2xl space-y-4" onSubmit={(e) => void saveBuyer(e)}>
           <h2 className="text-lg font-semibold text-zinc-100">{t('plans.invoiceTitle')}</h2>
           <p className="text-sm text-zinc-500">{t('plans.invoiceHint')}</p>
+
+          <fieldset>
+            <legend className="mb-2 text-sm text-zinc-500">{t('plans.buyerKind')}</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setKind('company')}
+                aria-pressed={isCompany}
+                className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  isCompany ? 'border-lime-400/40 bg-lime-400/10 text-zinc-100' : 'border-white/10 text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {t('plans.kindCompany')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setKind('individual')}
+                aria-pressed={!isCompany}
+                className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  !isCompany ? 'border-lime-400/40 bg-lime-400/10 text-zinc-100' : 'border-white/10 text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {t('plans.kindIndividual')}
+              </button>
+            </div>
+          </fieldset>
+
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t('plans.company')} value={billing?.name ?? ''} error={fieldErrors.name} onChange={(name) => update({ name })} />
-            <Field label={t('plans.nip')} value={billing?.taxNo ?? ''} error={fieldErrors.taxNo} onChange={(taxNo) => update({ taxNo })} />
+            <Field label={isCompany ? t('plans.company') : t('plans.personName')} value={billing?.name ?? ''} error={fieldErrors.name} onChange={(name) => update({ name })} />
+            {isCompany && (
+              <Field label={t('plans.nip')} value={billing?.taxNo ?? ''} error={fieldErrors.taxNo} onChange={(taxNo) => update({ taxNo })} />
+            )}
             <Field label={t('plans.street')} value={billing?.street ?? ''} error={fieldErrors.street} onChange={(street) => update({ street })} className="sm:col-span-2" />
             <Field label={t('plans.postCode')} value={billing?.postCode ?? ''} error={fieldErrors.postCode} onChange={(postCode) => update({ postCode })} />
             <Field label={t('plans.city')} value={billing?.city ?? ''} error={fieldErrors.city} onChange={(city) => update({ city })} />

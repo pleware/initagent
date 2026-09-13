@@ -25,8 +25,8 @@ config:
       # creates the Price; INITAGENT_STRIPE_PRICE_STARTER can fill it.
       stripePriceId: ""
       charge:
-        kind: usd
-        usd: 5
+        kind: eur
+        eur: 5
         perPerson: true
       themeFamily: default
       limits:
@@ -39,8 +39,8 @@ config:
       selfServe: true
       stripePriceId: ""
       charge:
-        kind: usd
-        usd: 5
+        kind: eur
+        eur: 7
         perPerson: true
       themeFamily: default
       limits:

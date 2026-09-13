@@ -2,6 +2,9 @@
 
 ## Unreleased — product
 
+- 2026-09-13 — billing: EUR catalogue pricing and buyer kind (company vs private person)
+- 2026-09-13 — billing: buyer kind (company vs private person); a private person has no NIP
+- 2026-09-13 — plans: catalogue prices in EUR (Starter €5, Team €7 per person)
 - 2026-09-13 — Validate plan checkout invoice form client-side
 - 2026-09-13 — wdrozenie: open the hub from pware.ai → Moje konto
 - 2026-09-13 — wdrozenie: add the Raspberry Pi OS path for a clean 64-bit box

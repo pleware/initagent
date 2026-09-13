@@ -14,7 +14,7 @@ export function Developers() {
               Run the same binary on your machines.
             </h1>
             <p className="mt-5 text-[16px] leading-relaxed text-fg-muted">
-              Self-host is $0. Install the hub, join a device, launch an
+              Self-host is €0. Install the hub, join a device, launch an
               agent. We never host your workers.
             </p>
           </Reveal>

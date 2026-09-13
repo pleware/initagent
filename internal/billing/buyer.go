@@ -8,6 +8,7 @@ import (
 
 // Buyer is the fiscal recipient. KSeF needs a Polish company NIP.
 type Buyer struct {
+	Kind     Kind   `json:"kind"`
 	Name     string `json:"name"`
 	TaxNo    string `json:"taxNo"`
 	Street   string `json:"street"`
@@ -17,9 +18,33 @@ type Buyer struct {
 	Email    string `json:"email"`
 }
 
-// Validate requires a named buyer with an address. A PL buyer must carry
-// a valid NIP so Fakturownia can send the invoice to KSeF.
+// Kind is who buys: a company (needs a NIP in PL, invoices go to KSeF)
+// or a private person (no NIP, plain invoice). Empty is treated as company
+// so an org saved before the field existed keeps its company behaviour.
+type Kind string
+
+const (
+	KindCompany    Kind = "company"
+	KindIndividual Kind = "individual"
+)
+
+// NormKind normalises the buyer kind. Empty is company — the historical
+// default, so old rows do not silently become private persons.
+func (b Buyer) NormKind() Kind {
+	k := Kind(strings.ToLower(strings.TrimSpace(string(b.Kind))))
+	if k == "" {
+		return KindCompany
+	}
+	return k
+}
+
+// Validate requires a named buyer with an address. A PL company must carry
+// a valid NIP so Fakturownia can send the invoice to KSeF; a private
+// person never does.
 func (b Buyer) Validate() error {
+	if k := b.NormKind(); k != KindCompany && k != KindIndividual {
+		return fmt.Errorf("%w: kind", ErrBuyer)
+	}
 	if strings.TrimSpace(b.Name) == "" {
 		return fmt.Errorf("%w: name", ErrBuyer)
 	}
@@ -33,7 +58,7 @@ func (b Buyer) Validate() error {
 	if len(country) != 2 {
 		return fmt.Errorf("%w: country", ErrBuyer)
 	}
-	if country == "PL" && !ValidNIP(b.TaxNo) {
+	if b.Company() && country == "PL" && !ValidNIP(b.TaxNo) {
 		return fmt.Errorf("%w: NIP", ErrBuyer)
 	}
 	return nil
@@ -48,9 +73,10 @@ func (b Buyer) NormCountry() string {
 	return c
 }
 
-// Company reports whether this buyer should go to KSeF as a firm.
+// Company reports whether this buyer should go to KSeF as a firm. A private
+// person is never a firm, even if they typed a NIP by mistake.
 func (b Buyer) Company() bool {
-	return ValidNIP(b.TaxNo)
+	return b.NormKind() == KindCompany
 }
 
 // ValidNIP reports a well-formed Polish NIP (10 digits + checksum).

@@ -1,6 +1,5 @@
 import { openAppHref } from "./cta";
 import {
-  PERSON_USD,
   PLAN_BY_SLUG,
   PLAN_ORDER,
   type PlanConfig,
@@ -49,11 +48,11 @@ const COPY: Record<PlanSlug, CardCopy> = {
 function priceOf(cfg: PlanConfig): string {
   switch (cfg.charge.kind) {
     case "free":
-      return "$0";
+      return "0 €";
     case "contact":
       return "Talk to us";
     default:
-      return `$${PERSON_USD}`;
+      return `${cfg.charge.eur} €`;
   }
 }
 

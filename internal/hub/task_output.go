@@ -108,7 +108,7 @@ func (s *Store) PurgeTaskOutputs(now time.Time) (int64, error) {
 	}
 	var total int64
 	for _, org := range orgs {
-		cutoff, ok := orgplan.LogCutoff(now, orgplan.Caps(s.offering, orgplan.ID(org.Plan)).LogDays)
+		cutoff, ok := orgplan.LogCutoff(now, s.orgCaps(&org).LogDays)
 		if !ok {
 			continue
 		}

@@ -79,7 +79,7 @@ func (s *Server) orgCaps(orgId string) (orgplan.Limits, error) {
 	if org == nil {
 		return orgplan.Limits{}, fmt.Errorf("organization %q does not exist", orgId)
 	}
-	return orgplan.Caps(s.opts.Offering, orgplan.ID(org.Plan)), nil
+	return s.store.orgCaps(org), nil
 }
 
 func (s *Server) refuseAnotherProject(w http.ResponseWriter, orgId, accountId string) bool {

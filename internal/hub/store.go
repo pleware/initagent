@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS orgs (
 	id         TEXT PRIMARY KEY,
 	name       TEXT NOT NULL,
 	plan       TEXT NOT NULL DEFAULT 'free',
+	is_test    INTEGER NOT NULL DEFAULT 0,
 	created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_members (
@@ -245,6 +246,7 @@ CREATE TABLE IF NOT EXISTS orgs (
 	id         TEXT PRIMARY KEY,
 	name       TEXT NOT NULL,
 	plan       TEXT NOT NULL DEFAULT 'free',
+	is_test    INTEGER NOT NULL DEFAULT 0,
 	created_at BIGINT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_members (
@@ -361,6 +363,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureOrgPlanColumn(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring org plan column: %w", err)
+	}
+	if err := s.ensureOrgTestColumn(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring org test column: %w", err)
 	}
 	if err := s.ensureOrgBilling(); err != nil {
 		db.Close()
@@ -621,6 +627,13 @@ func (s *Store) ensureProjectActivityColumns() error {
 // the free default until Stripe or an operator writes another id (48).
 func (s *Store) ensureOrgPlanColumn() error {
 	return s.ensureColumn("orgs", "plan", "TEXT NOT NULL DEFAULT 'free'")
+}
+
+// ensureOrgTestColumn adds the test-org flag to a live orgs table. A test
+// organization is exempt from plan limits, so an operator can run an
+// unbilled trial against the same catalogue without touching plan rows.
+func (s *Store) ensureOrgTestColumn() error {
+	return s.ensureColumn("orgs", "is_test", "INTEGER NOT NULL DEFAULT 0")
 }
 
 // ensureAccountLocale adds the UI language to a live accounts table.
@@ -1131,6 +1144,7 @@ type Org struct {
 	Id        string `json:"id"`
 	Name      string `json:"name"`
 	Plan      string `json:"plan"`
+	IsTest    bool   `json:"isTest"`
 	CreatedAt int64  `json:"createdAt"`
 	// Members is the roster size. The platform operator's list of orgs shows
 	// it, which is deliberately as far as that surface goes: enumerating
@@ -1175,9 +1189,9 @@ func (s *Store) CreateOrg(name string) (*Org, error) {
 
 // ListOrgs returns every organization with its roster size, oldest first.
 func (s *Store) ListOrgs() ([]Org, error) {
-	rows, err := s.db.Query(`SELECT o.id, o.name, o.plan, o.created_at, COUNT(m.account_id)
+	rows, err := s.db.Query(`SELECT o.id, o.name, o.plan, o.is_test, o.created_at, COUNT(m.account_id)
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
-		GROUP BY o.id, o.name, o.plan, o.created_at
+		GROUP BY o.id, o.name, o.plan, o.is_test, o.created_at
 		ORDER BY o.created_at, o.id`)
 	if err != nil {
 		return nil, err
@@ -1186,9 +1200,11 @@ func (s *Store) ListOrgs() ([]Org, error) {
 	out := []Org{}
 	for rows.Next() {
 		var o Org
-		if err := rows.Scan(&o.Id, &o.Name, &o.Plan, &o.CreatedAt, &o.Members); err != nil {
+		var isTest int
+		if err := rows.Scan(&o.Id, &o.Name, &o.Plan, &isTest, &o.CreatedAt, &o.Members); err != nil {
 			return nil, err
 		}
+		o.IsTest = isTest == 1
 		out = append(out, o)
 	}
 	return out, rows.Err()
@@ -1197,17 +1213,19 @@ func (s *Store) ListOrgs() ([]Org, error) {
 // OrgById returns one organization, or (nil, nil) when it does not exist.
 func (s *Store) OrgById(orgId string) (*Org, error) {
 	var o Org
-	err := s.db.QueryRow(`SELECT o.id, o.name, o.plan, o.created_at, COUNT(m.account_id)
+	var isTest int
+	err := s.db.QueryRow(`SELECT o.id, o.name, o.plan, o.is_test, o.created_at, COUNT(m.account_id)
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
 		WHERE o.id = ?
-		GROUP BY o.id, o.name, o.plan, o.created_at`, orgId).
-		Scan(&o.Id, &o.Name, &o.Plan, &o.CreatedAt, &o.Members)
+		GROUP BY o.id, o.name, o.plan, o.is_test, o.created_at`, orgId).
+		Scan(&o.Id, &o.Name, &o.Plan, &isTest, &o.CreatedAt, &o.Members)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
+	o.IsTest = isTest == 1
 	return &o, nil
 }
 
@@ -1224,6 +1242,23 @@ func (s *Store) SetOrgPlan(orgId string, id orgplan.ID) error {
 		return err
 	}
 	_, err := s.db.Exec(`UPDATE orgs SET plan = ? WHERE id = ?`, string(id), orgId)
+	return err
+}
+
+// orgCaps returns the walls that apply to an organization. A test org is
+// exempt: plan limits do not apply to it, so it behaves like self-host
+// (unlimited) whatever plan it carries.
+func (s *Store) orgCaps(org *Org) orgplan.Limits {
+	if org.IsTest {
+		return orgplan.Unlimited
+	}
+	return orgplan.Caps(s.offering, orgplan.ID(org.Plan))
+}
+
+// SetOrgTest marks or clears an organization as a test org. Test orgs are
+// exempt from plan limits. This is an operator action, not a customer one.
+func (s *Store) SetOrgTest(orgId string, test bool) error {
+	_, err := s.db.Exec(`UPDATE orgs SET is_test = ? WHERE id = ?`, boolInt(test), orgId)
 	return err
 }
 
@@ -1327,7 +1362,7 @@ func (s *Store) refuseAnotherPerson(orgId string) error {
 	if org == nil {
 		return nil
 	}
-	limit := orgplan.Caps(s.offering, orgplan.ID(org.Plan)).People
+	limit := s.orgCaps(org).People
 	if orgplan.AllowsAnother(org.Members, limit) {
 		return nil
 	}

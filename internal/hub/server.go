@@ -467,6 +467,7 @@ func (s *Server) routes() {
 	// in hand rather than repeated here.
 	m.HandleFunc("GET /api/admin/accounts", s.requireCredential(s.handleListAccounts))
 	m.HandleFunc("GET /api/admin/orgs", s.requireCredential(s.handleListAllOrgs))
+	m.HandleFunc("PATCH /api/admin/orgs/{id}", s.requireCredential(s.handleSetOrgTest))
 	m.HandleFunc("GET /api/admin/kpis", s.requireCredential(s.handleAdminKPIs))
 	m.HandleFunc("PATCH /api/orgs/{id}", s.requireCredential(s.handleRenameOrg))
 	m.HandleFunc("GET /api/orgs/{id}/members", s.requireCredential(s.handleListOrgMembers))

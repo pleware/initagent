@@ -426,6 +426,41 @@ func TestRenameOrg(t *testing.T) {
 	}
 }
 
+func TestOperatorMarksATestOrg(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	customer, err := f.srv.store.CreateOrg("Customer Ltd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := f.do(t, http.MethodPatch, "/api/admin/orgs/"+customer.Id, map[string]bool{"isTest": true})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("mark test org: %d, want 200", resp.StatusCode)
+	}
+	org, err := f.srv.store.OrgById(customer.Id)
+	if err != nil || org == nil {
+		t.Fatal(err)
+	}
+	if !org.IsTest {
+		t.Fatalf("org.IsTest = false, want true")
+	}
+	resp = f.do(t, http.MethodPatch, "/api/admin/orgs/"+customer.Id, map[string]bool{"isTest": false})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("clear test org: %d, want 200", resp.StatusCode)
+	}
+	org, _ = f.srv.store.OrgById(customer.Id)
+	if org.IsTest {
+		t.Fatalf("org.IsTest = true after clearing")
+	}
+}
+
+func TestCustomerCannotMarkATestOrg(t *testing.T) {
+	f := hostedCustomer(t)
+	resp := f.do(t, http.MethodPatch, "/api/admin/orgs/"+f.orgId, map[string]bool{"isTest": true})
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("customer marking a test org: %d, want 403", resp.StatusCode)
+	}
+}
+
 // A hub claimed before accounts existed still signs its operator in. They are
 // the platform operator with no `account-` and no org, which must not crash the
 // surfaces that expect an account.

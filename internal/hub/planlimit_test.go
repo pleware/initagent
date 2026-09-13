@@ -89,6 +89,63 @@ func TestStarterAllowsTwoProjects(t *testing.T) {
 	}
 }
 
+func TestTestOrgIgnoresProjectCap(t *testing.T) {
+	f := hostedCustomer(t)
+	if err := f.srv.store.SetOrgTest(f.orgId, true); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"One", "Two"} {
+		resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{"name": name})
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("%s: %d, want 201", name, resp.StatusCode)
+		}
+	}
+}
+
+func TestTestOrgIgnoresPeopleCap(t *testing.T) {
+	f := hostedCustomer(t)
+	if err := f.srv.store.SetOrgTest(f.orgId, true); err != nil {
+		t.Fatal(err)
+	}
+	hash, err := auth.HashPassword("another-long-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, err := f.srv.store.CreateAccount("dev@example.com", hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.srv.store.AddOrgMember(f.orgId, account.Id, authz.RoleMember); err != nil {
+		t.Fatalf("AddOrgMember on a test org: %v", err)
+	}
+}
+
+func TestTestOrgIgnoresMachineCap(t *testing.T) {
+	f := hostedCustomer(t)
+	if err := f.srv.store.SetOrgTest(f.orgId, true); err != nil {
+		t.Fatal(err)
+	}
+	first := f.addConnector(t)
+	second := f.addConnector(t)
+	third := f.addConnector(t)
+	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
+		"name": "Storefront", "connectorId": first, "path": "/srv/store",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create: %d, want 201", resp.StatusCode)
+	}
+	var project Project
+	if err := json.NewDecoder(resp.Body).Decode(&project); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{second, third} {
+		resp = f.do(t, http.MethodPost, "/api/projects/"+project.Id+"/connectors", map[string]string{"connectorId": id})
+		if resp.StatusCode != http.StatusCreated {
+			t.Fatalf("machine %s: %d, want 201", id, resp.StatusCode)
+		}
+	}
+}
+
 func TestHostedFreeRefusesASecondPerson(t *testing.T) {
 	f := hostedCustomer(t)
 	hash, err := auth.HashPassword("another-long-password")

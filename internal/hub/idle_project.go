@@ -116,7 +116,7 @@ func (s *Server) retainIdleProjects(ctx context.Context, now time.Time) (warned,
 		return 0, 0, err
 	}
 	for _, org := range orgs {
-		idleDays := orgplan.Caps(s.store.offering, orgplan.ID(org.Plan)).IdleDays
+		idleDays := s.store.orgCaps(&org).IdleDays
 		deleteAt, deleteOK := orgplan.IdleCutoff(now, idleDays)
 		warnAt, warnOK := orgplan.IdleWarningCutoff(now, idleDays)
 		if !deleteOK && !warnOK {

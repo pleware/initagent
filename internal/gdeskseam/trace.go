@@ -157,10 +157,23 @@ func (t *Trace) forget(now time.Time) {
 	}
 }
 
-// noteTrace writes to the process log and, when a ring is present, keeps
-// the same line for the operator console.
-func noteTrace(t *Trace, level, format string, args ...any) {
+// Note writes to the process log and keeps the same line for the operator
+// console. A nil receiver still logs: the two destinations answer different
+// questions — the log is what survives the process, the ring is what somebody
+// standing at the box can read now — and losing the durable one because no ring
+// was opened would be the wrong half to drop.
+//
+// Exported because the assembly one package up has lines of its own to write
+// (a sensor that would not start), and a caller pairing log.Print with Record by
+// hand is a second copy of this decision.
+func (t *Trace) Note(level, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	log.Print(msg)
 	t.Record(level, msg)
+}
+
+// noteTrace is Note for this package's own call sites, which pass the ring
+// around as a value rather than holding it.
+func noteTrace(t *Trace, level, format string, args ...any) {
+	t.Note(level, format, args...)
 }

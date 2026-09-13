@@ -75,6 +75,7 @@ type Desk struct {
 	runner            *gdesk.Runner
 	views             *gdeskseam.Views
 	socket            *gdeskseam.Listener
+	trace             *gdeskseam.Trace
 	config            gdesk.Config
 	listener          net.Listener
 	token             string
@@ -157,6 +158,9 @@ func Open(opts Options) (*Desk, error) {
 	// conversation. A second person is a second credential, and that arrives
 	// through the relay rather than through this address.
 	trace := gdeskseam.NewTrace(gdeskseam.TraceConfig{Now: opts.Now})
+	// The assembly keeps the ring because it starts the sensor, and a sensor
+	// that will not run is the operator's line to read rather than the seam's.
+	desk.trace = trace
 	socket, err := gdeskseam.NewListener(gdeskseam.ListenConfig{
 		Views:        views,
 		Answerer:     runner,

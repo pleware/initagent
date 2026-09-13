@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-13 — gdeskfront: a sensor's stderr reaches the operator, and a dead sensor is named
 - 2026-09-13 — gitignore: stop offering build and coverage artifacts as commitable
 - 2026-09-13 — gdesksensor: Care widens this reader; Assist does not belong here
 - 2026-09-13 — gdesksensor: the narrow reader is one edition's, and that is the point

@@ -32,7 +32,7 @@ export default function PlansPage({ me }: { me: Me }) {
   const { t } = useTranslation()
   const [params] = useSearchParams()
   const memberships = me.orgs ?? []
-  const [orgId, setOrgId] = useState(memberships[0]?.orgId ?? '')
+  const [orgId] = useState(memberships[0]?.orgId ?? '')
   const [billing, setBilling] = useState<OrgBilling | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [busy, setBusy] = useState('')

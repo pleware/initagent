@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-13 — fix(ui): drop the unused org setter that was failing the build
 - 2026-09-13 — feat: publish gdesk.attendance.changed on the seam from vision readings
 - 2026-09-13 — feat: start pware-vision from desk when vision camera is configured
 - 2026-09-13 — feat: add gdesksensor reader for os:desk-facts attendance lines

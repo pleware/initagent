@@ -48,7 +48,15 @@
 
 # Test coverage
 coverage*.out
+*-cover.out
 coverage
+
+# A coverage profile written by an unquoted PowerShell `$profile` on the
+# -coverprofile flag. Ignored because it has already happened twice.
+/$profile
+
+# Backup of a build artifact. `*.exe` above does not match the tilde.
+*.exe~
 
 # OS / editor
 .DS_Store

@@ -417,7 +417,7 @@ func TestTokenCannotCrossIntoAnotherProject(t *testing.T) {
 
 // A machine attached to nothing has no owner to check against, so nothing
 // scoped reaches it. Fail closed rather than treat it as everyone's.
-func TestOrphanDeviceIsUnreachableByToken(t *testing.T) {
+func TestOrphanConnectorIsUnreachableByToken(t *testing.T) {
 	f := hostedCustomer(t)
 	orphan := f.addConnector(t)
 

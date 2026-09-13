@@ -782,6 +782,34 @@ func TestProjectsDoNotCrossOrgs(t *testing.T) {
 	}
 }
 
+func TestOpenStoreCarriesHubConnectorTokenSetting(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "connector-token.db")
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetSetting("hub_device_token", "agent-secret"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { again.Close() })
+	got, err := again.Setting("hub_connector_token")
+	if err != nil || got != "agent-secret" {
+		t.Fatalf("connector token = %q err=%v", got, err)
+	}
+	old, err := again.Setting("hub_device_token")
+	if err != nil || old != "" {
+		t.Fatalf("inherited key must be gone: %q err=%v", old, err)
+	}
+}
+
 func TestOpenStoreRenamesInheritedDeviceNames(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "inherited-connectors.db")
 	db, err := store.OpenDB(store.SQLite, path)

@@ -89,6 +89,16 @@
       "happeningPrefix": "fleet.terminal"
     },
     {
+      "name": "initagent.gdesk.attendance",
+      "context": "gdesk",
+      "entity": "attendance",
+      "identifierPrefix": "",
+      "mints": false,
+      "lifetime": "until the next reading",
+      "capabilities": [],
+      "happeningPrefix": "gdesk.attendance"
+    },
+    {
       "name": "initagent.gdesk.conversation",
       "context": "gdesk",
       "entity": "conversation",
@@ -547,6 +557,7 @@
     "fleet.file",
     "fleet.host",
     "fleet.terminal",
+    "gdesk.attendance",
     "gdesk.conversation",
     "gdesk.stream",
     "gdesk.surface",

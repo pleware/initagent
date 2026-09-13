@@ -211,7 +211,10 @@ func EmitJSON(r *Registry) ([]byte, error) {
 //
 // A producer in another language reads this list to answer the only question
 // that matters at the boundary: which words may stand in front of my verb. The
-// sensing process that emitted `desk.people.changed` had no such list.
+// sensing process that emitted `desk.people.changed` had no such list. It has
+// one now: `pware-os-facts` keeps a pinned copy of this output and a test
+// recomputes every kind it may emit against the pin, which is how that string
+// became `gdesk.attendance.changed`.
 func happeningPrefixes(r *Registry) []string {
 	out := make([]string, 0, len(r.Entities))
 	for _, e := range r.Entities {

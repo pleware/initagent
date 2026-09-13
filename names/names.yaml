@@ -396,6 +396,13 @@ entities:
   # -------------------------------------------------------------- gdesk -----
   # The staff member is deliberately not here — he is `initagent.hub.staff`.
   # What stays in gdesk is what exists only at the reception.
+  - name: initagent.gdesk.attendance
+    context: gdesk
+    mints: false
+    lifetime: until the next reading
+    description: |-
+      Who is in front of a glass at this moment: how many people, how many near and how many far, and whether a face is turned this way. It is the earliest thing true at a reception: somebody is there before anybody speaks, which is why a greeting can exist before a conversation does. `attendance` and not `presence`, because presence is already spoken for at the reception, where it means where our own staff stand and when a body moves; who is in the room is a different question. It mints nothing because it is the state of a room rather than a thing with a life of its own: each reading replaces the last and nothing ever refers back to one, so an identifier would only invite somebody to keep it, and keeping a series of them per person is re-identification. Produced on the box by a sensor over the `os:desk-facts` contract and read by the connector, never by the glass — which is the same reason nothing under this name may say *who* a person is. Registering it gives `gdesk.attendance.<verb>` to the fact producers, whose first happening is `gdesk.attendance.changed`.
+
   - name: initagent.gdesk.conversation
     context: gdesk
     go_const: Conversation

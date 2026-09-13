@@ -314,6 +314,12 @@ var unminted = []Spec{
 		Lifetime:    "the file's own",
 	},
 	{
+		Name:        "initagent.gdesk.attendance",
+		Context:     ContextGDesk,
+		Description: "Who is in front of a glass at this moment: how many people, how many near and how many far, and whether a face is turned this way. It is the earliest thing true at a reception: somebody is there before anybody speaks, which is why a greeting can exist before a conversation does. `attendance` and not `presence`, because presence is already spoken for at the reception, where it means where our own staff stand and when a body moves; who is in the room is a different question. It mints nothing because it is the state of a room rather than a thing with a life of its own: each reading replaces the last and nothing ever refers back to one, so an identifier would only invite somebody to keep it, and keeping a series of them per person is re-identification. Produced on the box by a sensor over the `os:desk-facts` contract and read by the connector, never by the glass — which is the same reason nothing under this name may say *who* a person is. Registering it gives `gdesk.attendance.<verb>` to the fact producers, whose first happening is `gdesk.attendance.changed`.",
+		Lifetime:    "until the next reading",
+	},
+	{
 		Name:        "initagent.hub.identity",
 		Context:     ContextHub,
 		Description: "One identity-provider subject linked to an account — a Google or a GitHub login. The provider owns the key, so the pair (provider, subject) identifies it and there is nothing for us to mint. It is a row rather than a column so one person can hold several logins.",

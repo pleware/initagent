@@ -1,3 +1,6 @@
+# Line endings: normalize to LF in the repository, native on checkout.
+* text=auto
+
 # Go files check out with LF on every platform.
 #
 # core.autocrlf=true is the Windows default, and it makes `gofmt -l` report

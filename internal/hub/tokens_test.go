@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/pleware/initagent/internal/auth"
 	"github.com/pleware/initagent/internal/authz"
 	"github.com/pleware/initagent/internal/offering"
+	"github.com/pleware/initagent/internal/store"
 )
 
 // --- helpers ---
@@ -162,6 +165,64 @@ func TestStoreRefusesAnUnscopedToken(t *testing.T) {
 		if _, _, err := s.CreateApiToken("ci", c.account, c.grant); err != ErrTokenUnscoped {
 			t.Errorf("%s: CreateApiToken error = %v; want ErrTokenUnscoped", c.name, err)
 		}
+	}
+}
+
+func TestOpenStoreRewritesInheritedDeviceScopes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "scopes.db")
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, org := seedOwner(t, s)
+	secret, row, err := s.CreateApiToken("ci", account, authz.Grant{
+		Org: org, Scopes: []authz.Capability{authz.ReadConnector},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE api_tokens SET scopes = ?
+		WHERE id = ?`, "read:fleet.device admin:fleet.device", row.Id); err != nil {
+		_ = db.Close()
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopen after rewriting scopes to the inherited spellings: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+
+	got, ok, err := again.ApiTokenAuth(secret)
+	if err != nil || !ok {
+		t.Fatalf("a token whose scopes were rewritten must still resolve: ok=%v err=%v", ok, err)
+	}
+	if !slices.Contains(got.Grant.Scopes, authz.ReadConnector) ||
+		!slices.Contains(got.Grant.Scopes, authz.AdminConnector) {
+		t.Fatalf("resolved scopes = %v; want read and admin on fleet.connector", got.Grant.Scopes)
+	}
+
+	// A second open must not touch rows that already say connector.
+	if err := again.ensureFleetConnectorScopes(); err != nil {
+		t.Fatal(err)
+	}
+	var stored string
+	if err := again.db.QueryRow(`SELECT scopes FROM api_tokens WHERE id = ?`, row.Id).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(stored, "fleet.device") {
+		t.Fatalf("scopes after a second pass = %q; want no fleet.device left", stored)
 	}
 }
 

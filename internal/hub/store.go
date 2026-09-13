@@ -398,6 +398,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring api tokens: %w", err)
 	}
+	if err := s.ensureFleetConnectorScopes(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring fleet connector scopes: %w", err)
+	}
 	if err := s.seedPresets(); err != nil {
 		db.Close()
 		return nil, err
@@ -726,6 +730,25 @@ func (s *Store) ensureApiTokens() error {
 	// it: an index statement folded into a table batch is what crash-looped
 	// v0.3.2 on the live hub.
 	_, err = s.db.Exec(`CREATE INDEX IF NOT EXISTS api_tokens_account_id ON api_tokens(account_id)`)
+	return err
+}
+
+// ensureFleetConnectorScopes carries stored api token scopes written against
+// the inherited device vocabulary over to connector (05).
+//
+// FormatScopes has already written read:fleet.device and friends into
+// api_tokens.scopes; ParseScopes refuses names this build does not enforce,
+// so a token minted before the rename would fail closed rather than
+// downgrade. Rewriting storage is cheaper than asking every operator to
+// re-mint.
+func (s *Store) ensureFleetConnectorScopes() error {
+	_, err := s.db.Exec(`UPDATE api_tokens SET scopes =
+		replace(replace(replace(replace(scopes,
+			'read:fleet.device', 'read:fleet.connector'),
+			'create:fleet.device', 'create:fleet.connector'),
+			'admin:fleet.device', 'admin:fleet.connector'),
+			'exec:fleet.device', 'exec:fleet.connector')
+		WHERE scopes LIKE '%fleet.device%'`)
 	return err
 }
 

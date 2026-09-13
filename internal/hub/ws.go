@@ -41,19 +41,19 @@ func checkOrigin(r *http.Request) bool {
 	return strings.EqualFold(u.Host, r.Host)
 }
 
-// handleAgentWS accepts a device agent connection.
+// handleAgentWS accepts a connector agent connection.
 func (s *Server) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Bearer ") {
 		httpError(w, http.StatusUnauthorized, "missing connector token")
 		return
 	}
-	device, err := s.store.ConnectorByToken(strings.TrimPrefix(auth, "Bearer "))
+	connector, err := s.store.ConnectorByToken(strings.TrimPrefix(auth, "Bearer "))
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if device == nil {
+	if connector == nil {
 		httpError(w, http.StatusForbidden, "unknown connector token")
 		return
 	}
@@ -72,11 +72,11 @@ func (s *Server) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(hello.Data, &h)
 	ws.SetReadDeadline(time.Time{})
 
-	s.store.UpdateConnectorOnConnect(device.Id, h.Hostname, h.OS, h.Arch)
+	s.store.UpdateConnectorOnConnect(connector.Id, h.Hostname, h.OS, h.Arch)
 
-	conn := newAgentConn(device.Id, h, ws)
+	conn := newAgentConn(connector.Id, h, ws)
 	welcome, _ := protocol.NewMsg(protocol.TypeWelcome, 0, 0, protocol.Welcome{
-		ConnectorId: device.Id,
+		ConnectorId: connector.Id,
 		Version:     s.opts.Version,
 		Repo:        s.opts.GithubRepo,
 	})
@@ -84,11 +84,11 @@ func (s *Server) handleAgentWS(w http.ResponseWriter, r *http.Request) {
 		ws.Close()
 		return
 	}
-	log.Printf("connector %s (%s) connected", device.Name, device.Id)
+	log.Printf("connector %s (%s) connected", connector.Name, connector.Id)
 	s.serveAgent(conn)
 }
 
-// handleTermWS bridges a browser terminal to a device session.
+// handleTermWS bridges a browser terminal to a connector session.
 // Browser sends binary frames (raw keystrokes) and JSON text frames
 // {"type":"resize","cols":N,"rows":N}. It receives raw binary output and a
 // final JSON {"type":"exit","error":?}.
@@ -267,7 +267,7 @@ func exitJSON(errMsg string) []byte {
 	return b
 }
 
-// handleEventsWS pushes device online/offline/stats and session-change events.
+// handleEventsWS pushes connector online/offline/stats and session-change events.
 func (s *Server) handleEventsWS(w http.ResponseWriter, r *http.Request) {
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {

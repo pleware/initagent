@@ -326,8 +326,8 @@ func TestAdminSurfacesTakeScopedTokens(t *testing.T) {
 
 func TestProjectsTakeScopedTokens(t *testing.T) {
 	f := hostedCustomer(t)
-	device := f.addConnector(t)
-	project := attachToProject(t, f.srv.store, f.orgId, device)
+	connectorId := f.addConnector(t)
+	project := attachToProject(t, f.srv.store, f.orgId, connectorId)
 
 	scoped := f.mintToken(t, authz.Grant{Scopes: []authz.Capability{authz.ReadProject}})
 	resp := f.withToken(t, scoped, http.MethodGet, "/api/projects")
@@ -359,11 +359,11 @@ func TestProjectsTakeScopedTokens(t *testing.T) {
 // put in the new token.
 func TestRefusalNamesTheMissingScope(t *testing.T) {
 	f := hostedCustomer(t)
-	device := f.addConnector(t)
-	attachToProject(t, f.srv.store, f.orgId, device)
+	connectorId := f.addConnector(t)
+	attachToProject(t, f.srv.store, f.orgId, connectorId)
 
 	narrow := f.mintToken(t, authz.Grant{Scopes: []authz.Capability{authz.ReadConnector}})
-	resp := f.withToken(t, narrow, http.MethodPost, "/api/connectors/"+device+"/exec")
+	resp := f.withToken(t, narrow, http.MethodPost, "/api/connectors/"+connectorId+"/exec")
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("exec without the scope: %d, want 403", resp.StatusCode)
 	}
@@ -444,14 +444,14 @@ func TestTokenCannotReachAnotherTenant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	device, _, err := f.srv.store.CreateConnector("theirs", "theirs.local", "linux", "amd64", false)
+	theirs, _, err := f.srv.store.CreateConnector("theirs", "theirs.local", "linux", "amd64", false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	hidden := attachToProject(t, f.srv.store, other.Id, device)
+	hidden := attachToProject(t, f.srv.store, other.Id, theirs)
 
 	wide := f.mintToken(t, authz.Grant{Scopes: authz.GrantableScopes()})
-	if resp := f.withToken(t, wide, http.MethodGet, "/api/connectors/"+device+"/setup"); resp.StatusCode != http.StatusForbidden {
+	if resp := f.withToken(t, wide, http.MethodGet, "/api/connectors/"+theirs+"/setup"); resp.StatusCode != http.StatusForbidden {
 		t.Errorf("another tenant's machine: %d, want 403", resp.StatusCode)
 	}
 	// Naming the project directly must not widen the reach either.

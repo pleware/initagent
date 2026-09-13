@@ -93,12 +93,12 @@ func TestSelfhostFirstProjectEnrollsThisBox(t *testing.T) {
 	if list.StatusCode != http.StatusOK {
 		t.Fatalf("gateway connectors: %d", list.StatusCode)
 	}
-	var devices []gateway.ConnectorView
-	if err := json.NewDecoder(list.Body).Decode(&devices); err != nil {
+	var connectors []gateway.ConnectorView
+	if err := json.NewDecoder(list.Body).Decode(&connectors); err != nil {
 		t.Fatal(err)
 	}
-	if len(devices) != 1 || devices[0].ID != project.ConnectorId {
-		t.Fatalf("gateway connectors = %+v, want %s", devices, project.ConnectorId)
+	if len(connectors) != 1 || connectors[0].ID != project.ConnectorId {
+		t.Fatalf("gateway connectors = %+v, want %s", connectors, project.ConnectorId)
 	}
 
 	second := f.do(t, http.MethodPost, "/api/projects", map[string]string{

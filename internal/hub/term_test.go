@@ -14,7 +14,7 @@ import (
 )
 
 // TestTerminalBridge drives the full browser path: WS into the hub, PTY on
-// the device, keystrokes in, output back.
+// the connector, keystrokes in, output back.
 func TestTerminalBridge(t *testing.T) {
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux not installed")

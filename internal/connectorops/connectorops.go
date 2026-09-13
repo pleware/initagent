@@ -37,7 +37,7 @@ func ShellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// Exec runs a command to completion on the connector. The device gets its own
+// Exec runs a command to completion on the connector. The connector gets its own
 // timeout plus slack for the round trip.
 func Exec(parent context.Context, c Conn, command, cwd string, timeoutSec int) (protocol.ExecResult, error) {
 	d := 75 * time.Second

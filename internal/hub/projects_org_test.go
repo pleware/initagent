@@ -20,10 +20,10 @@ func (f *adminFixture) addConnector(t *testing.T) string {
 func TestCreateProjectLandsInTheSoleOrg(t *testing.T) {
 	f := hostedCustomer(t)
 	f.srv.opts.GatewayURL = "http://gateway.test"
-	device := f.addConnector(t)
+	connectorId := f.addConnector(t)
 
 	resp := f.do(t, http.MethodPost, "/api/projects", map[string]string{
-		"name": "Storefront", "connectorId": device, "path": "/srv/store",
+		"name": "Storefront", "connectorId": connectorId, "path": "/srv/store",
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create: %d, want 201", resp.StatusCode)
@@ -53,10 +53,10 @@ func TestMemberCannotCreateAProject(t *testing.T) {
 	f := hostedCustomer(t)
 	f.addMember(t, "dev@example.com", "correct-horse-battery-staple", authz.RoleMember)
 	dev := f.signIn(t, "dev@example.com", "correct-horse-battery-staple")
-	device := f.addConnector(t)
+	connectorId := f.addConnector(t)
 
 	resp := requestJSON(t, f.ts, dev, http.MethodPost, "/api/projects", map[string]string{
-		"name": "Nope", "connectorId": device, "path": "/tmp",
+		"name": "Nope", "connectorId": connectorId, "path": "/tmp",
 	})
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("member create: %d, want 403", resp.StatusCode)
@@ -69,8 +69,8 @@ func TestProjectInAnotherOrgIsNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	device := f.addConnector(t)
-	hidden, err := f.srv.store.CreateProject(other.Id, "Secret", device, "/secret", "", "", "", "")
+	connectorId := f.addConnector(t)
+	hidden, err := f.srv.store.CreateProject(other.Id, "Secret", connectorId, "/secret", "", "", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

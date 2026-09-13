@@ -79,7 +79,7 @@ var setupSpecs = []toolSpec{
 	},
 }
 
-// SetupStatus probes every setup tool on the device in parallel and returns
+// SetupStatus probes every setup tool on the connector in parallel and returns
 // the cockpit overview plus the combined install command.
 func SetupStatus(parent context.Context, c Conn, osName, arch string) SetupOverview {
 	tools := make([]SetupTool, len(setupSpecs))

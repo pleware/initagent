@@ -12,7 +12,7 @@ Zaznacz w głowie, zanim cokolwiek wkleisz:
 
 1. Raspberry Pi jest włączone i ma **Raspberry Pi OS** (nie Ubuntu, nie Windows).
 2. Pi ma internet (otwiera strony albo ping przechodzi).
-3. Masz konto na `https://app.initagent.dev` i dostęp do projektu klienta.
+3. Masz konto: `https://pware.ai` → **Moje konto**, i dostęp do projektu klienta.
 4. Umiesz pisać komendy na tym Pi — ekran + klawiatura **albo** SSH z laptopa.
 
 ## Jak wejść na Pi
@@ -102,7 +102,8 @@ Musi pokazać nową nazwę. Bez restartu panel dostanie starą.
 ## Krok 3 — komenda z huba
 
 1. Na laptopie (albo na Pi, jeśli ma przeglądarkę) wejdź na
-   `https://app.initagent.dev` i otwórz projekt klienta.
+   `https://pware.ai` i kliknij **Moje konto**. Zaloguj się i otwórz
+   projekt klienta.
 2. **Add a connector** → wybierz **Linux/macOS** (nie Windows).
 3. Skopiuj komendę. Wygląda tak:
 

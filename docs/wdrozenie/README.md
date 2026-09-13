@@ -1,7 +1,8 @@
 # Wdrożenie workera — instrukcja dla partnera wdrożeniowego
 
-Jak podłączyć **workera** do huba initAgent na maszynie klienta. Hub stoi na
-`app.initagent.dev` i nie jest częścią tej instalacji.
+Jak podłączyć **workera** do huba initAgent na maszynie klienta. Hub otwierasz
+z `https://pware.ai` → **Moje konto**. Za przyciskiem stoi
+`app.initagent.dev` — nie jest częścią tej instalacji.
 
 | Ścieżka | Kiedy | Dokument |
 | --- | --- | --- |
@@ -35,7 +36,8 @@ z pamięci; token wygasa po 15 minutach.
 
 - **worker** — maszyna albo środowisko z connector'em; w hubie to jedno
   urządzenie `dev-`.
-- **hub** — panel i API na `app.initagent.dev`; stąd bierzesz komendę.
+- **hub** — panel: `https://pware.ai` → **Moje konto**. Adres za przyciskiem
+  to `app.initagent.dev`; stąd bierzesz komendę.
 - **token dołączenia** — jednorazowy, **wygasa po 15 minutach**, wbudowany
   w komendę — więc **komenda jest sekretem**.
 - W komendach zobaczysz `agent` (`initagent agent enroll`) — to ten sam
@@ -43,12 +45,26 @@ z pamięci; token wygasa po 15 minutach.
 
 ## Zanim zaczniesz
 
-- konto na `app.initagent.dev` z dostępem do projektu klienta,
+- konto: wejdź na `https://pware.ai`, kliknij **Moje konto**, zaloguj się
+  i otwórz projekt klienta (na telefonie: menu → **Moje konto**),
 - dostęp do maszyny (konsola, RDP, SSH; na Pi: ekran albo `ssh JAN@raspberrypi.local`),
 - nazwa workera: agent bierze ją z **hostname'a** środowiska, więc ustal ją
   przed dołączeniem (`dell-worker-01`) — mechanika w każdej części. Hub umie
   ją zmienić po fakcie (`PATCH /api/connectors/{id}`), ale panel nie ma na to
   przycisku.
+
+## Jak otworzyć hub
+
+Nie wpisuj `app.initagent.dev` z pamięci.
+
+1. Wejdź na `https://pware.ai`.
+2. Kliknij **Moje konto** (prawy górny róg). Na wąskim ekranie: ikona menu,
+   potem **Moje konto**.
+3. Zaloguj się. To jest panel huba.
+4. Otwórz projekt klienta.
+
+Adres za przyciskiem to `https://app.initagent.dev` — ten sam, którego
+używa CLI i do którego worker dzwoni.
 
 ## Czego ta instrukcja świadomie nie ustala
 

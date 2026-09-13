@@ -14,7 +14,8 @@ Raspberry Pi z już wgranym Raspberry Pi OS → [ścieżka 3](03-worker-raspberr
 
 ## Krok 1 — komenda z huba
 
-1. Zaloguj się na `https://app.initagent.dev`, otwórz projekt klienta.
+1. Wejdź na `https://pware.ai` i kliknij **Moje konto** (prawy górny róg;
+   na telefonie: menu → **Moje konto**). Zaloguj się i otwórz projekt klienta.
 2. **Add a connector** → wybierz **Windows** → skopiuj komendę.
 
 ```powershell

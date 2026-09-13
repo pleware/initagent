@@ -82,7 +82,8 @@ Dockera Desktop obok.
 
 Dla każdego środowiska:
 
-1. W hubie: **Add a connector** → **Linux/macOS** → skopiuj komendę (`.sh`).
+1. Wejdź na `https://pware.ai` → **Moje konto** → projekt klienta.
+   Potem: **Add a connector** → **Linux/macOS** → skopiuj komendę (`.sh`).
    Każdy kontener dostaje własną — token jest jednorazowy, 15 minut.
 2. Uruchom ją **wewnątrz kontenera**:
 

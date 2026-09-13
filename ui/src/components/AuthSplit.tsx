@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { BrandMark } from '../../../web/brand-mark.tsx'
 import AuthSplitBg from './AuthSplitBg'
 import GuestNav from './GuestNav'
 
@@ -8,11 +9,16 @@ export const authFieldClass =
 
 export function AuthMark({ className = 'size-10' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 100 100" aria-hidden className={className}>
-      <circle cx="50" cy="50" r="42" className="fill-accent" />
-      <circle cx="50" cy="50" r="18" className="fill-canvas" />
-      <circle cx="50" cy="50" r="8" className="fill-accent-on" />
-    </svg>
+    <BrandMark
+      className={className}
+      fallback={
+        <svg viewBox="0 0 100 100" aria-hidden className={className}>
+          <circle cx="50" cy="50" r="42" className="fill-accent" />
+          <circle cx="50" cy="50" r="18" className="fill-canvas" />
+          <circle cx="50" cy="50" r="8" className="fill-accent-on" />
+        </svg>
+      }
+    />
   )
 }
 

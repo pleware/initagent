@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } 
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { displayName } from '../../../web/brand.ts'
+import { BrandMark } from '../../../web/brand-mark.tsx'
 import { api } from '../api'
 import type { Me, Project } from '../types'
 import LanguageSwitcher from './LanguageSwitcher'
@@ -211,7 +212,14 @@ function twoLetters(first: string, second: string): string {
 function Brand() {
   return (
     <NavLink to="/code" className="flex items-center gap-2 text-zinc-100">
-      <span className="brand-mark"><span>⌁</span></span>
+      <BrandMark
+        className="h-7 w-auto"
+        fallback={
+          <span className="brand-mark">
+            <span>⌁</span>
+          </span>
+        }
+      />
       <span className="text-sm font-semibold tracking-[-0.025em]">{displayName}</span>
     </NavLink>
   )

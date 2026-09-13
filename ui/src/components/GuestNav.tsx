@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { displayName } from '../../../web/brand.ts'
+import { BrandMark } from '../../../web/brand-mark.tsx'
 import { siteOrigin } from '../../../web/origins.ts'
 import ThemeSwitcher from './ThemeSwitcher'
 import LanguageSwitcher from './LanguageSwitcher'
@@ -31,7 +32,7 @@ export default function GuestNav() {
     <header className="fixed inset-x-0 top-0 z-40 border-b border-line-2 bg-canvas/80 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-[1240px] items-center gap-8 px-5 lg:px-8">
         <a href={SITE} className="flex shrink-0 items-center gap-2.5 text-fg-strong">
-          <EyeIcon />
+          <BrandMark className="h-5 w-auto" fallback={<EyeIcon />} />
           <span className="text-[15px] font-semibold tracking-tight">
             {displayName}
           </span>

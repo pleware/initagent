@@ -1,6 +1,7 @@
 import { Eye, GithubLogo } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
 import { displayName } from "../../../web/brand.ts";
+import { BrandMark } from "../../../web/brand-mark.tsx";
 import { DOCS, RELEASES, REPO } from "../lib/site";
 import { ROUTES } from "../lib/routes";
 
@@ -19,7 +20,10 @@ export function Footer() {
     <footer className="border-t border-line-2 py-12">
       <div className="mx-auto flex max-w-[1240px] flex-col gap-8 px-5 sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <a href={ROUTES.home} className="flex items-center gap-2.5">
-          <Eye size={18} weight="regular" className="text-accent" />
+          <BrandMark
+            className="h-[18px] w-auto"
+            fallback={<Eye size={18} weight="regular" className="text-accent" />}
+          />
           <span className="text-[14.5px] font-semibold tracking-tight">
             {displayName}
           </span>

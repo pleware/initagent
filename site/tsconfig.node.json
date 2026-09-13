@@ -19,5 +19,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "../web/theme/boot-plugin.d.mts"]
+  "include": ["vite.config.ts", "../web/theme/boot-plugin.d.mts", "../web/scripts/prepare-brand.d.mts"]
 }

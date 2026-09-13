@@ -5,6 +5,7 @@ import { REPO } from "../lib/site";
 import { NAV, ROUTES, navIsCurrent } from "../lib/routes";
 import { openAppHref, selfHostHref } from "../lib/cta";
 import { displayName } from "../../../web/brand.ts";
+import { BrandMark } from "../../../web/brand-mark.tsx";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import LanguageSwitcher from "./LanguageSwitcher";
 
@@ -38,7 +39,10 @@ export function Nav({ path }: { path: string }) {
       >
         <nav className="mx-auto flex h-16 max-w-[1240px] items-center gap-8 px-5 lg:px-8">
           <a href={ROUTES.home} className="flex shrink-0 items-center gap-2.5">
-            <Eye size={20} weight="regular" className="text-accent" />
+            <BrandMark
+              className="h-5 w-auto"
+              fallback={<Eye size={20} weight="regular" className="text-accent" />}
+            />
             <span className="text-[15px] font-semibold tracking-tight">
               {displayName}
             </span>

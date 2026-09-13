@@ -4,6 +4,7 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { authSourceDir, prepareAuthBg } from './scripts/prepare-auth-bg.mjs'
+import { prepareBrand } from '../web/scripts/prepare-brand.mjs'
 import { themeBootPlugin } from '../web/theme/boot-plugin.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -25,9 +26,18 @@ function authBgPlugin(): Plugin {
   }
 }
 
+function brandPlugin(): Plugin {
+  return {
+    name: 'initagent-brand',
+    async buildStart() {
+      await prepareBrand(resolve(here, 'public'))
+    },
+  }
+}
+
 // In dev, the Go hub runs on :4200 and Vite proxies API traffic to it.
 export default defineConfig({
-  plugins: [themeBootPlugin(), authBgPlugin(), react(), tailwindcss()],
+  plugins: [themeBootPlugin(), authBgPlugin(), brandPlugin(), react(), tailwindcss()],
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: {

@@ -5,6 +5,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { themeBootPlugin } from "../web/theme/boot-plugin.mjs";
+import { prepareBrand } from "../web/scripts/prepare-brand.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -30,9 +31,19 @@ function installers(): Plugin {
   };
 }
 
+/** Stage the pware brand marks from the umbrella vendor tree (no-op without it). */
+function brand(): Plugin {
+  return {
+    name: "initagent-brand",
+    async buildStart() {
+      await prepareBrand(resolve(here, "public"));
+    },
+  };
+}
+
 export default defineConfig({
   appType: "spa",
-  plugins: [themeBootPlugin(), react(), tailwindcss(), installers()],
+  plugins: [themeBootPlugin(), react(), tailwindcss(), installers(), brand()],
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: {

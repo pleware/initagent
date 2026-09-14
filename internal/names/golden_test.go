@@ -55,19 +55,19 @@ func compare(t *testing.T, path string, want []byte) {
 	}
 }
 
-// TestTheRealRegistryHoldsTheFivePlanes is a claim about the data rather than
+// TestTheRealRegistryHoldsTheFourPlanes is a claim about the data rather than
 // the mechanism, so it belongs beside the source and not in the emitter tests:
-// five is an ontology decision, and no derivation can defend it.
-func TestTheRealRegistryHoldsTheFivePlanes(t *testing.T) {
+// four is an ontology decision, and no derivation can defend it.
+func TestTheRealRegistryHoldsTheFourPlanes(t *testing.T) {
 	t.Parallel()
 	registry, err := Load(sourcePath)
 	if err != nil {
 		t.Fatalf("%s does not load: %v", sourcePath, err)
 	}
-	want := []string{"hub", "project", "gdesk", "fleet", "worker"}
+	want := []string{"hub", "project", "fleet", "worker"}
 	got := registry.ContextNames()
 	if len(got) != len(want) {
-		t.Fatalf("contexts = %v, want the five planes %v", got, want)
+		t.Fatalf("contexts = %v, want the four planes %v", got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
@@ -77,16 +77,16 @@ func TestTheRealRegistryHoldsTheFivePlanes(t *testing.T) {
 }
 
 // TestTheRealRegistryMatchesTheSeamEnvelope holds names.yaml to the version the
-// connector and the glass actually negotiate on. It is spelled as a literal
-// because importing internal/gdeskseam here would make the generator depend on
-// the seam, and the seam is above the vocabulary rather than beside it.
+// desk connector and the glass actually negotiate on. It is spelled as a
+// literal because importing the desk seam here would make the generator depend
+// on it, and the seam is above the vocabulary rather than beside it.
 func TestTheRealRegistryMatchesTheSeamEnvelope(t *testing.T) {
 	t.Parallel()
 	registry, err := Load(sourcePath)
 	if err != nil {
 		t.Fatalf("%s does not load: %v", sourcePath, err)
 	}
-	const seamVersion = 2 // internal/gdeskseam.Version, glass SEAM_VERSION
+	const seamVersion = 2 // pware-os-gdesk gdeskseam.Version, glass SEAM_VERSION
 	if registry.Seam.EnvelopeVersion != seamVersion {
 		t.Errorf("names.yaml declares envelope version %d, the seam speaks %d",
 			registry.Seam.EnvelopeVersion, seamVersion)

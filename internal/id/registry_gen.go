@@ -2,17 +2,16 @@
 
 package id
 
-// The five planes, in the order names.yaml gives them.
+// The planes, in the order names.yaml gives them.
 const (
 	ContextHub     Context = "hub"
 	ContextProject Context = "project"
-	ContextGDesk   Context = "gdesk"
 	ContextFleet   Context = "fleet"
 	ContextWorker  Context = "worker"
 )
 
 // contexts backs Contexts(). Order is the ontology's, not sorted.
-var contexts = []Context{ContextHub, ContextProject, ContextGDesk, ContextFleet, ContextWorker}
+var contexts = []Context{ContextHub, ContextProject, ContextFleet, ContextWorker}
 
 // Entity prefixes. Each one is the last segment of its entity's qualified
 // name, derived rather than declared, so the two cannot drift apart.
@@ -22,11 +21,6 @@ const (
 	Enrollment     Kind = "enrollment"
 	Host           Kind = "host"
 	Terminal       Kind = "terminal"
-	Conversation   Kind = "conversation"
-	Stream         Kind = "stream"
-	Surface        Kind = "surface"
-	Turn           Kind = "turn"
-	Utterance      Kind = "utterance"
 	Account        Kind = "account"
 	Command        Kind = "command"
 	Event          Kind = "event"
@@ -92,36 +86,6 @@ var entities = map[Kind]Spec{
 		Description: "One process host — a tmux session, a ConPTY, a bare pty. The backend is a declared capability rather than an assumption, which is what keeps Windows from being a special case in every code path.",
 		Lifetime:    "until killed or host reboot",
 	},
-	Conversation: {
-		Name:        "initagent.gdesk.conversation",
-		Context:     ContextGDesk,
-		Description: "One person's ongoing talk at the desk, and the scope of both the floor and the transcripts. Sharing either across people would route one person's unnamed sentence to somebody else's addressee, with nothing in a log.",
-		Lifetime:    "walk-up → goodbye",
-	},
-	Stream: {
-		Name:        "initagent.gdesk.stream",
-		Context:     ContextGDesk,
-		Description: "One glass's numbered view of the seam. Each connection keeps its own log, so each device detects its own gaps and resumes on its own rather than sharing a cursor with the others.",
-		Lifetime:    "while the glass is connected",
-	},
-	Surface: {
-		Name:        "initagent.gdesk.surface",
-		Context:     ContextGDesk,
-		Description: "A window in the glass. A reply travels as one — it opens, text arrives in it a piece at a time — rather than as a verb of its own, so the glass has one thing to render and one thing to fail.",
-		Lifetime:    "opened → closed",
-	},
-	Turn: {
-		Name:        "initagent.gdesk.turn",
-		Context:     ContextGDesk,
-		Description: "One segment of one utterance being answered by one staff member. A sentence addressed to two people is two turns, so the answer keys here and not on the utterance. This entity is the reason the abbreviated prefixes were dropped: `tur-`, `trn-` and `trm-` were three spellings of two entities, and telling them apart in a log needed the table open. `turn-` and `terminal-` need nothing.",
-		Lifetime:    "one answer",
-	},
-	Utterance: {
-		Name:        "initagent.gdesk.utterance",
-		Context:     ContextGDesk,
-		Description: "One thing said to the staff: one press-and-release, or one textarea submit. The glass mints it once and reuses it on every retry, which is the only thing that makes a re-delivery recognisable as one.",
-		Lifetime:    "one message",
-	},
 	Account: {
 		Name:        "initagent.hub.account",
 		Context:     ContextHub,
@@ -185,7 +149,7 @@ var entities = map[Kind]Spec{
 	Staff: {
 		Name:        "initagent.hub.staff",
 		Context:     ContextHub,
-		Description: "One virtual being who works for the organization: greets at a glass, directs the work that follows, wears a rendered body on a scene, and sits on the People screen with a badge. The home is `hub` and not `gdesk` because the desk is one of his posts rather than who he is — his Big Five baseline and his voice identity are held on the hub so they survive any machine, and the People screen is a hub screen. That the code addressing him lives in internal/gdesk is not a contradiction: a context is a vocabulary domain and not a storage location, the same way a `fleet` device row lives on the gateway.",
+		Description: "One virtual being who works for the organization: greets at a glass, directs the work that follows, wears a rendered body on a scene, and sits on the People screen with a badge. The home is `hub` and not `gdesk` because the desk is one of his posts rather than who he is — his Big Five baseline and his voice identity are held on the hub so they survive any machine, and the People screen is a hub screen. That the code addressing him lives in the desk connector (`pware-os-gdesk`) is not a contradiction: a context is a vocabulary domain and not a storage location, the same way a `fleet` device row lives on the gateway.",
 		Lifetime:    "until removed",
 	},
 	Token: {
@@ -312,18 +276,6 @@ var unminted = []Spec{
 		Context:     ContextFleet,
 		Description: "A file on an enrolled machine's disk, listed, downloaded or uploaded through the connector. A connector id and a path already name it; a row of ours would imply the hub holds something it does not.",
 		Lifetime:    "the file's own",
-	},
-	{
-		Name:        "initagent.gdesk.attendance",
-		Context:     ContextGDesk,
-		Description: "Who is in front of a glass at this moment: how many people, how many near and how many far, and whether a face is turned this way. It is the earliest thing true at a reception: somebody is there before anybody speaks, which is why a greeting can exist before a conversation does. `attendance` and not `presence`, because presence is already spoken for at the reception, where it means where our own staff stand and when a body moves; who is in the room is a different question. It mints nothing because it is the state of a room rather than a thing with a life of its own: each reading replaces the last and nothing ever refers back to one, so an identifier would only invite somebody to keep it, and keeping a series of them per person is re-identification. Produced on the box by a sensor over the `os:desk-facts` contract and read by the connector, never by the glass — which is the same reason nothing under this name may say *who* a person is. Registering it gives `gdesk.attendance.<verb>` to the fact producers, whose first happening is `gdesk.attendance.changed`.",
-		Lifetime:    "until the next reading",
-	},
-	{
-		Name:        "initagent.gdesk.soundscape",
-		Context:     ContextGDesk,
-		Description: "What a glass can hear in the room right now: whether somebody is speaking, whether music is playing, whether it is quiet. The sibling of `attendance` on the other sense, and the same shape for the same reason — a reading replaces the last one and nothing refers back to it, so it mints nothing. `soundscape` and not `audio`, because a name here says what the thing *is* and not which wire carried it; and not `noise`, which would decide in the name that the sound is unwanted. Several states hold at once on purpose: a person can speak over a radio, so speech present and music present are independent readings rather than one label, and a rule that switched listening off when it heard music would deafen the desk in exactly the room it was bought for. What this name may never carry is who is speaking or how they feel about it: a stable speaker pseudonym across visits is re-identification, and emotion inference in a workplace is a prohibited practice — a voice is not a loophole in either. It may not carry the words either. What was said is content of communication and lives under `utterance` inside a conversation somebody opened, never under a reading of a room. Produced on the box by a microphone sensor over the `os:desk-facts` contract and read by the connector. Registering it gives `gdesk.soundscape.<verb>` to the fact producers, whose first happening is `gdesk.soundscape.changed`.",
-		Lifetime:    "until the next reading",
 	},
 	{
 		Name:        "initagent.hub.identity",

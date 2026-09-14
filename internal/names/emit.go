@@ -35,7 +35,7 @@ func EmitGo(r *Registry) ([]byte, error) {
 	b.WriteString(generatedBy + "\n\n")
 	b.WriteString("package " + GoPackage + "\n\n")
 
-	b.WriteString("// The five planes, in the order names.yaml gives them.\n")
+	b.WriteString("// The planes, in the order names.yaml gives them.\n")
 	b.WriteString("const (\n")
 	for _, c := range r.Contexts {
 		fmt.Fprintf(&b, "%s Context = %s\n", c.GoConst, strconv.Quote(c.Name))
@@ -211,10 +211,9 @@ func EmitJSON(r *Registry) ([]byte, error) {
 //
 // A producer in another language reads this list to answer the only question
 // that matters at the boundary: which words may stand in front of my verb. The
-// sensing process that emitted `desk.people.changed` had no such list. It has
-// one now: `pware-os-facts` keeps a pinned copy of this output and a test
-// recomputes every kind it may emit against the pin, which is how that string
-// became `gdesk.attendance.changed`.
+// sensing process that emitted `desk.people.changed` had no such list; it does
+// now, and it lives with the desk — `pware-os-facts` owns the `gdesk` context
+// and checks every kind it may emit against its own registry.
 func happeningPrefixes(r *Registry) []string {
 	out := make([]string, 0, len(r.Entities))
 	for _, e := range r.Entities {

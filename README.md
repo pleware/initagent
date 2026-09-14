@@ -124,56 +124,11 @@ when `--gateway-url` is empty, so the first project can enroll this
 machine. Pass `--gateway-url` to point at a gateway you already run
 with `initagent gateway`.
 
-The glass desk (`initagent gdesk`) reads `~/.initagent/gdesk.yaml` when that
-file exists — copy [`gdesk.example.yaml`](gdesk.example.yaml) and fill in the
-local token and the provider key. Comments in that example are English and
-Polish. `INITAGENT_GDESK_CONFIG` points at another path. Environment
-variables override the file; neither belongs on a flag. The same token
-admits `GET /gdesk/logs`, an operator ring — not a second conversation
-stream. It keeps the last ten minutes, and no more than eighty lines of
-them: a count alone leaves an hour on screen on a desk nobody is talking
-to. Anything that has to survive is in the process log, which still gets
-every line. Operator steps (Polish) live in the parent workspace
-`docs/CONFIGURATION.md`.
-
-`gdesk` also serves its own service hatch on the same address: a plain page
-at `/console` for whoever maintains the box. It connects to the seam as its
-own stream, so a sentence typed there reaches the desk directly and the
-answer is drawn on the glass — which means the hatch works when the glass is
-broken, stopped, or not installed. Startup prints the link with the token in
-the URL *fragment*, which a browser never sends to a server; that line is a
-secret, so a pasted startup log is a desk handed over. The page holds no
-key of its own and stores nothing beyond the tab it is open in.
-
-Above the log it lists what this box runs: every route this process holds with
-the address it took, how many callers are on the seam right now, and one row per
-desk role saying where its provider is or why it is silent. A row is either
-evidence or marked `declared` — local sensing (the camera process on a PWare OS
-box) is listed that way because nothing on this desk starts one yet. The facts it
-writes do have a reader now (`internal/gdesksensor`, which reads the
-`os:desk-facts` contract from a child's stdout); what is missing is the
-configuration that names a camera. Omitting the row would make the list read as
-complete; showing it as running would be a lie with an afternoon's cost.
-
-The header also links to the desktop page when a browser is on the seam. That
-address is not configured anywhere: a browser states the origin its page came
-from on every handshake, so the desk reports the origin of a live connection
-and forgets it when the socket closes — nothing here knows a development port,
-and a packaged glass has no address to know. The link therefore appears only
-while a glass is actually connected, and opening it gives a second copy of that
-page with no desk behind it.
-
-Beside it the header offers the hatch's own address with the token on it, for a
-second browser or for after the tab is closed. The browser assembles it from
-the token that tab already holds, so the served document still carries neither
-the key nor an address; it is marked as a key on screen, and it is the same
-secret as the startup line — a copied link is a desk handed over. A token the
-desk refuses takes the link with it.
-
-The older names still work: `initagent desk`, `~/.initagent/desk.yaml` and
-`INITAGENT_DESK_*` are read when the current ones are absent. The `g` is
-there because a coder also has a desk — one is where a person walks up to
-the glass, the other is a task on a worker.
+The front-desk glass desk — the process a walk-up glass talks to over a local
+JSON seam, and the parent of the local sensing processes — left this repository
+on 2026-09-13 and is now its own product, the **desk connector**
+([`pleware/pware-os-gdesk`](https://github.com/pleware/pware-os-gdesk)). Its
+README documents the build, the config, and the operator console.
 
 A hub with no owner prints a one-time bootstrap token when it starts, and
 writes the same value to `bootstrap-token` in its data directory. The
@@ -426,12 +381,14 @@ Project layout: `cmd/initagent` (entrypoint + subcommands), `internal/protocol`
 ### The naming registry (`names/`)
 
 `names/names.yaml` is the single source of truth for initagent's vocabulary:
-every entity, which of the five contexts it belongs to, its lifetime, whether
+every entity, which of the four contexts it belongs to, its lifetime, whether
 an identifier is minted for it, and which permission verbs it grants. It is a
 language-neutral file at the repository root rather than a Go package under
 `internal/` because more than one language reads it — the identifier prefixes
-are Go, the happening names on the glass seam are TypeScript, and a sensing
-process on a PWare OS box is Python.
+are Go, and `names.json` is the machine-readable artifact a consumer in another
+repository (and another language) fetches by path. The desk's own vocabulary
+(`gdesk.*`) left with the desk connector and is registered in `pware-os-facts`,
+not here.
 
 Two files are generated from it and both are committed:
 

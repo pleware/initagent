@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-14 — names: the desk context leaves this registry
 - 2026-09-13 — Stage pware brand marks into site and cockpit chrome
 - 2026-09-13 — hub: org mode (standard / test / develop) — limits, checkout, and invoicing
 - 2026-09-13 — Remove the gdesk packages; the desk now lives in pware-os-gdesk

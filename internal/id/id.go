@@ -19,18 +19,19 @@
 //
 // # The registry is generated
 //
-// The vocabulary itself — the prefixes, the five contexts, and every described
+// The vocabulary itself — the prefixes, the four contexts, and every described
 // entity — lives in `names/names.yaml` at the repository root and arrives here
 // as registry_gen.go. This file holds the types, the rules and the functions;
 // it holds no data.
 //
 // The source is a language-neutral file, and top-level rather than under
 // `internal/`, because three planes derive from the same rows and only one of
-// them is Go: `internal/authz` spells `verb:context.entity`, the gdesk seam
-// spells `context.entity.verb`, and a sensing process in another repository and
-// another language has to spell the second one too. When this package was the
-// source of truth, every one of those was a hand-kept mirror — which is how a
-// producer came to emit `desk.people.changed` while the product said `gdesk.`.
+// them is Go: `internal/authz` spells `verb:context.entity`, the desk seam
+// (pware-os-gdesk) spells `context.entity.verb`, and a sensing process in
+// another repository and another language has to spell the second one too. When
+// this package was the source of truth, every one of those was a hand-kept
+// mirror — which is how a producer came to emit `desk.people.changed` while the
+// registry said `gdesk.`.
 //
 // This package stays a leaf: a UUID library and the standard library. The YAML
 // is parsed by `internal/names`, at generation time, never here.
@@ -81,13 +82,13 @@ type Kind string
 // Context is the plane an entity belongs to: the middle segment of every
 // qualified name.
 //
-// There are exactly five (05). A sixth is an extension of the ontology made
+// There are exactly four (05). A fifth is an extension of the ontology made
 // on purpose, not something a new entity may invent in passing — half of
 // every name, event and scope is spelled from this list, so a context
 // invented here forks the vocabulary in three places at once.
 type Context string
 
-// Contexts lists the five planes in the order 05 gives them.
+// Contexts lists the four planes in the order 05 gives them.
 func Contexts() []Context { return slices.Clone(contexts) }
 
 // Spec is everything this package knows about one entity.

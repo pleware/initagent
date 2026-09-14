@@ -12,7 +12,6 @@
   "contexts": [
     "hub",
     "project",
-    "gdesk",
     "fleet",
     "worker"
   ],
@@ -87,76 +86,6 @@
         "read:fleet.terminal"
       ],
       "happeningPrefix": "fleet.terminal"
-    },
-    {
-      "name": "initagent.gdesk.attendance",
-      "context": "gdesk",
-      "entity": "attendance",
-      "identifierPrefix": "",
-      "mints": false,
-      "lifetime": "until the next reading",
-      "capabilities": [],
-      "happeningPrefix": "gdesk.attendance"
-    },
-    {
-      "name": "initagent.gdesk.conversation",
-      "context": "gdesk",
-      "entity": "conversation",
-      "identifierPrefix": "conversation-",
-      "mints": true,
-      "lifetime": "walk-up → goodbye",
-      "capabilities": [],
-      "happeningPrefix": "gdesk.conversation"
-    },
-    {
-      "name": "initagent.gdesk.soundscape",
-      "context": "gdesk",
-      "entity": "soundscape",
-      "identifierPrefix": "",
-      "mints": false,
-      "lifetime": "until the next reading",
-      "capabilities": [],
-      "happeningPrefix": "gdesk.soundscape"
-    },
-    {
-      "name": "initagent.gdesk.stream",
-      "context": "gdesk",
-      "entity": "stream",
-      "identifierPrefix": "stream-",
-      "mints": true,
-      "lifetime": "while the glass is connected",
-      "capabilities": [],
-      "happeningPrefix": "gdesk.stream"
-    },
-    {
-      "name": "initagent.gdesk.surface",
-      "context": "gdesk",
-      "entity": "surface",
-      "identifierPrefix": "surface-",
-      "mints": true,
-      "lifetime": "opened → closed",
-      "capabilities": [],
-      "happeningPrefix": "gdesk.surface"
-    },
-    {
-      "name": "initagent.gdesk.turn",
-      "context": "gdesk",
-      "entity": "turn",
-      "identifierPrefix": "turn-",
-      "mints": true,
-      "lifetime": "one answer",
-      "capabilities": [],
-      "happeningPrefix": "gdesk.turn"
-    },
-    {
-      "name": "initagent.gdesk.utterance",
-      "context": "gdesk",
-      "entity": "utterance",
-      "identifierPrefix": "utterance-",
-      "mints": true,
-      "lifetime": "one message",
-      "capabilities": [],
-      "happeningPrefix": "gdesk.utterance"
     },
     {
       "name": "initagent.hub.account",
@@ -567,13 +496,6 @@
     "fleet.file",
     "fleet.host",
     "fleet.terminal",
-    "gdesk.attendance",
-    "gdesk.conversation",
-    "gdesk.soundscape",
-    "gdesk.stream",
-    "gdesk.surface",
-    "gdesk.turn",
-    "gdesk.utterance",
     "hub.account",
     "hub.command",
     "hub.event",

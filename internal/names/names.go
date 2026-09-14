@@ -56,14 +56,14 @@ type Registry struct {
 	// Seam carries what the glass and this product negotiate on.
 	Seam Seam `yaml:"seam"`
 
-	// Contexts is the five planes, in the order the ontology gives them.
+	// Contexts is the four planes, in the order the ontology gives them.
 	Contexts []Context `yaml:"contexts"`
 
 	// Entities is every entity the vocabulary owns, minted or not.
 	Entities []Entity `yaml:"entities"`
 }
 
-// Seam is the envelope the gdesk seam negotiates.
+// Seam is the envelope the desk seam negotiates (pware-os-gdesk).
 type Seam struct {
 	EnvelopeVersion int `yaml:"envelope_version"`
 }
@@ -73,9 +73,9 @@ type Context struct {
 	Name string `yaml:"name"`
 
 	// GoConst is the exported Go identifier for this plane. It is the one
-	// language-specific binding in the source file: `gdesk` does not case-fold
-	// to `GDesk` under any rule worth writing down, and these identifiers are
-	// already public API.
+	// language-specific binding in the source file: `mcp_server` does not
+	// case-fold to `MCPServer` under any rule worth writing down, and these
+	// identifiers are already public API.
 	GoConst string `yaml:"go_const"`
 }
 
@@ -112,7 +112,7 @@ func (e Entity) Prefix() string {
 func (e Entity) Tail() string { return e.Context + "." + e.Prefix() }
 
 // HappeningPrefix is what a producer puts in front of a verb to name a fact
-// about this entity: `gdesk.surface` yields `gdesk.surface.opened`.
+// about this entity: `hub.event` yields `hub.event.ingested`.
 //
 // It is the same string as Tail. They are separate methods because they are
 // separate claims — the permission grammar and the happening grammar happen to
@@ -174,7 +174,7 @@ func (r *Registry) Capabilities() []string {
 	return out
 }
 
-// ContextNames is the five planes in file order — the order matters, so this
+// ContextNames is the four planes in file order — the order matters, so this
 // is not sorted.
 func (r *Registry) ContextNames() []string {
 	out := make([]string, 0, len(r.Contexts))

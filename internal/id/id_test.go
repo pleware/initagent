@@ -23,7 +23,7 @@ import (
 //     that is upper case, carries the separator, or is claimed twice).
 //   - TestDeclaredContextsAreTheFive walked the Context constants against
 //     Contexts(). Both are emitted from the same list;
-//     TestContextsAreTheFive below keeps the claim that there are five.
+//     TestContextsAreTheFour below keeps the claim that there are four.
 //
 // The tests that survive are the ones that assert something about the
 // *committed* data or about behaviour: a hand-edit of registry_gen.go is caught
@@ -81,7 +81,7 @@ func TestEverySpecIsDescribed(t *testing.T) {
 			t.Errorf("entity %q has no lifetime", spec.Name)
 		}
 		if !allowed[spec.Context] {
-			t.Errorf("entity %q is in context %q, which is not one of the five", spec.Name, spec.Context)
+			t.Errorf("entity %q is in context %q, which is not one of the four", spec.Name, spec.Context)
 		}
 		rest, ok := strings.CutPrefix(spec.Name, "initagent.")
 		if !ok {
@@ -102,16 +102,16 @@ func TestEverySpecIsDescribed(t *testing.T) {
 	}
 }
 
-// TestContextsAreTheFive replaces TestDeclaredContextsAreTheFive, which walked
+// TestContextsAreTheFour replaces TestDeclaredContextsAreTheFive, which walked
 // the AST. The constants and Contexts() are one emission now, so comparing them
 // to each other proves nothing; comparing them to the ontology still does. A
-// sixth plane arriving in names.yaml fails here, which is the point — a context
+// fifth plane arriving in names.yaml fails here, which is the point — a context
 // spells half of every name, event and scope.
-func TestContextsAreTheFive(t *testing.T) {
-	want := []Context{ContextHub, ContextProject, ContextGDesk, ContextFleet, ContextWorker}
+func TestContextsAreTheFour(t *testing.T) {
+	want := []Context{ContextHub, ContextProject, ContextFleet, ContextWorker}
 	got := Contexts()
 	if !slices.Equal(got, want) {
-		t.Fatalf("Contexts() = %v, want the five planes %v", got, want)
+		t.Fatalf("Contexts() = %v, want the four planes %v", got, want)
 	}
 	if got := Contexts(); len(got) > 0 {
 		// Contexts() hands out a copy: a caller sorting the result must not be

@@ -17,6 +17,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Fetch pware brand marks (private vendor)
+        env:
+          PWARE_VENDOR_DEPLOY_KEY: ${{ secrets.PWARE_VENDOR_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$PWARE_VENDOR_DEPLOY_KEY" > ~/.ssh/id_vendor
+          chmod 600 ~/.ssh/id_vendor
+          export GIT_SSH_COMMAND='ssh -i ~/.ssh/id_vendor -o IdentityAgent=none -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new'
+          rm -rf "$RUNNER_TEMP/vendor-src"
+          git clone --depth 1 --filter=blob:none --sparse git@github.com:pleware/pware-workspace.git "$RUNNER_TEMP/vendor-src"
+          git -C "$RUNNER_TEMP/vendor-src" sparse-checkout set vendor/pware/initagent
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
@@ -25,6 +37,11 @@ jobs:
           node-version: '22'
 
       - name: Build UI + cross-compile binaries
+        env:
+          # prepare-brand.mjs stages the marks into ui/public/brand/ when
+          # VENDOR_DIR points at the fetched private tree; self-host binaries
+          # then embed the real chrome instead of the placeholder.
+          VENDOR_DIR: ${{ runner.temp }}/vendor-src/vendor/pware/initagent
         run: make cross VERSION=${{ github.ref_name }}
 
       - name: Package archives

@@ -2,6 +2,7 @@
 
 ## Unreleased — product
 
+- 2026-09-14 — release: embed pware brand marks in self-host binaries
 - 2026-09-14 — docker: stage private brand marks into site and cockpit images
 - 2026-09-14 — names: the desk context leaves this registry
 - 2026-09-13 — Stage pware brand marks into site and cockpit chrome

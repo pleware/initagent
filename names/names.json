@@ -1,7 +1,6 @@
 {
   "schema": 1,
   "authority": "initagent",
-  "seamEnvelopeVersion": 2,
   "grammar": {
     "entity": "<authority>.<context>.<entity>",
     "identifier": "<prefix>-<uuidv7>",

@@ -17,7 +17,6 @@ func valid() *Registry {
 	return &Registry{
 		Schema:    1,
 		Authority: "initagent",
-		Seam:      Seam{EnvelopeVersion: 2},
 		Contexts: []Context{
 			{Name: "hub", GoConst: "ContextHub"},
 			{Name: "fleet", GoConst: "ContextFleet"},
@@ -85,11 +84,6 @@ func TestValidateRefuses(t *testing.T) {
 			"no authority to check names against",
 			func(r *Registry) { r.Authority = "" },
 			"authority is empty",
-		},
-		{
-			"an unnegotiable envelope version",
-			func(r *Registry) { r.Seam.EnvelopeVersion = 0 },
-			"nothing to negotiate on",
 		},
 		{
 			"no planes at all",
@@ -308,8 +302,6 @@ func TestParse(t *testing.T) {
 	t.Parallel()
 	const src = `schema: 1
 authority: initagent
-seam:
-  envelope_version: 2
 contexts:
   - name: hub
     go_const: ContextHub
@@ -327,7 +319,7 @@ entities:
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	if r.Authority != "initagent" || r.Seam.EnvelopeVersion != 2 {
+	if r.Authority != "initagent" || len(r.Contexts) != 1 {
 		t.Errorf("Parse = %+v", r)
 	}
 	if got := r.Entities[0].Description; got != "A customer's organization." {

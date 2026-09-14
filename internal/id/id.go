@@ -25,13 +25,15 @@
 // it holds no data.
 //
 // The source is a language-neutral file, and top-level rather than under
-// `internal/`, because three planes derive from the same rows and only one of
-// them is Go: `internal/authz` spells `verb:context.entity`, the desk seam
-// (pware-os-gdesk) spells `context.entity.verb`, and a sensing process in
-// another repository and another language has to spell the second one too. When
-// this package was the source of truth, every one of those was a hand-kept
-// mirror — which is how a producer came to emit `desk.people.changed` while the
-// registry said `gdesk.`.
+// `internal/`, because more than one plane derives from the same rows and only
+// one of them is Go: `internal/authz` spells `verb:context.entity`, and
+// `names.json` is the machine-readable artifact a consumer in another
+// repository and another language reads. When this package was the source of
+// truth, every one of those was a hand-kept mirror — which is how a producer
+// came to emit `desk.people.changed` while the registry said `gdesk.`. The
+// desk's own vocabulary is not here at all: `gdesk.*` travelled with the desk
+// connector, and the seam's envelope version with it
+// (`../pware-os-workspace/drafts/18` section 5).
 //
 // This package stays a leaf: a UUID library and the standard library. The YAML
 // is parsed by `internal/names`, at generation time, never here.

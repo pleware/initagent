@@ -24,13 +24,6 @@ schema: 1
 # The authority every name carries. This registry holds our own words only.
 authority: initagent
 
-seam:
-  # The desk seam's envelope version — `SEAM_VERSION` in the glass contract
-  # (`pware-os-glass/app/src/seam/contract.ts`) and `Version` in
-  # `pware-os-gdesk/internal/gdeskseam/wire.go`. A consumer negotiates on this
-  # number, and the renames still owed across the seam ride its next bump.
-  envelope_version: 2
-
 # The four planes. A fifth is an extension of the ontology made on purpose, not
 # something a new entity may invent in passing. `go_const` is the one
 # Go-specific binding in this file: `mcp_server` does not case-fold to

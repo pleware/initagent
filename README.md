@@ -397,11 +397,12 @@ Two files are generated from it and both are committed:
 | `internal/id/registry_gen.go` | `internal/id` | a clean clone has to compile with no generator run |
 | `names/names.json` | consumers in other repositories | fetched by a stable public path, so it cannot be a build product |
 
-`names.json` carries the seam envelope version, the four grammars, every entity
-with its derived identifier prefix and happening prefix, and the derived
-`verb:context.entity` capability list. It deliberately carries no descriptions —
-those are prose, they belong in the YAML, and a six-line paragraph in a
-generated artifact makes every diff unreadable.
+`names.json` carries the four grammars, every entity with its derived identifier
+prefix and happening prefix, and the derived `verb:context.entity` capability
+list. It deliberately carries no descriptions — those are prose, they belong in
+the YAML, and a six-line paragraph in a generated artifact makes every diff
+unreadable. The desk seam's envelope version used to travel here as well; it
+went with the `gdesk` context, and the glass now pins `pware-os-facts`.
 
 Edit the YAML, never the generated files, then regenerate:
 

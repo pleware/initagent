@@ -76,19 +76,8 @@ func TestTheRealRegistryHoldsTheFourPlanes(t *testing.T) {
 	}
 }
 
-// TestTheRealRegistryMatchesTheSeamEnvelope holds names.yaml to the version the
-// desk connector and the glass actually negotiate on. It is spelled as a
-// literal because importing the desk seam here would make the generator depend
-// on it, and the seam is above the vocabulary rather than beside it.
-func TestTheRealRegistryMatchesTheSeamEnvelope(t *testing.T) {
-	t.Parallel()
-	registry, err := Load(sourcePath)
-	if err != nil {
-		t.Fatalf("%s does not load: %v", sourcePath, err)
-	}
-	const seamVersion = 2 // pware-os-gdesk gdeskseam.Version, glass SEAM_VERSION
-	if registry.Seam.EnvelopeVersion != seamVersion {
-		t.Errorf("names.yaml declares envelope version %d, the seam speaks %d",
-			registry.Seam.EnvelopeVersion, seamVersion)
-	}
-}
+// TestTheRealRegistryMatchesTheSeamEnvelope was removed on 2026-09-14 with the
+// `seam:` block. The envelope version belonged to the desk seam and travelled
+// with the `gdesk` context to pware-os-facts
+// (`../pware-os-workspace/drafts/18` section 5), so there is nothing left in
+// this registry for the desk and the glass to agree on.

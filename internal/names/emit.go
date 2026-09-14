@@ -111,14 +111,13 @@ func (r *Registry) mintingConst(prefix string) string {
 // jsonRegistry is names.json: every plane a consumer in another repository
 // needs, and no prose.
 type jsonRegistry struct {
-	Schema              int          `json:"schema"`
-	Authority           string       `json:"authority"`
-	SeamEnvelopeVersion int          `json:"seamEnvelopeVersion"`
-	Grammar             jsonGrammar  `json:"grammar"`
-	Contexts            []string     `json:"contexts"`
-	Entities            []jsonEntity `json:"entities"`
-	Capabilities        []string     `json:"capabilities"`
-	HappeningPrefixes   []string     `json:"happeningPrefixes"`
+	Schema            int          `json:"schema"`
+	Authority         string       `json:"authority"`
+	Grammar           jsonGrammar  `json:"grammar"`
+	Contexts          []string     `json:"contexts"`
+	Entities          []jsonEntity `json:"entities"`
+	Capabilities      []string     `json:"capabilities"`
+	HappeningPrefixes []string     `json:"happeningPrefixes"`
 }
 
 // jsonGrammar spells each plane's shape so a consumer assembles a name rather
@@ -154,9 +153,8 @@ type jsonEntity struct {
 // change produces a byte-identical file.
 func EmitJSON(r *Registry) ([]byte, error) {
 	doc := jsonRegistry{
-		Schema:              r.Schema,
-		Authority:           r.Authority,
-		SeamEnvelopeVersion: r.Seam.EnvelopeVersion,
+		Schema:    r.Schema,
+		Authority: r.Authority,
 		Grammar: jsonGrammar{
 			Entity:     "<authority>.<context>.<entity>",
 			Identifier: "<prefix>" + separator + "<uuidv7>",

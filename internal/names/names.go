@@ -44,8 +44,10 @@ var ErrInvalid = errors.New("names: invalid registry")
 // Registry is the whole of `names/names.yaml`.
 type Registry struct {
 	// Schema is this file's own shape version. It moves when a consumer would
-	// have to change to keep reading names.json, which is not the same event as
-	// the seam envelope moving.
+	// have to change to keep reading names.json. The desk seam's envelope
+	// version used to live here too and does not: it is not this vocabulary's
+	// number, and it travelled with the `gdesk` context when that left
+	// (`pware-os-workspace/drafts/18` section 5).
 	Schema int `yaml:"schema"`
 
 	// Authority prefixes every qualified name. One value, ours, checked rather
@@ -53,19 +55,11 @@ type Registry struct {
 	// somebody else's vocabulary.
 	Authority string `yaml:"authority"`
 
-	// Seam carries what the glass and this product negotiate on.
-	Seam Seam `yaml:"seam"`
-
 	// Contexts is the four planes, in the order the ontology gives them.
 	Contexts []Context `yaml:"contexts"`
 
 	// Entities is every entity the vocabulary owns, minted or not.
 	Entities []Entity `yaml:"entities"`
-}
-
-// Seam is the envelope the desk seam negotiates (pware-os-gdesk).
-type Seam struct {
-	EnvelopeVersion int `yaml:"envelope_version"`
 }
 
 // Context is one plane and its Go constant.
@@ -241,9 +235,6 @@ func (r *Registry) Validate() error {
 	}
 	if r.Authority == "" {
 		report("authority is empty, so no name can be checked against it")
-	}
-	if r.Seam.EnvelopeVersion < 1 {
-		report("seam.envelope_version is %d; a consumer has nothing to negotiate on", r.Seam.EnvelopeVersion)
 	}
 
 	planes := r.validateContexts(report)

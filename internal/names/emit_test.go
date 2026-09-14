@@ -103,10 +103,9 @@ func TestEmitJSONCarriesEveryPlaneAndNoProse(t *testing.T) {
 	}
 
 	var doc struct {
-		Schema              int    `json:"schema"`
-		Authority           string `json:"authority"`
-		SeamEnvelopeVersion int    `json:"seamEnvelopeVersion"`
-		Grammar             struct{ Happening, Permission, Separator string }
+		Schema    int    `json:"schema"`
+		Authority string `json:"authority"`
+		Grammar   struct{ Happening, Permission, Separator string }
 		Contexts            []string `json:"contexts"`
 		Capabilities        []string `json:"capabilities"`
 		HappeningPrefixes   []string `json:"happeningPrefixes"`
@@ -124,8 +123,8 @@ func TestEmitJSONCarriesEveryPlaneAndNoProse(t *testing.T) {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("names.json does not decode: %v", err)
 	}
-	if doc.Schema != 1 || doc.Authority != "initagent" || doc.SeamEnvelopeVersion != 2 {
-		t.Errorf("envelope = %+v", doc)
+	if doc.Schema != 1 || doc.Authority != "initagent" {
+		t.Errorf("header = %+v", doc)
 	}
 	if doc.Grammar.Happening != "<context>.<entity>.<verb>" {
 		t.Errorf("happening grammar = %q", doc.Grammar.Happening)

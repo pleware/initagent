@@ -17,6 +17,12 @@ COPY ui/ ./
 # relative paths identical so @import and `../../web` resolve here.
 COPY web /src/web
 COPY internal/brand/themes /src/internal/brand/themes
+# Brand marks come from the private pware-workspace repo as a named build
+# context `vendor` (provided by docker.yml). prepare-brand.mjs stages them
+# into public/brand/ at build time; without the context the cockpit keeps
+# its committed placeholder chrome.
+COPY --from=vendor vendor/pware/initagent /src/vendor/pware/initagent
+ENV VENDOR_DIR=/src/vendor/pware/initagent
 RUN npm run build
 
 # ── Stage 2: Go build ──────────────────────────────────────────────────

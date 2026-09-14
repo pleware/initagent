@@ -19,6 +19,12 @@ COPY scripts/install.sh scripts/install.ps1 scripts/install-macos.sh /src/script
 COPY site/ ./
 COPY web /src/web
 COPY internal/brand/themes /src/internal/brand/themes
+# Brand marks come from the private pware-workspace repo as a named build
+# context `vendor` (provided by docker.yml). prepare-brand.mjs stages them
+# into public/brand/ at build time; without the context the site keeps its
+# committed placeholder chrome.
+COPY --from=vendor vendor/pware/initagent /src/vendor/pware/initagent
+ENV VENDOR_DIR=/src/vendor/pware/initagent
 RUN npm run build
 
 # ── Stage 2: serve ─────────────────────────────────────────────────────

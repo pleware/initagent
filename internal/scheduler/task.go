@@ -26,7 +26,7 @@ type Task struct {
 	ID         string    // task ID (e.g., task-...)
 	ProjectID  string    // project ID (e.g., project-...)
 	OwnerID    string    // owner ID (e.g., account-...) or empty for shared pool
-	ActorID    string    // persona ID (e.g., persona-...)
+	ActorID    string    // specialist ID (e.g., specialist-...)
 	State      TaskState // current state
 	CoderKind  string    // coder kind (e.g., "aider", "openclaw")
 	Command    string    // shell command for Milestone 0 exec dispatch

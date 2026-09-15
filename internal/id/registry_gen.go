@@ -31,6 +31,7 @@ const (
 	Invite         Kind = "org_invite"
 	Reset          Kind = "password_reset"
 	Project        Kind = "project"
+	Specialist     Kind = "specialist"
 	Staff          Kind = "staff"
 	Token          Kind = "token"
 	Attention      Kind = "attention"
@@ -40,7 +41,6 @@ const (
 	ForeignProject Kind = "foreign_project"
 	MCPServer      Kind = "mcp_server"
 	Member         Kind = "member"
-	Persona        Kind = "persona"
 	Proof          Kind = "proof"
 	Repo           Kind = "repo"
 	Run            Kind = "run"
@@ -146,6 +146,12 @@ var entities = map[Kind]Spec{
 		Description: "The hub's catalogue entry for one project. The gateway receives this same value at provisioning and uses it as its own project id, so one identifier deliberately spans two planes.",
 		Lifetime:    "project lifetime",
 	},
+	Specialist: {
+		Name:        "initagent.hub.specialist",
+		Context:     ContextHub,
+		Description: "One virtual AI worker: a Hermes agent profile that executes work on a fleet computer — a Coder Artur, a Tester Piotr, a Graficzka Jola. The specialist a task is attributed to, as against the account that requested it. A profile is a definition; several instances of one profile may run at once, and each run is a separate mint, never another profile row. Not an account, not an IAM role, and not OMO's persona files.",
+		Lifetime:    "until removed",
+	},
 	Staff: {
 		Name:        "initagent.hub.staff",
 		Context:     ContextHub,
@@ -200,12 +206,6 @@ var entities = map[Kind]Spec{
 		Description: "One person's membership of one project, carrying the role that project enforces. Separate from org membership because the two boundaries answer different questions.",
 		Lifetime:    "until removed",
 	},
-	Persona: {
-		Name:        "initagent.project.persona",
-		Context:     ContextProject,
-		Description: "A virtual AI staff member on a project: the actor a task is attributed to, as against the account that requested it. Not an IAM role, and not OMO's persona files.",
-		Lifetime:    "until removed",
-	},
 	Proof: {
 		Name:        "initagent.project.proof",
 		Context:     ContextProject,
@@ -233,7 +233,7 @@ var entities = map[Kind]Spec{
 	Task: {
 		Name:        "initagent.project.task",
 		Context:     ContextProject,
-		Description: "One dispatchable unit of work. It names a requester (`account-`) and an actor (`persona-`), which is what makes a result attributable to somebody rather than to the installation.",
+		Description: "One dispatchable unit of work. It names a requester (`account-`) and a specialist (`specialist-`), which is what makes a result attributable to somebody rather than to the installation.",
 		Lifetime:    "queued → done",
 	},
 	Thread: {

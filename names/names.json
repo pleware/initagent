@@ -223,6 +223,16 @@
       "happeningPrefix": "hub.project"
     },
     {
+      "name": "initagent.hub.specialist",
+      "context": "hub",
+      "entity": "specialist",
+      "identifierPrefix": "specialist-",
+      "mints": true,
+      "lifetime": "until removed",
+      "capabilities": [],
+      "happeningPrefix": "hub.specialist"
+    },
+    {
       "name": "initagent.hub.staff",
       "context": "hub",
       "entity": "staff",
@@ -347,16 +357,6 @@
       "lifetime": "until removed",
       "capabilities": [],
       "happeningPrefix": "project.member"
-    },
-    {
-      "name": "initagent.project.persona",
-      "context": "project",
-      "entity": "persona",
-      "identifierPrefix": "persona-",
-      "mints": true,
-      "lifetime": "until removed",
-      "capabilities": [],
-      "happeningPrefix": "project.persona"
     },
     {
       "name": "initagent.project.proof",
@@ -507,6 +507,7 @@
     "hub.password_reset",
     "hub.preset",
     "hub.project",
+    "hub.specialist",
     "hub.staff",
     "hub.template",
     "hub.token",
@@ -519,7 +520,6 @@
     "project.foreign_project",
     "project.mcp_server",
     "project.member",
-    "project.persona",
     "project.proof",
     "project.repo",
     "project.run",

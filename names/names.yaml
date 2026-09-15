@@ -74,6 +74,14 @@ entities:
     description: |-
       One virtual being who works for the organization: greets at a glass, directs the work that follows, wears a rendered body on a scene, and sits on the People screen with a badge. The home is `hub` and not `gdesk` because the desk is one of his posts rather than who he is — his Big Five baseline and his voice identity are held on the hub so they survive any machine, and the People screen is a hub screen. That the code addressing him lives in the desk connector (`pware-os-gdesk`) is not a contradiction: a context is a vocabulary domain and not a storage location, the same way a `fleet` device row lives on the gateway.
 
+  - name: initagent.hub.specialist
+    context: hub
+    go_const: Specialist
+    mints: true
+    lifetime: until removed
+    description: |-
+      One virtual AI worker: a Hermes agent profile that executes work on a fleet computer — a Coder Artur, a Tester Piotr, a Graficzka Jola. The specialist a task is attributed to, as against the account that requested it. A profile is a definition; several instances of one profile may run at once, and each run is a separate mint, never another profile row. Not an account, not an IAM role, and not OMO's persona files.
+
   - name: initagent.hub.project
     context: hub
     go_const: Project
@@ -188,14 +196,6 @@ entities:
     description: |-
       One person's membership of one project, carrying the role that project enforces. Separate from org membership because the two boundaries answer different questions.
 
-  - name: initagent.project.persona
-    context: project
-    go_const: Persona
-    mints: true
-    lifetime: until removed
-    description: |-
-      A virtual AI staff member on a project: the actor a task is attributed to, as against the account that requested it. Not an IAM role, and not OMO's persona files.
-
   - name: initagent.project.mcp_server
     context: project
     go_const: MCPServer
@@ -235,7 +235,7 @@ entities:
     lifetime: queued → done
     capabilities: [read, create]
     description: |-
-      One dispatchable unit of work. It names a requester (`account-`) and an actor (`persona-`), which is what makes a result attributable to somebody rather than to the installation.
+      One dispatchable unit of work. It names a requester (`account-`) and a specialist (`specialist-`), which is what makes a result attributable to somebody rather than to the installation.
 
   - name: initagent.project.run
     context: project

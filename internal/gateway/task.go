@@ -40,6 +40,9 @@ func (s *Store) Enqueue(ctx context.Context, task scheduler.Task) (scheduler.Tas
 		return scheduler.Task{}, err
 	}
 	task.LaunchMode = mode
+	if task.CoderKind == "" {
+		task.CoderKind = "hermes-agent"
+	}
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO tasks (

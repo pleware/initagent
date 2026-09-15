@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 	owner_id           TEXT NOT NULL DEFAULT '',
 	specialist_id           TEXT NOT NULL DEFAULT '',
 	state              TEXT NOT NULL,
-	coder_kind         TEXT NOT NULL DEFAULT '',
+	coder_kind         TEXT NOT NULL DEFAULT 'hermes-agent',
 	assigned_worker_id TEXT NOT NULL DEFAULT '',
 	lease_expiry       INTEGER NOT NULL DEFAULT 0,
 	created_at         INTEGER NOT NULL,

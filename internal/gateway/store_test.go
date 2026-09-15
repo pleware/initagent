@@ -377,6 +377,40 @@ func TestEnqueueAndGetTask(t *testing.T) {
 	}
 }
 
+func TestEnqueueDefaultsCoderKind(t *testing.T) {
+	g := openTest(t, "")
+	ctx := context.Background()
+
+	got, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: g.Project().ID})
+	if err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
+	if got.CoderKind != "hermes-agent" {
+		t.Fatalf("CoderKind = %q, want hermes-agent", got.CoderKind)
+	}
+
+	loaded, err := g.Store().Task(ctx, got.ID)
+	if err != nil {
+		t.Fatalf("Task: %v", err)
+	}
+	if loaded.CoderKind != "hermes-agent" {
+		t.Fatalf("persisted CoderKind = %q, want hermes-agent", loaded.CoderKind)
+	}
+}
+
+func TestEnqueueKeepsExplicitCoderKind(t *testing.T) {
+	g := openTest(t, "")
+	ctx := context.Background()
+
+	got, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: g.Project().ID, CoderKind: "aider"})
+	if err != nil {
+		t.Fatalf("Enqueue: %v", err)
+	}
+	if got.CoderKind != "aider" {
+		t.Fatalf("CoderKind = %q, want aider", got.CoderKind)
+	}
+}
+
 func TestEnqueueRequiresBoundProject(t *testing.T) {
 	g := openTest(t, "")
 	missing, err := id.New(id.Project)

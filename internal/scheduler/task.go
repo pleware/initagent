@@ -28,7 +28,7 @@ type Task struct {
 	OwnerID      string    // owner ID (e.g., account-...) or empty for shared pool
 	SpecialistID string    // specialist ID (e.g., specialist-...)
 	State        TaskState // current state
-	CoderKind    string    // coder kind (e.g., "aider", "openclaw")
+	CoderKind    string    // coder kind; empty defaults to "hermes-agent"
 	Command      string    // shell command for Milestone 0 exec dispatch
 	LaunchMode   string    // exec | process | send_keys; empty means exec
 

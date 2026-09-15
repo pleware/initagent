@@ -23,14 +23,14 @@ const (
 
 // Task represents a unit of work in the scheduling queue.
 type Task struct {
-	ID         string    // task ID (e.g., task-...)
-	ProjectID  string    // project ID (e.g., project-...)
-	OwnerID    string    // owner ID (e.g., account-...) or empty for shared pool
-	SpecialistID    string    // specialist ID (e.g., specialist-...)
-	State      TaskState // current state
-	CoderKind  string    // coder kind (e.g., "aider", "openclaw")
-	Command    string    // shell command for Milestone 0 exec dispatch
-	LaunchMode string    // exec | process | send_keys; empty means exec
+	ID           string    // task ID (e.g., task-...)
+	ProjectID    string    // project ID (e.g., project-...)
+	OwnerID      string    // owner ID (e.g., account-...) or empty for shared pool
+	SpecialistID string    // specialist ID (e.g., specialist-...)
+	State        TaskState // current state
+	CoderKind    string    // coder kind (e.g., "aider", "openclaw")
+	Command      string    // shell command for Milestone 0 exec dispatch
+	LaunchMode   string    // exec | process | send_keys; empty means exec
 
 	// Placement
 	AssignedWorkerID string    // connector ID (e.g., connector-...) when assigned

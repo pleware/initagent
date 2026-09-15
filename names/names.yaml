@@ -72,7 +72,7 @@ entities:
     mints: true
     lifetime: until removed
     description: |-
-      One virtual being who works for the organization: greets at a glass, directs the work that follows, wears a rendered body on a scene, and sits on the People screen with a badge. The home is `hub` and not `gdesk` because the desk is one of his posts rather than who he is — his Big Five baseline and his voice identity are held on the hub so they survive any machine, and the People screen is a hub screen. That the code addressing him lives in the desk connector (`pware-os-gdesk`) is not a contradiction: a context is a vocabulary domain and not a storage location, the same way a `fleet` device row lives on the gateway.
+      One virtual being who works for the organization: greets at a glass, directs the work that follows, appears as a GlassAvatar on a scene, and sits on the People screen with a badge. The home is `hub` and not `gdesk` because the desk is one of his posts rather than who he is — his Big Five baseline and his voice identity are held on the hub so they survive any machine, and the People screen is a hub screen. That the code addressing him lives in the desk connector (`pware-os-gdesk`) is not a contradiction: a context is a vocabulary domain and not a storage location, the same way a `fleet` device row lives on the gateway.
 
   - name: initagent.hub.specialist
     context: hub

@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 	id                 TEXT PRIMARY KEY,
 	project_id         TEXT NOT NULL,
 	owner_id           TEXT NOT NULL DEFAULT '',
-	actor_id           TEXT NOT NULL DEFAULT '',
+	specialist_id           TEXT NOT NULL DEFAULT '',
 	state              TEXT NOT NULL,
 	coder_kind         TEXT NOT NULL DEFAULT '',
 	assigned_worker_id TEXT NOT NULL DEFAULT '',

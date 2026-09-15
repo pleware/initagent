@@ -43,11 +43,11 @@ func (s *Store) Enqueue(ctx context.Context, task scheduler.Task) (scheduler.Tas
 
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO tasks (
-			id, project_id, owner_id, actor_id, state, coder_kind,
+			id, project_id, owner_id, specialist_id, state, coder_kind,
 			assigned_worker_id, lease_expiry, created_at, updated_at,
 			exit_code, reason, command, launch_mode
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, task.ID, task.ProjectID, task.OwnerID, task.ActorID, string(task.State),
+	`, task.ID, task.ProjectID, task.OwnerID, task.SpecialistID, string(task.State),
 		task.CoderKind, task.AssignedWorkerID, unixTime(task.LeaseExpiry),
 		unixTime(task.CreatedAt), unixTime(task.UpdatedAt), task.ExitCode, task.Reason,
 		task.Command, task.LaunchMode)
@@ -137,7 +137,7 @@ func (s *Store) SetState(ctx context.Context, taskID string, to scheduler.TaskSt
 }
 
 const taskSelect = `
-SELECT id, project_id, owner_id, actor_id, state, coder_kind,
+SELECT id, project_id, owner_id, specialist_id, state, coder_kind,
 	assigned_worker_id, lease_expiry, created_at, updated_at, exit_code, reason, command, launch_mode
 FROM tasks`
 
@@ -150,7 +150,7 @@ func scanTask(row rowScanner) (scheduler.Task, error) {
 	var state string
 	var lease, created, updated int64
 	err := row.Scan(
-		&t.ID, &t.ProjectID, &t.OwnerID, &t.ActorID, &state, &t.CoderKind,
+		&t.ID, &t.ProjectID, &t.OwnerID, &t.SpecialistID, &state, &t.CoderKind,
 		&t.AssignedWorkerID, &lease, &created, &updated, &t.ExitCode, &t.Reason,
 		&t.Command, &t.LaunchMode,
 	)

@@ -126,8 +126,8 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE TABLE IF NOT EXISTS tasks (
 	id                 TEXT PRIMARY KEY,
 	project_id         TEXT NOT NULL,
-	owner_id           TEXT NOT NULL DEFAULT '',
-	specialist_id           TEXT NOT NULL DEFAULT '',
+	requester_id           TEXT NOT NULL DEFAULT '',
+	executor_id           TEXT NOT NULL DEFAULT '',
 	state              TEXT NOT NULL,
 	coder_kind         TEXT NOT NULL DEFAULT 'hermes-agent',
 	assigned_worker_id TEXT NOT NULL DEFAULT '',

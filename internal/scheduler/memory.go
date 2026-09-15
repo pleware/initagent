@@ -72,7 +72,7 @@ func (m *MemoryScheduler) Claim(ctx context.Context, workerID string) (*Task, *L
 		}
 
 		// Hard constraint: owner affinity
-		if task.OwnerID != "" && task.OwnerID != workerID {
+		if task.RequesterID != "" && task.RequesterID != workerID {
 			// Owner set but this worker doesn't match - skip
 			// (Real impl would check worker ownership properly)
 			continue

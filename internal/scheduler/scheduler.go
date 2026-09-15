@@ -55,10 +55,10 @@ func (l *Lease) IsExpired() bool {
 
 // PlacementFilter carries the hard constraints for task placement.
 type PlacementFilter struct {
-	ProjectID string
-	OwnerID   string // empty for shared pool
-	CoderKind string
-	Platform  string // "linux", "darwin", "windows", or empty for any
+	ProjectID   string
+	RequesterID string // empty for shared pool
+	CoderKind   string
+	Platform    string // "linux", "darwin", "windows", or empty for any
 }
 
 // PlacementPreference carries soft preferences for task placement.

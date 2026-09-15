@@ -117,8 +117,8 @@ func (s *Server) handleCheckout(w http.ResponseWriter, r *http.Request, cred aut
 		Name: row.Name, TaxNo: row.TaxNo, Street: row.Street,
 		City: row.City, PostCode: row.PostCode, Country: row.Country, Email: row.Email,
 	}
-	if buyer.Email == "" && cred.Actor.Account != "" {
-		if acc, err := s.store.AccountById(cred.Actor.Account); err == nil && acc != nil {
+	if buyer.Email == "" && cred.Requester.Account != "" {
+		if acc, err := s.store.AccountById(cred.Requester.Account); err == nil && acc != nil {
 			buyer.Email = acc.Email
 		}
 	}

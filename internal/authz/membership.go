@@ -2,7 +2,7 @@ package authz
 
 // OrgState is an organization's roster at the moment a change is requested.
 //
-// The rules below need the whole roster, not just the actor and the target,
+// The rules below need the whole roster, not just the requester and the target,
 // because the interesting refusals are about what the org looks like
 // afterwards: an org with no owner left is one nobody can administer, and no
 // amount of per-row permission checking notices that.
@@ -23,7 +23,7 @@ func (o OrgState) Owners() int {
 	return n
 }
 
-// AuthorizeRoleChange decides whether actor may set target's role in org.
+// AuthorizeRoleChange decides whether requester may set target's role in org.
 //
 // Beyond "may this person administer this org", two rules exist that a
 // capability check alone does not express:
@@ -37,13 +37,13 @@ func (o OrgState) Owners() int {
 //
 // Setting the role somebody already holds is allowed and does nothing: a
 // retried request is not an error.
-func AuthorizeRoleChange(actor Actor, org OrgState, target string, newRole Role) error {
+func AuthorizeRoleChange(requester Requester, org OrgState, target string, newRole Role) error {
 	if rank[newRole] == 0 {
 		return ErrRoleUnknown
 	}
 	// Permission before existence: a caller who may not administer this org
 	// does not get to learn who is in it from the error.
-	if !actor.Can(AdminOrg, org.ID) {
+	if !requester.Can(AdminOrg, org.ID) {
 		return ErrForbidden
 	}
 	current, ok := org.Members[target]
@@ -53,7 +53,7 @@ func AuthorizeRoleChange(actor Actor, org OrgState, target string, newRole Role)
 	if current == newRole {
 		return nil
 	}
-	if (current == RoleOwner || newRole == RoleOwner) && actor.Role(org.ID) != RoleOwner {
+	if (current == RoleOwner || newRole == RoleOwner) && requester.Role(org.ID) != RoleOwner {
 		return ErrOwnerOnly
 	}
 	if current == RoleOwner && org.Owners() == 1 {
@@ -62,7 +62,7 @@ func AuthorizeRoleChange(actor Actor, org OrgState, target string, newRole Role)
 	return nil
 }
 
-// AuthorizeInvite decides whether actor may mint an invitation that will
+// AuthorizeInvite decides whether requester may mint an invitation that will
 // join the org at role.
 //
 // Invites are an organization act, not a project act: the People roster
@@ -71,28 +71,28 @@ func AuthorizeRoleChange(actor Actor, org OrgState, target string, newRole Role)
 //
 // Only an owner may invite another owner — the same rule as promoting
 // someone who is already a member. An admin may invite admins and members.
-func AuthorizeInvite(actor Actor, org OrgState, role Role) error {
+func AuthorizeInvite(requester Requester, org OrgState, role Role) error {
 	if rank[role] == 0 {
 		return ErrRoleUnknown
 	}
-	if !actor.Can(AdminOrg, org.ID) {
+	if !requester.Can(AdminOrg, org.ID) {
 		return ErrForbidden
 	}
-	if role == RoleOwner && actor.Role(org.ID) != RoleOwner {
+	if role == RoleOwner && requester.Role(org.ID) != RoleOwner {
 		return ErrOwnerOnly
 	}
 	return nil
 }
 
-// AuthorizeRemoval decides whether actor may remove target from org.
+// AuthorizeRemoval decides whether requester may remove target from org.
 //
 // Leaving on your own is allowed without administering anything — a member
 // who joined the wrong org should not have to ask. The owner rules are the
 // same as for a role change, and for the same reason: the last owner cannot
 // walk out and leave an org nobody can administer, not even voluntarily.
-func AuthorizeRemoval(actor Actor, org OrgState, target string) error {
-	self := actor.Account != "" && actor.Account == target
-	if !self && !actor.Can(AdminOrg, org.ID) {
+func AuthorizeRemoval(requester Requester, org OrgState, target string) error {
+	self := requester.Account != "" && requester.Account == target
+	if !self && !requester.Can(AdminOrg, org.ID) {
 		return ErrForbidden
 	}
 	current, ok := org.Members[target]
@@ -100,7 +100,7 @@ func AuthorizeRemoval(actor Actor, org OrgState, target string) error {
 		return ErrNotMember
 	}
 	if current == RoleOwner {
-		if !self && actor.Role(org.ID) != RoleOwner {
+		if !self && requester.Role(org.ID) != RoleOwner {
 			return ErrOwnerOnly
 		}
 		if org.Owners() == 1 {

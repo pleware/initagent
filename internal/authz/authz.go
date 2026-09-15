@@ -238,9 +238,9 @@ func GrantableScopes() []Capability {
 // disagree with the rule it is rendering.
 func Dangerous(c Capability) bool { return c == ExecConnector }
 
-// Actor is the resolved identity behind a request. The hub builds it at the
+// Requester is the resolved identity behind a request. The hub builds it at the
 // edge from the session and the store; every decision below reads only this.
-type Actor struct {
+type Requester struct {
 	// Account is the `account-` this request acts as. Empty means a hub that was
 	// claimed before accounts existed, whose anonymous operator password is
 	// still the only credential (26's legacy path).
@@ -259,7 +259,7 @@ type Actor struct {
 	// organizations at all: a hub claimed before accounts existed, whose
 	// projects still carry an empty org_id (26's legacy path).
 	//
-	// Such an actor holds everything, because there is no second tenant to
+	// Such a requester holds everything, because there is no second tenant to
 	// be isolated from and refusing would lock the only administrator out of
 	// their own fleet. The flag is a fact about the installation, not a
 	// power: it is false the moment an organization exists, and it can only
@@ -267,7 +267,7 @@ type Actor struct {
 	Unpartitioned bool
 }
 
-// Can reports whether the actor may exercise c inside org.
+// Can reports whether the requester may exercise c inside org.
 //
 // An empty org means the installation itself, and only the platform operator
 // has anything there.
@@ -279,7 +279,7 @@ type Actor struct {
 // the direction that is hardest to walk back. The operator of a self-hosted
 // hub is unaffected, because claiming mints them a real owner membership in
 // the hub's first org — they hold both, and they hold the second one visibly.
-func (a Actor) Can(c Capability, org string) bool {
+func (a Requester) Can(c Capability, org string) bool {
 	// A hub with no organizations has no boundary to enforce, so its
 	// operator is not refused by one. This keeps a pre-accounts self-host
 	// installation working after tokens gained axes, and it evaporates as
@@ -297,15 +297,15 @@ func (a Actor) Can(c Capability, org string) bool {
 	return a.Role(org).atLeast(min)
 }
 
-// Role returns this actor's role in org, or "" when they are not a member.
-func (a Actor) Role(org string) Role { return a.Orgs[org] }
+// Role returns this requester's role in org, or "" when they are not a member.
+func (a Requester) Role(org string) Role { return a.Orgs[org] }
 
-// SoleOrg is the only organization this actor belongs to, or empty when they
+// SoleOrg is the only organization this requester belongs to, or empty when they
 // belong to none or to more than one. A request that omitted org_id can
 // use this on a hub that still has one organization — the self-host case
 // and the first hosted claim — without inventing a "current org" on the
-// actor.
-func (a Actor) SoleOrg() string {
+// requester.
+func (a Requester) SoleOrg() string {
 	if len(a.Orgs) != 1 {
 		return ""
 	}

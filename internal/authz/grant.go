@@ -10,7 +10,7 @@ import (
 // than the person who issued it.
 //
 // Draft 09 requires three axes on every credential: a subject, a boundary and
-// a verb set. The subject lives on the Actor — a token names the `account-` it
+// a verb set. The subject lives on the Requester — a token names the `account-` it
 // acts as — and the other two live here. A credential scoped to verbs but not
 // to a boundary is still fleet-wide execution with extra steps, which is the
 // mistake this type exists to make unrepresentable.
@@ -37,7 +37,7 @@ type Grant struct {
 // re-reads a cookie or a bearer and no handler has to remember which of the
 // two it is holding.
 type Credential struct {
-	Actor Actor
+	Requester Requester
 
 	// Grant is nil for a browser session. That is not a missing boundary: a
 	// person is present, their role is the whole answer, and inventing a
@@ -59,7 +59,7 @@ type Credential struct {
 //   - removing someone from an organization collapses the reach of every
 //     token they ever issued, with no sweep and no revocation list to forget.
 func (c Credential) Can(cap Capability, org, project string) bool {
-	if !c.Actor.Can(cap, org) {
+	if !c.Requester.Can(cap, org) {
 		return false
 	}
 	if c.Grant == nil {

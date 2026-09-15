@@ -173,7 +173,7 @@ func (s *Server) handleCreateOrgInvite(w http.ResponseWriter, r *http.Request, c
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if err := authz.AuthorizeInvite(cred.Actor, roster, role); err != nil {
+	if err := authz.AuthorizeInvite(cred.Requester, roster, role); err != nil {
 		forbid(w, err)
 		return
 	}
@@ -185,7 +185,7 @@ func (s *Server) handleCreateOrgInvite(w http.ResponseWriter, r *http.Request, c
 	now := time.Now()
 	inv, err := s.store.CreateOrgInvite(orgID, email, hashToken(secret), role, now, now.Add(auth.InviteTTL))
 	if err != nil {
-		if s.reportPlanLimit(w, err, orgID, cred.Actor.Account, "") {
+		if s.reportPlanLimit(w, err, orgID, cred.Requester.Account, "") {
 			return
 		}
 		if errors.Is(err, auth.ErrAlreadyMember) {
@@ -211,8 +211,8 @@ func (s *Server) handleCreateOrgInvite(w http.ResponseWriter, r *http.Request, c
 		orgName = org.Name
 	}
 	locale := auth.LocaleEN
-	if cred.Actor.Account != "" {
-		if inviter, err := s.store.AccountById(cred.Actor.Account); err == nil && inviter != nil {
+	if cred.Requester.Account != "" {
+		if inviter, err := s.store.AccountById(cred.Requester.Account); err == nil && inviter != nil {
 			locale = inviter.Locale
 		}
 	}

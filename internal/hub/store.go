@@ -1666,7 +1666,7 @@ func (s *Store) CountProjects(orgId string) (int, error) {
 }
 
 // ListAllProjects ignores org scope. It exists for the one caller that has
-// no actor to scope by — an API token, which carries no scope today (09) —
+// no requester to scope by — an API token, which carries no scope today (09) —
 // and only to answer "is there exactly one project on this hub".
 func (s *Store) ListAllProjects() ([]Project, error) {
 	return s.listProjects(``)

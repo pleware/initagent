@@ -32,14 +32,14 @@ func TestRolesIsWeakestFirst(t *testing.T) {
 }
 
 func TestCanAtInstallationBoundary(t *testing.T) {
-	operator := Actor{Account: "account-1", Platform: true}
-	customer := Actor{Account: "account-2", Orgs: map[string]Role{"org-1": RoleOwner}}
+	operator := Requester{Account: "account-1", Platform: true}
+	customer := Requester{Account: "account-2", Orgs: map[string]Role{"org-1": RoleOwner}}
 
 	cases := []struct {
-		name  string
-		actor Actor
-		cap   Capability
-		want  bool
+		name      string
+		requester Requester
+		cap       Capability
+		want      bool
 	}{
 		{"operator administers accounts", operator, AdminAccounts, true},
 		{"operator enumerates orgs", operator, ReadOrg, true},
@@ -52,7 +52,7 @@ func TestCanAtInstallationBoundary(t *testing.T) {
 		{"an org owner cannot enumerate the hub", customer, ReadOrg, false},
 	}
 	for _, c := range cases {
-		if got := c.actor.Can(c.cap, ""); got != c.want {
+		if got := c.requester.Can(c.cap, ""); got != c.want {
 			t.Errorf("%s: Can(%q, \"\") = %v; want %v", c.name, c.cap, got, c.want)
 		}
 	}
@@ -60,8 +60,8 @@ func TestCanAtInstallationBoundary(t *testing.T) {
 
 func TestCanInsideOrg(t *testing.T) {
 	const org = "org-1"
-	actor := func(r Role) Actor {
-		return Actor{Account: "account-1", Orgs: map[string]Role{org: r}}
+	requester := func(r Role) Requester {
+		return Requester{Account: "account-1", Orgs: map[string]Role{org: r}}
 	}
 
 	cases := []struct {
@@ -74,7 +74,7 @@ func TestCanInsideOrg(t *testing.T) {
 		{RoleOwner, true, true, true, true, true, true},
 	}
 	for _, c := range cases {
-		a := actor(c.role)
+		a := requester(c.role)
 		if got := a.Can(ReadOrg, org); got != c.read {
 			t.Errorf("%s Can(ReadOrg) = %v; want %v", c.role, got, c.read)
 		}
@@ -95,7 +95,7 @@ func TestCanInsideOrg(t *testing.T) {
 		}
 	}
 
-	stranger := Actor{Account: "account-9"}
+	stranger := Requester{Account: "account-9"}
 	if stranger.Can(ReadOrg, org) {
 		t.Error("a non-member can read an org")
 	}
@@ -104,10 +104,10 @@ func TestCanInsideOrg(t *testing.T) {
 	}
 	// AdminAccounts has no meaning inside an org, and an unregistered
 	// capability must fail closed rather than fall through to a default.
-	if actor(RoleOwner).Can(AdminAccounts, org) {
+	if requester(RoleOwner).Can(AdminAccounts, org) {
 		t.Error("an org owner administers hub accounts")
 	}
-	if actor(RoleOwner).Can(Capability("write:hub.invented"), org) {
+	if requester(RoleOwner).Can(Capability("write:hub.invented"), org) {
 		t.Error("an unknown capability was granted")
 	}
 }
@@ -116,7 +116,7 @@ func TestCanInsideOrg(t *testing.T) {
 // put you inside a customer's organization (25), and 09 has not decided that
 // it should.
 func TestPlatformAdminIsNotAnOrgMember(t *testing.T) {
-	operator := Actor{Account: "account-1", Platform: true}
+	operator := Requester{Account: "account-1", Platform: true}
 	for _, c := range []Capability{ReadOrg, AdminOrg, DeleteOrg, ReadProject, CreateProject, DeleteProject} {
 		if operator.Can(c, "org-customer") {
 			t.Errorf("platform admin was granted %q inside a customer org", c)
@@ -125,7 +125,7 @@ func TestPlatformAdminIsNotAnOrgMember(t *testing.T) {
 
 	// A self-hosted operator holds both, because claiming mints them a real
 	// owner membership rather than relying on the platform flag.
-	both := Actor{Account: "account-1", Platform: true, Orgs: map[string]Role{"org-1": RoleOwner}}
+	both := Requester{Account: "account-1", Platform: true, Orgs: map[string]Role{"org-1": RoleOwner}}
 	if !both.Can(DeleteOrg, "org-1") || !both.Can(AdminAccounts, "") {
 		t.Error("an operator who owns the first org should hold both surfaces")
 	}
@@ -134,21 +134,21 @@ func TestPlatformAdminIsNotAnOrgMember(t *testing.T) {
 // A hub claimed before accounts existed has no `account-` behind its session. It
 // is still the operator, and it is still nobody's org member.
 func TestSoleOrg(t *testing.T) {
-	if got := (Actor{}).SoleOrg(); got != "" {
-		t.Errorf("empty actor SoleOrg = %q; want empty", got)
+	if got := (Requester{}).SoleOrg(); got != "" {
+		t.Errorf("empty requester SoleOrg = %q; want empty", got)
 	}
-	one := Actor{Orgs: map[string]Role{"org-1": RoleOwner}}
+	one := Requester{Orgs: map[string]Role{"org-1": RoleOwner}}
 	if got := one.SoleOrg(); got != "org-1" {
 		t.Errorf("one org SoleOrg = %q; want org-1", got)
 	}
-	two := Actor{Orgs: map[string]Role{"org-1": RoleOwner, "org-2": RoleMember}}
+	two := Requester{Orgs: map[string]Role{"org-1": RoleOwner, "org-2": RoleMember}}
 	if got := two.SoleOrg(); got != "" {
 		t.Errorf("two orgs SoleOrg = %q; want empty — that is not a current-org", got)
 	}
 }
 
 func TestLegacyOperatorActor(t *testing.T) {
-	legacy := Actor{Platform: true}
+	legacy := Requester{Platform: true}
 	if !legacy.Can(AdminAccounts, "") {
 		t.Error("legacy operator lost the platform surface")
 	}

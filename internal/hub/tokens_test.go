@@ -21,7 +21,7 @@ import (
 // so no grant, on an installation that has no organizations yet. That is the
 // self-host shape, and it lets a handler be called directly without staging
 // an account and a membership first.
-var operatorCred = authz.Credential{Actor: authz.Actor{Platform: true, Unpartitioned: true}}
+var operatorCred = authz.Credential{Requester: authz.Requester{Platform: true, Unpartitioned: true}}
 
 // seedOwner returns an account that owns an organization on this hub,
 // creating both when the hub has none.
@@ -546,7 +546,7 @@ func TestMintingRejectsBadInput(t *testing.T) {
 // and the refusal says what to do about it rather than failing obscurely.
 func TestLegacyHubCannotMintWithoutAnAccount(t *testing.T) {
 	srv := newHub(t, t.TempDir(), offering.Selfhost)
-	cred := authz.Credential{Actor: authz.Actor{Platform: true, Unpartitioned: true}}
+	cred := authz.Credential{Requester: authz.Requester{Platform: true, Unpartitioned: true}}
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest(http.MethodPost, "/api/tokens", strings.NewReader(`{"name":"ci"}`))

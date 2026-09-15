@@ -164,7 +164,7 @@ func (s *Server) handleSetOrgMemberRole(w http.ResponseWriter, r *http.Request, 
 		forbid(w, authz.ErrForbidden)
 		return
 	}
-	if err := authz.AuthorizeRoleChange(cred.Actor, roster, target, role); err != nil {
+	if err := authz.AuthorizeRoleChange(cred.Requester, roster, target, role); err != nil {
 		forbid(w, err)
 		return
 	}
@@ -192,7 +192,7 @@ func (s *Server) handleRemoveOrgMember(w http.ResponseWriter, r *http.Request, c
 		forbid(w, authz.ErrForbidden)
 		return
 	}
-	if err := authz.AuthorizeRemoval(cred.Actor, roster, target); err != nil {
+	if err := authz.AuthorizeRemoval(cred.Requester, roster, target); err != nil {
 		forbid(w, err)
 		return
 	}

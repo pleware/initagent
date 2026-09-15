@@ -27,7 +27,7 @@ const sessionCookie = brand.SessionCookie
 // Upstream stored only an expiry, so "logged in" meant "somebody
 // authenticated" and nothing could be attributed to a person (`26` recorded
 // this as the gap behind audit and admin surfaces). The account travels with
-// the session now, which is what lets one request resolve to an actor.
+// the session now, which is what lets one request resolve to a requester.
 type session struct {
 	account string // `account-`; empty on a hub still using the legacy operator password
 	expiry  time.Time
@@ -186,11 +186,11 @@ var atInstallation = []bound{{}}
 func (s *Server) credentialOf(r *http.Request) (authz.Credential, bool, error) {
 	if c, err := r.Cookie(sessionCookie); err == nil {
 		if account, ok := s.sessions.lookup(c.Value); ok {
-			actor, err := s.resolveActor(account)
+			requester, err := s.resolveRequester(account)
 			if err != nil {
 				return authz.Credential{}, false, err
 			}
-			return authz.Credential{Actor: actor}, true, nil
+			return authz.Credential{Requester: requester}, true, nil
 		}
 	}
 	presented, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
@@ -203,16 +203,16 @@ func (s *Server) credentialOf(r *http.Request) (authz.Credential, bool, error) {
 	}
 	// A subjectless token cannot be written — the store refuses — but if one
 	// ever appeared it must not resolve to the legacy operator, because
-	// resolveActor reads an empty account as the installation's owner.
+	// resolveRequester reads an empty account as the installation's owner.
 	if t.AccountId == "" {
 		return authz.Credential{}, false, nil
 	}
-	actor, err := s.resolveActor(t.AccountId)
+	requester, err := s.resolveRequester(t.AccountId)
 	if err != nil {
 		return authz.Credential{}, false, err
 	}
 	grant := t.Grant
-	return authz.Credential{Actor: actor, Grant: &grant}, true, nil
+	return authz.Credential{Requester: requester, Grant: &grant}, true, nil
 }
 
 // requireAt guards a route with exactly one capability, checked against the
@@ -321,12 +321,12 @@ func (s *Server) requireSession(next credHandler) http.HandlerFunc {
 			httpError(w, http.StatusUnauthorized, "not authenticated")
 			return
 		}
-		actor, err := s.resolveActor(account)
+		requester, err := s.resolveRequester(account)
 		if err != nil {
 			httpError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
-		next(w, r, authz.Credential{Actor: actor})
+		next(w, r, authz.Credential{Requester: requester})
 	}
 }
 
@@ -389,8 +389,8 @@ func credentialBounds(cred authz.Credential) []bound {
 	if cred.Grant != nil {
 		return []bound{{org: cred.Grant.Org, project: cred.Grant.Project}}
 	}
-	out := make([]bound, 0, len(cred.Actor.Orgs)+1)
-	for org := range cred.Actor.Orgs {
+	out := make([]bound, 0, len(cred.Requester.Orgs)+1)
+	for org := range cred.Requester.Orgs {
 		out = append(out, bound{org: org})
 	}
 	// The installation is appended, not substituted, so an operator who also
@@ -440,13 +440,13 @@ func hideOrRefuse(w http.ResponseWriter, cred authz.Credential, c authz.Capabili
 	httpError(w, http.StatusNotFound, absent)
 }
 
-// resolveActor turns an account id into the identity the rules read.
+// resolveRequester turns an account id into the identity the rules read.
 //
 // An empty account is a session issued against the legacy operator password
 // on a hub claimed before accounts existed. That credential was the hub's
 // only administrator, so it resolves to the platform operator — and to no org
 // membership, because there is no row saying otherwise.
-func (s *Server) resolveActor(account string) (authz.Actor, error) {
+func (s *Server) resolveRequester(account string) (authz.Requester, error) {
 	if account == "" {
 		// Such a hub may also have no organizations at all, in which case
 		// there is no boundary to enforce and this operator holds the fleet.
@@ -454,24 +454,24 @@ func (s *Server) resolveActor(account string) (authz.Actor, error) {
 		// accounts never pays for it.
 		orgs, err := s.store.ListOrgs()
 		if err != nil {
-			return authz.Actor{}, err
+			return authz.Requester{}, err
 		}
-		return authz.Actor{Platform: true, Unpartitioned: len(orgs) == 0}, nil
+		return authz.Requester{Platform: true, Unpartitioned: len(orgs) == 0}, nil
 	}
 	a, err := s.store.AccountById(account)
 	if err != nil {
-		return authz.Actor{}, err
+		return authz.Requester{}, err
 	}
 	if a == nil {
 		// The account was deleted while its cookie was still alive. Not an
 		// error, and not an operator either.
-		return authz.Actor{}, nil
+		return authz.Requester{}, nil
 	}
 	roles, err := s.store.AccountOrgRoles(account)
 	if err != nil {
-		return authz.Actor{}, err
+		return authz.Requester{}, err
 	}
-	return authz.Actor{Account: a.Id, Platform: a.IsAdmin, Orgs: roles}, nil
+	return authz.Requester{Account: a.Id, Platform: a.IsAdmin, Orgs: roles}, nil
 }
 
 // forbid maps an authorization refusal onto a status code. Everything that is

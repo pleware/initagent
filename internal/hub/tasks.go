@@ -50,7 +50,7 @@ func (s *Server) handleCreateTask(w http.ResponseWriter, r *http.Request, cred a
 	if status == http.StatusOK {
 		s.rememberTaskOutput(p, body)
 		s.stampProjectActivity(p.projectID)
-		s.recordTaskFinished(p, cred.Actor.Account)
+		s.recordTaskFinished(p, cred.Requester.Account)
 	}
 	writeGatewayCopy(w, status, ct, body)
 }

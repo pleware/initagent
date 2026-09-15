@@ -290,13 +290,13 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	// all, and the memberships decide whose people they may manage. The
 	// cockpit hiding a section is convenience — every endpoint behind it
 	// checks the same capability itself.
-	actor, err := s.resolveActor(account)
+	requester, err := s.resolveRequester(account)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	resp["platformAdmin"] = actor.Platform
-	resp["accountId"] = actor.Account
+	resp["platformAdmin"] = requester.Platform
+	resp["accountId"] = requester.Account
 	// The assignable roles come from here so the cockpit's dropdown cannot
 	// offer a name this hub would refuse.
 	roles := make([]string, 0, len(authz.Roles()))
@@ -317,12 +317,12 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	}
 	resp["tokenScopes"] = scopes
 	orgs := []Membership{}
-	if actor.Account != "" {
-		if a, err := s.store.AccountById(actor.Account); err == nil && a != nil {
+	if requester.Account != "" {
+		if a, err := s.store.AccountById(requester.Account); err == nil && a != nil {
 			resp["email"] = a.Email
 			resp["locale"] = a.Locale
 		}
-		orgs, err = s.store.ListAccountOrgs(actor.Account)
+		orgs, err = s.store.ListAccountOrgs(requester.Account)
 		if err != nil {
 			httpError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -336,8 +336,8 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 // have no row to write; they keep the choice in the browser until they
 // register or claim.
 func (s *Server) handlePatchMe(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	actor := cred.Actor
-	if actor.Account == "" {
+	requester := cred.Requester
+	if requester.Account == "" {
 		httpError(w, http.StatusUnauthorized, "not authenticated")
 		return
 	}
@@ -357,7 +357,7 @@ func (s *Server) handlePatchMe(w http.ResponseWriter, r *http.Request, cred auth
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := s.store.SetAccountLocale(actor.Account, locale); err != nil {
+	if err := s.store.SetAccountLocale(requester.Account, locale); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -933,7 +933,7 @@ func (s *Server) handleDeletePreset(w http.ResponseWriter, r *http.Request) {
 const errNoSubject = "claim this hub with an email and password before minting tokens"
 
 func (s *Server) handleListApiTokens(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	tokens, err := s.store.ListApiTokens(cred.Actor.Account)
+	tokens, err := s.store.ListApiTokens(cred.Requester.Account)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -961,7 +961,7 @@ func (s *Server) handleCreateApiToken(w http.ResponseWriter, r *http.Request, cr
 		httpError(w, http.StatusBadRequest, "name required")
 		return
 	}
-	if cred.Actor.Account == "" {
+	if cred.Requester.Account == "" {
 		httpError(w, http.StatusConflict, errNoSubject)
 		return
 	}
@@ -998,12 +998,12 @@ func (s *Server) handleCreateApiToken(w http.ResponseWriter, r *http.Request, cr
 		}
 	}
 	for _, c := range scopes {
-		if !cred.Actor.Can(c, orgId) {
+		if !cred.Requester.Can(c, orgId) {
 			httpError(w, http.StatusForbidden, "you cannot grant "+string(c)+" in this organization")
 			return
 		}
 	}
-	secret, row, err := s.store.CreateApiToken(strings.TrimSpace(req.Name), cred.Actor.Account,
+	secret, row, err := s.store.CreateApiToken(strings.TrimSpace(req.Name), cred.Requester.Account,
 		authz.Grant{Org: orgId, Project: projectId, Scopes: scopes})
 	if err != nil {
 		if errors.Is(err, ErrTokenUnscoped) {
@@ -1020,7 +1020,7 @@ func (s *Server) handleCreateApiToken(w http.ResponseWriter, r *http.Request, cr
 }
 
 func (s *Server) handleDeleteApiToken(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	revoked, err := s.store.RevokeApiToken(r.PathValue("id"), cred.Actor.Account)
+	revoked, err := s.store.RevokeApiToken(r.PathValue("id"), cred.Requester.Account)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

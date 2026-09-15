@@ -6,14 +6,14 @@ import (
 	"testing"
 )
 
-func member(org string, r Role) Actor {
-	return Actor{Account: "account-1", Orgs: map[string]Role{org: r}}
+func member(org string, r Role) Requester {
+	return Requester{Account: "account-1", Orgs: map[string]Role{org: r}}
 }
 
 // A session carries no grant, so the role is the whole answer. This is the
 // path the cockpit takes, and it must not change shape when tokens gain axes.
 func TestSessionIsRoleOnly(t *testing.T) {
-	session := Credential{Actor: member("org-1", RoleAdmin)}
+	session := Credential{Requester: member("org-1", RoleAdmin)}
 
 	if session.Scoped() {
 		t.Error("a session reported itself as scoped")
@@ -53,8 +53,8 @@ func TestTokenIsTheIntersection(t *testing.T) {
 	}
 	for _, c := range cases {
 		cred := Credential{
-			Actor: member(org, c.role),
-			Grant: &Grant{Org: org, Scopes: c.scope},
+			Requester: member(org, c.role),
+			Grant:     &Grant{Org: org, Scopes: c.scope},
 		}
 		if got := cred.Can(c.cap, org, "project-1"); got != c.want {
 			t.Errorf("%s: Can(%q) = %v; want %v", c.name, c.cap, got, c.want)
@@ -68,10 +68,10 @@ func TestTokenIsTheIntersection(t *testing.T) {
 // Losing the membership must be enough. If a token outlived it, revoking a
 // person's access would mean hunting down every secret they ever minted.
 func TestTokenDiesWithTheMembership(t *testing.T) {
-	stranger := Actor{Account: "account-1"} // removed from every org
+	stranger := Requester{Account: "account-1"} // removed from every org
 	cred := Credential{
-		Actor: stranger,
-		Grant: &Grant{Org: "org-1", Scopes: []Capability{ReadProject, ExecConnector}},
+		Requester: stranger,
+		Grant:     &Grant{Org: "org-1", Scopes: []Capability{ReadProject, ExecConnector}},
 	}
 	for _, c := range []Capability{ReadProject, ExecConnector} {
 		if cred.Can(c, "org-1", "project-1") {
@@ -111,7 +111,7 @@ func TestBoundary(t *testing.T) {
 	for _, c := range cases {
 		cred := Credential{
 			// Owner everywhere, so only the boundary can refuse.
-			Actor: Actor{Account: "account-1", Platform: true, Orgs: map[string]Role{
+			Requester: Requester{Account: "account-1", Platform: true, Orgs: map[string]Role{
 				org: RoleOwner, "org-2": RoleOwner,
 			}},
 			Grant: &Grant{Org: c.grantOrg, Project: c.grantProject, Scopes: all},
@@ -126,9 +126,9 @@ func TestBoundary(t *testing.T) {
 // The installation capabilities are reachable by a session and by no token,
 // which is what keeps a leaked machine secret out of hub administration.
 func TestInstallationStaysWithThePerson(t *testing.T) {
-	operator := Actor{Account: "account-1", Platform: true}
+	operator := Requester{Account: "account-1", Platform: true}
 
-	session := Credential{Actor: operator}
+	session := Credential{Requester: operator}
 	if !session.Can(AdminAccounts, "", "") {
 		t.Error("operator session lost account administration")
 	}
@@ -139,8 +139,8 @@ func TestInstallationStaysWithThePerson(t *testing.T) {
 	// Even a grant that names the capability cannot reach the installation,
 	// because the boundary check refuses an empty org outright.
 	token := Credential{
-		Actor: operator,
-		Grant: &Grant{Org: "org-1", Scopes: []Capability{AdminAccounts, AdminUpdate, ReadOrg}},
+		Requester: operator,
+		Grant:     &Grant{Org: "org-1", Scopes: []Capability{AdminAccounts, AdminUpdate, ReadOrg}},
 	}
 	if token.Can(AdminAccounts, "", "") {
 		t.Error("a token administered hub accounts")
@@ -270,7 +270,7 @@ func TestRegistriesAgreeWithEnforcement(t *testing.T) {
 // membership to check a fleet capability against. Refusing would lock the
 // installation's only administrator out of their own machines.
 func TestUnpartitionedOperatorHoldsTheFleet(t *testing.T) {
-	legacy := Credential{Actor: Actor{Platform: true, Unpartitioned: true}}
+	legacy := Credential{Requester: Requester{Platform: true, Unpartitioned: true}}
 	for _, c := range Capabilities() {
 		if !legacy.Can(c, "", "") {
 			t.Errorf("legacy operator refused %q on a hub with no orgs", c)
@@ -285,13 +285,13 @@ func TestUnpartitionedOperatorHoldsTheFleet(t *testing.T) {
 	// The flag is a fact about the installation, not a power. Once an org
 	// exists the ordinary rules apply, and a platform admin is still not a
 	// member of a customer's org.
-	partitioned := Credential{Actor: Actor{Platform: true}}
+	partitioned := Credential{Requester: Requester{Platform: true}}
 	if partitioned.Can(ReadConnector, "org-1", "project-1") {
 		t.Error("platform admin reached an org's fleet without membership")
 	}
 
 	// It cannot be a back door for a non-operator either.
-	impostor := Credential{Actor: Actor{Account: "account-9", Unpartitioned: true}}
+	impostor := Credential{Requester: Requester{Account: "account-9", Unpartitioned: true}}
 	if impostor.Can(ReadConnector, "org-1", "project-1") {
 		t.Error("a non-operator was let in by the unpartitioned flag")
 	}
@@ -299,8 +299,8 @@ func TestUnpartitionedOperatorHoldsTheFleet(t *testing.T) {
 	// And a token is still bounded, because a legacy hub can still mint one
 	// once it has an org — the grant does the refusing, not the role.
 	token := Credential{
-		Actor: Actor{Platform: true, Unpartitioned: true},
-		Grant: &Grant{Org: "org-1", Scopes: []Capability{ReadConnector}},
+		Requester: Requester{Platform: true, Unpartitioned: true},
+		Grant:     &Grant{Org: "org-1", Scopes: []Capability{ReadConnector}},
 	}
 	if token.Can(ReadConnector, "org-2", "project-1") {
 		t.Error("a token on a legacy hub crossed into another org")

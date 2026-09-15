@@ -103,10 +103,10 @@ func resolveProjectOrg(cred authz.Credential, requested string) (string, error) 
 	if cred.Grant != nil {
 		return cred.Grant.Org, nil
 	}
-	if only := cred.Actor.SoleOrg(); only != "" {
+	if only := cred.Requester.SoleOrg(); only != "" {
 		return only, nil
 	}
-	if len(cred.Actor.Orgs) == 0 {
+	if len(cred.Requester.Orgs) == 0 {
 		return "", authz.ErrForbidden
 	}
 	return "", errOrgRequired
@@ -154,7 +154,7 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request, cred
 }
 
 func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if s.opts.Offering == offering.Hosted && cred.Actor.Platform {
+	if s.opts.Offering == offering.Hosted && cred.Requester.Platform {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -185,13 +185,13 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, cre
 		forbid(w, authz.ErrForbidden)
 		return
 	}
-	if s.refuseAnotherProject(w, orgId, cred.Actor.Account) {
+	if s.refuseAnotherProject(w, orgId, cred.Requester.Account) {
 		return
 	}
 	if !s.validateProjectConnector(w, input.ConnectorId) {
 		return
 	}
-	if s.refuseAnotherMachine(w, orgId, "", cred.Actor.Account, input.ConnectorId) {
+	if s.refuseAnotherMachine(w, orgId, "", cred.Requester.Account, input.ConnectorId) {
 		return
 	}
 	remote, host, message := repoFields(input.RepoRemote)
@@ -207,14 +207,14 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request, cre
 	s.recordEvent(funnel.Event{
 		Kind:      funnel.KindProjectCreated,
 		OrgID:     orgId,
-		AccountID: cred.Actor.Account,
+		AccountID: cred.Requester.Account,
 		ProjectID: project.Id,
 	})
 	if input.ConnectorId != "" {
 		s.recordEvent(funnel.Event{
 			Kind:        funnel.KindConnectorEnrolled,
 			OrgID:       orgId,
-			AccountID:   cred.Actor.Account,
+			AccountID:   cred.Requester.Account,
 			ProjectID:   project.Id,
 			ConnectorID: input.ConnectorId,
 		})
@@ -255,7 +255,7 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request, cre
 	if !s.validateProjectConnector(w, connectorId) {
 		return
 	}
-	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, cred.Actor.Account, connectorId) {
+	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, cred.Requester.Account, connectorId) {
 		return
 	}
 	remote, host := existing.RepoRemote, existing.RepoHost
@@ -299,7 +299,7 @@ func (s *Server) handleAttachProjectConnector(w http.ResponseWriter, r *http.Req
 	if !s.validateProjectConnector(w, connectorId) {
 		return
 	}
-	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, cred.Actor.Account, connectorId) {
+	if s.refuseAnotherMachine(w, existing.OrgId, existing.Id, cred.Requester.Account, connectorId) {
 		return
 	}
 	added, err := s.store.AttachProjectConnector(existing.Id, connectorId)
@@ -320,7 +320,7 @@ func (s *Server) handleAttachProjectConnector(w http.ResponseWriter, r *http.Req
 		s.recordEvent(funnel.Event{
 			Kind:        funnel.KindConnectorEnrolled,
 			OrgID:       existing.OrgId,
-			AccountID:   cred.Actor.Account,
+			AccountID:   cred.Requester.Account,
 			ProjectID:   existing.Id,
 			ConnectorID: connectorId,
 		})

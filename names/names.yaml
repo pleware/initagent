@@ -82,6 +82,14 @@ entities:
     description: |-
       One virtual AI worker: a Hermes agent profile that executes work on a fleet computer — a Coder Artur, a Tester Piotr, a Graficzka Jola. The specialist a task is attributed to, as against the account that requested it. A profile is a definition; several instances of one profile may run at once, and each run is a separate mint, never another profile row. Not an account, not an IAM role, and not OMO's persona files.
 
+  - name: initagent.hub.skill
+    context: hub
+    go_const: Skill
+    mints: true
+    lifetime: until removed
+    description: |-
+      One skill package in the hub's store: SKILL.md how-to text plus an optional companion MCP server spec, curated by the platform operator and served read-only to clients.
+
   - name: initagent.hub.project
     context: hub
     go_const: Project

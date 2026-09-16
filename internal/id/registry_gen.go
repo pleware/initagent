@@ -31,6 +31,7 @@ const (
 	Invite         Kind = "org_invite"
 	Reset          Kind = "password_reset"
 	Project        Kind = "project"
+	Skill          Kind = "skill"
 	Specialist     Kind = "specialist"
 	Staff          Kind = "staff"
 	Token          Kind = "token"
@@ -145,6 +146,12 @@ var entities = map[Kind]Spec{
 		Context:     ContextHub,
 		Description: "The hub's catalogue entry for one project. The gateway receives this same value at provisioning and uses it as its own project id, so one identifier deliberately spans two planes.",
 		Lifetime:    "project lifetime",
+	},
+	Skill: {
+		Name:        "initagent.hub.skill",
+		Context:     ContextHub,
+		Description: "One skill package in the hub's store: SKILL.md how-to text plus an optional companion MCP server spec, curated by the platform operator and served read-only to clients.",
+		Lifetime:    "until removed",
 	},
 	Specialist: {
 		Name:        "initagent.hub.specialist",

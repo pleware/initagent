@@ -223,6 +223,16 @@
       "happeningPrefix": "hub.project"
     },
     {
+      "name": "initagent.hub.skill",
+      "context": "hub",
+      "entity": "skill",
+      "identifierPrefix": "skill-",
+      "mints": true,
+      "lifetime": "until removed",
+      "capabilities": [],
+      "happeningPrefix": "hub.skill"
+    },
+    {
       "name": "initagent.hub.specialist",
       "context": "hub",
       "entity": "specialist",
@@ -507,6 +517,7 @@
     "hub.password_reset",
     "hub.preset",
     "hub.project",
+    "hub.skill",
     "hub.specialist",
     "hub.staff",
     "hub.template",

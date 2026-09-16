@@ -303,3 +303,31 @@ export interface HubEvent {
   connectorId?: string
   stats?: Stats
 }
+
+// --- skill store ---
+
+// MCPConfig is the MCP server a skill may carry: either a stdio command or a
+// remote URL, with optional arguments and environment. An empty config on
+// the wire is null, not an empty object — a skill without a server has no
+// `mcp` field value to speak of.
+export interface MCPConfig {
+  command?: string
+  url?: string
+  args?: string[]
+  env?: Record<string, string>
+}
+
+// Skill is one entry of the skill store the platform operator curates under
+// Stores → skills. `body` is the prompt text handed to a coding specialist;
+// `mcp` is the optional server that gives it tools.
+export interface Skill {
+  id: string
+  name: string
+  description: string
+  body: string
+  mcp: MCPConfig | null
+  enabled: boolean
+  createdBy: string
+  createdAt: number
+  updatedAt: number
+}

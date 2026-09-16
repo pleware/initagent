@@ -123,7 +123,9 @@
     "setup": "Konfiguracja",
     "people": "Ludzie",
     "plans": "Plany",
-    "administration": "Administracja"
+    "administration": "Administracja",
+    "stores": "Sklepy",
+    "skills": "Umiejętności"
   },
   "publicNav": {
     "home": "initAgent",

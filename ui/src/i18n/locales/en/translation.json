@@ -123,7 +123,9 @@
     "setup": "Setup",
     "people": "People",
     "plans": "Plans",
-    "administration": "Administration"
+    "administration": "Administration",
+    "stores": "Stores",
+    "skills": "Skills"
   },
   "publicNav": {
     "home": "initAgent",

@@ -122,6 +122,19 @@ export default function Layout({ me }: { me: Me }) {
           </nav>
         )}
 
+        {me.platformAdmin && (
+          <nav className="sidebar-nav" aria-label={t('nav.stores')}>
+            <NavLink
+              to="/skills"
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) => `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`}
+            >
+              <NavIcon name="skills" />
+              <span>{t('nav.skills')}</span>
+            </NavLink>
+          </nav>
+        )}
+
         <section className="sidebar-projects">
           <div className="sidebar-section-title">
             <span>Projects</span>
@@ -243,5 +256,6 @@ function NavIcon({ name }: { name: string }) {
   if (name === 'plans') return <svg {...common} aria-hidden><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M7 10h6M7 14h10" /></svg>
   if (name === 'people') return <svg {...common} aria-hidden><path d="M16 19v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 17.5V19M20 19v-1.5a3.5 3.5 0 0 0-2.6-3.4M14.5 5.6a3 3 0 0 1 0 5.8" /><circle cx="10" cy="8" r="3" /></svg>
   if (name === 'shield') return <svg {...common} aria-hidden><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9.5-4.1-1.9-7-5.3-7-9.5V6l7-3Z" /><path d="m9 12 2 2 4-4" /></svg>
+  if (name === 'skills') return <svg {...common} aria-hidden><path d="M12 3 4.5 7v10L12 21l7.5-4V7L12 3Z" /><path d="m4.5 7 7.5 4 7.5-4M12 11v10" /></svg>
   return <svg {...common} aria-hidden><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
 }

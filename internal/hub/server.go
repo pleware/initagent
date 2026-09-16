@@ -404,6 +404,11 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/me", s.handleMe)
 	m.HandleFunc("PATCH /api/me", s.requireSession(s.handlePatchMe))
 	m.HandleFunc("GET /api/plans", s.handleListPlans)
+
+	// Public skill catalog: what this installation offers to install.
+	m.HandleFunc("GET /api/skills", s.handleListSkillsPublic)
+	m.HandleFunc("GET /api/skills/{id}", s.handleGetSkillPublic)
+
 	m.HandleFunc("POST /api/billing/webhook", s.handleBillingWebhook)
 	m.HandleFunc("GET /api/orgs/{id}/billing", s.requireCredential(s.handleGetBilling))
 	m.HandleFunc("PATCH /api/orgs/{id}/billing", s.requireCredential(s.handlePatchBilling))

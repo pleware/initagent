@@ -13,6 +13,7 @@ import SetupPage from './pages/SetupPage'
 import CodingPage from './pages/CodingPage'
 import TasksPage from './pages/TasksPage'
 import AdminPage from './pages/AdminPage'
+import SkillsPage from './pages/SkillsPage'
 import PeoplePage from './pages/PeoplePage'
 import PlansPage from './pages/PlansPage'
 import AcceptInvite from './pages/AcceptInvite'
@@ -134,6 +135,7 @@ export default function App() {
             The route is absent for everyone else rather than rendering a
             refusal, and the endpoints behind it check the same thing. */}
         {me.platformAdmin && <Route path="/admin" element={<AdminPage />} />}
+        {me.platformAdmin && <Route path="/skills" element={<SkillsPage />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

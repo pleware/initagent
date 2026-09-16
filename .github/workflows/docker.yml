@@ -109,3 +109,15 @@ jobs:
             vendor=${{ runner.temp }}/vendor-src
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy-dispatch:
+    needs: [hub, site]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger ops deploy
+        run: |
+          curl -sS -X POST https://api.github.com/repos/pleware/initagent-ops/dispatches \
+            -H "Authorization: token ${{ secrets.OPS_DISPATCH_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{"event_type":"hub-deploy","client_payload":{"image":"initagent","sha":"'"$GITHUB_SHA"'"}}'

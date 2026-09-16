@@ -103,13 +103,13 @@ func TestEmitJSONCarriesEveryPlaneAndNoProse(t *testing.T) {
 	}
 
 	var doc struct {
-		Schema    int    `json:"schema"`
-		Authority string `json:"authority"`
-		Grammar   struct{ Happening, Permission, Separator string }
-		Contexts            []string `json:"contexts"`
-		Capabilities        []string `json:"capabilities"`
-		HappeningPrefixes   []string `json:"happeningPrefixes"`
-		Entities            []struct {
+		Schema            int    `json:"schema"`
+		Authority         string `json:"authority"`
+		Grammar           struct{ Happening, Permission, Separator string }
+		Contexts          []string `json:"contexts"`
+		Capabilities      []string `json:"capabilities"`
+		HappeningPrefixes []string `json:"happeningPrefixes"`
+		Entities          []struct {
 			Name             string   `json:"name"`
 			Context          string   `json:"context"`
 			Entity           string   `json:"entity"`

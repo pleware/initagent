@@ -172,6 +172,17 @@ CREATE TABLE IF NOT EXISTS funnel_events (
 	connector_id   TEXT NOT NULL DEFAULT '',
 	wall        TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS skills (
+	id          TEXT PRIMARY KEY,
+	name        TEXT NOT NULL UNIQUE,
+	description TEXT NOT NULL DEFAULT '',
+	body        TEXT NOT NULL DEFAULT '',
+	mcp         TEXT NOT NULL DEFAULT '',
+	enabled     INTEGER NOT NULL DEFAULT 1,
+	created_by  TEXT NOT NULL DEFAULT '',
+	created_at  INTEGER NOT NULL,
+	updated_at  INTEGER NOT NULL
+);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -320,6 +331,17 @@ CREATE TABLE IF NOT EXISTS funnel_events (
 	project_id  TEXT NOT NULL DEFAULT '',
 	connector_id   TEXT NOT NULL DEFAULT '',
 	wall        TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS skills (
+	id          TEXT PRIMARY KEY,
+	name        TEXT NOT NULL UNIQUE,
+	description TEXT NOT NULL DEFAULT '',
+	body        TEXT NOT NULL DEFAULT '',
+	mcp         TEXT NOT NULL DEFAULT '',
+	enabled     INTEGER NOT NULL DEFAULT 1,
+	created_by  TEXT NOT NULL DEFAULT '',
+	created_at  BIGINT NOT NULL,
+	updated_at  BIGINT NOT NULL
 );
 `
 

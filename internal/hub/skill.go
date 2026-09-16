@@ -1,7 +1,11 @@
 package hub
 
 import (
+	"errors"
 	"net/http"
+	"strings"
+
+	"github.com/pleware/initagent/internal/authz"
 )
 
 // MCPConfig is the optional MCP-server companion of a skill. It is stored as
@@ -98,4 +102,133 @@ func (s *Server) handleGetSkillPublic(w http.ResponseWriter, r *http.Request) {
 		Body:        sk.Body,
 		MCP:         publicMCP(sk.MCP),
 	})
+}
+
+// --- admin handlers ---
+
+// skillInput is the editable shape of a skill, shared by create and update.
+type skillInput struct {
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Body        string     `json:"body"`
+	MCP         *MCPConfig `json:"mcp,omitempty"`
+	Enabled     *bool      `json:"enabled,omitempty"`
+}
+
+// refusal reports why a submission must be rejected, or "" when it passes.
+func (in skillInput) refusal() string {
+	if strings.TrimSpace(in.Name) == "" {
+		return "name is required"
+	}
+	if in.Body == "" {
+		return "body is required"
+	}
+	if in.MCP != nil && in.MCP.Command == "" && in.MCP.URL == "" {
+		return "mcp requires a command or a url"
+	}
+	return ""
+}
+
+// handleAdminListSkills serves every skill on the installation, disabled
+// included: the operator's own view of the store they manage.
+func (s *Server) handleAdminListSkills(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.AdminAccounts, "", "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	skills, err := s.store.ListSkills()
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, skills)
+}
+
+// handleCreateSkill mints a new skill. The name is trimmed and both it and
+// the body are required; an MCP config has to name a command or a url. A
+// nil enabled means on.
+func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.AdminAccounts, "", "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	var in skillInput
+	if err := readJSON(r, &in); err != nil {
+		httpError(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	if msg := in.refusal(); msg != "" {
+		httpError(w, http.StatusBadRequest, msg)
+		return
+	}
+	enabled := true
+	if in.Enabled != nil {
+		enabled = *in.Enabled
+	}
+	sk, err := s.store.CreateSkill(strings.TrimSpace(in.Name), in.Description, in.Body, in.MCP, enabled, cred.Requester.Account)
+	if errors.Is(err, ErrSkillNameTaken) {
+		httpError(w, http.StatusConflict, ErrSkillNameTaken.Error())
+		return
+	}
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	writeJSON(w, sk)
+}
+
+// handleUpdateSkill replaces the editable fields of one skill. A missing id
+// is a 404; validation and the name-collision answer match create.
+func (s *Server) handleUpdateSkill(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.AdminAccounts, "", "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	existing, err := s.store.SkillById(r.PathValue("id"))
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if existing == nil {
+		httpError(w, http.StatusNotFound, "no such skill")
+		return
+	}
+	var in skillInput
+	if err := readJSON(r, &in); err != nil {
+		httpError(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	if msg := in.refusal(); msg != "" {
+		httpError(w, http.StatusBadRequest, msg)
+		return
+	}
+	enabled := true
+	if in.Enabled != nil {
+		enabled = *in.Enabled
+	}
+	updated, err := s.store.UpdateSkill(existing.ID, strings.TrimSpace(in.Name), in.Description, in.Body, in.MCP, enabled)
+	if errors.Is(err, ErrSkillNameTaken) {
+		httpError(w, http.StatusConflict, ErrSkillNameTaken.Error())
+		return
+	}
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, updated)
+}
+
+// handleDeleteSkill removes one skill. Deleting a missing skill is not an
+// error, matching the store.
+func (s *Server) handleDeleteSkill(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.AdminAccounts, "", "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	if err := s.store.DeleteSkill(r.PathValue("id")); err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]bool{"ok": true})
 }

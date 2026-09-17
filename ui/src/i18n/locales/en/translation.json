@@ -140,7 +140,7 @@
     "settings": "Settings",
     "setup": "Setup",
     "organizations": "Organizations",
-    "people": "People",
+    "team": "Team",
     "plans": "Plans",
     "administration": "Administration",
     "stores": "Stores",
@@ -262,9 +262,9 @@
     "countryInvalid": "Enter a two-letter country code (e.g. PL)",
     "nipInvalid": "Enter a valid NIP (10 digits)"
   },
-  "people": {
+  "team": {
     "eyebrow": "Organization",
-    "title": "People",
+    "title": "Team",
     "subtitle": "Who belongs to {{org}}, and what they may do. You are its {{role}}.",
     "email": "Email",
     "role": "Role",
@@ -359,7 +359,7 @@
     "taskRunning": "Running…",
     "skipTask": "Skip this for now",
     "done": "Open the project",
-    "unnamedHint": "This is the generic name. Rename it under People when you are ready."
+    "unnamedHint": "This is the generic name. Rename it under Team when you are ready."
   },
   "code": {
     "operatorEmptyEyebrow": "Installation",

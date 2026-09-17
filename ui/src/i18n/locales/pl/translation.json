@@ -140,7 +140,7 @@
     "settings": "Ustawienia",
     "setup": "Konfiguracja",
     "organizations": "Organizacje",
-    "people": "Ludzie",
+    "team": "Zespół",
     "plans": "Plany",
     "administration": "Administracja",
     "stores": "Sklepy",
@@ -262,9 +262,9 @@
     "countryInvalid": "Podaj dwuliterowy kod kraju (np. PL)",
     "nipInvalid": "Podaj poprawny NIP (10 cyfr)"
   },
-  "people": {
+  "team": {
     "eyebrow": "Organizacja",
-    "title": "Ludzie",
+    "title": "Zespół",
     "subtitle": "Kto należy do {{org}} i co może robić. Ty jesteś {{role}}.",
     "email": "E-mail",
     "role": "Rola",
@@ -359,7 +359,7 @@
     "taskRunning": "Uruchamianie…",
     "skipTask": "Pomiń na razie",
     "done": "Otwórz projekt",
-    "unnamedHint": "To ogólna nazwa. Zmień ją w Ludziach, gdy będziesz gotów."
+    "unnamedHint": "To ogólna nazwa. Zmień ją w Zespole, gdy będziesz gotów."
   },
   "code": {
     "operatorEmptyEyebrow": "Instalacja",

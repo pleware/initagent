@@ -19,7 +19,7 @@ import type { Character, Me, OrgInvite, OrgMember, Staff } from '../types'
 // The rules live on the hub, not in this form: an admin cannot make an owner,
 // and an organization cannot lose its last one. The screen submits and shows
 // what came back, so there is one place those rules can be wrong.
-export default function PeoplePage({
+export default function TeamPage({
   me,
   onChanged,
 }: {
@@ -84,7 +84,7 @@ export default function PeoplePage({
       // My own role may have changed, and with it what this screen offers.
       if (accountId === me.accountId) onChanged()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('people.roleChangeFailed'))
+      setError(err instanceof Error ? err.message : t('team.roleChangeFailed'))
     } finally {
       setBusy('')
     }
@@ -93,8 +93,8 @@ export default function PeoplePage({
   const remove = async (member: OrgMember) => {
     const leaving = member.accountId === me.accountId
     const question = leaving
-      ? t('people.confirmLeave', { org: current?.name })
-      : t('people.confirmRemove', { email: member.email, org: current?.name })
+      ? t('team.confirmLeave', { org: current?.name })
+      : t('team.confirmRemove', { email: member.email, org: current?.name })
     if (!window.confirm(question)) return
     setBusy(member.accountId)
     setError('')
@@ -106,21 +106,21 @@ export default function PeoplePage({
         await load()
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('people.removeFailed'))
+      setError(err instanceof Error ? err.message : t('team.removeFailed'))
     } finally {
       setBusy('')
     }
   }
 
   const resetStaff = async (s: Staff) => {
-    if (!window.confirm(t('people.resetOverrideConfirm', { name: s.name }))) return
+    if (!window.confirm(t('team.resetOverrideConfirm', { name: s.name }))) return
     setBusy(s.id)
     setError('')
     try {
       await api.del(`/api/orgs/${orgId}/staff/${s.id}/override`)
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('people.resetFailed'))
+      setError(err instanceof Error ? err.message : t('team.resetFailed'))
     } finally {
       setBusy('')
     }
@@ -147,7 +147,7 @@ export default function PeoplePage({
   }
 
   const revokeInvite = async (invite: OrgInvite) => {
-    if (!window.confirm(t('people.confirmRevoke', { email: invite.email }))) return
+    if (!window.confirm(t('team.confirmRevoke', { email: invite.email }))) return
     setBusy(invite.id)
     setInviteError(null)
     try {
@@ -164,18 +164,18 @@ export default function PeoplePage({
     try {
       await navigator.clipboard.writeText(link)
     } catch {
-      window.prompt(t('people.copyPrompt'), link)
+      window.prompt(t('team.copyPrompt'), link)
     }
   }
 
   const rename = async () => {
-    const name = window.prompt(t('people.renamePrompt'), current?.name ?? '')
+    const name = window.prompt(t('team.renamePrompt'), current?.name ?? '')
     if (name === null || name.trim() === '') return
     try {
       await api.patch(`/api/orgs/${orgId}`, { name })
       onChanged()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('people.renameFailed'))
+      setError(err instanceof Error ? err.message : t('team.renameFailed'))
     }
   }
 
@@ -183,14 +183,14 @@ export default function PeoplePage({
     return (
       <div className="page-shell">
         <div className="mb-6">
-          <p className="eyebrow mb-3">{t('people.eyebrow')}</p>
+          <p className="eyebrow mb-3">{t('team.eyebrow')}</p>
           <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-100">
-            {t('people.title')}
+            {t('team.title')}
           </h1>
         </div>
         <div className="surface rounded-2xl p-12 text-center">
-          <p className="mb-2 text-zinc-300">{t('people.noOrgTitle')}</p>
-          <p className="text-sm text-zinc-500">{t('people.noOrgHint')}</p>
+          <p className="mb-2 text-zinc-300">{t('team.noOrgTitle')}</p>
+          <p className="text-sm text-zinc-500">{t('team.noOrgHint')}</p>
         </div>
       </div>
     )
@@ -200,18 +200,18 @@ export default function PeoplePage({
     <div className="page-shell">
       <div className="mb-6 flex items-end justify-between">
         <div>
-          <p className="eyebrow mb-3">{t('people.eyebrow')}</p>
+          <p className="eyebrow mb-3">{t('team.eyebrow')}</p>
           <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-100">
-            {t('people.title')}
+            {t('team.title')}
           </h1>
           <p className="mt-1 text-sm text-zinc-400">
-            {t('people.subtitle', { org: current?.name, role: myRole })}
+            {t('team.subtitle', { org: current?.name, role: myRole })}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {canManage && (
             <button onClick={rename} className="btn-secondary">
-              {t('people.rename')}
+              {t('team.rename')}
             </button>
           )}
         </div>
@@ -226,30 +226,30 @@ export default function PeoplePage({
       <DataTable
         rows={members}
         rowKey={(m) => m.accountId}
-        empty={<p className="text-sm text-zinc-500">{t('people.empty')}</p>}
+        empty={<p className="text-sm text-zinc-500">{t('team.empty')}</p>}
         columns={[
           {
-            header: t('people.email'),
+            header: t('team.email'),
             cell: (m) => (
               <span className="text-zinc-200">
                 {m.email}
                 {m.accountId === me.accountId && (
                   <span className="ml-2 text-xs text-zinc-500">
-                    {t('people.you')}
+                    {t('team.you')}
                   </span>
                 )}
               </span>
             ),
           },
           {
-            header: t('people.role'),
+            header: t('team.role'),
             cell: (m) =>
               canManage ? (
                 <SimpleSelect
                   value={m.role}
                   disabled={busy === m.accountId}
                   onValueChange={(role) => changeRole(m.accountId, role)}
-                  aria-label={`${t('people.role')}: ${m.email}`}
+                  aria-label={`${t('team.role')}: ${m.email}`}
                   items={roles.map((role) => ({ value: role, label: t('orgs.roles.' + role, { defaultValue: role }) }))}
                 />
               ) : (
@@ -259,14 +259,14 @@ export default function PeoplePage({
               ),
           },
           {
-            header: t('people.joined'),
+            header: t('team.joined'),
             cell: (m) => (
               <span className="text-zinc-500">{timeAgo(m.createdAt)}</span>
             ),
           },
           {
             header: '',
-            srHeader: t('people.actions'),
+            srHeader: t('team.actions'),
             width: 'w-28',
             cell: (m) =>
               // Leaving needs no administrative right, so the button is here
@@ -278,8 +278,8 @@ export default function PeoplePage({
                   className="text-xs text-zinc-500 hover:text-rose-400"
                 >
                   {m.accountId === me.accountId
-                    ? t('people.leave')
-                    : t('people.remove')}
+                    ? t('team.leave')
+                    : t('team.remove')}
                 </button>
               ) : null,
           },
@@ -288,8 +288,8 @@ export default function PeoplePage({
 
       {canManage && (
         <section className="mt-10">
-          <h2 className="text-lg font-semibold text-zinc-100">{t('people.inviteTitle')}</h2>
-          <p className="mt-1 text-sm text-zinc-400">{t('people.inviteHint')}</p>
+          <h2 className="text-lg font-semibold text-zinc-100">{t('team.inviteTitle')}</h2>
+          <p className="mt-1 text-sm text-zinc-400">{t('team.inviteHint')}</p>
           <form
             className="mt-4 flex flex-wrap items-end gap-3"
             onSubmit={(e) => {
@@ -298,7 +298,7 @@ export default function PeoplePage({
             }}
           >
             <label className="min-w-56 flex-1 text-sm text-zinc-300">
-              {t('people.email')}
+              {t('team.email')}
               <input
                 type="email"
                 required
@@ -308,32 +308,32 @@ export default function PeoplePage({
               />
             </label>
             <label className="text-sm text-zinc-300">
-              {t('people.role')}
+              {t('team.role')}
               <div className="mt-1">
                 <SimpleSelect
                   value={inviteRole}
                   onValueChange={setInviteRole}
-                  aria-label={t('people.role')}
+                  aria-label={t('team.role')}
                   items={roles.map((role) => ({ value: role, label: t('orgs.roles.' + role, { defaultValue: role }) }))}
                 />
               </div>
             </label>
             <button type="submit" disabled={busy === 'invite'} className="btn-primary">
-              {busy === 'invite' ? t('common.loading') : t('people.sendInvite')}
+              {busy === 'invite' ? t('common.loading') : t('team.sendInvite')}
             </button>
           </form>
           <div className="mt-4">
-            <HubError error={inviteError} fallback={t('people.inviteFailed')} />
+            <HubError error={inviteError} fallback={t('team.inviteFailed')} />
           </div>
           {inviteLink && (
             <p className="mt-3 text-sm text-zinc-300">
-              {t('people.inviteLinkOnce')}{' '}
+              {t('team.inviteLinkOnce')}{' '}
               <button
                 type="button"
                 onClick={() => void copyLink(inviteLink)}
                 className="underline underline-offset-2 hover:text-zinc-100"
               >
-                {t('people.copyLink')}
+                {t('team.copyLink')}
               </button>
             </p>
           )}
@@ -344,15 +344,15 @@ export default function PeoplePage({
               empty={null}
               columns={[
                 {
-                  header: t('people.email'),
+                  header: t('team.email'),
                   cell: (inv) => <span className="text-zinc-200">{inv.email}</span>,
                 },
                 {
-                  header: t('people.role'),
+                  header: t('team.role'),
                   cell: (inv) => <span className="text-zinc-400">{inv.role}</span>,
                 },
                 {
-                  header: t('people.expires'),
+                  header: t('team.expires'),
                   cell: (inv) => (
                     <span className="text-zinc-500">
                       {new Date(inv.expiresAt * 1000).toLocaleDateString()}
@@ -361,7 +361,7 @@ export default function PeoplePage({
                 },
                 {
                   header: '',
-                  srHeader: t('people.actions'),
+                  srHeader: t('team.actions'),
                   width: 'w-28',
                   cell: (inv) => (
                     <button
@@ -370,7 +370,7 @@ export default function PeoplePage({
                       disabled={busy === inv.id}
                       className="text-xs text-zinc-500 hover:text-rose-400"
                     >
-                      {t('people.revoke')}
+                      {t('team.revoke')}
                     </button>
                   ),
                 },
@@ -381,15 +381,15 @@ export default function PeoplePage({
       )}
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold text-zinc-100">{t('people.staff')}</h2>
+        <h2 className="text-lg font-semibold text-zinc-100">{t('team.staff')}</h2>
         <p className="mt-1 text-sm text-zinc-400">
-          {t('people.staffHint', { org: current?.name })}
+          {t('team.staffHint', { org: current?.name })}
         </p>
         <div className="mt-4">
           <DataTable
             rows={staff}
             rowKey={(s) => s.id}
-            empty={<p className="text-sm text-zinc-500">{t('people.staffEmpty')}</p>}
+            empty={<p className="text-sm text-zinc-500">{t('team.staffEmpty')}</p>}
             columns={[
               {
                 header: t('staff.name'),
@@ -397,7 +397,7 @@ export default function PeoplePage({
                   <span className="text-zinc-200">
                     {s.name}{' '}
                     <span className="ml-1 rounded-full border border-lime-400/30 px-2 py-0.5 text-xs text-lime-300">
-                      {t('people.staffBadge')}
+                      {t('team.staffBadge')}
                     </span>
                   </span>
                 ),
@@ -418,7 +418,7 @@ export default function PeoplePage({
                 ? [
                     {
                       header: '',
-                      srHeader: t('people.actions'),
+                      srHeader: t('team.actions'),
                       width: 'w-28',
                       cell: (s: Staff) => (
                         <div className="flex items-center gap-3">
@@ -433,7 +433,7 @@ export default function PeoplePage({
                             disabled={busy === s.id}
                             className="text-xs text-zinc-500 hover:text-rose-400"
                           >
-                            {t('people.resetOverride')}
+                            {t('team.resetOverride')}
                           </button>
                         </div>
                       ),
@@ -447,7 +447,7 @@ export default function PeoplePage({
 
       {staffEditor !== null && (
         <Modal
-          title={t('people.overrideTitle', { name: staffEditor.name })}
+          title={t('team.overrideTitle', { name: staffEditor.name })}
           onClose={() => setStaffEditor(null)}
           wide
         >
@@ -521,7 +521,7 @@ function OrgStaffForm({
       await api.patch(`/api/orgs/${orgId}/staff/${staff.id}`, payload)
       onSaved()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('people.overrideFailed'))
+      setError(err instanceof Error ? err.message : t('team.overrideFailed'))
     } finally {
       setBusy(false)
     }
@@ -553,7 +553,7 @@ function OrgStaffForm({
         </dl>
       </div>
 
-      <p className="text-xs text-zinc-500">{t('people.overrideHint')}</p>
+      <p className="text-xs text-zinc-500">{t('team.overrideHint')}</p>
 
       <section className="rounded-lg border border-white/10 p-4">
         <h3 className="text-sm font-medium text-zinc-200">{t('staff.bigFive')}</h3>

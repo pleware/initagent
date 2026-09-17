@@ -115,7 +115,7 @@ export interface Org {
   members: number
 }
 
-// OrgMember is one person's place in an organization, as its own people see
+// OrgMember is one person's place in an organization, as its own team sees
 // it.
 export interface OrgMember {
   accountId: string
@@ -124,7 +124,7 @@ export interface OrgMember {
   createdAt: number
 }
 
-// OrgInvite is a pending invitation as the People screen lists it.
+// OrgInvite is a pending invitation as the Team screen lists it.
 // The one-time secret is never here; only create returns the link.
 export interface OrgInvite {
   id: string

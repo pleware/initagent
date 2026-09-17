@@ -9,7 +9,7 @@ import type { MCPConfig, Skill } from '../types'
 // The platform operator's curation surface for the skill store (draft 57):
 // one list, one form for create and edit. The hub owns the rules — duplicate
 // names come back as a 409 — this screen only submits and shows what the hub
-// answered. Same posture as PeoplePage: the route and the endpoints behind it
+// answered. Same posture as TeamPage: the route and the endpoints behind it
 // are what gate access, not a button here.
 export default function SkillsPage() {
   const { t } = useTranslation()

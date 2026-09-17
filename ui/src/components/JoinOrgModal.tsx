@@ -5,7 +5,7 @@ import { api } from '../api'
 import type { InvitePreview } from '../types'
 import Modal from './Modal'
 
-// The field takes either the bare token or the full invite link the People
+// The field takes either the bare token or the full invite link the Team
 // screen copies (<origin>/invite?token=…); a URL that fails to parse is a
 // token.
 function extractToken(raw: string): string {

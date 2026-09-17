@@ -10,7 +10,7 @@ import {
 import type { Membership } from './types'
 
 // CurrentOrg is the one cockpit-wide answer to "which organization are we
-// looking at". People, Plans, and the project rail all read it; the sidebar
+// looking at". Team, Plans, and the project rail all read it; the sidebar
 // Organizations section is its only switcher. The choice is remembered in
 // localStorage under initagent.currentOrg, but only while that id is still a
 // membership — the moment an organization stops being mine, the cockpit

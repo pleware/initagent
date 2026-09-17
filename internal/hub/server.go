@@ -471,12 +471,14 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/admin/tokens", s.requireSession(s.handleCreateAdminToken))
 	m.HandleFunc("DELETE /api/admin/tokens/{id}", s.requireSession(s.handleDeleteAdminToken))
 
-	// The canonical staff catalogue is the installation's (24/28), so it is
-	// session-only for the same reason and the AdminStaff gate lives in the
-	// handler with the empty boundary.
-	m.HandleFunc("GET /api/admin/staff", s.requireSession(s.handleListStaff))
-	m.HandleFunc("POST /api/admin/staff", s.requireSession(s.handleUpsertStaff))
-	m.HandleFunc("PATCH /api/admin/staff/{id}", s.requireSession(s.handleUpsertStaff))
+	// The canonical staff catalogue is the installation's (24/28). The
+	// AdminStaff gate at the empty boundary lives in the handler, so an
+	// installation token carrying the verb is admitted here and every other
+	// token or customer session is refused there — the same shape the
+	// skill and org admin surfaces use.
+	m.HandleFunc("GET /api/admin/staff", s.requireCredential(s.handleListStaff))
+	m.HandleFunc("POST /api/admin/staff", s.requireCredential(s.handleUpsertStaff))
+	m.HandleFunc("PATCH /api/admin/staff/{id}", s.requireCredential(s.handleUpsertStaff))
 
 	// Operating the installation, which is not something a machine secret
 	// reaches: a token's boundary is a project or a tenant.

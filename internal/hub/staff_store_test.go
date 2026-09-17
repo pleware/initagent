@@ -244,6 +244,7 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 	)
 	base := testStaff()
 	overrideBF := Character{Openness: 0.1, Conscientiousness: 0.2, Extraversion: 0.3, Agreeableness: 0.4, Neuroticism: 0.9}
+	zeroBF := Character{}
 	overrideBrief := "override brief"
 	overrideModel := "override.glb"
 	overrideBudget := 99
@@ -324,6 +325,33 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			org:            orgA,
 			wantBigFive:    base.BigFive,
 			wantBrief:      "",
+			wantModel:      base.Model,
+			wantWordBudget: base.WordBudget,
+		},
+		{
+			name:           "empty model override still wins over base",
+			override:       &OrgStaffOverride{OrgID: orgA, Model: strPtr("")},
+			org:            orgA,
+			wantBigFive:    base.BigFive,
+			wantBrief:      base.Brief,
+			wantModel:      "",
+			wantWordBudget: base.WordBudget,
+		},
+		{
+			name:           "zero word budget override still wins over base",
+			override:       &OrgStaffOverride{OrgID: orgA, WordBudget: intPtr(0)},
+			org:            orgA,
+			wantBigFive:    base.BigFive,
+			wantBrief:      base.Brief,
+			wantModel:      base.Model,
+			wantWordBudget: 0,
+		},
+		{
+			name:           "zero big five override still wins over base",
+			override:       &OrgStaffOverride{OrgID: orgA, BigFive: &zeroBF},
+			org:            orgA,
+			wantBigFive:    zeroBF,
+			wantBrief:      base.Brief,
 			wantModel:      base.Model,
 			wantWordBudget: base.WordBudget,
 		},

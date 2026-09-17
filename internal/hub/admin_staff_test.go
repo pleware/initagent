@@ -1,7 +1,9 @@
 package hub
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,6 +24,35 @@ func staffBySlug(t *testing.T, staff []Staff, slug string) Staff {
 	}
 	t.Fatalf("staff list has no %q: %+v", slug, staff)
 	return Staff{}
+}
+
+// withTokenBody performs a request carrying a bearer and an optional JSON
+// body, where a nil body sends no body at all — the body-capable sibling of
+// adminFixture.withToken.
+func (f *adminFixture) withTokenBody(t *testing.T, token, method, path string, body any) *http.Response {
+	t.Helper()
+	var reader io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		reader = bytes.NewReader(b)
+	}
+	req, err := http.NewRequest(method, f.ts.URL+path, reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { resp.Body.Close() })
+	return resp
 }
 
 // The platform operator lists, creates and updates the canonical staff
@@ -108,8 +139,8 @@ func TestAdminStaffRejectsMissingSlugOrName(t *testing.T) {
 
 // An installation token carrying admin:hub.staff is the machine equivalent
 // of the operator at this boundary: the empty-org gate admits it on every
-// handler. Like the admin token routes, the wire itself stays session-only,
-// so the token is checked by calling the handlers directly.
+// handler, checked directly here and over the wire in
+// TestAdminStaffTakesInstallationTokenOverWire.
 func TestAdminStaffTakesInstallationToken(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
 	cred := authz.Credential{
@@ -155,9 +186,10 @@ func TestAdminStaffTakesInstallationToken(t *testing.T) {
 	}
 }
 
-// Tokens never reach the canonical staff surface: requireSession admits a
-// browser session and refuses every bearer. A customer session is
-// authenticated but not the platform operator, so the gate refuses it.
+// An org token reaches the routes but cannot stand at the empty boundary,
+// so the gate refuses it 403; a customer session is authenticated but not
+// the platform operator, so the gate refuses it too; an anonymous caller is
+// turned away at the middleware with 401.
 func TestAdminStaffSurfaceRefusals(t *testing.T) {
 	f := hostedCustomer(t)
 
@@ -168,8 +200,8 @@ func TestAdminStaffSurfaceRefusals(t *testing.T) {
 		{http.MethodPatch, "/api/admin/staff/staff-whatever"},
 	} {
 		resp := f.withToken(t, wide, c.method, c.path)
-		if resp.StatusCode != http.StatusUnauthorized {
-			t.Errorf("%s %s with a token: %d, want 401", c.method, c.path, resp.StatusCode)
+		if resp.StatusCode != http.StatusForbidden {
+			t.Errorf("%s %s with a token: %d, want 403", c.method, c.path, resp.StatusCode)
 		}
 	}
 
@@ -182,6 +214,61 @@ func TestAdminStaffSurfaceRefusals(t *testing.T) {
 		if resp.StatusCode != http.StatusForbidden {
 			t.Errorf("%s %s as a customer: %d, want 403", c.method, c.path, resp.StatusCode)
 		}
+	}
+
+	for _, c := range []struct{ method, path string }{
+		{http.MethodGet, "/api/admin/staff"},
+		{http.MethodPost, "/api/admin/staff"},
+		{http.MethodPatch, "/api/admin/staff/staff-whatever"},
+	} {
+		resp := requestJSON(t, f.ts, &http.Client{}, c.method, c.path, nil)
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Errorf("%s %s without a cookie: %d, want 401", c.method, c.path, resp.StatusCode)
+		}
+	}
+}
+
+// An installation token carrying admin:hub.staff is the machine equivalent
+// of the operator at this boundary, and the wire admits it on every route:
+// list, create and update all pass the empty-org gate with a 200.
+func TestAdminStaffTakesInstallationTokenOverWire(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	secret, _, err := f.srv.store.CreateAdminToken("ci", f.ownerId, []authz.Capability{authz.AdminStaff})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp := f.withToken(t, secret, http.MethodGet, "/api/admin/staff")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /api/admin/staff with an installation token: %d, want 200", resp.StatusCode)
+	}
+
+	resp = f.withTokenBody(t, secret, http.MethodPost, "/api/admin/staff", map[string]any{
+		"slug": "staff-nova-00", "name": "Nova", "age": 30,
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST /api/admin/staff with an installation token: %d, want 200", resp.StatusCode)
+	}
+	var created Staff
+	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+		t.Fatal(err)
+	}
+	if created.Slug != "staff-nova-00" || created.Name != "Nova" {
+		t.Errorf("created = %+v, want the submitted row", created)
+	}
+
+	resp = f.withTokenBody(t, secret, http.MethodPatch, "/api/admin/staff/"+created.ID, map[string]any{
+		"slug": "staff-nova-00", "name": "Nova Two",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PATCH /api/admin/staff/%s with an installation token: %d, want 200", created.ID, resp.StatusCode)
+	}
+	var updated Staff
+	if err := json.NewDecoder(resp.Body).Decode(&updated); err != nil {
+		t.Fatal(err)
+	}
+	if updated.ID != created.ID || updated.Name != "Nova Two" {
+		t.Errorf("updated = %+v, want the same row renamed", updated)
 	}
 }
 

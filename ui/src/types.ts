@@ -326,6 +326,37 @@ export interface HubEvent {
   stats?: Stats
 }
 
+// --- staff ---
+
+// Character is the Big Five (OCEAN) personality profile of a staff member.
+// Each trait is a 0..1 number; the zero profile is a valid blank, which is
+// what the staff table's `{}` default round-trips to.
+export interface Character {
+  openness: number
+  conscientiousness: number
+  extraversion: number
+  agreeableness: number
+  neuroticism: number
+}
+
+// Staff is a named synthetic teammate of the installation
+// (`initagent.hub.staff`). An organization's effective roster is the same
+// shape with that org's overrides already applied, so one interface serves
+// both the admin catalogue and the org staff endpoints.
+export interface Staff {
+  id: string
+  slug: string
+  name: string
+  locale: string
+  model: string
+  bigFive: Character
+  brief: string
+  age: number
+  wordBudget: number
+  createdAt: number
+  updatedAt: number
+}
+
 // --- skill store ---
 
 // MCPConfig is the MCP server a skill may carry: either a stdio command or a

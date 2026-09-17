@@ -1,9 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, timeAgo } from '../api'
 import { usePoll } from '../hooks'
 import DataTable from '../components/DataTable'
-import type { Account, KPISnapshot, Org } from '../types'
+import Modal from '../components/Modal'
+import BigFiveFields from '../components/BigFiveFields'
+import type { Account, Character, KPISnapshot, Org, Staff } from '../types'
 
 // The operator's view of the installation they run: every account, every
 // organization (drafts 08, 17).
@@ -17,18 +19,22 @@ export default function AdminPage() {
   const [accounts, setAccounts] = useState<Account[] | null>(null)
   const [orgs, setOrgs] = useState<Org[] | null>(null)
   const [kpis, setKpis] = useState<KPISnapshot | null>(null)
+  const [staff, setStaff] = useState<Staff[] | null>(null)
+  const [editor, setEditor] = useState<Staff | 'new' | null>(null)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     try {
-      const [a, o, k] = await Promise.all([
+      const [a, o, k, s] = await Promise.all([
         api.get<Account[]>('/api/admin/accounts'),
         api.get<Org[]>('/api/admin/orgs'),
         api.get<KPISnapshot>('/api/admin/kpis'),
+        api.get<Staff[]>('/api/admin/staff'),
       ])
       setAccounts(a)
       setOrgs(o)
       setKpis(k)
+      setStaff(s)
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : t('admin.loadFailed'))
@@ -146,8 +152,247 @@ export default function AdminPage() {
           },
         ]}
       />
+
+      <div className="mt-8 mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-medium text-zinc-300">{t('admin.staff')}</h2>
+        <button onClick={() => setEditor('new')} className="btn-secondary">
+          {t('admin.newStaff')}
+        </button>
+      </div>
+      <p className="mb-3 text-xs text-zinc-500">{t('admin.staffHint')}</p>
+      <DataTable
+        rows={staff}
+        rowKey={(s) => s.id}
+        empty={<p className="text-sm text-zinc-500">{t('admin.noStaff')}</p>}
+        columns={[
+          {
+            header: t('staff.name'),
+            cell: (s) => <span className="text-zinc-200">{s.name}</span>,
+          },
+          {
+            header: t('staff.slug'),
+            cell: (s) => (
+              <span className="font-mono text-[12px] text-zinc-500">{s.slug}</span>
+            ),
+          },
+          {
+            header: t('staff.locale'),
+            cell: (s) => <span className="text-zinc-400">{s.locale || '—'}</span>,
+          },
+          {
+            header: t('staff.age'),
+            cell: (s) => (
+              <span className="text-zinc-400 tabular-nums">{s.age > 0 ? s.age : '—'}</span>
+            ),
+          },
+          {
+            header: t('staff.model'),
+            cell: (s) => <span className="text-zinc-400">{s.model || '—'}</span>,
+          },
+          {
+            header: t('staff.updated'),
+            cell: (s) => (
+              <span className="text-zinc-500">{timeAgo(s.updatedAt)}</span>
+            ),
+          },
+          {
+            header: '',
+            srHeader: t('admin.people'),
+            width: 'w-24',
+            cell: (s) => (
+              <button
+                onClick={() => setEditor(s)}
+                className="text-xs text-zinc-500 hover:text-zinc-200"
+              >
+                {t('common.edit')}
+              </button>
+            ),
+          },
+        ]}
+      />
+
+      {editor !== null && (
+        <Modal
+          title={
+            editor === 'new' ? t('admin.newStaffTitle') : t('admin.editStaffTitle')
+          }
+          onClose={() => setEditor(null)}
+          wide
+        >
+          <StaffForm
+            staff={editor === 'new' ? null : editor}
+            onClose={() => setEditor(null)}
+            onSaved={() => {
+              setEditor(null)
+              void load()
+            }}
+          />
+        </Modal>
+      )}
     </div>
   )
+}
+
+// StaffForm creates or updates one canonical staff member. The slug is not a
+// form field: on create it derives from the name, on edit the stored slug
+// travels untouched — the hub keys the upsert on it, so inventing a new one
+// in edit mode would mint a second row instead of updating.
+function StaffForm({
+  staff,
+  onClose,
+  onSaved,
+}: {
+  staff: Staff | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  const [name, setName] = useState(staff?.name ?? '')
+  const [locale, setLocale] = useState(staff?.locale ?? '')
+  const [age, setAge] = useState(staff && staff.age > 0 ? String(staff.age) : '')
+  const [model, setModel] = useState(staff?.model ?? '')
+  const [brief, setBrief] = useState(staff?.brief ?? '')
+  const [wordBudget, setWordBudget] = useState(
+    staff && staff.wordBudget > 0 ? String(staff.wordBudget) : '',
+  )
+  const [bigFive, setBigFive] = useState<Character>(staff?.bigFive ?? neutralCharacter())
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    const payload = {
+      slug: staff ? staff.slug : slugify(name),
+      name: name.trim(),
+      locale: locale.trim(),
+      age: Number(age) || 0,
+      model: model.trim(),
+      brief: brief.trim(),
+      wordBudget: Number(wordBudget) || 0,
+      bigFive,
+    }
+    try {
+      if (staff) {
+        await api.patch<Staff>(`/api/admin/staff/${staff.id}`, payload)
+      } else {
+        await api.post<Staff>('/api/admin/staff', payload)
+      }
+      onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('staff.saveFailed'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
+      {error && (
+        <p className="rounded-lg border border-rose-400/20 px-3 py-2 text-sm text-rose-400">
+          {error}
+        </p>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm text-zinc-300">
+          {t('staff.name')}
+          <input
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+          />
+        </label>
+        <label className="text-sm text-zinc-300">
+          {t('staff.locale')}
+          <input
+            type="text"
+            value={locale}
+            onChange={(e) => setLocale(e.target.value)}
+            placeholder="pl"
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+          />
+        </label>
+        <label className="text-sm text-zinc-300">
+          {t('staff.age')}
+          <input
+            type="number"
+            min={0}
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+          />
+        </label>
+        <label className="text-sm text-zinc-300">
+          {t('staff.wordBudget')}
+          <input
+            type="number"
+            min={0}
+            value={wordBudget}
+            onChange={(e) => setWordBudget(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+          />
+        </label>
+        <label className="text-sm text-zinc-300 sm:col-span-2">
+          {t('staff.model')}
+          <input
+            type="text"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[12px] text-zinc-100"
+          />
+        </label>
+      </div>
+
+      <section className="rounded-lg border border-white/10 p-4">
+        <h3 className="text-sm font-medium text-zinc-200">{t('staff.bigFive')}</h3>
+        <p className="mt-1 text-xs text-zinc-500">{t('staff.bigFiveHint')}</p>
+        <div className="mt-3">
+          <BigFiveFields value={bigFive} onChange={setBigFive} />
+        </div>
+      </section>
+
+      <label className="text-sm text-zinc-300">
+        {t('staff.brief')}
+        <textarea
+          rows={3}
+          value={brief}
+          onChange={(e) => setBrief(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+        />
+      </label>
+
+      <div className="mt-2 flex items-center justify-end gap-3">
+        <button type="button" onClick={onClose} className="btn-secondary">
+          {t('common.cancel')}
+        </button>
+        <button type="submit" disabled={busy} className="btn-primary">
+          {busy ? t('common.loading') : t('common.save')}
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function neutralCharacter(): Character {
+  return {
+    openness: 0.5,
+    conscientiousness: 0.5,
+    extraversion: 0.5,
+    agreeableness: 0.5,
+    neuroticism: 0.5,
+  }
+}
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 function KPI({ label, value }: { label: string; value: string | number | undefined }) {

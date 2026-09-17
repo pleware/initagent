@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 	org_id       TEXT NOT NULL,
 	project_id   TEXT NOT NULL DEFAULT '',
 	scopes       TEXT NOT NULL DEFAULT '',
+	installation INTEGER NOT NULL DEFAULT 0,
 	created_at   INTEGER NOT NULL,
 	last_used_at INTEGER NOT NULL DEFAULT 0,
 	revoked_at   INTEGER NOT NULL DEFAULT 0
@@ -225,6 +226,7 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 	org_id       TEXT NOT NULL,
 	project_id   TEXT NOT NULL DEFAULT '',
 	scopes       TEXT NOT NULL DEFAULT '',
+	installation INTEGER NOT NULL DEFAULT 0,
 	created_at   BIGINT NOT NULL,
 	last_used_at BIGINT NOT NULL DEFAULT 0,
 	revoked_at   BIGINT NOT NULL DEFAULT 0
@@ -431,6 +433,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureApiTokens(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring api tokens: %w", err)
+	}
+	if err := s.ensureApiTokenInstallation(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring api token installation column: %w", err)
 	}
 	if err := s.ensureFleetConnectorScopes(); err != nil {
 		db.Close()
@@ -805,6 +811,16 @@ func (s *Store) ensureApiTokens() error {
 	// v0.3.2 on the live hub.
 	_, err = s.db.Exec(`CREATE INDEX IF NOT EXISTS api_tokens_account_id ON api_tokens(account_id)`)
 	return err
+}
+
+// ensureApiTokenInstallation adds the installation class flag to a live
+// api_tokens table. CREATE TABLE IF NOT EXISTS will not add it, and it must
+// not ride on ensureApiTokens: that reshape detects account_id and runs once,
+// so a table already carrying it would keep the column missing forever.
+// Existing rows become installation 0, which is what they were minted as —
+// org-scoped — and only CreateAdminToken writes a 1.
+func (s *Store) ensureApiTokenInstallation() error {
+	return s.ensureColumn("api_tokens", "installation", "INTEGER NOT NULL DEFAULT 0")
 }
 
 // ensureFleetConnectorScopes carries stored api token scopes written against
@@ -2098,6 +2114,10 @@ type TokenAuth struct {
 // eliminate, so the store declines to write one even when a handler asks.
 var ErrTokenUnscoped = errors.New("a token needs an account, an organization and at least one scope")
 
+// ErrAdminTokenInvalid refuses an admin mint missing its subject or its
+// scopes, or carrying one that an installation token may not hold.
+var ErrAdminTokenInvalid = errors.New("an admin token needs an account and at least one installation scope")
+
 // CreateApiToken mints a scoped credential and returns the secret once,
 // alongside the row the cockpit will list.
 func (s *Store) CreateApiToken(name, accountId string, g authz.Grant) (string, ApiToken, error) {
@@ -2128,20 +2148,57 @@ func (s *Store) CreateApiToken(name, accountId string, g authz.Grant) (string, A
 	}, nil
 }
 
+// CreateAdminToken mints an installation-scoped credential. Its boundary is
+// the installation itself — org_id and project_id stay empty and
+// installation is 1 — and it may carry only the installation-grantable
+// scopes, so a mint cannot reach what the class refuses by construction.
+func (s *Store) CreateAdminToken(name, accountId string, scopes []authz.Capability) (string, ApiToken, error) {
+	if accountId == "" || len(scopes) == 0 {
+		return "", ApiToken{}, ErrAdminTokenInvalid
+	}
+	grantable := authz.InstallationGrantableScopes()
+	for _, c := range scopes {
+		if !slices.Contains(grantable, c) {
+			return "", ApiToken{}, ErrAdminTokenInvalid
+		}
+	}
+	rowId, err := id.New(id.Token)
+	if err != nil {
+		return "", ApiToken{}, err
+	}
+	secret := brand.TokenPrefix + randomToken()
+	now := time.Now().Unix()
+	formatted := authz.FormatScopes(scopes)
+	if _, err := s.db.Exec(`INSERT INTO api_tokens
+		(id, name, token_hash, account_id, org_id, project_id, scopes, installation, created_at)
+		VALUES (?, ?, ?, ?, '', '', ?, 1, ?)`,
+		rowId, name, hashToken(secret), accountId, formatted, now); err != nil {
+		return "", ApiToken{}, err
+	}
+	return secret, ApiToken{
+		Id:        rowId,
+		Name:      name,
+		AccountId: accountId,
+		Scopes:    strings.Fields(formatted),
+		CreatedAt: now,
+	}, nil
+}
+
 // ApiTokenAuth resolves a presented secret into its subject and reach.
 //
 // A revoked row is not found rather than returned-and-flagged: revocation has
 // to be a hard stop here, not a field some later caller might forget to test.
 func (s *Store) ApiTokenAuth(secret string) (TokenAuth, bool, error) {
 	var (
-		a        TokenAuth
-		project  string
-		scopes   string
-		lastUsed int64
+		a            TokenAuth
+		project      string
+		scopes       string
+		installation int
+		lastUsed     int64
 	)
-	err := s.db.QueryRow(`SELECT id, account_id, org_id, project_id, scopes, last_used_at
+	err := s.db.QueryRow(`SELECT id, account_id, org_id, project_id, scopes, installation, last_used_at
 		FROM api_tokens WHERE token_hash = ? AND revoked_at = 0`, hashToken(secret)).
-		Scan(&a.TokenId, &a.AccountId, &a.Grant.Org, &project, &scopes, &lastUsed)
+		Scan(&a.TokenId, &a.AccountId, &a.Grant.Org, &project, &scopes, &installation, &lastUsed)
 	if err == sql.ErrNoRows {
 		return TokenAuth{}, false, nil
 	}
@@ -2149,13 +2206,22 @@ func (s *Store) ApiTokenAuth(secret string) (TokenAuth, bool, error) {
 		return TokenAuth{}, false, err
 	}
 	parsed, err := authz.ParseScopes(scopes)
+	if installation == 1 {
+		parsed, err = authz.ParseInstallationScopes(scopes)
+	}
 	if err != nil {
 		// A scope list this build does not understand is refused, never
 		// downgraded to the subset it happens to recognise. Silently
 		// honouring less is confusing; silently honouring more is a breach.
 		return TokenAuth{}, false, err
 	}
-	a.Grant.Project = project
+	if installation == 1 {
+		a.Grant.Installation = true
+		a.Grant.Org = ""
+		a.Grant.Project = ""
+	} else {
+		a.Grant.Project = project
+	}
 	a.Grant.Scopes = parsed
 	s.touchApiToken(a.TokenId, lastUsed)
 	return a, true, nil
@@ -2187,6 +2253,11 @@ func (s *Store) ListApiTokens(accountId string) ([]ApiToken, error) {
 	if err != nil {
 		return nil, err
 	}
+	return scanApiTokenRows(rows)
+}
+
+// scanApiTokenRows decodes the token columns both list queries share.
+func scanApiTokenRows(rows *sql.Rows) ([]ApiToken, error) {
 	defer rows.Close()
 	var out []ApiToken
 	for rows.Next() {
@@ -2213,6 +2284,32 @@ func (s *Store) RevokeApiToken(tokenId, accountId string) (bool, error) {
 	res, err := s.db.Exec(`UPDATE api_tokens SET revoked_at = ?
 		WHERE id = ? AND account_id = ? AND revoked_at = 0`,
 		time.Now().Unix(), tokenId, accountId)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
+// ListAdminTokens returns the hub's installation-scoped credentials. There
+// is no account filter: an admin token is an operator secret, and the
+// Administration screen is the only place that may show it.
+func (s *Store) ListAdminTokens() ([]ApiToken, error) {
+	rows, err := s.db.Query(`SELECT id, name, account_id, org_id, project_id, scopes, created_at, last_used_at
+		FROM api_tokens WHERE installation = 1 AND revoked_at = 0 ORDER BY created_at, id`)
+	if err != nil {
+		return nil, err
+	}
+	return scanApiTokenRows(rows)
+}
+
+// RevokeAdminToken stops an installation-scoped credential and reports
+// whether it found one. The installation guard keeps an org token out of
+// reach even when its id is known.
+func (s *Store) RevokeAdminToken(tokenId string) (bool, error) {
+	res, err := s.db.Exec(`UPDATE api_tokens SET revoked_at = ?
+		WHERE id = ? AND installation = 1 AND revoked_at = 0`,
+		time.Now().Unix(), tokenId)
 	if err != nil {
 		return false, err
 	}

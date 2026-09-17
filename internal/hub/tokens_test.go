@@ -286,6 +286,165 @@ func TestApiTokenLifecycle(t *testing.T) {
 	}
 }
 
+// --- installation-scoped admin tokens ---
+
+func TestCreateAdminTokenRoundTrip(t *testing.T) {
+	s := testStore(t)
+	account, _ := seedOwner(t, s)
+
+	secret, row, err := s.CreateAdminToken("ci", account, []authz.Capability{authz.AdminSkill, authz.ReadOrg})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(row.Id, "token-") {
+		t.Errorf("admin token id = %q; want a token- identifier", row.Id)
+	}
+
+	got, ok, err := s.ApiTokenAuth(secret)
+	if err != nil || !ok {
+		t.Fatalf("ApiTokenAuth = (%v, %v)", ok, err)
+	}
+	if got.AccountId != account {
+		t.Errorf("resolved account = %q; want %q", got.AccountId, account)
+	}
+	if !got.Grant.Installation {
+		t.Error("resolved grant is not installation-scoped")
+	}
+	if got.Grant.Org != "" || got.Grant.Project != "" {
+		t.Errorf("installation boundary = (%q, %q); want empty", got.Grant.Org, got.Grant.Project)
+	}
+	if len(got.Grant.Scopes) != 2 {
+		t.Errorf("resolved scopes = %v; want both minted", got.Grant.Scopes)
+	}
+	if !got.Grant.Contains("", "") {
+		t.Error("installation grant does not cover the installation")
+	}
+	if got.Grant.Contains("org-other", "") {
+		t.Error("installation grant reaches into a tenant")
+	}
+
+	listed, err := s.ListAdminTokens()
+	if err != nil || len(listed) != 1 {
+		t.Fatalf("ListAdminTokens = (%d rows, %v), want one", len(listed), err)
+	}
+
+	revoked, err := s.RevokeAdminToken(row.Id)
+	if err != nil || !revoked {
+		t.Fatalf("RevokeAdminToken = (%v, %v), want true", revoked, err)
+	}
+	if _, ok, _ := s.ApiTokenAuth(secret); ok {
+		t.Error("a revoked admin token still resolved")
+	}
+	if rows, _ := s.ListAdminTokens(); len(rows) != 0 {
+		t.Errorf("a revoked admin token is still listed (%d rows)", len(rows))
+	}
+	if again, _ := s.RevokeAdminToken(row.Id); again {
+		t.Error("revoking twice reported a second success")
+	}
+}
+
+func TestCreateAdminTokenRefusesInvalidMints(t *testing.T) {
+	s := testStore(t)
+	account, _ := seedOwner(t, s)
+
+	cases := []struct {
+		name    string
+		account string
+		scopes  []authz.Capability
+	}{
+		{"no subject", "", []authz.Capability{authz.AdminSkill}},
+		{"no scopes", account, nil},
+		{"non-grantable scope", account, []authz.Capability{authz.AdminAccounts}},
+		{"one bad scope among good", account, []authz.Capability{authz.AdminSkill, authz.AdminAccounts}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if _, _, err := s.CreateAdminToken("ci", c.account, c.scopes); err != ErrAdminTokenInvalid {
+				t.Errorf("CreateAdminToken error = %v; want ErrAdminTokenInvalid", err)
+			}
+		})
+	}
+}
+
+func TestOrgTokenStaysOrgScoped(t *testing.T) {
+	s := testStore(t)
+	account, org := seedOwner(t, s)
+
+	secret, row, err := s.CreateApiToken("ci", account, authz.Grant{
+		Org: org, Scopes: []authz.Capability{authz.ReadConnector},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok, err := s.ApiTokenAuth(secret)
+	if err != nil || !ok {
+		t.Fatalf("ApiTokenAuth = (%v, %v)", ok, err)
+	}
+	if got.Grant.Installation {
+		t.Error("an org token resolved as installation-scoped")
+	}
+	if got.Grant.Org != org || got.Grant.Project != "" {
+		t.Errorf("org boundary = (%q, %q); want (%q, %q)", got.Grant.Org, got.Grant.Project, org, "")
+	}
+
+	// It must not appear on the admin list, nor be revocable through the
+	// admin path.
+	if rows, _ := s.ListAdminTokens(); len(rows) != 0 {
+		t.Errorf("ListAdminTokens returned %d org tokens; want none", len(rows))
+	}
+	if revoked, _ := s.RevokeAdminToken(row.Id); revoked {
+		t.Error("RevokeAdminToken revoked an org token")
+	}
+}
+
+// A store whose token table predates the column gains it on reopen, and the
+// rows it carries stay org-scoped rather than silently turning into admin
+// credentials.
+func TestOpenStoreCarriesInstallationColumn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tokens.db")
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, org := seedOwner(t, s)
+	secret, _, err := s.CreateApiToken("ci", account, authz.Grant{
+		Org: org, Scopes: []authz.Capability{authz.ReadConnector},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`ALTER TABLE api_tokens DROP COLUMN installation`); err != nil {
+		_ = db.Close()
+		t.Fatalf("dropping the column to simulate a pre-migration table: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopen after dropping installation: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+
+	got, ok, err := again.ApiTokenAuth(secret)
+	if err != nil || !ok {
+		t.Fatalf("token minted before the column existed must still resolve: ok=%v err=%v", ok, err)
+	}
+	if got.Grant.Installation || got.Grant.Org != org {
+		t.Errorf("carried grant = %+v; want an org-scoped grant on %s", got.Grant, org)
+	}
+}
+
 // --- admission versus refusal on the wire ---
 
 // Replaces the old assertion that a token gets 401 on the account surfaces.

@@ -87,6 +87,7 @@ entities:
     go_const: Skill
     mints: true
     lifetime: until removed
+    capabilities: [admin]
     description: |-
       One skill package in the hub's store: SKILL.md how-to text plus an optional companion MCP server spec, curated by the platform operator and served read-only to clients.
 

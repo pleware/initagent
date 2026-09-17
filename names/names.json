@@ -229,7 +229,9 @@
       "identifierPrefix": "skill-",
       "mints": true,
       "lifetime": "until removed",
-      "capabilities": [],
+      "capabilities": [
+        "admin:hub.skill"
+      ],
       "happeningPrefix": "hub.skill"
     },
     {
@@ -478,6 +480,7 @@
     "admin:hub.org",
     "admin:hub.preset",
     "admin:hub.project",
+    "admin:hub.skill",
     "admin:hub.update",
     "attach:fleet.terminal",
     "create:fleet.connector",

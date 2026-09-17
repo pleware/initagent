@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
+import { useCurrentOrg } from '../current-org'
 import { HubError } from '../components/PlanWall'
 import { PLAN_BY_SLUG, PLAN_ORDER, type PlanSlug } from '../lib/org-plans.gen'
 import type { Me } from '../types'
@@ -55,7 +56,7 @@ export default function PlansPage({ me }: { me: Me }) {
   const { t } = useTranslation()
   const [params] = useSearchParams()
   const memberships = me.orgs ?? []
-  const [orgId] = useState(memberships[0]?.orgId ?? '')
+  const { orgId } = useCurrentOrg()
   const [billing, setBilling] = useState<OrgBilling | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [busy, setBusy] = useState('')

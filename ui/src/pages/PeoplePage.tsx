@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api, timeAgo } from '../api'
+import { useCurrentOrg } from '../current-org'
 import DataTable from '../components/DataTable'
 import { HubError } from '../components/PlanWall'
 import type { Me, OrgInvite, OrgMember } from '../types'
@@ -25,7 +26,9 @@ export default function PeoplePage({
 }) {
   const { t } = useTranslation()
   const memberships = me.orgs ?? []
-  const [orgId, setOrgId] = useState(memberships[0]?.orgId ?? '')
+  // The sidebar Organizations section is the org switcher; this screen
+  // reads the same cockpit-wide choice instead of keeping its own.
+  const { orgId } = useCurrentOrg()
   const [members, setMembers] = useState<OrgMember[] | null>(null)
   const [invites, setInvites] = useState<OrgInvite[]>([])
   const [inviteEmail, setInviteEmail] = useState('')
@@ -185,15 +188,6 @@ export default function PeoplePage({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {memberships.length > 1 && (
-            <SimpleSelect
-              size="default"
-              value={orgId}
-              onValueChange={setOrgId}
-              aria-label={t('admin.organization')}
-              items={memberships.map((m) => ({ value: m.orgId, label: m.name }))}
-            />
-          )}
           {canManage && (
             <button onClick={rename} className="btn-secondary">
               {t('people.rename')}

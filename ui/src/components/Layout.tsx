@@ -84,6 +84,10 @@ function LayoutShell({ me }: { me: Me }) {
     window.location.assign('/login')
   }
 
+  // The rail lists the current organization's projects. An org-less viewer
+  // (the platform operator) keeps seeing the whole installation.
+  const railProjects = orgId ? projects.filter((p) => p.orgId === orgId) : projects
+
   return (
     <div className="app-frame">
       <a href="#main-content" className="skip-link">Skip to content</a>
@@ -155,7 +159,7 @@ function LayoutShell({ me }: { me: Me }) {
             )}
           </div>
           <div className="space-y-0.5">
-            {projects.map((project) => (
+            {railProjects.map((project) => (
               <NavLink
                 key={project.id}
                 to={`/code/${project.id}`}
@@ -166,7 +170,7 @@ function LayoutShell({ me }: { me: Me }) {
                 <span className="truncate">{project.name}</span>
               </NavLink>
             ))}
-            {projects.length === 0 && <p className="px-2 py-3 text-xs leading-5 text-zinc-700">No projects yet</p>}
+            {railProjects.length === 0 && <p className="px-2 py-3 text-xs leading-5 text-zinc-700">No projects yet</p>}
           </div>
         </section>
 

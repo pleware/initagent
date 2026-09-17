@@ -48,8 +48,10 @@ export interface Me {
   // The verbs a token may carry, for the same reason as orgRoles.
   tokenScopes?: TokenScope[]
   // The installation scopes the platform operator's tokens may carry.
-  // Present only for the operator, like the surface it feeds.
-  adminTokenScopes?: string[]
+  // Present only for the operator, like the surface it feeds. Each entry
+  // carries the hub's own description of the scope's blast radius — the
+  // cockpit renders it, it does not own the prose.
+  adminTokenScopes?: AdminTokenScope[]
 }
 
 // Account is a person who can sign in. Only one account per installation
@@ -271,6 +273,14 @@ export interface ApiTokenInfo {
 export interface TokenScope {
   scope: string
   dangerous: boolean
+}
+
+// AdminTokenScope is one installation verb the platform operator may hand to
+// a token. `description` is the hub's plain-language blast radius, rendered
+// in the mint form so the prose and the grant rule cannot drift apart.
+export interface AdminTokenScope {
+  scope: string
+  description: string
 }
 
 export interface UpdateStatus {

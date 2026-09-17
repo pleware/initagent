@@ -498,15 +498,18 @@ function AdminTokens({ me }: { me: Me }) {
         <fieldset className="rounded-xl border border-zinc-800 p-4">
           <legend className="eyebrow px-1">{t('settings.adminTokensPanel.scopesLegend')}</legend>
           <div className="flex flex-col gap-1">
-            {catalogue.map((scope) => (
-              <label key={scope} className="flex items-center gap-2 py-0.5 text-sm text-zinc-300">
+            {catalogue.map((entry) => (
+              <label key={entry.scope} className="flex items-start gap-2 py-0.5 text-sm text-zinc-300">
                 <input
                   type="checkbox"
-                  checked={chosen.includes(scope)}
-                  onChange={() => toggle(scope)}
-                  className="h-4 w-4 accent-lime-400"
+                  checked={chosen.includes(entry.scope)}
+                  onChange={() => toggle(entry.scope)}
+                  className="mt-0.5 h-4 w-4 accent-lime-400"
                 />
-                <span className="font-mono text-xs">{scope}</span>
+                <span className="min-w-0">
+                  <span className="block font-mono text-xs">{entry.scope}</span>
+                  <span className="block text-xs text-zinc-500">{entry.description}</span>
+                </span>
               </label>
             ))}
           </div>

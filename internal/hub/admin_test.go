@@ -464,6 +464,14 @@ func TestOperatorRejectsUnknownOrgMode(t *testing.T) {
 	}
 }
 
+func TestSetOrgModeMissingOrg(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	resp := f.do(t, http.MethodPatch, "/api/admin/orgs/org-missing", map[string]string{"mode": "test"})
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("mode on a missing org: %d, want 404", resp.StatusCode)
+	}
+}
+
 func TestCustomerCannotSetOrgMode(t *testing.T) {
 	f := hostedCustomer(t)
 	resp := f.do(t, http.MethodPatch, "/api/admin/orgs/"+f.orgId, map[string]string{"mode": "test"})

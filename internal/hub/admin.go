@@ -117,6 +117,9 @@ func (s *Server) handleSetOrgMode(w http.ResponseWriter, r *http.Request, cred a
 		return
 	}
 	orgId := r.PathValue("id")
+	if _, ok := s.orgOr404(w, orgId); !ok {
+		return
+	}
 	var req struct {
 		Mode *string `json:"mode"`
 	}

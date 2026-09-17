@@ -185,6 +185,28 @@ CREATE TABLE IF NOT EXISTS skills (
 	created_at  INTEGER NOT NULL,
 	updated_at  INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS staff (
+	id          TEXT PRIMARY KEY,
+	slug        TEXT NOT NULL UNIQUE,
+	name        TEXT NOT NULL,
+	locale      TEXT NOT NULL DEFAULT 'en',
+	age         INTEGER NOT NULL,
+	big_five    TEXT NOT NULL DEFAULT '{}',
+	brief       TEXT NOT NULL DEFAULT '',
+	word_budget INTEGER NOT NULL DEFAULT 0,
+	model       TEXT NOT NULL DEFAULT '',
+	created_at  INTEGER NOT NULL,
+	updated_at  INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS org_staff_overrides (
+	org_id      TEXT NOT NULL,
+	staff_id    TEXT NOT NULL,
+	big_five    TEXT,
+	brief       TEXT,
+	word_budget INTEGER,
+	model       TEXT,
+	PRIMARY KEY (org_id, staff_id)
+);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -346,6 +368,28 @@ CREATE TABLE IF NOT EXISTS skills (
 	created_by  TEXT NOT NULL DEFAULT '',
 	created_at  BIGINT NOT NULL,
 	updated_at  BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS staff (
+	id          TEXT PRIMARY KEY,
+	slug        TEXT NOT NULL UNIQUE,
+	name        TEXT NOT NULL,
+	locale      TEXT NOT NULL DEFAULT 'en',
+	age         BIGINT NOT NULL,
+	big_five    TEXT NOT NULL DEFAULT '{}',
+	brief       TEXT NOT NULL DEFAULT '',
+	word_budget BIGINT NOT NULL DEFAULT 0,
+	model       TEXT NOT NULL DEFAULT '',
+	created_at  BIGINT NOT NULL,
+	updated_at  BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS org_staff_overrides (
+	org_id      TEXT NOT NULL,
+	staff_id    TEXT NOT NULL,
+	big_five    TEXT,
+	brief       TEXT,
+	word_budget BIGINT,
+	model       TEXT,
+	PRIMARY KEY (org_id, staff_id)
 );
 `
 

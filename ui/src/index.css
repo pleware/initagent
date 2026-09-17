@@ -65,7 +65,7 @@ select:focus-visible {
 }
 
 .eyebrow {
-  @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-signal/80;
+  @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-accent-fg/80;
 }
 
 .btn-primary {

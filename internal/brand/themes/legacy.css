@@ -93,11 +93,9 @@
   --ia-warn-fg: oklch(87.9% 0.169 91.605); /* amber-300 */
   --ia-code: #f2c879;
 
-  /* Attention — both lime here. `signal` is the Overseer leftover and is not
-     expected to survive; `focus` is load-bearing for keyboard users, so a
-     family may move it on its own. */
+  /* Attention — `focus` is load-bearing for keyboard users, so a family may
+     move it on its own. */
   --ia-focus: oklch(89.7% 0.196 126.665); /* lime-300 */
-  --ia-signal: oklch(89.7% 0.196 126.665); /* lime-300 */
 
   /* Depth */
   --ia-shadow-surface: 0 18px 60px rgba(0, 0, 0, 0.18);

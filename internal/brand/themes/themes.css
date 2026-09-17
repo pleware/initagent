@@ -46,7 +46,7 @@
  *   Status        --ia-ok, --ia-ok-on, --ia-fail, --ia-fail-fg, --ia-code,
  *                 --ia-warn, --ia-warn-fg, --ia-warn-on
  *                 --ia-warn: amber warning fill; -on its ink; -fg amber text
- *   Attention     --ia-focus, --ia-signal
+ *   Attention     --ia-focus
  *   Depth         --ia-shadow-surface, --ia-glow-ok, --ia-glow-info
  *   Chrome        --ia-scrollbar-thumb, --ia-term-scrollbar
  *

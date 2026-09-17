@@ -12,8 +12,7 @@
  * Design intent on record (`03`, `17`): a warm ember accent (the earlier
  * starter used #e07a3d dark / #c45f28 light) so the product does not read as
  * a reskinned Overseer, a cool focus colour that does not compete with it,
- * and status hues that mean queue outcomes rather than decoration. The lime
- * `--ia-signal` leftover does not survive into this family.
+ * and status hues that mean queue outcomes rather than decoration.
  */
 
 [data-theme='default-dark'] {

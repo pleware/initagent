@@ -155,6 +155,76 @@ func TestInstallationStaysWithThePerson(t *testing.T) {
 	}
 }
 
+// An installation grant is a second class of token whose boundary is the
+// installation itself. Three invariants hold: its own scope list is still
+// the first check; only the installation-grantable verbs exist for it, no
+// matter what a hand-crafted row says; and an org grant keeps refusing the
+// empty boundary outright.
+func TestInstallationGrant(t *testing.T) {
+	operator := Requester{Account: "account-1", Platform: true}
+
+	cases := []struct {
+		name         string
+		grant        Grant
+		cap          Capability
+		org, project string
+		want         bool
+	}{
+		{"named capability at the installation", Grant{Installation: true, Scopes: []Capability{AdminOrg}}, AdminOrg, "", "", true},
+		{"named skill at the installation", Grant{Installation: true, Scopes: []Capability{AdminSkill}}, AdminSkill, "", "", true},
+		{"enumerate orgs at the installation", Grant{Installation: true, Scopes: []Capability{ReadOrg}}, ReadOrg, "", "", true},
+		{"accounts stay with the person", Grant{Installation: true, Scopes: []Capability{AdminOrg}}, AdminAccounts, "", "", false},
+		// The regression that caught the blocker: the token honours its own
+		// scopes, and installationGrantable is not a substitute for them.
+		{"token honours its own scopes", Grant{Installation: true, Scopes: []Capability{ReadOrg}}, AdminOrg, "", "", false},
+		// Defense in depth: even a hand-crafted row that names a
+		// non-grantable installation verb is refused by the whitelist.
+		{"a non-grantable scope cannot be smuggled in", Grant{Installation: true, Scopes: []Capability{AdminAccounts}}, AdminAccounts, "", "", false},
+		{"an installation token cannot enter a tenant", Grant{Installation: true, Scopes: []Capability{AdminOrg}}, AdminOrg, "org-1", "", false},
+		{"an installation token cannot enter a project", Grant{Installation: true, Scopes: []Capability{AdminOrg}}, AdminOrg, "org-1", "project-1", false},
+		// The old class keeps its shape: an org grant still refuses the
+		// installation, even when it names an installation verb.
+		{"org token at the installation", Grant{Org: "org-1", Scopes: []Capability{ReadOrg}}, ReadOrg, "", "", false},
+		{"org token with an installation scope", Grant{Org: "org-1", Scopes: []Capability{AdminOrg}}, AdminOrg, "", "", false},
+	}
+	for _, c := range cases {
+		cred := Credential{Requester: operator, Grant: &c.grant}
+		if got := cred.Can(c.cap, c.org, c.project); got != c.want {
+			t.Errorf("%s: Can(%q, %q, %q) = %v; want %v", c.name, c.cap, c.org, c.project, got, c.want)
+		}
+	}
+}
+
+// Contains is the boundary axis. An installation grant covers exactly the
+// installation — the empty org with no project — and never a tenant or a
+// project inside one.
+func TestInstallationGrantBoundary(t *testing.T) {
+	g := &Grant{Installation: true, Scopes: []Capability{AdminOrg}}
+	if !g.Contains("", "") {
+		t.Error("an installation grant refused its own boundary")
+	}
+	for _, target := range [][2]string{{"org-1", ""}, {"", "project-1"}, {"org-1", "project-1"}} {
+		if g.Contains(target[0], target[1]) {
+			t.Errorf("an installation grant reached %q/%q", target[0], target[1])
+		}
+	}
+}
+
+// A token mints nothing beyond its author. A customer's token — Platform
+// false — never passes an installation capability, whatever the grant says.
+func TestInstallationGrantNeedsThePlatformOperator(t *testing.T) {
+	customer := Requester{Account: "account-2", Orgs: map[string]Role{"org-1": RoleOwner}}
+	cred := Credential{
+		Requester: customer,
+		Grant:     &Grant{Installation: true, Scopes: []Capability{AdminOrg, AdminSkill, ReadOrg}},
+	}
+	for _, c := range []Capability{AdminOrg, AdminSkill, ReadOrg} {
+		if cred.Can(c, "", "") {
+			t.Errorf("a customer token exercised %q at the installation", c)
+		}
+	}
+}
+
 func TestParseScopes(t *testing.T) {
 	got, err := ParseScopes("read:project.task create:project.task")
 	if err != nil {
@@ -186,13 +256,63 @@ func TestParseScopes(t *testing.T) {
 	// than what it reads as.
 	for _, bad := range []string{
 		"read:project.task write:hub.invented",
-		"admin:hub.account",  // installation-only, never grantable
-		"admin:hub.update",   // same
-		"Read:project.task",  // case matters
-		"read:project.tasks", // typo
+		"admin:hub.account",             // installation-only, never grantable
+		"admin:hub.update",              // same
+		"admin:hub.skill",               // installation-grantable, but not org-grantable
+		"admin:hub.org admin:hub.skill", // mixed classes are refused whole
+		"Read:project.task",             // case matters
+		"read:project.tasks",            // typo
 	} {
 		if _, err := ParseScopes(bad); !errors.Is(err, ErrScopeUnknown) {
 			t.Errorf("ParseScopes(%q) error = %v; want ErrScopeUnknown", bad, err)
+		}
+	}
+}
+
+// The installation parser reads only the installation grantable set. The org
+// path is untouched: an installation scope is not org-grantable and an org
+// scope is not installation-grantable, so neither parser accepts the other's
+// vocabulary.
+func TestParseInstallationScopes(t *testing.T) {
+	got, err := ParseInstallationScopes("admin:hub.skill admin:hub.org")
+	if err != nil {
+		t.Fatalf("ParseInstallationScopes: %v", err)
+	}
+	want := []Capability{AdminOrg, AdminSkill} // sorted
+	if !slices.Equal(got, want) {
+		t.Errorf("ParseInstallationScopes = %v; want %v", got, want)
+	}
+
+	// Storage is normalised on the way in, same as the org parser.
+	got, err = ParseInstallationScopes("  admin:hub.org   admin:hub.org ")
+	if err != nil {
+		t.Fatalf("ParseInstallationScopes with repeats: %v", err)
+	}
+	if !slices.Equal(got, []Capability{AdminOrg}) {
+		t.Errorf("ParseInstallationScopes deduplicated = %v; want [admin:hub.org]", got)
+	}
+
+	if got, err := ParseInstallationScopes(""); err != nil || got != nil {
+		t.Errorf("ParseInstallationScopes(\"\") = %v, %v; want nil, nil", got, err)
+	}
+	if got, err := ParseInstallationScopes("   "); err != nil || got != nil {
+		t.Errorf("ParseInstallationScopes(blank) = %v, %v; want nil, nil", got, err)
+	}
+
+	// The org path stays closed to installation vocabulary, and the
+	// installation path stays closed to everything not installation-grantable.
+	if _, err := ParseScopes("admin:hub.skill"); !errors.Is(err, ErrScopeUnknown) {
+		t.Errorf("ParseScopes(admin:hub.skill) error = %v; want ErrScopeUnknown", err)
+	}
+	for _, bad := range []string{
+		"admin:hub.account", // stays session-only, never grantable
+		"admin:hub.update",  // same
+		"read:hub.update",   // installation-only, never grantable
+		"read:project.task", // org-grantable, not installation-grantable
+		"admin:hub.skil",    // typo
+	} {
+		if _, err := ParseInstallationScopes(bad); !errors.Is(err, ErrScopeUnknown) {
+			t.Errorf("ParseInstallationScopes(%q) error = %v; want ErrScopeUnknown", bad, err)
 		}
 	}
 }
@@ -262,6 +382,26 @@ func TestRegistriesAgreeWithEnforcement(t *testing.T) {
 		_, org := orgMinimum[c]
 		if !installation[c] && !org {
 			t.Errorf("%q is neither an installation power nor an org capability", c)
+		}
+	}
+}
+
+// The installation grantable set is a subset of the installation set and
+// deliberately excludes account and update administration: those stay with
+// the person in front of a browser no matter what a token row says.
+func TestInstallationGrantableIsANarrowInstallation(t *testing.T) {
+	scopes := InstallationGrantableScopes()
+	if !slices.IsSorted(scopes) {
+		t.Error("InstallationGrantableScopes() is not sorted")
+	}
+	for _, c := range scopes {
+		if !installation[c] {
+			t.Errorf("%q is installation-grantable but not an installation capability", c)
+		}
+	}
+	for _, c := range []Capability{AdminAccounts, AdminUpdate} {
+		if installationGrantable[c] {
+			t.Errorf("%q must stay session-only, never grantable to a token", c)
 		}
 	}
 }

@@ -43,13 +43,19 @@ func TestCanAtInstallationBoundary(t *testing.T) {
 	}{
 		{"operator administers accounts", operator, AdminAccounts, true},
 		{"operator enumerates orgs", operator, ReadOrg, true},
-		// An org capability must not become a platform power just because the
-		// boundary is empty: the installation is not "every org at once".
-		{"operator cannot administer an org hub-wide", operator, AdminOrg, false},
+		// AdminOrg gained a second meaning at the installation (08): there it
+		// administers the organizations themselves, and AdminSkill the hub's
+		// skills. The set a platform admin holds hub-wide is exactly the
+		// installation map — an org capability outside it still refuses an
+		// empty boundary.
+		{"operator administers orgs hub-wide", operator, AdminOrg, true},
+		{"operator administers skills hub-wide", operator, AdminSkill, true},
 		{"operator cannot delete an org hub-wide", operator, DeleteOrg, false},
 		{"operator cannot create a project hub-wide", operator, CreateProject, false},
 		{"an org owner is not a platform admin", customer, AdminAccounts, false},
 		{"an org owner cannot enumerate the hub", customer, ReadOrg, false},
+		{"an org owner cannot administer orgs hub-wide", customer, AdminOrg, false},
+		{"an org owner cannot administer skills hub-wide", customer, AdminSkill, false},
 	}
 	for _, c := range cases {
 		if got := c.requester.Can(c.cap, ""); got != c.want {

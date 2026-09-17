@@ -17,6 +17,7 @@ package authz
 import (
 	"errors"
 	"slices"
+	"strings"
 )
 
 // Role is an organization role (25). A role is a named bundle of
@@ -72,9 +73,18 @@ const (
 	// organization and who is in it".
 	ReadOrg Capability = "read:hub.org"
 
-	// AdminOrg is membership administration inside one org: change a role,
-	// remove a person (25 gives this to `admin` and above).
+	// AdminOrg is membership administration: change a role, remove a person
+	// (25 gives this to `admin` and above). Like ReadOrg it means one thing
+	// at each boundary: inside an org it administers that org's members, and
+	// at the installation it administers the organizations themselves (08's
+	// platform admin surface).
 	AdminOrg Capability = "admin:hub.org"
+
+	// AdminSkill creates, edits and removes the hub's saved skills. The skill
+	// list is the hub's, not an organization's, so the capability lives at
+	// the installation boundary — and unlike AdminAccounts it is grantable:
+	// an installation token may carry it.
+	AdminSkill Capability = "admin:hub.skill"
 
 	// DeleteOrg is the owner's alone (25).
 	DeleteOrg Capability = "delete:hub.org"
@@ -161,9 +171,13 @@ const (
 
 // installation lists the capabilities that exist at the hub boundary. A
 // capability absent here can never be exercised with an empty boundary, so a
-// new org capability does not accidentally become a platform power.
+// new org capability does not accidentally become a platform power. AdminOrg
+// is present on purpose: it has a second meaning at this boundary (08), where
+// it administers the organizations themselves.
 var installation = map[Capability]bool{
 	AdminAccounts: true,
+	AdminOrg:      true,
+	AdminSkill:    true,
 	ReadOrg:       true,
 	ReadUpdate:    true,
 	AdminUpdate:   true,
@@ -230,6 +244,56 @@ func GrantableScopes() []Capability {
 	}
 	slices.Sort(all)
 	return all
+}
+
+// installationGrantable is the subset of the installation capabilities a
+// token may carry. It is deliberately narrower than `installation`: account
+// and update administration stay with the person in front of a browser, so
+// even a hand-crafted token row that names them is refused. The grant checks
+// this whitelist in addition to the token's own scopes, never instead of
+// them.
+var installationGrantable = map[Capability]bool{
+	AdminOrg:   true,
+	AdminSkill: true,
+	ReadOrg:    true,
+}
+
+// InstallationGrantableScopes lists what an installation token may carry,
+// sorted. Derived from installationGrantable rather than kept beside it for
+// the same reason Capabilities is: a hand-maintained second list is how a
+// scope ends up grantable but never enforced.
+func InstallationGrantableScopes() []Capability {
+	all := make([]Capability, 0, len(installationGrantable))
+	for c := range installationGrantable {
+		all = append(all, c)
+	}
+	slices.Sort(all)
+	return all
+}
+
+// ParseInstallationScopes reads a stored installation scope list, mirroring
+// ParseScopes against the installation grantable set instead of the org one.
+// The two lists are different on purpose: an org scope is not an
+// installation power and vice versa, and a row must not authorise something
+// other than what it says — in either direction.
+func ParseInstallationScopes(s string) ([]Capability, error) {
+	fields := strings.Fields(s)
+	if len(fields) == 0 {
+		return nil, nil
+	}
+	grantable := InstallationGrantableScopes()
+	out := make([]Capability, 0, len(fields))
+	for _, f := range fields {
+		c := Capability(f)
+		if !slices.Contains(grantable, c) {
+			return nil, ErrScopeUnknown
+		}
+		if !slices.Contains(out, c) {
+			out = append(out, c)
+		}
+	}
+	slices.Sort(out)
+	return out, nil
 }
 
 // Dangerous marks a scope whose worst case is arbitrary code execution on

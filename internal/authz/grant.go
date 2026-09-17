@@ -24,6 +24,12 @@ type Grant struct {
 	// project in Org, which is what a tenant-wide token looks like.
 	Project string
 
+	// Installation marks an installation-scoped grant: its boundary is the
+	// installation itself — the empty org, no project — and it may carry
+	// only the installation-grantable capabilities. An org grant and an
+	// installation grant never mix: each class refuses the other's boundary.
+	Installation bool
+
 	// Scopes are the verbs, in the `verb:entity` grammar of 05. There is no
 	// wildcard: a wildcard is how a scope set stops being read before it is
 	// honoured.
@@ -75,8 +81,17 @@ func (c Credential) Can(cap Capability, org, project string) bool {
 func (c Credential) Scoped() bool { return c.Grant != nil }
 
 // allows is the token half of the decision: the verb, then the boundary.
+//
+// An installation grant is narrower, not wider: its own scope list must
+// still contain the verb, and the verb must also be installation-grantable.
+// The whitelist is an additional check layered on top of the token's scopes,
+// never a substitute for them — a token that lists only read:hub.org is
+// refused admin:hub.org exactly because its own scopes are the first check.
 func (g *Grant) allows(c Capability, org, project string) bool {
 	if !slices.Contains(g.Scopes, c) {
+		return false
+	}
+	if g.Installation && !installationGrantable[c] {
 		return false
 	}
 	return g.Contains(org, project)
@@ -88,6 +103,12 @@ func (g *Grant) allows(c Capability, org, project string) bool {
 // the exec:fleet.connector scope" and "this token belongs to another project"
 // send an operator to different places, and a single 403 sends them nowhere.
 func (g *Grant) Contains(org, project string) bool {
+	// An installation grant covers exactly the installation: the empty org
+	// with no project. It never reaches into a tenant, which is what keeps
+	// the two token classes from mixing in either direction.
+	if g.Installation {
+		return org == "" && project == ""
+	}
 	// The installation is not a tenant. 09 gives an API token a project or a
 	// tenant, so hub-wide administration stays with the person in front of a
 	// browser and a leaked token cannot reach it.

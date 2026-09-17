@@ -120,10 +120,10 @@ func (in skillInput) refusal() string {
 	if strings.TrimSpace(in.Name) == "" {
 		return "name is required"
 	}
-	if in.Body == "" {
+	if strings.TrimSpace(in.Body) == "" {
 		return "body is required"
 	}
-	if in.MCP != nil && in.MCP.Command == "" && in.MCP.URL == "" {
+	if in.MCP != nil && strings.TrimSpace(in.MCP.Command) == "" && strings.TrimSpace(in.MCP.URL) == "" {
 		return "mcp requires a command or a url"
 	}
 	return ""

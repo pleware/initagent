@@ -167,7 +167,9 @@ func TestAdminCreateSkillRefusals(t *testing.T) {
 	}{
 		{"empty name", map[string]any{"name": "  ", "body": "x"}, http.StatusBadRequest},
 		{"empty body", map[string]any{"name": "ok", "body": ""}, http.StatusBadRequest},
+		{"whitespace-only body", map[string]any{"name": "ok", "body": "   "}, http.StatusBadRequest},
 		{"mcp with neither command nor url", map[string]any{"name": "ok", "body": "x", "mcp": map[string]any{}}, http.StatusBadRequest},
+		{"whitespace-only mcp command", map[string]any{"name": "ok", "body": "x", "mcp": map[string]any{"command": "  "}}, http.StatusBadRequest},
 		{"duplicate name", map[string]any{"name": "taken", "body": "x"}, http.StatusConflict},
 	}
 	for _, c := range cases {

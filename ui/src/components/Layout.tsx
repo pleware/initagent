@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { displayName } from '../../../web/brand.ts'
 import { BrandMark } from '../../../web/brand-mark.tsx'
 import { api } from '../api'
+import { CurrentOrgProvider } from '../current-org'
 import type { Me, Project } from '../types'
 import LanguageSwitcher from './LanguageSwitcher'
 import ThemeSwitcher from './ThemeSwitcher'
@@ -26,6 +27,14 @@ export type HubOutlet = {
 }
 
 export default function Layout({ me }: { me: Me }) {
+  return (
+    <CurrentOrgProvider orgs={me.orgs ?? []}>
+      <LayoutShell me={me} />
+    </CurrentOrgProvider>
+  )
+}
+
+function LayoutShell({ me }: { me: Me }) {
   const { t } = useTranslation()
   const [projects, setProjects] = useState<Project[]>([])
   const [projectsReady, setProjectsReady] = useState(false)

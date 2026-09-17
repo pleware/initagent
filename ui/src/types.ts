@@ -47,6 +47,9 @@ export interface Me {
   orgRoles?: string[]
   // The verbs a token may carry, for the same reason as orgRoles.
   tokenScopes?: TokenScope[]
+  // The installation scopes the platform operator's tokens may carry.
+  // Present only for the operator, like the surface it feeds.
+  adminTokenScopes?: string[]
 }
 
 // Account is a person who can sign in. Only one account per installation

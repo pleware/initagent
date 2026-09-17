@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useMemo, useState, type ComponentType, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ArrowClockwiseIcon, KeyIcon, PlugsConnectedIcon, RocketLaunchIcon } from '@phosphor-icons/react'
+import { ArrowClockwiseIcon, KeyIcon, PlugsConnectedIcon, RocketLaunchIcon, ShieldCheckIcon } from '@phosphor-icons/react'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@ia/web/ui/accordion'
 import { api, timeAgo } from '../api'
@@ -20,6 +20,11 @@ export default function SettingsPage({ me }: { me: Me }) {
         <SettingsPanel value="tokens" icon={KeyIcon} title={t('settings.tokens')}>
           <ApiTokens me={me} />
         </SettingsPanel>
+        {me.platformAdmin && (
+          <SettingsPanel value="adminTokens" icon={ShieldCheckIcon} title={t('settings.adminTokens')}>
+            <AdminTokens me={me} />
+          </SettingsPanel>
+        )}
         <SettingsPanel value="presets" icon={RocketLaunchIcon} title={t('settings.presets')}>
           <Presets />
         </SettingsPanel>
@@ -415,6 +420,156 @@ function ApiTokens({ me }: { me: Me }) {
         ))}
         {tokens.length === 0 && (
           <li className="py-2 text-sm text-zinc-500">No tokens yet.</li>
+        )}
+      </ul>
+    </div>
+  )
+}
+
+// AdminTokens mints and revokes the installation-scoped credentials only
+// the platform operator may hold. Unlike ApiTokens there is no org or
+// project axis: these tokens are the installation's, so the list is flat —
+// name, scope badges, last use, revoke.
+function AdminTokens({ me }: { me: Me }) {
+  const { t } = useTranslation()
+  const catalogue = me.adminTokenScopes ?? []
+
+  const [tokens, setTokens] = useState<ApiTokenInfo[]>([])
+  const [name, setName] = useState('')
+  const [chosen, setChosen] = useState<string[]>([])
+  const [fresh, setFresh] = useState('')
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    try {
+      setTokens(await api.get<ApiTokenInfo[]>('/api/admin/tokens'))
+    } catch {
+      /* transient */
+    }
+  }, [])
+  usePoll(load, 30000)
+
+  const toggle = (scope: string) =>
+    setChosen((current) =>
+      current.includes(scope) ? current.filter((s) => s !== scope) : [...current, scope],
+    )
+
+  const create = async (e: FormEvent) => {
+    e.preventDefault()
+    setError('')
+    try {
+      const r = await api.post<{ token: string }>('/api/admin/tokens', {
+        name,
+        scopes: chosen,
+      })
+      setFresh(r.token)
+      setName('')
+      setChosen([])
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('settings.adminTokensPanel.createError'))
+    }
+  }
+
+  const revoke = async (id: string) => {
+    if (!confirm(t('settings.adminTokensPanel.revokeConfirm'))) return
+    try {
+      await api.del(`/api/admin/tokens/${id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('settings.adminTokensPanel.revokeError'))
+    }
+    load()
+  }
+
+  return (
+    <div>
+      <p className="mb-4 rounded-lg border border-amber-500/25 bg-amber-500/8 p-3 text-xs leading-5 text-amber-200/90">
+        {t('settings.adminTokensPanel.warning')}
+      </p>
+
+      <form onSubmit={create} className="mb-5 flex flex-col gap-3">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('settings.adminTokensPanel.namePlaceholder')}
+          required
+          className={`${inputClass} sm:max-w-72`}
+        />
+        <fieldset className="rounded-xl border border-zinc-800 p-4">
+          <legend className="eyebrow px-1">{t('settings.adminTokensPanel.scopesLegend')}</legend>
+          <div className="flex flex-col gap-1">
+            {catalogue.map((scope) => (
+              <label key={scope} className="flex items-center gap-2 py-0.5 text-sm text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={chosen.includes(scope)}
+                  onChange={() => toggle(scope)}
+                  className="h-4 w-4 accent-lime-400"
+                />
+                <span className="font-mono text-xs">{scope}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="flex items-center gap-3">
+          <button className="btn-primary" disabled={chosen.length === 0 || name.trim() === ''}>
+            {t('settings.adminTokensPanel.create')}
+          </button>
+          <span className="text-xs text-zinc-500">
+            {chosen.length === 0
+              ? t('settings.adminTokensPanel.pickOne')
+              : t('settings.adminTokensPanel.selected', { count: chosen.length })}
+          </span>
+        </div>
+      </form>
+
+      {error && (
+        <p className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs leading-5 text-rose-200">
+          {error}
+        </p>
+      )}
+      {fresh && (
+        <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
+          <p className="mb-2 text-xs text-emerald-300">{t('settings.adminTokensPanel.copyNow')}</p>
+          <code className="block overflow-x-auto whitespace-nowrap font-mono text-[13px] text-emerald-200">
+            {fresh}
+          </code>
+        </div>
+      )}
+      <ul className="divide-y divide-zinc-800/60">
+        {tokens.map((token) => (
+          <li key={token.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+            <div className="min-w-0">
+              <p className="text-sm text-zinc-200">{token.name}</p>
+              <p className="mt-1 flex flex-wrap gap-1">
+                {token.scopes.map((scope) => (
+                  <span
+                    key={scope}
+                    className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400"
+                  >
+                    {scope}
+                  </span>
+                ))}
+              </p>
+            </div>
+            <span className="flex items-center gap-4">
+              <span className="text-xs text-zinc-500">
+                {token.lastUsedAt
+                  ? t('settings.adminTokensPanel.used', { ago: timeAgo(token.lastUsedAt) })
+                  : t('settings.adminTokensPanel.neverUsed')}
+              </span>
+              <button
+                onClick={() => revoke(token.id)}
+                className="text-xs text-zinc-500 hover:text-rose-400"
+              >
+                {t('settings.adminTokensPanel.revoke')}
+              </button>
+            </span>
+          </li>
+        ))}
+        {tokens.length === 0 && (
+          <li className="py-2 text-sm text-zinc-500">{t('settings.adminTokensPanel.none')}</li>
         )}
       </ul>
     </div>

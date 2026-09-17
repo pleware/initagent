@@ -112,7 +112,7 @@ func (s *Server) handleRenameOrg(w http.ResponseWriter, r *http.Request, cred au
 // Either way it is a platform-operator action — a customer must not be able
 // to lift their own walls or move their own billing to Stripe test.
 func (s *Server) handleSetOrgMode(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminAccounts, "", "") {
+	if !cred.Can(authz.AdminOrg, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}

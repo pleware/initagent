@@ -132,7 +132,7 @@ func (in skillInput) refusal() string {
 // handleAdminListSkills serves every skill on the installation, disabled
 // included: the operator's own view of the store they manage.
 func (s *Server) handleAdminListSkills(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminAccounts, "", "") {
+	if !cred.Can(authz.AdminSkill, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -148,7 +148,7 @@ func (s *Server) handleAdminListSkills(w http.ResponseWriter, r *http.Request, c
 // the body are required; an MCP config has to name a command or a url. A
 // nil enabled means on.
 func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminAccounts, "", "") {
+	if !cred.Can(authz.AdminSkill, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -181,7 +181,7 @@ func (s *Server) handleCreateSkill(w http.ResponseWriter, r *http.Request, cred 
 // handleUpdateSkill replaces the editable fields of one skill. A missing id
 // is a 404; validation and the name-collision answer match create.
 func (s *Server) handleUpdateSkill(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminAccounts, "", "") {
+	if !cred.Can(authz.AdminSkill, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -222,7 +222,7 @@ func (s *Server) handleUpdateSkill(w http.ResponseWriter, r *http.Request, cred 
 // handleDeleteSkill removes one skill. Deleting a missing skill is not an
 // error, matching the store.
 func (s *Server) handleDeleteSkill(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminAccounts, "", "") {
+	if !cred.Can(authz.AdminSkill, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}

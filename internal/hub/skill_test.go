@@ -247,27 +247,110 @@ func TestAdminSkillRoutesRefuseNonAdmin(t *testing.T) {
 	}
 }
 
-// The gate is credential.Can, not "is there a session": a token whose scope
-// list names admin:hub.account but whose grant has no boundary cannot pass,
-// because no token reaches the installation (Grant.Contains("", "") is
-// false). Constructed directly because the store will not mint that scope.
-func TestAdminSkillHandlersRefuseInstallationToken(t *testing.T) {
+// The gate is credential.Can at the installation boundary. An installation
+// token carrying admin:hub.skill passes it: the capability is
+// installation-grantable (grant.go) and the grant's boundary covers the
+// empty org. Constructed directly because the store will not mint that
+// scope for a browser session, and the minted token flow is the org-scoped
+// one.
+func TestAdminSkillHandlersTakeInstallationToken(t *testing.T) {
 	srv := newHub(t, t.TempDir(), offering.Selfhost)
+	target := seedSkill(t, srv.store, "target", true)
 	cred := authz.Credential{
 		Requester: authz.Requester{Account: "account-ops", Platform: true},
-		Grant:     &authz.Grant{Org: "", Scopes: []authz.Capability{authz.AdminAccounts}},
+		Grant:     &authz.Grant{Installation: true, Scopes: []authz.Capability{authz.AdminSkill}},
 	}
-	call := func(handler credHandler, method, target string) int {
+	call := func(handler credHandler, method, path, id, body string) int {
 		t.Helper()
-		req := httptest.NewRequest(method, target, nil)
+		var rdr io.Reader
+		if body != "" {
+			rdr = strings.NewReader(body)
+		}
+		req := httptest.NewRequest(method, path, rdr)
+		if id != "" {
+			req.SetPathValue("id", id)
+		}
 		rec := httptest.NewRecorder()
 		handler(rec, req, cred)
 		return rec.Code
 	}
-	if got := call(srv.handleAdminListSkills, http.MethodGet, "/api/admin/skills"); got != http.StatusForbidden {
-		t.Errorf("list with an installation-scoped token: %d, want 403", got)
+	if got := call(srv.handleAdminListSkills, http.MethodGet, "/api/admin/skills", "", ""); got != http.StatusOK {
+		t.Errorf("list with an installation token carrying admin:hub.skill: %d, want 200", got)
 	}
-	if got := call(srv.handleDeleteSkill, http.MethodDelete, "/api/admin/skills/skill-any"); got != http.StatusForbidden {
-		t.Errorf("delete with an installation-scoped token: %d, want 403", got)
+	if got := call(srv.handleCreateSkill, http.MethodPost, "/api/admin/skills", "",
+		`{"name":"greeter","body":"echo hello"}`); got != http.StatusCreated {
+		t.Errorf("create with an installation token carrying admin:hub.skill: %d, want 201", got)
+	}
+	if got := call(srv.handleUpdateSkill, http.MethodPatch, "/api/admin/skills/"+target.ID, target.ID,
+		`{"name":"after","body":"echo two"}`); got != http.StatusOK {
+		t.Errorf("update with an installation token carrying admin:hub.skill: %d, want 200", got)
+	}
+	skills, err := srv.store.ListSkills()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(skills) != 2 || skills[0].Name != "after" || skills[1].Name != "greeter" {
+		t.Errorf("store after token create+update = %+v, want greeter and the renamed after", skills)
+	}
+	if got := call(srv.handleDeleteSkill, http.MethodDelete, "/api/admin/skills/"+target.ID, target.ID, ""); got != http.StatusOK {
+		t.Errorf("delete with an installation token carrying admin:hub.skill: %d, want 200", got)
+	}
+	skills, err = srv.store.ListSkills()
+	if err != nil || len(skills) != 1 || skills[0].Name != "greeter" {
+		t.Errorf("store after token delete = (%v, %v), want only the created greeter", skills, err)
+	}
+}
+
+// Tokens that do not carry the verb, or carry it at the wrong boundary,
+// stay refused at the gate: admin:hub.account is not installation-grantable,
+// and an org-scoped grant never covers the installation — so even a scopes
+// list naming admin:hub.skill is not enough without an installation grant.
+func TestAdminSkillHandlersRefuseTokens(t *testing.T) {
+	srv := newHub(t, t.TempDir(), offering.Selfhost)
+	target := seedSkill(t, srv.store, "target", true)
+	cases := []struct {
+		name string
+		cred authz.Credential
+	}{
+		{
+			name: "installation token without the capability",
+			cred: authz.Credential{
+				Requester: authz.Requester{Account: "account-ops", Platform: true},
+				Grant:     &authz.Grant{Installation: true, Scopes: []authz.Capability{authz.AdminAccounts}},
+			},
+		},
+		{
+			name: "org-scoped token carrying the capability",
+			cred: authz.Credential{
+				Requester: authz.Requester{Account: "account-ops", Platform: true},
+				Grant:     &authz.Grant{Org: "org-x", Scopes: []authz.Capability{authz.AdminSkill}},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			call := func(handler credHandler, method, path, id string) int {
+				t.Helper()
+				req := httptest.NewRequest(method, path, nil)
+				if id != "" {
+					req.SetPathValue("id", id)
+				}
+				rec := httptest.NewRecorder()
+				handler(rec, req, c.cred)
+				return rec.Code
+			}
+			if got := call(srv.handleAdminListSkills, http.MethodGet, "/api/admin/skills", ""); got != http.StatusForbidden {
+				t.Errorf("list: %d, want 403", got)
+			}
+			if got := call(srv.handleCreateSkill, http.MethodPost, "/api/admin/skills", ""); got != http.StatusForbidden {
+				t.Errorf("create: %d, want 403", got)
+			}
+			if got := call(srv.handleUpdateSkill, http.MethodPatch, "/api/admin/skills/"+target.ID, target.ID); got != http.StatusForbidden {
+				t.Errorf("update: %d, want 403", got)
+			}
+			if got := call(srv.handleDeleteSkill, http.MethodDelete, "/api/admin/skills/"+target.ID, target.ID); got != http.StatusForbidden {
+				t.Errorf("delete: %d, want 403", got)
+			}
+		})
 	}
 }

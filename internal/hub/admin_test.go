@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/pleware/initagent/internal/auth"
@@ -468,6 +469,70 @@ func TestCustomerCannotSetOrgMode(t *testing.T) {
 	resp := f.do(t, http.MethodPatch, "/api/admin/orgs/"+f.orgId, map[string]string{"mode": "test"})
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("customer setting org mode: %d, want 403", resp.StatusCode)
+	}
+}
+
+func TestOrgModeTakesInstallationToken(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	customer, err := f.srv.store.CreateOrg("Customer Ltd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cred := authz.Credential{
+		Requester: authz.Requester{Account: "account-ops", Platform: true},
+		Grant:     &authz.Grant{Installation: true, Scopes: []authz.Capability{authz.AdminOrg}},
+	}
+	req := httptest.NewRequest(http.MethodPatch, "/api/admin/orgs/"+customer.Id, strings.NewReader(`{"mode":"test"}`))
+	req.SetPathValue("id", customer.Id)
+	rec := httptest.NewRecorder()
+	f.srv.handleSetOrgMode(rec, req, cred)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("set mode with an installation token carrying admin:hub.org: %d, want 200", rec.Code)
+	}
+	org, err := f.srv.store.OrgById(customer.Id)
+	if err != nil || org == nil {
+		t.Fatal(err)
+	}
+	if string(org.Mode) != "test" {
+		t.Errorf("mode = %q, want test", org.Mode)
+	}
+}
+
+func TestOrgModeRefusesTokens(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	customer, err := f.srv.store.CreateOrg("Customer Ltd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name string
+		cred authz.Credential
+	}{
+		{
+			name: "org-scoped token carrying the capability",
+			cred: authz.Credential{
+				Requester: authz.Requester{Account: "account-ops", Platform: true},
+				Grant:     &authz.Grant{Org: customer.Id, Scopes: []authz.Capability{authz.AdminOrg}},
+			},
+		},
+		{
+			name: "installation token without the capability",
+			cred: authz.Credential{
+				Requester: authz.Requester{Account: "account-ops", Platform: true},
+				Grant:     &authz.Grant{Installation: true, Scopes: []authz.Capability{authz.AdminAccounts}},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPatch, "/api/admin/orgs/"+customer.Id, strings.NewReader(`{"mode":"test"}`))
+			req.SetPathValue("id", customer.Id)
+			rec := httptest.NewRecorder()
+			f.srv.handleSetOrgMode(rec, req, c.cred)
+			if rec.Code != http.StatusForbidden {
+				t.Errorf("set org mode: %d, want 403", rec.Code)
+			}
+		})
 	}
 }
 

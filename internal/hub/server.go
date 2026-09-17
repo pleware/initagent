@@ -512,6 +512,9 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/orgs/{id}/invites", s.requireCredential(s.handleListOrgInvites))
 	m.HandleFunc("POST /api/orgs/{id}/invites", s.requireCredential(s.handleCreateOrgInvite))
 	m.HandleFunc("DELETE /api/orgs/{id}/invites/{inviteId}", s.requireCredential(s.handleRevokeOrgInvite))
+	m.HandleFunc("GET /api/orgs/{id}/staff", s.requireCredential(s.handleListOrgStaff))
+	m.HandleFunc("PATCH /api/orgs/{id}/staff/{staffId}", s.requireCredential(s.handleSetOrgStaffOverride))
+	m.HandleFunc("DELETE /api/orgs/{id}/staff/{staffId}/override", s.requireCredential(s.handleClearOrgStaffOverride))
 
 	// Web UI (embedded SPA) at everything else.
 	if s.opts.UI != nil {

@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { displayName } from '../../../web/brand.ts'
 import { BrandMark } from '../../../web/brand-mark.tsx'
 import { api } from '../api'
-import { CurrentOrgProvider } from '../current-org'
+import { CurrentOrgProvider, useCurrentOrg } from '../current-org'
 import type { Me, Project } from '../types'
 import LanguageSwitcher from './LanguageSwitcher'
+import Modal from './Modal'
 import ThemeSwitcher from './ThemeSwitcher'
 import { isHostedOperator } from './Boarding'
 
@@ -36,9 +37,11 @@ export default function Layout({ me }: { me: Me }) {
 
 function LayoutShell({ me }: { me: Me }) {
   const { t } = useTranslation()
+  const { orgId, setOrgId } = useCurrentOrg()
   const [projects, setProjects] = useState<Project[]>([])
   const [projectsReady, setProjectsReady] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [joinOpen, setJoinOpen] = useState(false)
 
   // Two hub surfaces, deliberately separate (draft 17): People is an
   // organization's own roster, Administration is this installation. The
@@ -167,6 +170,44 @@ function LayoutShell({ me }: { me: Me }) {
           </div>
         </section>
 
+        {me.orgs && me.orgs.length > 0 && (
+          <section className="sidebar-organizations">
+            <div className="sidebar-section-title">
+              <span>{t('nav.organizations', { defaultValue: 'Organizations' })}</span>
+            </div>
+            <div className="space-y-0.5">
+              {me.orgs.map((membership) => (
+                <button
+                  key={membership.orgId}
+                  type="button"
+                  onClick={() => {
+                    setOrgId(membership.orgId)
+                    setMobileOpen(false)
+                  }}
+                  aria-current={membership.orgId === orgId ? 'true' : undefined}
+                  className={`org-link ${membership.orgId === orgId ? 'org-link-active' : ''}`}
+                >
+                  <span className="truncate">{membership.name}</span>
+                  <span className="org-role">
+                    {t(`orgs.roles.${membership.role}`, { defaultValue: membership.role })}
+                  </span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setJoinOpen(true)
+                  setMobileOpen(false)
+                }}
+                className="org-join"
+              >
+                <span aria-hidden>+</span>
+                {t('orgs.join', { defaultValue: 'Join organization' })}
+              </button>
+            </div>
+          </section>
+        )}
+
         <footer className="sidebar-footer">
           <div className="operator-avatar" title={me.email} aria-hidden>
             {operatorInitials(me.email)}
@@ -188,6 +229,19 @@ function LayoutShell({ me }: { me: Me }) {
       <main id="main-content" className="app-content">
         <Outlet context={{ projects, setProjects, projectsReady, reloadProjects: loadProjects } satisfies HubOutlet} />
       </main>
+
+      {joinOpen && (
+        <Modal
+          title={t('orgs.join', { defaultValue: 'Join organization' })}
+          onClose={() => setJoinOpen(false)}
+        >
+          <p className="px-6 pb-6 text-sm text-fg-muted">
+            {t('orgs.joinHint', {
+              defaultValue: 'Paste an invite link to join another organization.',
+            })}
+          </p>
+        </Modal>
+      )}
     </div>
   )
 }

@@ -164,6 +164,26 @@ select:focus-visible {
   @apply bg-info/[0.09] text-info-fg-strong;
 }
 
+.sidebar-organizations {
+  @apply shrink-0 border-t border-line-1 px-2 py-3;
+}
+
+.org-link {
+  @apply flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-fg-subtle hover:bg-fill-3 hover:text-fg;
+}
+
+.org-link-active {
+  @apply bg-info/[0.09] text-info-fg-strong;
+}
+
+.org-role {
+  @apply ml-auto shrink-0 rounded border border-line-2 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-fg-faint;
+}
+
+.org-join {
+  @apply mt-1 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] text-fg-faint hover:bg-fill-3 hover:text-fg-strong;
+}
+
 .sidebar-footer {
   @apply flex shrink-0 items-center gap-2.5 border-t border-line-1 p-3;
 }

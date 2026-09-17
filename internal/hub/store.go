@@ -494,6 +494,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
+	if err := s.EnsureSeedStaff(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("seeding staff: %w", err)
+	}
 	return s, nil
 }
 

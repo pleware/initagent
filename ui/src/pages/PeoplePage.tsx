@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api, timeAgo } from '../api'
 import { useCurrentOrg } from '../current-org'
 import DataTable from '../components/DataTable'
+import Modal from '../components/Modal'
+import BigFiveFields from '../components/BigFiveFields'
 import { HubError } from '../components/PlanWall'
-import type { Me, OrgInvite, OrgMember } from '../types'
+import type { Character, Me, OrgInvite, OrgMember, Staff } from '../types'
 
 // An organization's own people, managed by its owner or admin (draft 25).
 //
@@ -31,6 +33,8 @@ export default function PeoplePage({
   const { orgId } = useCurrentOrg()
   const [members, setMembers] = useState<OrgMember[] | null>(null)
   const [invites, setInvites] = useState<OrgInvite[]>([])
+  const [staff, setStaff] = useState<Staff[] | null>(null)
+  const [staffEditor, setStaffEditor] = useState<Staff | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('member')
   const [inviteLink, setInviteLink] = useState('')
@@ -47,10 +51,12 @@ export default function PeoplePage({
     if (!orgId) {
       setMembers([])
       setInvites([])
+      setStaff([])
       return
     }
     try {
       setMembers(await api.get<OrgMember[]>(`/api/orgs/${orgId}/members`))
+      setStaff(await api.get<Staff[]>(`/api/orgs/${orgId}/staff`))
       if (canManage) {
         setInvites(await api.get<OrgInvite[]>(`/api/orgs/${orgId}/invites`))
       } else {
@@ -60,6 +66,7 @@ export default function PeoplePage({
     } catch (err) {
       setMembers([])
       setInvites([])
+      setStaff([])
       setError(err instanceof Error ? err.message : t('admin.loadFailed'))
     }
   }, [orgId, canManage, t])
@@ -100,6 +107,20 @@ export default function PeoplePage({
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('people.removeFailed'))
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const resetStaff = async (s: Staff) => {
+    if (!window.confirm(t('people.resetOverrideConfirm', { name: s.name }))) return
+    setBusy(s.id)
+    setError('')
+    try {
+      await api.del(`/api/orgs/${orgId}/staff/${s.id}/override`)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('people.resetFailed'))
     } finally {
       setBusy('')
     }
@@ -358,6 +379,211 @@ export default function PeoplePage({
           )}
         </section>
       )}
+
+      <section className="mt-10">
+        <h2 className="text-lg font-semibold text-zinc-100">{t('people.staff')}</h2>
+        <p className="mt-1 text-sm text-zinc-400">
+          {t('people.staffHint', { org: current?.name })}
+        </p>
+        <div className="mt-4">
+          <DataTable
+            rows={staff}
+            rowKey={(s) => s.id}
+            empty={<p className="text-sm text-zinc-500">{t('people.staffEmpty')}</p>}
+            columns={[
+              {
+                header: t('staff.name'),
+                cell: (s) => (
+                  <span className="text-zinc-200">
+                    {s.name}{' '}
+                    <span className="ml-1 rounded-full border border-lime-400/30 px-2 py-0.5 text-xs text-lime-300">
+                      {t('people.staffBadge')}
+                    </span>
+                  </span>
+                ),
+              },
+              {
+                header: t('staff.model'),
+                cell: (s) => <span className="text-zinc-400">{s.model || '—'}</span>,
+              },
+              {
+                header: t('staff.wordBudget'),
+                cell: (s) => (
+                  <span className="text-zinc-400 tabular-nums">
+                    {s.wordBudget > 0 ? s.wordBudget : '—'}
+                  </span>
+                ),
+              },
+              ...(canManage
+                ? [
+                    {
+                      header: '',
+                      srHeader: t('people.actions'),
+                      width: 'w-28',
+                      cell: (s: Staff) => (
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setStaffEditor(s)}
+                            className="text-xs text-zinc-500 hover:text-zinc-200"
+                          >
+                            {t('common.edit')}
+                          </button>
+                          <button
+                            onClick={() => void resetStaff(s)}
+                            disabled={busy === s.id}
+                            className="text-xs text-zinc-500 hover:text-rose-400"
+                          >
+                            {t('people.resetOverride')}
+                          </button>
+                        </div>
+                      ),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        </div>
+      </section>
+
+      {staffEditor !== null && (
+        <Modal
+          title={t('people.overrideTitle', { name: staffEditor.name })}
+          onClose={() => setStaffEditor(null)}
+          wide
+        >
+          <OrgStaffForm
+            staff={staffEditor}
+            orgId={orgId}
+            onClose={() => setStaffEditor(null)}
+            onSaved={() => {
+              setStaffEditor(null)
+              void load()
+            }}
+          />
+        </Modal>
+      )}
     </div>
+  )
+}
+
+// OrgStaffForm writes this org's override of one staff member: only the
+// overridable fields travel, and every org keeps tuning its own copy — the
+// canonical row stays the installation's. Inherited fields render read-only
+// so the boundary between "the hub's" and "ours" stays visible in the form.
+function OrgStaffForm({
+  staff,
+  orgId,
+  onClose,
+  onSaved,
+}: {
+  staff: Staff
+  orgId: string
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  const [bigFive, setBigFive] = useState<Character>(staff.bigFive)
+  const [brief, setBrief] = useState(staff.brief)
+  const [model, setModel] = useState(staff.model)
+  const [wordBudget, setWordBudget] = useState(
+    staff.wordBudget > 0 ? String(staff.wordBudget) : '',
+  )
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      await api.patch(`/api/orgs/${orgId}/staff/${staff.id}`, {
+        bigFive,
+        brief: brief.trim(),
+        model: model.trim(),
+        wordBudget: Number(wordBudget) || 0,
+      })
+      onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('people.overrideFailed'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
+      {error && (
+        <p className="rounded-lg border border-rose-400/20 px-3 py-2 text-sm text-rose-400">
+          {error}
+        </p>
+      )}
+
+      <div className="rounded-lg border border-white/10 p-4">
+        <p className="text-xs text-zinc-500">{t('staff.inherited')}</p>
+        <dl className="mt-2 grid grid-cols-3 gap-3 text-sm">
+          <div>
+            <dt className="text-xs text-zinc-500">{t('staff.name')}</dt>
+            <dd className="mt-0.5 text-zinc-200">{staff.name}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-zinc-500">{t('staff.locale')}</dt>
+            <dd className="mt-0.5 text-zinc-200">{staff.locale || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-zinc-500">{t('staff.age')}</dt>
+            <dd className="mt-0.5 text-zinc-200">{staff.age > 0 ? staff.age : '—'}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <section className="rounded-lg border border-white/10 p-4">
+        <h3 className="text-sm font-medium text-zinc-200">{t('staff.bigFive')}</h3>
+        <p className="mt-1 text-xs text-zinc-500">{t('staff.bigFiveHint')}</p>
+        <div className="mt-3">
+          <BigFiveFields value={bigFive} onChange={setBigFive} />
+        </div>
+      </section>
+
+      <label className="text-sm text-zinc-300">
+        {t('staff.brief')}
+        <textarea
+          rows={3}
+          value={brief}
+          onChange={(e) => setBrief(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+        />
+      </label>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm text-zinc-300">
+          {t('staff.wordBudget')}
+          <input
+            type="number"
+            min={0}
+            value={wordBudget}
+            onChange={(e) => setWordBudget(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+          />
+        </label>
+        <label className="text-sm text-zinc-300">
+          {t('staff.model')}
+          <input
+            type="text"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[12px] text-zinc-100"
+          />
+        </label>
+      </div>
+
+      <div className="mt-2 flex items-center justify-end gap-3">
+        <button type="button" onClick={onClose} className="btn-secondary">
+          {t('common.cancel')}
+        </button>
+        <button type="submit" disabled={busy} className="btn-primary">
+          {busy ? t('common.loading') : t('common.save')}
+        </button>
+      </div>
+    </form>
   )
 }

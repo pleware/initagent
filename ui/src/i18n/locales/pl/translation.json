@@ -293,7 +293,16 @@
     "confirmRevoke": "Cofnąć zaproszenie dla {{email}}?",
     "roleChangeFailed": "Nie udało się zmienić roli",
     "removeFailed": "Nie udało się usunąć",
-    "renameFailed": "Nie udało się zmienić nazwy"
+    "renameFailed": "Nie udało się zmienić nazwy",
+    "staff": "Zespół biurka",
+    "staffHint": "Współpracownicy huba dostrojeni dla {{org}}.",
+    "staffEmpty": "Nie ma jeszcze nikogo.",
+    "staffBadge": "Zespół biurka",
+    "overrideTitle": "Dostrój: {{name}}",
+    "resetOverride": "Reset",
+    "resetOverrideConfirm": "Przywrócić {{name}} do ustawień huba?",
+    "overrideFailed": "Nie udało się zapisać ustawień",
+    "resetFailed": "Nie udało się zresetować ustawień"
   },
   "orgs": {
     "join": "Dołącz do organizacji",

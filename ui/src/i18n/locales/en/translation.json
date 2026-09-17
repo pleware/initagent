@@ -293,7 +293,16 @@
     "confirmRevoke": "Revoke the invite to {{email}}?",
     "roleChangeFailed": "Could not change the role",
     "removeFailed": "Could not remove",
-    "renameFailed": "Could not rename"
+    "renameFailed": "Could not rename",
+    "staff": "Desk staff",
+    "staffHint": "The hub's teammates as tuned for {{org}}.",
+    "staffEmpty": "No staff yet.",
+    "staffBadge": "Desk staff",
+    "overrideTitle": "Tune {{name}}",
+    "resetOverride": "Reset",
+    "resetOverrideConfirm": "Reset {{name}} to the hub defaults?",
+    "overrideFailed": "Could not save the override",
+    "resetFailed": "Could not reset the override"
   },
   "orgs": {
     "join": "Join organization",

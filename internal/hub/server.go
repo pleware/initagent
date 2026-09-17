@@ -464,6 +464,13 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/tokens", s.requireSession(s.handleCreateApiToken))
 	m.HandleFunc("DELETE /api/tokens/{id}", s.requireSession(s.handleDeleteApiToken))
 
+	// The operator's installation-scoped credentials are session-only for
+	// the same reason, and the AdminAccounts gate lives in the handler with
+	// the token list in hand.
+	m.HandleFunc("GET /api/admin/tokens", s.requireSession(s.handleListAdminTokens))
+	m.HandleFunc("POST /api/admin/tokens", s.requireSession(s.handleCreateAdminToken))
+	m.HandleFunc("DELETE /api/admin/tokens/{id}", s.requireSession(s.handleDeleteAdminToken))
+
 	// Operating the installation, which is not something a machine secret
 	// reaches: a token's boundary is a project or a tenant.
 	m.HandleFunc("GET /api/updates", s.requireInstallation(authz.ReadUpdate, s.handleUpdateStatus))

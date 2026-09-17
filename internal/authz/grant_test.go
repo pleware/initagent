@@ -463,3 +463,23 @@ func TestDangerousIsExecOnly(t *testing.T) {
 		}
 	}
 }
+
+// Every installation-grantable scope carries a description for the mint
+// form: a checkbox with no prose is a token nobody should hand out on faith.
+// Non-grantable capabilities get none, so a cockpit bug cannot dress an
+// ungrantable verb in a description.
+func TestInstallationScopeDescriptionCoversGrantable(t *testing.T) {
+	for _, c := range InstallationGrantableScopes() {
+		if InstallationScopeDescription(c) == "" {
+			t.Errorf("%q is installation-grantable but has no description", c)
+		}
+	}
+	for _, c := range Capabilities() {
+		if installationGrantable[c] {
+			continue
+		}
+		if InstallationScopeDescription(c) != "" {
+			t.Errorf("%q is not installation-grantable but has a description", c)
+		}
+	}
+}

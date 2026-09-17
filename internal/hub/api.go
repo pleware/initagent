@@ -321,9 +321,12 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	// cannot name a verb this hub refuses; unlike them, it is the platform
 	// operator's alone — a customer token never carries hub administration.
 	if requester.Platform {
-		admin := make([]string, 0, len(authz.InstallationGrantableScopes()))
+		admin := make([]map[string]any, 0, len(authz.InstallationGrantableScopes()))
 		for _, scope := range authz.InstallationGrantableScopes() {
-			admin = append(admin, string(scope))
+			admin = append(admin, map[string]any{
+				"scope":       string(scope),
+				"description": authz.InstallationScopeDescription(scope),
+			})
 		}
 		resp["adminTokenScopes"] = admin
 	}

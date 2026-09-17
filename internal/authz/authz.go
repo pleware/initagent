@@ -271,6 +271,22 @@ func InstallationGrantableScopes() []Capability {
 	return all
 }
 
+// InstallationScopeDescription is the plain-language blast radius of an
+// installation-grantable capability, shown in the cockpit mint form so an
+// operator reads what a root-like key may do before handing it out.
+func InstallationScopeDescription(c Capability) string {
+	switch c {
+	case AdminOrg:
+		return "Manage organizations: suspend/resume, change plan, mode and name."
+	case AdminSkill:
+		return "Manage the skill store: create, edit, enable/disable and delete skill packages."
+	case ReadOrg:
+		return "Read organizations: list them and see plan, status and roster size."
+	default:
+		return ""
+	}
+}
+
 // ParseInstallationScopes reads a stored installation scope list, mirroring
 // ParseScopes against the installation grantable set instead of the org one.
 // The two lists are different on purpose: an org scope is not an

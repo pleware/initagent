@@ -251,7 +251,9 @@
       "identifierPrefix": "staff-",
       "mints": true,
       "lifetime": "until removed",
-      "capabilities": [],
+      "capabilities": [
+        "admin:hub.staff"
+      ],
       "happeningPrefix": "hub.staff"
     },
     {
@@ -481,6 +483,7 @@
     "admin:hub.preset",
     "admin:hub.project",
     "admin:hub.skill",
+    "admin:hub.staff",
     "admin:hub.update",
     "attach:fleet.terminal",
     "create:fleet.connector",

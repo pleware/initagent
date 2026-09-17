@@ -50,12 +50,14 @@ func TestCanAtInstallationBoundary(t *testing.T) {
 		// empty boundary.
 		{"operator administers orgs hub-wide", operator, AdminOrg, true},
 		{"operator administers skills hub-wide", operator, AdminSkill, true},
+		{"operator administers staff hub-wide", operator, AdminStaff, true},
 		{"operator cannot delete an org hub-wide", operator, DeleteOrg, false},
 		{"operator cannot create a project hub-wide", operator, CreateProject, false},
 		{"an org owner is not a platform admin", customer, AdminAccounts, false},
 		{"an org owner cannot enumerate the hub", customer, ReadOrg, false},
 		{"an org owner cannot administer orgs hub-wide", customer, AdminOrg, false},
 		{"an org owner cannot administer skills hub-wide", customer, AdminSkill, false},
+		{"an org owner cannot administer staff hub-wide", customer, AdminStaff, false},
 	}
 	for _, c := range cases {
 		if got := c.requester.Can(c.cap, ""); got != c.want {
@@ -72,12 +74,12 @@ func TestCanInsideOrg(t *testing.T) {
 
 	cases := []struct {
 		role                             Role
-		read, admin, del                 bool
+		read, admin, del, staff          bool
 		readProj, createProj, deleteProj bool
 	}{
-		{RoleMember, true, false, false, true, false, false},
-		{RoleAdmin, true, true, false, true, true, true},
-		{RoleOwner, true, true, true, true, true, true},
+		{RoleMember, true, false, false, false, true, false, false},
+		{RoleAdmin, true, true, false, true, true, true, true},
+		{RoleOwner, true, true, true, true, true, true, true},
 	}
 	for _, c := range cases {
 		a := requester(c.role)
@@ -89,6 +91,9 @@ func TestCanInsideOrg(t *testing.T) {
 		}
 		if got := a.Can(DeleteOrg, org); got != c.del {
 			t.Errorf("%s Can(DeleteOrg) = %v; want %v", c.role, got, c.del)
+		}
+		if got := a.Can(AdminStaff, org); got != c.staff {
+			t.Errorf("%s Can(AdminStaff) = %v; want %v", c.role, got, c.staff)
 		}
 		if got := a.Can(ReadProject, org); got != c.readProj {
 			t.Errorf("%s Can(ReadProject) = %v; want %v", c.role, got, c.readProj)

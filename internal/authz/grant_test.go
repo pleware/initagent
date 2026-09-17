@@ -172,6 +172,7 @@ func TestInstallationGrant(t *testing.T) {
 	}{
 		{"named capability at the installation", Grant{Installation: true, Scopes: []Capability{AdminOrg}}, AdminOrg, "", "", true},
 		{"named skill at the installation", Grant{Installation: true, Scopes: []Capability{AdminSkill}}, AdminSkill, "", "", true},
+		{"named staff at the installation", Grant{Installation: true, Scopes: []Capability{AdminStaff}}, AdminStaff, "", "", true},
 		{"enumerate orgs at the installation", Grant{Installation: true, Scopes: []Capability{ReadOrg}}, ReadOrg, "", "", true},
 		{"accounts stay with the person", Grant{Installation: true, Scopes: []Capability{AdminOrg}}, AdminAccounts, "", "", false},
 		// The regression that caught the blocker: the token honours its own
@@ -207,6 +208,45 @@ func TestInstallationGrantBoundary(t *testing.T) {
 		if g.Contains(target[0], target[1]) {
 			t.Errorf("an installation grant reached %q/%q", target[0], target[1])
 		}
+	}
+}
+
+// admin:hub.staff is dual like admin:hub.org: an installation token reaches
+// the canonical staff, and an org-scoped token manages its own org's staff —
+// but never the installation itself or another tenant. Both grant lists name
+// it, because a session and either token class may exercise it.
+func TestAdminStaffDualBoundary(t *testing.T) {
+	operator := Requester{Account: "account-1", Platform: true}
+	installationToken := Credential{
+		Requester: operator,
+		Grant:     &Grant{Installation: true, Scopes: []Capability{AdminStaff}},
+	}
+	if !installationToken.Can(AdminStaff, "", "") {
+		t.Error("an installation token carrying admin:hub.staff was refused at the installation")
+	}
+	if installationToken.Can(AdminStaff, "org-1", "") {
+		t.Error("an installation token entered a tenant with admin:hub.staff")
+	}
+
+	orgToken := Credential{
+		Requester: member("org-1", RoleAdmin),
+		Grant:     &Grant{Org: "org-1", Scopes: []Capability{AdminStaff}},
+	}
+	if !orgToken.Can(AdminStaff, "org-1", "") {
+		t.Error("an org admin's token was refused admin:hub.staff in its own org")
+	}
+	if orgToken.Can(AdminStaff, "", "") {
+		t.Error("an org-scoped token reached the installation with admin:hub.staff")
+	}
+	if orgToken.Can(AdminStaff, "org-2", "") {
+		t.Error("an org-scoped token crossed into another tenant with admin:hub.staff")
+	}
+
+	if !slices.Contains(InstallationGrantableScopes(), AdminStaff) {
+		t.Error("admin:hub.staff is not installation-grantable")
+	}
+	if !slices.Contains(GrantableScopes(), AdminStaff) {
+		t.Error("admin:hub.staff is not org-grantable")
 	}
 }
 

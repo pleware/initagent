@@ -80,6 +80,12 @@ const (
 	// platform admin surface).
 	AdminOrg Capability = "admin:hub.org"
 
+	// AdminStaff manages the hub's staff — the named virtual beings who
+	// greet at a glass and sit on the People screen. Dual like AdminOrg: at
+	// the installation it administers the canonical staff, and inside an org
+	// it manages that org's own staff overrides.
+	AdminStaff Capability = "admin:hub.staff"
+
 	// AdminSkill creates, edits and removes the hub's saved skills. The skill
 	// list is the hub's, not an organization's, so the capability lives at
 	// the installation boundary — and unlike AdminAccounts it is grantable:
@@ -173,10 +179,12 @@ const (
 // capability absent here can never be exercised with an empty boundary, so a
 // new org capability does not accidentally become a platform power. AdminOrg
 // is present on purpose: it has a second meaning at this boundary (08), where
-// it administers the organizations themselves.
+// it administers the organizations themselves. AdminStaff is dual the same
+// way: the installation holds the canonical staff, an org its overrides.
 var installation = map[Capability]bool{
 	AdminAccounts: true,
 	AdminOrg:      true,
+	AdminStaff:    true,
 	AdminSkill:    true,
 	ReadOrg:       true,
 	ReadUpdate:    true,
@@ -193,6 +201,7 @@ var installation = map[Capability]bool{
 var orgMinimum = map[Capability]Role{
 	ReadOrg:         RoleMember,
 	AdminOrg:        RoleAdmin,
+	AdminStaff:      RoleAdmin,
 	DeleteOrg:       RoleOwner,
 	ReadProject:     RoleMember,
 	CreateProject:   RoleAdmin,
@@ -254,6 +263,7 @@ func GrantableScopes() []Capability {
 // them.
 var installationGrantable = map[Capability]bool{
 	AdminOrg:   true,
+	AdminStaff: true,
 	AdminSkill: true,
 	ReadOrg:    true,
 }
@@ -278,6 +288,8 @@ func InstallationScopeDescription(c Capability) string {
 	switch c {
 	case AdminOrg:
 		return "Manage organizations: suspend/resume, change plan, mode and name."
+	case AdminStaff:
+		return "Manage hub staff: create, edit and remove the hub's staff."
 	case AdminSkill:
 		return "Manage the skill store: create, edit, enable/disable and delete skill packages."
 	case ReadOrg:

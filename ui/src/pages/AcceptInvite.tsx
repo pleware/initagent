@@ -2,15 +2,9 @@ import { FormEvent, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
+import type { InvitePreview } from '../types'
 import AuthSplit, { AuthMark, authFieldClass } from '../components/AuthSplit'
 import { resolveLocale } from '../../../web/locale.ts'
-
-type InvitePreview = {
-  email: string
-  orgName: string
-  role: string
-  expiresAt: number
-}
 
 export default function AcceptInvite({
   passwordMinLength,

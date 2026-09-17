@@ -229,10 +229,12 @@ export default function PeoplePage({
                   disabled={busy === m.accountId}
                   onValueChange={(role) => changeRole(m.accountId, role)}
                   aria-label={`${t('people.role')}: ${m.email}`}
-                  items={roles.map((role) => ({ value: role, label: role }))}
+                  items={roles.map((role) => ({ value: role, label: t('orgs.roles.' + role, { defaultValue: role }) }))}
                 />
               ) : (
-                <span className="text-zinc-400">{m.role}</span>
+                <span className="text-zinc-400">
+                  {t('orgs.roles.' + m.role, { defaultValue: m.role })}
+                </span>
               ),
           },
           {
@@ -291,7 +293,7 @@ export default function PeoplePage({
                   value={inviteRole}
                   onValueChange={setInviteRole}
                   aria-label={t('people.role')}
-                  items={roles.map((role) => ({ value: role, label: role }))}
+                  items={roles.map((role) => ({ value: role, label: t('orgs.roles.' + role, { defaultValue: role }) }))}
                 />
               </div>
             </label>

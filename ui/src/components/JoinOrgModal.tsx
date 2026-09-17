@@ -2,14 +2,8 @@ import { FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
+import type { InvitePreview } from '../types'
 import Modal from './Modal'
-
-type InvitePreview = {
-  email: string
-  orgName: string
-  role: string
-  expiresAt: number
-}
 
 // The field takes either the bare token or the full invite link the People
 // screen copies (<origin>/invite?token=…); a URL that fails to parse is a

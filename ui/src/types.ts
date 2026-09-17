@@ -135,6 +135,15 @@ export interface OrgInvite {
   createdAt: number
 }
 
+// InvitePreview is what GET /api/invite?token= answers before the invite is
+// accepted: enough to say which organization you are joining and as what.
+export interface InvitePreview {
+  email: string
+  orgName: string
+  role: string
+  expiresAt: number
+}
+
 // Membership is the same relation from the signed-in person's side: which
 // organizations are mine, and what am I in them.
 export type { PlanSlug } from './lib/org-plans.gen'

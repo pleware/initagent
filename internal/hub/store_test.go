@@ -918,6 +918,92 @@ func TestOpenStoreMigratesLegacyProjectsTable(t *testing.T) {
 	}
 }
 
+func TestOrgStatusRoundTrip(t *testing.T) {
+	s := testStore(t)
+	o, err := s.CreateOrg("status org")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o.Status != OrgStatusActive {
+		t.Errorf("fresh org status = %q, want %q", o.Status, OrgStatusActive)
+	}
+	got, err := s.OrgById(o.Id)
+	if err != nil || got == nil || got.Status != OrgStatusActive {
+		t.Fatalf("OrgById on a fresh org = %v, %v, want active", got, err)
+	}
+	if err := s.SetOrgStatus(o.Id, OrgStatusSuspended); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.OrgById(o.Id)
+	if err != nil || got == nil || got.Status != OrgStatusSuspended {
+		t.Fatalf("OrgById after suspend = %v, %v, want suspended", got, err)
+	}
+	orgs, err := s.ListOrgs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, org := range orgs {
+		if org.Id != o.Id {
+			continue
+		}
+		found = true
+		if org.Status != OrgStatusSuspended {
+			t.Errorf("ListOrgs status = %q, want suspended", org.Status)
+		}
+	}
+	if !found {
+		t.Fatal("ListOrgs did not return the org")
+	}
+	if err := s.SetOrgStatus(o.Id, OrgStatusActive); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.OrgById(o.Id)
+	if err != nil || got == nil || got.Status != OrgStatusActive {
+		t.Fatalf("OrgById after reactivate = %v, %v, want active", got, err)
+	}
+}
+
+func TestOpenStoreMigratesOrgStatus(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy-status.db")
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE orgs (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		plan TEXT NOT NULL DEFAULT 'free',
+		mode TEXT NOT NULL DEFAULT '',
+		created_at INTEGER NOT NULL
+	)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO orgs (id, name, created_at) VALUES ('org-1', 'old org', 1)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("OpenStore on a pre-status orgs table: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+	ok, err := s.hasColumn("orgs", "status")
+	if err != nil || !ok {
+		t.Fatalf("orgs.status after open: ok=%v err=%v", ok, err)
+	}
+	got, err := s.OrgById("org-1")
+	if err != nil || got == nil {
+		t.Fatalf("OrgById on the migrated row: %v, %v", got, err)
+	}
+	if got.Status != OrgStatusActive {
+		t.Errorf("migrated org status = %q, want %q", got.Status, OrgStatusActive)
+	}
+}
+
 func TestOpenStoreMigratesOrgPlan(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "legacy-orgs.db")
 	db, err := store.OpenDB(store.SQLite, path)

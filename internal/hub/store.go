@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS orgs (
 	name       TEXT NOT NULL,
 	plan       TEXT NOT NULL DEFAULT 'free',
 	mode       TEXT NOT NULL DEFAULT '',
+	status     TEXT NOT NULL DEFAULT '',
 	created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_members (
@@ -258,6 +259,7 @@ CREATE TABLE IF NOT EXISTS orgs (
 	name       TEXT NOT NULL,
 	plan       TEXT NOT NULL DEFAULT 'free',
 	mode       TEXT NOT NULL DEFAULT '',
+	status     TEXT NOT NULL DEFAULT '',
 	created_at BIGINT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_members (
@@ -389,6 +391,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureOrgModeColumn(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring org mode column: %w", err)
+	}
+	if err := s.ensureOrgStatusColumn(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring org status column: %w", err)
 	}
 	if err := s.ensureOrgBilling(); err != nil {
 		db.Close()
@@ -678,6 +684,13 @@ func (s *Store) ensureOrgModeColumn() error {
 func (s *Store) dropColumn(table, column string) error {
 	_, err := s.db.Exec(`ALTER TABLE ` + table + ` DROP COLUMN ` + column)
 	return err
+}
+
+// ensureOrgStatusColumn adds the active/suspended flag to a live orgs table.
+// CREATE TABLE IF NOT EXISTS will not add it, and existing orgs are active
+// until an operator suspends them.
+func (s *Store) ensureOrgStatusColumn() error {
+	return s.ensureColumn("orgs", "status", "TEXT NOT NULL DEFAULT ''")
 }
 
 // ensureAccountLocale adds the UI language to a live accounts table.
@@ -1185,11 +1198,12 @@ func (s *Store) ListAccounts() ([]Account, error) {
 // there is exactly one, created when the hub is claimed; the hosted hub has
 // many.
 type Org struct {
-	Id        string  `json:"id"`
-	Name      string  `json:"name"`
-	Plan      string  `json:"plan"`
-	Mode      OrgMode `json:"mode,omitempty"`
-	CreatedAt int64   `json:"createdAt"`
+	Id        string    `json:"id"`
+	Name      string    `json:"name"`
+	Plan      string    `json:"plan"`
+	Mode      OrgMode   `json:"mode,omitempty"`
+	Status    OrgStatus `json:"status"`
+	CreatedAt int64     `json:"createdAt"`
 	// Members is the roster size. The platform operator's list of orgs shows
 	// it, which is deliberately as far as that surface goes: enumerating
 	// organizations is a hub capability, reading who is inside one is not
@@ -1233,9 +1247,9 @@ func (s *Store) CreateOrg(name string) (*Org, error) {
 
 // ListOrgs returns every organization with its roster size, oldest first.
 func (s *Store) ListOrgs() ([]Org, error) {
-	rows, err := s.db.Query(`SELECT o.id, o.name, o.plan, o.mode, o.created_at, COUNT(m.account_id)
+	rows, err := s.db.Query(`SELECT o.id, o.name, o.plan, o.mode, o.status, o.created_at, COUNT(m.account_id)
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
-		GROUP BY o.id, o.name, o.plan, o.mode, o.created_at
+		GROUP BY o.id, o.name, o.plan, o.mode, o.status, o.created_at
 		ORDER BY o.created_at, o.id`)
 	if err != nil {
 		return nil, err
@@ -1244,11 +1258,12 @@ func (s *Store) ListOrgs() ([]Org, error) {
 	out := []Org{}
 	for rows.Next() {
 		var o Org
-		var mode string
-		if err := rows.Scan(&o.Id, &o.Name, &o.Plan, &mode, &o.CreatedAt, &o.Members); err != nil {
+		var mode, status string
+		if err := rows.Scan(&o.Id, &o.Name, &o.Plan, &mode, &status, &o.CreatedAt, &o.Members); err != nil {
 			return nil, err
 		}
 		o.Mode = OrgMode(mode)
+		o.Status = OrgStatus(status)
 		out = append(out, o)
 	}
 	return out, rows.Err()
@@ -1257,12 +1272,12 @@ func (s *Store) ListOrgs() ([]Org, error) {
 // OrgById returns one organization, or (nil, nil) when it does not exist.
 func (s *Store) OrgById(orgId string) (*Org, error) {
 	var o Org
-	var mode string
-	err := s.db.QueryRow(`SELECT o.id, o.name, o.plan, o.mode, o.created_at, COUNT(m.account_id)
+	var mode, status string
+	err := s.db.QueryRow(`SELECT o.id, o.name, o.plan, o.mode, o.status, o.created_at, COUNT(m.account_id)
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
 		WHERE o.id = ?
-		GROUP BY o.id, o.name, o.plan, o.mode, o.created_at`, orgId).
-		Scan(&o.Id, &o.Name, &o.Plan, &mode, &o.CreatedAt, &o.Members)
+		GROUP BY o.id, o.name, o.plan, o.mode, o.status, o.created_at`, orgId).
+		Scan(&o.Id, &o.Name, &o.Plan, &mode, &status, &o.CreatedAt, &o.Members)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -1270,6 +1285,7 @@ func (s *Store) OrgById(orgId string) (*Org, error) {
 		return nil, err
 	}
 	o.Mode = OrgMode(mode)
+	o.Status = OrgStatus(status)
 	return &o, nil
 }
 
@@ -1304,6 +1320,13 @@ func (s *Store) orgCaps(org *Org) orgplan.Limits {
 // their own walls or move their own billing to Stripe test.
 func (s *Store) SetOrgMode(orgId string, mode OrgMode) error {
 	_, err := s.db.Exec(`UPDATE orgs SET mode = ? WHERE id = ?`, string(mode), orgId)
+	return err
+}
+
+// SetOrgStatus marks an organization active or suspended. Like SetOrgMode it
+// is an operator action: a customer must not unsuspend their own org.
+func (s *Store) SetOrgStatus(orgId string, status OrgStatus) error {
+	_, err := s.db.Exec(`UPDATE orgs SET status = ? WHERE id = ?`, string(status), orgId)
 	return err
 }
 

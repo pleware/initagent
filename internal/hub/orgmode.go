@@ -48,3 +48,32 @@ func (m OrgMode) isTest() bool { return m == OrgModeTest }
 // isDevelop reports whether this org pays on Stripe test and mints no KSeF
 // invoice.
 func (m OrgMode) isDevelop() bool { return m == OrgModeDevelop }
+
+// OrgStatus is whether an organization may use the hub. The empty string is
+// the active status — the zero value, so a fresh org, an org created before
+// the column existed, and an org an operator has not touched all behave the
+// same way. The store carries the flag; the gate that blocks a suspended org
+// reads it.
+type OrgStatus string
+
+const (
+	// OrgStatusActive is a normal organization that may use the hub.
+	OrgStatusActive OrgStatus = ""
+	// OrgStatusSuspended blocks an organization from using the hub until an
+	// operator reactivates it.
+	OrgStatusSuspended OrgStatus = "suspended"
+)
+
+// ParseOrgStatus accepts the empty string, "active", and "suspended",
+// trimmed and case-insensitive. Anything else is refused so a typo cannot
+// silently drop an org back into active.
+func ParseOrgStatus(s string) (OrgStatus, error) {
+	switch st := OrgStatus(strings.ToLower(strings.TrimSpace(s))); st {
+	case OrgStatusActive, "active":
+		return OrgStatusActive, nil
+	case OrgStatusSuspended:
+		return OrgStatusSuspended, nil
+	default:
+		return OrgStatusActive, fmt.Errorf("org status %q: want active or suspended", s)
+	}
+}

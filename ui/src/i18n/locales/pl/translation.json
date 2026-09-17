@@ -112,6 +112,7 @@
     "inviteTitle": "Dołącz do organizacji",
     "inviteHint": "Otwórz zaproszenie, ustaw hasło i jesteś w środku. Link działa raz, przez siedem dni.",
     "inviteHintNamed": "Dołącz do {{org}} jako {{role}}. Link działa raz, przez siedem dni.",
+    "inviteHintExisting": "Jesteś zalogowany jako {{email}}. Podaj hasło, aby dodać tę organizację do swojego konta.",
     "joinOrg": "Dołącz",
     "rememberMe": "Zapamiętaj mnie"
   },
@@ -138,6 +139,7 @@
     "tasks": "Zadania",
     "settings": "Ustawienia",
     "setup": "Konfiguracja",
+    "organizations": "Organizacje",
     "people": "Ludzie",
     "plans": "Plany",
     "administration": "Administracja",
@@ -266,6 +268,21 @@
     "roleChangeFailed": "Nie udało się zmienić roli",
     "removeFailed": "Nie udało się usunąć",
     "renameFailed": "Nie udało się zmienić nazwy"
+  },
+  "orgs": {
+    "join": "Dołącz do organizacji",
+    "joinHint": "Wklej link zaproszenia, żeby dołączyć do kolejnej organizacji.",
+    "inviteLabel": "Link lub token zaproszenia",
+    "invitePlaceholder": "https://app.initagent.dev/invite?token=…",
+    "check": "Sprawdź zaproszenie",
+    "emptyToken": "Wklej link lub token zaproszenia.",
+    "invalidToken": "To zaproszenie jest nieważne albo wygasło.",
+    "joinPreview": "Zaproszono Cię do {{org}} jako {{role}}.",
+    "roles": {
+      "owner": "właściciel",
+      "admin": "admin",
+      "member": "członek"
+    }
   },
   "boarding": {
     "eyebrow": "Pierwsze kroki",

@@ -112,6 +112,7 @@
     "inviteTitle": "Join this organization",
     "inviteHint": "Open the invite, set a password, and you are in. The link works once, for seven days.",
     "inviteHintNamed": "Join {{org}} as {{role}}. The link works once, for seven days.",
+    "inviteHintExisting": "You are signed in as {{email}}. Enter your password to add this organization to your account.",
     "joinOrg": "Join",
     "rememberMe": "Remember me"
   },
@@ -138,6 +139,7 @@
     "tasks": "Tasks",
     "settings": "Settings",
     "setup": "Setup",
+    "organizations": "Organizations",
     "people": "People",
     "plans": "Plans",
     "administration": "Administration",
@@ -266,6 +268,21 @@
     "roleChangeFailed": "Could not change the role",
     "removeFailed": "Could not remove",
     "renameFailed": "Could not rename"
+  },
+  "orgs": {
+    "join": "Join organization",
+    "joinHint": "Paste an invite link to join another organization.",
+    "inviteLabel": "Invite link or token",
+    "invitePlaceholder": "https://app.initagent.dev/invite?token=…",
+    "check": "Check invite",
+    "emptyToken": "Paste an invite link or token.",
+    "invalidToken": "This invite is invalid or has expired.",
+    "joinPreview": "You are invited to {{org}} as {{role}}.",
+    "roles": {
+      "owner": "owner",
+      "admin": "admin",
+      "member": "member"
+    }
   },
   "boarding": {
     "eyebrow": "Get started",

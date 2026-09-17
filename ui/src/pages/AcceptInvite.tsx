@@ -88,6 +88,11 @@ export default function AcceptInvite({
           ? t('auth.inviteHintNamed', { org: preview.orgName, role: preview.role })
           : t('auth.inviteHint')}
       </p>
+      {defaultEmail && (
+        <p className="mt-2 text-sm/6 text-fg-muted">
+          {t('auth.inviteHintExisting', { email: defaultEmail })}
+        </p>
+      )}
       <div className="mt-10">
         <form onSubmit={submit} className="flex flex-col gap-6">
           <div>

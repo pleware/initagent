@@ -471,6 +471,13 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/admin/tokens", s.requireSession(s.handleCreateAdminToken))
 	m.HandleFunc("DELETE /api/admin/tokens/{id}", s.requireSession(s.handleDeleteAdminToken))
 
+	// The canonical staff catalogue is the installation's (24/28), so it is
+	// session-only for the same reason and the AdminStaff gate lives in the
+	// handler with the empty boundary.
+	m.HandleFunc("GET /api/admin/staff", s.requireSession(s.handleListStaff))
+	m.HandleFunc("POST /api/admin/staff", s.requireSession(s.handleUpsertStaff))
+	m.HandleFunc("PATCH /api/admin/staff/{id}", s.requireSession(s.handleUpsertStaff))
+
 	// Operating the installation, which is not something a machine secret
 	// reaches: a token's boundary is a project or a tenant.
 	m.HandleFunc("GET /api/updates", s.requireInstallation(authz.ReadUpdate, s.handleUpdateStatus))

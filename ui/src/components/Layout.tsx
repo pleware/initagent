@@ -6,8 +6,8 @@ import { BrandMark } from '../../../web/brand-mark.tsx'
 import { api } from '../api'
 import { CurrentOrgProvider, useCurrentOrg } from '../current-org'
 import type { Me, Project } from '../types'
+import JoinOrgModal from './JoinOrgModal'
 import LanguageSwitcher from './LanguageSwitcher'
-import Modal from './Modal'
 import ThemeSwitcher from './ThemeSwitcher'
 import { isHostedOperator } from './Boarding'
 
@@ -234,18 +234,7 @@ function LayoutShell({ me }: { me: Me }) {
         <Outlet context={{ projects, setProjects, projectsReady, reloadProjects: loadProjects } satisfies HubOutlet} />
       </main>
 
-      {joinOpen && (
-        <Modal
-          title={t('orgs.join', { defaultValue: 'Join organization' })}
-          onClose={() => setJoinOpen(false)}
-        >
-          <p className="px-6 pb-6 text-sm text-fg-muted">
-            {t('orgs.joinHint', {
-              defaultValue: 'Paste an invite link to join another organization.',
-            })}
-          </p>
-        </Modal>
-      )}
+      {joinOpen && <JoinOrgModal onClose={() => setJoinOpen(false)} />}
     </div>
   )
 }

@@ -173,8 +173,8 @@ export default function PlansPage({ me }: { me: Me }) {
     return (
       <div className="page-shell">
         <p className="eyebrow mb-3">{t('plans.eyebrow')}</p>
-        <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-100">{t('plans.title')}</h1>
-        <p className="mt-4 max-w-xl text-sm text-zinc-500">{t('plans.selfhost')}</p>
+        <h1 className="text-3xl font-semibold tracking-[-0.04em] text-fg-strong">{t('plans.title')}</h1>
+        <p className="mt-4 max-w-xl text-sm text-fg-subtle">{t('plans.selfhost')}</p>
       </div>
     )
   }
@@ -183,8 +183,8 @@ export default function PlansPage({ me }: { me: Me }) {
     return (
       <div className="page-shell">
         <p className="eyebrow mb-3">{t('plans.eyebrow')}</p>
-        <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-100">{t('plans.title')}</h1>
-        <p className="mt-4 max-w-xl text-sm text-zinc-500">{t('plans.noOrg')}</p>
+        <h1 className="text-3xl font-semibold tracking-[-0.04em] text-fg-strong">{t('plans.title')}</h1>
+        <p className="mt-4 max-w-xl text-sm text-fg-subtle">{t('plans.noOrg')}</p>
       </div>
     )
   }
@@ -194,14 +194,14 @@ export default function PlansPage({ me }: { me: Me }) {
   return (
     <div className="page-shell max-w-5xl">
       <p className="eyebrow mb-3">{t('plans.eyebrow')}</p>
-      <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-100">{t('plans.title')}</h1>
-      <p className="mt-2 max-w-2xl text-sm text-zinc-400">{t('plans.subtitle', { org: current?.name })}</p>
+      <h1 className="text-3xl font-semibold tracking-[-0.04em] text-fg-strong">{t('plans.title')}</h1>
+      <p className="mt-2 max-w-2xl text-sm text-fg-muted">{t('plans.subtitle', { org: current?.name })}</p>
 
       {params.get('paid') === '1' && (
-        <p className="mt-4 rounded-lg border border-lime-400/20 bg-lime-400/5 px-3 py-2 text-sm text-lime-200">{t('plans.paid')}</p>
+        <p className="mt-4 rounded-lg border border-accent/20 bg-accent/5 px-3 py-2 text-sm text-accent-fg">{t('plans.paid')}</p>
       )}
       {params.get('canceled') === '1' && (
-        <p className="mt-4 rounded-lg border border-white/10 px-3 py-2 text-sm text-zinc-400">{t('plans.canceled')}</p>
+        <p className="mt-4 rounded-lg border border-line-2 px-3 py-2 text-sm text-fg-muted">{t('plans.canceled')}</p>
       )}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -210,17 +210,17 @@ export default function PlansPage({ me }: { me: Me }) {
           const currentPlan = billing?.plan === id
           const price = cfg.charge.kind === 'free' ? '0 €' : cfg.charge.kind === 'contact' ? t('plans.talk') : `${cfg.charge.eur} €`
           return (
-            <article key={id} className={`flex flex-col rounded-2xl border p-5 ${currentPlan ? 'border-lime-400/35 bg-lime-400/5' : 'border-white/10 bg-white/[0.02]'}`}>
-              <h2 className="text-base font-semibold text-zinc-100">{LABELS[id]}</h2>
-              <p className="mt-3 text-2xl font-semibold text-white">{price}</p>
-              <p className="mt-1 text-xs text-zinc-500">{cfg.charge.perPerson ? t('plans.perPerson') : id === 'free' ? t('plans.onePerson') : t('plans.contract')}</p>
-              <ul className="mt-4 flex-1 space-y-1 text-sm text-zinc-400">
+            <article key={id} className={`flex flex-col rounded-2xl border p-5 ${currentPlan ? 'border-accent/35 bg-accent/5' : 'border-line-2 bg-fill-1'}`}>
+              <h2 className="text-base font-semibold text-fg-strong">{LABELS[id]}</h2>
+              <p className="mt-3 text-2xl font-semibold text-fg-strong">{price}</p>
+              <p className="mt-1 text-xs text-fg-subtle">{cfg.charge.perPerson ? t('plans.perPerson') : id === 'free' ? t('plans.onePerson') : t('plans.contract')}</p>
+              <ul className="mt-4 flex-1 space-y-1 text-sm text-fg-muted">
                 {cfg.limits.people === 1 && <li>{t('plans.capPeople', { n: 1 })}</li>}
                 {cfg.limits.projects > 0 && <li>{t('plans.capProjects', { n: cfg.limits.projects })}</li>}
                 {cfg.limits.projects === 0 && <li>{t('plans.noProjectCap')}</li>}
                 {cfg.limits.workersPerProject > 0 && <li>{t('plans.capMachines', { n: cfg.limits.workersPerProject })}</li>}
               </ul>
-              {currentPlan && <p className="mt-4 text-xs font-medium text-lime-300">{t('plans.current')}</p>}
+              {currentPlan && <p className="mt-4 text-xs font-medium text-accent">{t('plans.current')}</p>}
               {!currentPlan && canPay && id !== 'free' && id !== 'enterprise' && (
                 <button
                   type="button"
@@ -241,18 +241,18 @@ export default function PlansPage({ me }: { me: Me }) {
 
       {canPay && (
         <form className="mt-10 max-w-2xl space-y-4" onSubmit={(e) => void saveBuyer(e)}>
-          <h2 className="text-lg font-semibold text-zinc-100">{t('plans.invoiceTitle')}</h2>
-          <p className="text-sm text-zinc-500">{t('plans.invoiceHint')}</p>
+          <h2 className="text-lg font-semibold text-fg-strong">{t('plans.invoiceTitle')}</h2>
+          <p className="text-sm text-fg-subtle">{t('plans.invoiceHint')}</p>
 
           <fieldset>
-            <legend className="mb-2 text-sm text-zinc-500">{t('plans.buyerKind')}</legend>
+            <legend className="mb-2 text-sm text-fg-subtle">{t('plans.buyerKind')}</legend>
             <div className="grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setKind('company')}
                 aria-pressed={isCompany}
                 className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                  isCompany ? 'border-lime-400/40 bg-lime-400/10 text-zinc-100' : 'border-white/10 text-zinc-400 hover:text-zinc-200'
+                  isCompany ? 'border-accent/40 bg-accent/10 text-fg-strong' : 'border-line-2 text-fg-muted hover:text-fg'
                 }`}
               >
                 {t('plans.kindCompany')}
@@ -262,7 +262,7 @@ export default function PlansPage({ me }: { me: Me }) {
                 onClick={() => setKind('individual')}
                 aria-pressed={!isCompany}
                 className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                  !isCompany ? 'border-lime-400/40 bg-lime-400/10 text-zinc-100' : 'border-white/10 text-zinc-400 hover:text-zinc-200'
+                  !isCompany ? 'border-accent/40 bg-accent/10 text-fg-strong' : 'border-line-2 text-fg-muted hover:text-fg'
                 }`}
               >
                 {t('plans.kindIndividual')}
@@ -285,7 +285,7 @@ export default function PlansPage({ me }: { me: Me }) {
             {busy === 'save' ? t('common.loading') : t('plans.saveInvoice')}
           </button>
           {!billing?.checkoutReady && (
-            <p className="text-sm text-zinc-500">{t('plans.notWired')}</p>
+            <p className="text-sm text-fg-subtle">{t('plans.notWired')}</p>
           )}
         </form>
       )}
@@ -311,14 +311,14 @@ function Field({
   className?: string
 }) {
   return (
-    <label className={`block text-sm text-zinc-300 ${className}`}>
+    <label className={`block text-sm text-fg-soft ${className}`}>
       <span className="mb-1 block">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={error ? true : undefined}
-        className={`w-full rounded-lg border bg-white/5 px-3 py-2 text-zinc-100 ${
-          error ? 'border-fail/60' : 'border-white/10'
+        className={`w-full rounded-lg border bg-fill-2 px-3 py-2 text-fg-strong ${
+          error ? 'border-fail/60' : 'border-line-2'
         }`}
       />
       {error && (

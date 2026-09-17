@@ -88,6 +88,9 @@
   --ia-ok-on: #102119;
   --ia-fail: oklch(71.2% 0.194 13.428); /* rose-400 */
   --ia-fail-fg: oklch(81% 0.117 11.638); /* rose-300 */
+  --ia-warn: oklch(76.9% 0.188 70.08); /* amber-500 */
+  --ia-warn-on: oklch(20.9% 0.049 88.903); /* amber-950 */
+  --ia-warn-fg: oklch(87.9% 0.169 91.605); /* amber-300 */
   --ia-code: #f2c879;
 
   /* Attention — both lime here. `signal` is the Overseer leftover and is not

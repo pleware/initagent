@@ -168,10 +168,10 @@ export default function FxTerminal({ project, connector }: { project: Project; c
   }
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden bg-[#151719]">
+    <div className="relative h-full min-h-0 overflow-hidden bg-canvas-sunken">
       <div ref={hostRef} className="fx-terminal-host h-full w-full px-3 py-4 sm:px-5" />
       {state === 'loading' && (
-        <div className="absolute inset-0 grid place-items-center bg-[#151719] text-xs text-zinc-500">
+        <div className="absolute inset-0 grid place-items-center bg-canvas-sunken text-xs text-fg-subtle">
           <span className="flex items-center gap-2"><span className="spinner" />Booting fx runtime…</span>
         </div>
       )}
@@ -181,11 +181,11 @@ export default function FxTerminal({ project, connector }: { project: Project; c
 
 function TerminalNotice({ title, body }: { title: string; body: string }) {
   return (
-    <div className="grid h-full min-h-80 place-items-center bg-[#151719] p-8 text-center">
+    <div className="grid h-full min-h-80 place-items-center bg-canvas-sunken p-8 text-center">
       <div className="max-w-md">
-        <span className="mx-auto grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[0.04] font-mono text-sm text-amber-200">fx</span>
-        <h2 className="mt-4 text-base font-semibold text-zinc-200">{title}</h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-500">{body}</p>
+        <span className="mx-auto grid h-10 w-10 place-items-center rounded-xl border border-line-2 bg-fill-2 font-mono text-sm text-warn-fg">fx</span>
+        <h2 className="mt-4 text-base font-semibold text-fg">{title}</h2>
+        <p className="mt-2 text-sm leading-6 text-fg-subtle">{body}</p>
       </div>
     </div>
   )

@@ -67,14 +67,14 @@ export default function LaunchSessionModal({
   }
 
   const inputClass =
-    'w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-lime-500'
+    'w-full rounded-lg border border-line-3 bg-canvas-sunken px-3 py-2 text-sm text-fg-strong outline-none focus:border-accent'
 
   return (
     <Modal title="Launch session" onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         {connectors.length > 1 && (
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-fg-soft">
               Connector
             </label>
             <SimpleSelect
@@ -91,7 +91,7 @@ export default function LaunchSessionModal({
         )}
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
+          <label className="mb-1 block text-sm font-medium text-fg-soft">
             What to run
           </label>
           <div className="flex flex-wrap gap-2">
@@ -102,8 +102,8 @@ export default function LaunchSessionModal({
                 onClick={() => selectPreset(p)}
                 className={`rounded-lg border px-3 py-1.5 text-sm transition ${
                   presetId === p.id
-                    ? 'border-lime-500 bg-lime-500/10 text-lime-300'
-                    : 'border-zinc-700 text-zinc-300 hover:border-zinc-600'
+                    ? 'border-accent bg-accent/10 text-accent'
+                    : 'border-line-3 text-fg-soft hover:border-line-4'
                 }`}
               >
                 {p.name}
@@ -113,7 +113,7 @@ export default function LaunchSessionModal({
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-300">
+          <label className="mb-1 block text-sm font-medium text-fg-soft">
             Command
           </label>
           <input
@@ -129,7 +129,7 @@ export default function LaunchSessionModal({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-fg-soft">
               Session name
             </label>
             <input
@@ -142,7 +142,7 @@ export default function LaunchSessionModal({
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-300">
+            <label className="mb-1 block text-sm font-medium text-fg-soft">
               Working directory
             </label>
             <input
@@ -154,7 +154,7 @@ export default function LaunchSessionModal({
           </div>
         </div>
 
-        {error && <p className="text-sm text-rose-400">{error}</p>}
+        {error && <p className="text-sm text-fail-fg">{error}</p>}
         <button
           type="submit"
           disabled={busy || !connectorId}

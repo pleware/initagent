@@ -32,7 +32,7 @@ export default function DataTable<T>({
   empty: ReactNode
 }) {
   if (rows === null) {
-    return <p className="text-zinc-500">Loading…</p>
+    return <p className="text-fg-subtle">Loading…</p>
   }
   if (rows.length === 0) {
     return <div className="surface rounded-2xl p-12 text-center">{empty}</div>
@@ -40,7 +40,7 @@ export default function DataTable<T>({
   return (
     <div className="surface overflow-hidden rounded-2xl">
       <table className="w-full text-sm">
-        <thead className="bg-zinc-900 text-left text-xs text-zinc-500">
+        <thead className="bg-canvas text-left text-xs text-fg-subtle">
           <tr>
             {columns.map((column, i) => (
               <th
@@ -56,7 +56,7 @@ export default function DataTable<T>({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={rowKey(row)} className="border-t border-zinc-800/60">
+            <tr key={rowKey(row)} className="border-t border-line-2/60">
               {columns.map((column, i) => (
                 <td key={column.header || `col-${i}`} className="px-4 py-3">
                   {column.cell(row)}

@@ -43,7 +43,9 @@
  *   Accent        --ia-accent, --ia-accent-hover, --ia-accent-on,
  *                 --ia-accent-fg
  *   Info          --ia-info, --ia-info-fg, --ia-info-fg-strong
- *   Status        --ia-ok, --ia-ok-on, --ia-fail, --ia-fail-fg, --ia-code
+ *   Status        --ia-ok, --ia-ok-on, --ia-fail, --ia-fail-fg, --ia-code,
+ *                 --ia-warn, --ia-warn-fg, --ia-warn-on
+ *                 --ia-warn: amber warning fill; -on its ink; -fg amber text
  *   Attention     --ia-focus, --ia-signal
  *   Depth         --ia-shadow-surface, --ia-glow-ok, --ia-glow-info
  *   Chrome        --ia-scrollbar-thumb, --ia-term-scrollbar

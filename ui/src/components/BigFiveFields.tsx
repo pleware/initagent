@@ -45,7 +45,7 @@ function TraitField({
 }) {
   const clamped = Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0
   return (
-    <label className="text-sm text-zinc-300">
+    <label className="text-sm text-fg-soft">
       <span className="flex items-center justify-between gap-2">
         <span>{label}</span>
         <input
@@ -55,7 +55,7 @@ function TraitField({
           step={0.05}
           value={Number.isFinite(value) ? value : 0}
           onChange={(e) => onChange(parseFloat(e.target.value))}
-          className="w-20 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-right font-mono text-xs text-zinc-100"
+          className="w-20 rounded-md border border-line-2 bg-fill-2 px-2 py-1 text-right font-mono text-xs text-fg-strong"
         />
       </span>
       <input
@@ -65,7 +65,7 @@ function TraitField({
         step={0.05}
         value={clamped}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="mt-1.5 w-full accent-lime-400"
+        className="mt-1.5 w-full accent-accent"
       />
     </label>
   )

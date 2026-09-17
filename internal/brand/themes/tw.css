@@ -47,6 +47,9 @@
   --color-ok-on: var(--ia-ok-on);
   --color-fail: var(--ia-fail);
   --color-fail-fg: var(--ia-fail-fg);
+  --color-warn: var(--ia-warn);
+  --color-warn-fg: var(--ia-warn-fg);
+  --color-warn-on: var(--ia-warn-on);
   --color-code: var(--ia-code);
 
   --color-focus: var(--ia-focus);

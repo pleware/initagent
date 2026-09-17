@@ -42,18 +42,18 @@ export default function AgentsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <p className="eyebrow mb-3">Active work</p>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-100">Agents</h1>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-fg-strong">Agents</h1>
+          <p className="mt-1 text-sm text-fg-muted">
             Every coding agent running across your fleet.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-400">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-fg-muted">
             <input
               type="checkbox"
               checked={showAll}
               onChange={(e) => setShowAll(e.target.checked)}
-              className="accent-lime-300"
+              className="accent-accent"
             />
             show plain terminals
           </label>
@@ -67,11 +67,11 @@ export default function AgentsPage() {
       </div>
 
       {sessions === null ? (
-        <p className="text-zinc-500">Loading…</p>
+        <p className="text-fg-subtle">Loading…</p>
       ) : agents.length === 0 ? (
         <div className="surface rounded-2xl p-12 text-center">
-          <p className="mb-2 text-zinc-300">Nothing running yet.</p>
-          <p className="text-sm text-zinc-500">
+          <p className="mb-2 text-fg-soft">Nothing running yet.</p>
+          <p className="text-sm text-fg-subtle">
             Launch Claude Code, Codex, or any CLI agent on any of your machines
             — then watch and steer them all from here.
           </p>
@@ -79,7 +79,7 @@ export default function AgentsPage() {
       ) : (
         <div className="surface overflow-hidden rounded-2xl">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-900 text-left text-xs text-zinc-500">
+            <thead className="bg-canvas text-left text-xs text-fg-subtle">
               <tr>
                 <th className="px-4 py-2.5 font-medium">Session</th>
                 <th className="px-4 py-2.5 font-medium">Connector</th>
@@ -93,14 +93,14 @@ export default function AgentsPage() {
               {agents.map((s) => (
                 <tr
                   key={`${s.connectorId}:${s.name}`}
-                  className="cursor-pointer border-t border-zinc-800/60 transition hover:bg-zinc-900/60"
+                  className="cursor-pointer border-t border-line-1 transition hover:bg-fill-1"
                   onClick={() => navigate(`/connectors/${s.connectorId}`)}
                 >
-                  <td className="px-4 py-3 font-mono text-[13px] text-zinc-200">
+                  <td className="px-4 py-3 font-mono text-[13px] text-fg">
                     {s.name}
                   </td>
-                  <td className="px-4 py-3 text-zinc-300">{s.connectorName}</td>
-                  <td className="px-4 py-3 text-zinc-400">
+                  <td className="px-4 py-3 text-fg-soft">{s.connectorName}</td>
+                  <td className="px-4 py-3 text-fg-muted">
                     {s.kind || 'terminal'}
                   </td>
                   <td className="px-4 py-3">
@@ -109,18 +109,18 @@ export default function AgentsPage() {
                       <span
                         className={
                           s.status === 'working'
-                            ? 'text-emerald-300'
-                            : 'text-zinc-400'
+                            ? 'text-ok'
+                            : 'text-fg-muted'
                         }
                       >
                         {s.status}
                       </span>
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-zinc-500">
+                  <td className="px-4 py-3 text-fg-subtle">
                     {timeAgo(s.lastActivity)}
                   </td>
-                  <td className="px-4 py-3 text-right text-xs text-lime-400">
+                  <td className="px-4 py-3 text-right text-xs text-accent">
                     open →
                   </td>
                 </tr>

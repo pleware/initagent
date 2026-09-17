@@ -7,7 +7,7 @@ export default function PlanWall({ error }: { error: unknown }) {
     return null
   }
   return (
-    <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-3 text-sm text-fg">
+    <div className="rounded-lg border border-line-2 bg-fill-2 px-3 py-3 text-sm text-fg">
       <p>{error.message}</p>
       <p className="mt-2 text-fg-muted">You pay for people. Machines stay yours. We never host workers.</p>
       <a href={publicPlans} className="mt-3 inline-block text-sm underline-offset-2 hover:underline">

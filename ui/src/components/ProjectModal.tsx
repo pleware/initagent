@@ -114,21 +114,21 @@ export default function ProjectModal({
             <span className="field-label">Your machines</span>
             <ul className="mt-2 space-y-2">
               {enrolled.length === 0 ? (
-                <li className="text-xs text-zinc-600">No machine on this project yet.</li>
+                <li className="text-xs text-fg-faint">No machine on this project yet.</li>
               ) : (
                 enrolled.map((id) => {
                   const connector = connectorById.get(id)
                   return (
-                    <li key={id} className="flex items-center gap-2 rounded-lg border border-white/[0.07] px-3 py-2">
-                      <span className="min-w-0 flex-1 truncate text-sm text-zinc-200">
+                    <li key={id} className="flex items-center gap-2 rounded-lg border border-line-2 px-3 py-2">
+                      <span className="min-w-0 flex-1 truncate text-sm text-fg">
                         {connector?.name ?? id}
-                        <span className="ml-2 text-xs text-zinc-600">{connector?.online ? 'online' : 'offline'}</span>
+                        <span className="ml-2 text-xs text-fg-faint">{connector?.online ? 'online' : 'offline'}</span>
                       </span>
                       <button
                         type="button"
                         onClick={() => removeMachine(id)}
                         disabled={adding}
-                        className="text-xs text-zinc-500 hover:text-rose-200"
+                        className="text-xs text-fg-subtle hover:text-fail-fg"
                       >
                         Remove
                       </button>
@@ -177,7 +177,7 @@ export default function ProjectModal({
               })}
             />
           </div>
-          <span className="mt-2 block text-xs text-zinc-600">
+          <span className="mt-2 block text-xs text-fg-faint">
             {editing
               ? 'fx sends commands only to this machine. Other enrolled machines stay on the project.'
               : 'fx sends commands only to this machine for this project.'}
@@ -194,9 +194,9 @@ export default function ProjectModal({
           />
         </label>
 
-        {error ? <HubError error={error} fallback="Could not save project" className="rounded-lg border border-rose-400/20 bg-rose-400/[0.07] px-3 py-2 text-sm text-rose-200" /> : null}
+        {error ? <HubError error={error} fallback="Could not save project" className="rounded-lg border border-fail/20 bg-fail/10 px-3 py-2 text-sm text-fail-fg" /> : null}
 
-        <div className="flex justify-end gap-2 border-t border-white/[0.07] pt-4">
+        <div className="flex justify-end gap-2 border-t border-line-2 pt-4">
           <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
           <button type="submit" disabled={saving || !name.trim() || !connectorId || !path.trim()} className="btn-primary">
             {saving ? 'Saving…' : project ? 'Save changes' : 'Add project'}

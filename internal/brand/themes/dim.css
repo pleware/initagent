@@ -49,6 +49,9 @@
   --ia-ok-on: oklch(17.234% 0.028 166.534);
   --ia-fail: oklch(82.418% 0.099 33.756);
   --ia-fail-fg: oklch(88% 0.09 33);
+  --ia-warn: oklch(76.9% 0.188 70.08);
+  --ia-warn-on: oklch(20.9% 0.049 88.903);
+  --ia-warn-fg: oklch(87.9% 0.169 91.605);
   --ia-code: oklch(86.163% 0.142 94.818);
 
   --ia-focus: oklch(86.133% 0.141 139.549);

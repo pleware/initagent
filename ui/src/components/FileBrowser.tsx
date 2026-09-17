@@ -71,11 +71,11 @@ export default function FileBrowser({ connectorId }: { connectorId: string }) {
         <button
           onClick={up}
           disabled={!listing || listing.path === '/'}
-          className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-40"
+          className="rounded-lg border border-line-3 px-3 py-1.5 text-sm text-fg-soft hover:bg-sidebar disabled:opacity-40"
         >
           ↑ Up
         </button>
-        <code className="flex-1 truncate rounded-lg bg-zinc-900 px-3 py-1.5 font-mono text-sm text-zinc-300">
+        <code className="flex-1 truncate rounded-lg bg-canvas-sunken px-3 py-1.5 font-mono text-sm text-fg-soft">
           {listing?.path ?? '…'}
         </code>
         <button
@@ -97,11 +97,11 @@ export default function FileBrowser({ connectorId }: { connectorId: string }) {
         />
       </div>
 
-      {error && <p className="mb-3 text-sm text-rose-400">{error}</p>}
+      {error && <p className="mb-3 text-sm text-fail-fg">{error}</p>}
 
       <div className="surface min-h-0 flex-1 overflow-y-auto rounded-xl">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-zinc-900 text-left text-xs text-zinc-500">
+          <thead className="sticky top-0 bg-canvas text-left text-xs text-fg-subtle">
             <tr>
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="w-28 px-4 py-2 font-medium">Size</th>
@@ -113,28 +113,28 @@ export default function FileBrowser({ connectorId }: { connectorId: string }) {
             {listing?.entries.map((e) => (
               <tr
                 key={e.name}
-                className="border-t border-zinc-800/60 hover:bg-zinc-900/60"
+                className="border-t border-line-1 hover:bg-fill-3"
               >
                 <td
                   className={`px-4 py-2 font-mono text-[13px] ${
-                    e.dir ? 'cursor-pointer text-lime-300' : 'text-zinc-300'
+                    e.dir ? 'cursor-pointer text-accent' : 'text-fg-soft'
                   }`}
                   onClick={() => e.dir && load(`${listing.path}/${e.name}`)}
                 >
                   {e.dir ? '📁 ' : ''}
                   {e.name}
                 </td>
-                <td className="px-4 py-2 text-zinc-500">
+                <td className="px-4 py-2 text-fg-subtle">
                   {e.dir ? '—' : formatBytes(e.size)}
                 </td>
-                <td className="px-4 py-2 text-zinc-500">
+                <td className="px-4 py-2 text-fg-subtle">
                   {new Date(e.modTime * 1000).toLocaleString()}
                 </td>
                 <td className="px-4 py-2 text-right">
                   {!e.dir && (
                     <button
                       onClick={() => download(e.name)}
-                      className="text-xs text-zinc-400 hover:text-lime-300"
+                      className="text-xs text-fg-muted hover:text-accent"
                     >
                       Download
                     </button>
@@ -144,7 +144,7 @@ export default function FileBrowser({ connectorId }: { connectorId: string }) {
             ))}
             {listing && listing.entries.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
+                <td colSpan={4} className="px-4 py-8 text-center text-fg-subtle">
                   Empty directory
                 </td>
               </tr>

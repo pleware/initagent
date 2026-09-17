@@ -37,7 +37,7 @@ export default function SettingsPage({ me }: { me: Me }) {
 }
 
 const inputClass =
-  'rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-lime-500'
+  'rounded-lg border border-line-3 bg-canvas-sunken px-3 py-2 text-sm text-fg-strong outline-none focus:border-accent'
 
 function SettingsPanel({
   value,
@@ -114,43 +114,43 @@ function SoftwareUpdates() {
   return (
     <div>
       <div className="flex flex-col gap-4">
-        <p className="max-w-xl text-sm leading-6 text-zinc-400">
+        <p className="max-w-xl text-sm leading-6 text-fg-muted">
           Stable releases are checksum-verified, tested before replacement, and keep one previous version ready for rollback.
           {status?.updateAvailable ? (
-            <span className="ml-2 rounded-full bg-lime-400/10 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-lime-300">Update ready</span>
+            <span className="ml-2 rounded-full bg-accent/10 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-accent">Update ready</span>
           ) : null}
         </p>
-        <label className="flex items-center gap-3 text-sm text-zinc-300">
+        <label className="flex items-center gap-3 text-sm text-fg-soft">
           <span>Auto-update</span>
           <input
             type="checkbox"
             checked={status?.autoUpdate ?? true}
             disabled={!status?.managed}
             onChange={(event) => setAuto(event.target.checked)}
-            className="h-4 w-4 accent-lime-400"
+            className="h-4 w-4 accent-accent"
           />
         </label>
       </div>
 
-      <div className="mt-5 grid gap-px overflow-hidden rounded-xl border border-zinc-800 bg-zinc-800 sm:grid-cols-3">
-        <div className="bg-zinc-950/70 p-4"><p className="eyebrow">Installed</p><p className="mt-2 font-mono text-sm text-zinc-200">{status?.currentVersion || 'Loading…'}</p></div>
-        <div className="bg-zinc-950/70 p-4"><p className="eyebrow">Stable release</p><p className="mt-2 font-mono text-sm text-zinc-200">{status?.latestVersion || 'Not checked'}</p></div>
-        <div className="bg-zinc-950/70 p-4"><p className="eyebrow">Connector fleet</p><p className="mt-2 text-sm text-zinc-200">{status ? `${status.fleetTotal - status.fleetOutdated}/${status.fleetTotal} current` : 'Loading…'}</p></div>
+      <div className="mt-5 grid gap-px overflow-hidden rounded-xl border border-line-2 bg-sidebar sm:grid-cols-3">
+        <div className="bg-canvas-sunken/70 p-4"><p className="eyebrow">Installed</p><p className="mt-2 font-mono text-sm text-fg">{status?.currentVersion || 'Loading…'}</p></div>
+        <div className="bg-canvas-sunken/70 p-4"><p className="eyebrow">Stable release</p><p className="mt-2 font-mono text-sm text-fg">{status?.latestVersion || 'Not checked'}</p></div>
+        <div className="bg-canvas-sunken/70 p-4"><p className="eyebrow">Connector fleet</p><p className="mt-2 text-sm text-fg">{status ? `${status.fleetTotal - status.fleetOutdated}/${status.fleetTotal} current` : 'Loading…'}</p></div>
       </div>
 
       {!status?.managed && status && (
-        <p className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-5 text-amber-200/80">
+        <p className="mt-4 rounded-lg border border-warn/20 bg-warn/5 p-3 text-xs leading-5 text-warn-fg/80">
           This is a standalone/debug run. It can check releases, but automatic replacement is enabled after installing initagent as a background service. You can also run <code className="font-mono">initagent update</code> manually.
         </p>
       )}
-      {(message || status?.error) && <p className="mt-4 text-xs leading-5 text-zinc-400">{message || status?.error}</p>}
+      {(message || status?.error) && <p className="mt-4 text-xs leading-5 text-fg-muted">{message || status?.error}</p>}
 
       <div className="mt-5 flex flex-wrap gap-2">
         <button className="btn-secondary" disabled={!!busy} onClick={() => run('check')}>{busy === 'check' ? 'Checking…' : 'Check now'}</button>
         {status?.updateAvailable && status.managed && <button className="btn-primary" disabled={!!busy} onClick={() => run('install')}>{busy === 'install' ? 'Installing…' : `Install ${status.latestVersion}`}</button>}
         {status?.rollbackVersion && status.managed && <button className="btn-secondary" disabled={!!busy} onClick={() => run('rollback')}>Restore {status.rollbackVersion}</button>}
       </div>
-      {status?.lastChecked ? <p className="mt-3 text-[11px] text-zinc-600">Last checked {timeAgo(status.lastChecked)} · managed agents retry automatically and update to the hub release.</p> : null}
+      {status?.lastChecked ? <p className="mt-3 text-[11px] text-fg-faint">Last checked {timeAgo(status.lastChecked)} · managed agents retry automatically and update to the hub release.</p> : null}
     </div>
   )
 }
@@ -262,15 +262,15 @@ function ApiTokens({ me }: { me: Me }) {
 
   return (
     <div>
-      <p className="mb-4 text-sm text-zinc-400">
-        For the <code className="text-lime-300">initagent fleet</code> CLI and
+      <p className="mb-4 text-sm text-fg-muted">
+        For the <code className="text-accent">initagent fleet</code> CLI and
         the MCP server — this is how your coding agents get hands on the fleet.
         A token never exceeds your own permissions, and it stops working the
         moment you leave the organization it names.
       </p>
 
       {memberships.length === 0 ? (
-        <p className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-5 text-amber-200/80">
+        <p className="mb-4 rounded-lg border border-warn/20 bg-warn/5 p-3 text-xs leading-5 text-warn-fg/80">
           A token acts as a person inside an organization, and this session
           belongs to none. Create an organization first, or sign in with an
           account that is a member of one.
@@ -309,21 +309,21 @@ function ApiTokens({ me }: { me: Me }) {
             />
           </div>
 
-          <fieldset className="rounded-xl border border-zinc-800 p-4">
+          <fieldset className="rounded-xl border border-line-2 p-4">
             <legend className="eyebrow px-1">What it may do</legend>
             <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
               {safe.map(([entity, group]) => (
                 <div key={entity}>
-                  <p className="mb-1 font-mono text-[11px] uppercase tracking-wider text-zinc-500">
+                  <p className="mb-1 font-mono text-[11px] uppercase tracking-wider text-fg-subtle">
                     {entity}
                   </p>
                   {group.map((scope) => (
-                    <label key={scope} className="flex items-center gap-2 py-0.5 text-sm text-zinc-300">
+                    <label key={scope} className="flex items-center gap-2 py-0.5 text-sm text-fg-soft">
                       <input
                         type="checkbox"
                         checked={chosen.includes(scope)}
                         onChange={() => toggle(scope)}
-                        className="h-4 w-4 accent-lime-400"
+                        className="h-4 w-4 accent-accent"
                       />
                       <span className="font-mono text-xs">{scope.slice(0, scope.indexOf(':'))}</span>
                     </label>
@@ -333,18 +333,18 @@ function ApiTokens({ me }: { me: Me }) {
             </div>
 
             {dangerous.length > 0 && (
-              <div className="mt-4 rounded-lg border border-rose-500/25 bg-rose-500/5 p-3">
-                <p className="mb-2 text-xs leading-5 text-rose-200/80">
+              <div className="mt-4 rounded-lg border border-fail/25 bg-fail/5 p-3">
+                <p className="mb-2 text-xs leading-5 text-fail-fg/80">
                   Running a command is not reading data. Anything holding one
                   of these can execute code on the machines in scope.
                 </p>
                 {dangerous.map(({ scope }) => (
-                  <label key={scope} className="flex items-center gap-2 py-0.5 text-sm text-rose-100">
+                  <label key={scope} className="flex items-center gap-2 py-0.5 text-sm text-fail-fg">
                     <input
                       type="checkbox"
                       checked={chosen.includes(scope)}
                       onChange={() => toggle(scope)}
-                      className="h-4 w-4 accent-rose-400"
+                      className="h-4 w-4 accent-fail"
                     />
                     <span className="font-mono text-xs">{scope}</span>
                   </label>
@@ -357,7 +357,7 @@ function ApiTokens({ me }: { me: Me }) {
             <button className="btn-primary" disabled={chosen.length === 0}>
               Create
             </button>
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-fg-subtle">
               {chosen.length === 0
                 ? 'Pick at least one thing it may do.'
                 : `${chosen.length} scope${chosen.length === 1 ? '' : 's'} selected`}
@@ -367,26 +367,26 @@ function ApiTokens({ me }: { me: Me }) {
       )}
 
       {error && (
-        <p className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs leading-5 text-rose-200">
+        <p className="mb-4 rounded-lg border border-fail/30 bg-fail/10 p-3 text-xs leading-5 text-fail-fg">
           {error}
         </p>
       )}
       {fresh && (
-        <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
-          <p className="mb-2 text-xs text-emerald-300">
+        <div className="mb-4 rounded-lg border border-ok/30 bg-ok/10 p-3">
+          <p className="mb-2 text-xs text-ok">
             Copy this now — it won't be shown again:
           </p>
-          <code className="block overflow-x-auto whitespace-nowrap font-mono text-[13px] text-emerald-200">
+          <code className="block overflow-x-auto whitespace-nowrap font-mono text-[13px] text-ok">
             {fresh}
           </code>
         </div>
       )}
-      <ul className="divide-y divide-zinc-800/60">
+      <ul className="divide-y divide-line-2/60">
         {tokens.map((t) => (
           <li key={t.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
             <div className="min-w-0">
-              <p className="text-sm text-zinc-200">{t.name}</p>
-              <p className="mt-0.5 text-xs text-zinc-500">
+              <p className="text-sm text-fg">{t.name}</p>
+              <p className="mt-0.5 text-xs text-fg-subtle">
                 {orgName(t.orgId)}
                 {t.projectId ? ` · ${projectName(t.projectId)}` : ' · every project'}
               </p>
@@ -396,8 +396,8 @@ function ApiTokens({ me }: { me: Me }) {
                     key={scope}
                     className={`rounded px-1.5 py-0.5 font-mono text-[10px] ${
                       catalogue.find((s) => s.scope === scope)?.dangerous
-                        ? 'bg-rose-500/10 text-rose-300'
-                        : 'bg-zinc-800 text-zinc-400'
+                        ? 'bg-fail/10 text-fail-fg'
+                        : 'bg-sidebar text-fg-muted'
                     }`}
                   >
                     {scope}
@@ -406,12 +406,12 @@ function ApiTokens({ me }: { me: Me }) {
               </p>
             </div>
             <span className="flex items-center gap-4">
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-fg-subtle">
                 {t.lastUsedAt ? `used ${timeAgo(t.lastUsedAt)}` : 'never used'}
               </span>
               <button
                 onClick={() => revoke(t.id)}
-                className="text-xs text-zinc-500 hover:text-rose-400"
+                className="text-xs text-fg-subtle hover:text-fail-fg"
               >
                 Revoke
               </button>
@@ -419,7 +419,7 @@ function ApiTokens({ me }: { me: Me }) {
           </li>
         ))}
         {tokens.length === 0 && (
-          <li className="py-2 text-sm text-zinc-500">No tokens yet.</li>
+          <li className="py-2 text-sm text-fg-subtle">No tokens yet.</li>
         )}
       </ul>
     </div>
@@ -483,7 +483,7 @@ function AdminTokens({ me }: { me: Me }) {
 
   return (
     <div>
-      <p className="mb-4 rounded-lg border border-amber-500/25 bg-amber-500/8 p-3 text-xs leading-5 text-amber-200/90">
+      <p className="mb-4 rounded-lg border border-warn/25 bg-warn/8 p-3 text-xs leading-5 text-warn-fg/90">
         {t('settings.adminTokensPanel.warning')}
       </p>
 
@@ -495,20 +495,20 @@ function AdminTokens({ me }: { me: Me }) {
           required
           className={`${inputClass} sm:max-w-72`}
         />
-        <fieldset className="rounded-xl border border-zinc-800 p-4">
+        <fieldset className="rounded-xl border border-line-2 p-4">
           <legend className="eyebrow px-1">{t('settings.adminTokensPanel.scopesLegend')}</legend>
           <div className="flex flex-col gap-1">
             {catalogue.map((entry) => (
-              <label key={entry.scope} className="flex items-start gap-2 py-0.5 text-sm text-zinc-300">
+              <label key={entry.scope} className="flex items-start gap-2 py-0.5 text-sm text-fg-soft">
                 <input
                   type="checkbox"
                   checked={chosen.includes(entry.scope)}
                   onChange={() => toggle(entry.scope)}
-                  className="mt-0.5 h-4 w-4 accent-lime-400"
+                  className="mt-0.5 h-4 w-4 accent-accent"
                 />
                 <span className="min-w-0">
                   <span className="block font-mono text-xs">{entry.scope}</span>
-                  <span className="block text-xs text-zinc-500">{entry.description}</span>
+                  <span className="block text-xs text-fg-subtle">{entry.description}</span>
                 </span>
               </label>
             ))}
@@ -519,7 +519,7 @@ function AdminTokens({ me }: { me: Me }) {
           <button className="btn-primary" disabled={chosen.length === 0 || name.trim() === ''}>
             {t('settings.adminTokensPanel.create')}
           </button>
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-fg-subtle">
             {chosen.length === 0
               ? t('settings.adminTokensPanel.pickOne')
               : t('settings.adminTokensPanel.selected', { count: chosen.length })}
@@ -528,28 +528,28 @@ function AdminTokens({ me }: { me: Me }) {
       </form>
 
       {error && (
-        <p className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs leading-5 text-rose-200">
+        <p className="mb-4 rounded-lg border border-fail/30 bg-fail/10 p-3 text-xs leading-5 text-fail-fg">
           {error}
         </p>
       )}
       {fresh && (
-        <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
-          <p className="mb-2 text-xs text-emerald-300">{t('settings.adminTokensPanel.copyNow')}</p>
-          <code className="block overflow-x-auto whitespace-nowrap font-mono text-[13px] text-emerald-200">
+        <div className="mb-4 rounded-lg border border-ok/30 bg-ok/10 p-3">
+          <p className="mb-2 text-xs text-ok">{t('settings.adminTokensPanel.copyNow')}</p>
+          <code className="block overflow-x-auto whitespace-nowrap font-mono text-[13px] text-ok">
             {fresh}
           </code>
         </div>
       )}
-      <ul className="divide-y divide-zinc-800/60">
+      <ul className="divide-y divide-line-2/60">
         {tokens.map((token) => (
           <li key={token.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
             <div className="min-w-0">
-              <p className="text-sm text-zinc-200">{token.name}</p>
+              <p className="text-sm text-fg">{token.name}</p>
               <p className="mt-1 flex flex-wrap gap-1">
                 {token.scopes.map((scope) => (
                   <span
                     key={scope}
-                    className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400"
+                    className="rounded bg-sidebar px-1.5 py-0.5 font-mono text-[10px] text-fg-muted"
                   >
                     {scope}
                   </span>
@@ -557,14 +557,14 @@ function AdminTokens({ me }: { me: Me }) {
               </p>
             </div>
             <span className="flex items-center gap-4">
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-fg-subtle">
                 {token.lastUsedAt
                   ? t('settings.adminTokensPanel.used', { ago: timeAgo(token.lastUsedAt) })
                   : t('settings.adminTokensPanel.neverUsed')}
               </span>
               <button
                 onClick={() => revoke(token.id)}
-                className="text-xs text-zinc-500 hover:text-rose-400"
+                className="text-xs text-fg-subtle hover:text-fail-fg"
               >
                 {t('settings.adminTokensPanel.revoke')}
               </button>
@@ -572,7 +572,7 @@ function AdminTokens({ me }: { me: Me }) {
           </li>
         ))}
         {tokens.length === 0 && (
-          <li className="py-2 text-sm text-zinc-500">{t('settings.adminTokensPanel.none')}</li>
+          <li className="py-2 text-sm text-fg-subtle">{t('settings.adminTokensPanel.none')}</li>
         )}
       </ul>
     </div>
@@ -608,7 +608,7 @@ function Presets() {
 
   return (
     <div>
-      <p className="mb-4 text-sm text-zinc-400">
+      <p className="mb-4 text-sm text-fg-muted">
         One-click commands in the Launch dialog. Add your favorite agents.
       </p>
       <form onSubmit={create} className="mb-4 flex flex-col gap-2 sm:flex-row">
@@ -629,17 +629,17 @@ function Presets() {
           Add
         </button>
       </form>
-      <ul className="divide-y divide-zinc-800/60">
+      <ul className="divide-y divide-line-2/60">
         {presets.map((p) => (
           <li key={p.id} className="flex items-center justify-between py-2">
-            <span className="text-sm text-zinc-200">{p.name}</span>
+            <span className="text-sm text-fg">{p.name}</span>
             <span className="flex items-center gap-4">
-              <code className="font-mono text-xs text-zinc-400">
+              <code className="font-mono text-xs text-fg-muted">
                 {p.command || '(shell)'}
               </code>
               <button
                 onClick={() => remove(p.id)}
-                className="text-xs text-zinc-500 hover:text-rose-400"
+                className="text-xs text-fg-subtle hover:text-fail-fg"
               >
                 Delete
               </button>
@@ -655,41 +655,41 @@ function McpHelp() {
   const origin = location.origin
   return (
     <div>
-      <p className="mb-4 text-sm text-zinc-400">
+      <p className="mb-4 text-sm text-fg-muted">
         Run a coding agent on any machine with the{' '}
-        <code className="text-lime-300">initagent</code> binary and an API token,
+        <code className="text-accent">initagent</code> binary and an API token,
         and it can see every connector, launch worker agents, read their output,
         and steer them. For Claude Code:
       </p>
-      <pre className="overflow-x-auto rounded-lg border border-zinc-700 bg-zinc-950 p-4 font-mono text-[13px] leading-relaxed text-zinc-300">
+      <pre className="overflow-x-auto rounded-lg border border-line-3 bg-canvas-sunken p-4 font-mono text-[13px] leading-relaxed text-fg-soft">
         {`initagent fleet login --hub ${origin} --token YOUR_API_TOKEN
 claude mcp add initagent -- initagent mcp`}
       </pre>
-      <p className="mt-3 text-xs text-zinc-500">
+      <p className="mt-3 text-xs text-fg-subtle">
         Then ask it things like “launch claude in ~/projects/api on the
         homelab box and have it fix the failing tests.”
       </p>
-      <p className="mt-2 text-xs text-zinc-500">
+      <p className="mt-2 text-xs text-fg-subtle">
         An agent needs the connector, task and terminal scopes to do that, plus{' '}
-        <code className="font-mono text-zinc-400">exec:fleet.connector</code> if
+        <code className="font-mono text-fg-muted">exec:fleet.connector</code> if
         you want it running commands directly. If a tool comes back refused,
         the hub names the scope the token is missing — mint a new one with it
         rather than widening the old.
       </p>
 
-      <div className="mt-6 border-t border-zinc-800 pt-5">
-        <h3 className="mb-1 text-sm font-medium text-zinc-100">
+      <div className="mt-6 border-t border-line-2 pt-5">
+        <h3 className="mb-1 text-sm font-medium text-fg-strong">
           Remote MCP (ChatGPT, Claude, Cursor)
         </h3>
-        <p className="mb-3 text-sm text-zinc-400">
+        <p className="mb-3 text-sm text-fg-muted">
           Any client that supports remote MCP connectors can drive your fleet
           over HTTPS. Add this endpoint and paste an API token as the Bearer
           credential:
         </p>
-        <pre className="overflow-x-auto rounded-lg border border-zinc-700 bg-zinc-950 p-4 font-mono text-[13px] leading-relaxed text-zinc-300">
+        <pre className="overflow-x-auto rounded-lg border border-line-3 bg-canvas-sunken p-4 font-mono text-[13px] leading-relaxed text-fg-soft">
           {`${origin.replace(/^http:/, 'https:')}/mcp`}
         </pre>
-        <div className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/8 p-3 text-xs text-amber-200/90">
+        <div className="mt-3 rounded-lg border border-warn/25 bg-warn/8 p-3 text-xs text-warn-fg/90">
           ⚠️ This is a remote shell — the tools run commands and write files on
           your connectors. Only expose it over HTTPS ({''}
           <code className="font-mono">--tls-domain</code> or a TLS proxy), and

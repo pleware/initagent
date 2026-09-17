@@ -47,20 +47,20 @@ export default function AdminPage() {
     <div className="page-shell">
       <div className="mb-6">
         <p className="eyebrow mb-3">{t('admin.eyebrow')}</p>
-        <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-100">
+        <h1 className="text-3xl font-semibold tracking-[-0.04em] text-fg-strong">
           {t('admin.title')}
         </h1>
-        <p className="mt-1 text-sm text-zinc-400">{t('admin.subtitle')}</p>
+        <p className="mt-1 text-sm text-fg-muted">{t('admin.subtitle')}</p>
       </div>
 
       {error && (
-        <p className="mb-4 rounded-lg border border-rose-400/20 px-3 py-2 text-sm text-rose-400">
+        <p className="mb-4 rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
           {error}
         </p>
       )}
 
-      <h2 className="mb-1 text-sm font-medium text-zinc-300">{t('admin.kpis')}</h2>
-      <p className="mb-3 text-xs text-zinc-500">{t('admin.kpisHint')}</p>
+      <h2 className="mb-1 text-sm font-medium text-fg-soft">{t('admin.kpis')}</h2>
+      <p className="mb-3 text-xs text-fg-subtle">{t('admin.kpisHint')}</p>
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <KPI label={t('admin.ctaOpenApp')} value={kpis?.acquisition.ctaOpenApp} />
         <KPI label={t('admin.ctaSelfHost')} value={kpis?.acquisition.ctaSelfHost} />
@@ -84,115 +84,115 @@ export default function AdminPage() {
         <KPI label={t('admin.onlineWorkers')} value={kpis?.cost.onlineWorkers} />
       </div>
 
-      <h2 className="mb-3 text-sm font-medium text-zinc-300">
+      <h2 className="mb-3 text-sm font-medium text-fg-soft">
         {t('admin.accounts')}
       </h2>
       <DataTable
         rows={accounts}
         rowKey={(a) => a.id}
-        empty={<p className="text-sm text-zinc-500">{t('admin.noAccounts')}</p>}
+        empty={<p className="text-sm text-fg-subtle">{t('admin.noAccounts')}</p>}
         columns={[
           {
             header: t('admin.email'),
-            cell: (a) => <span className="text-zinc-200">{a.email}</span>,
+            cell: (a) => <span className="text-fg">{a.email}</span>,
           },
           {
             header: t('admin.role'),
             cell: (a) =>
               a.isAdmin ? (
-                <span className="rounded-full border border-lime-400/30 px-2 py-0.5 text-xs text-lime-300">
+                <span className="rounded-full border border-accent/30 px-2 py-0.5 text-xs text-accent">
                   {t('admin.platformAdmin')}
                 </span>
               ) : (
-                <span className="text-zinc-500">{t('admin.member')}</span>
+                <span className="text-fg-subtle">{t('admin.member')}</span>
               ),
           },
           {
             header: t('admin.account'),
             cell: (a) => (
-              <span className="font-mono text-[12px] text-zinc-500">{a.id}</span>
+              <span className="font-mono text-[12px] text-fg-subtle">{a.id}</span>
             ),
           },
           {
             header: t('admin.created'),
             cell: (a) => (
-              <span className="text-zinc-500">{timeAgo(a.createdAt)}</span>
+              <span className="text-fg-subtle">{timeAgo(a.createdAt)}</span>
             ),
           },
         ]}
       />
 
-      <h2 className="mt-8 mb-3 text-sm font-medium text-zinc-300">
+      <h2 className="mt-8 mb-3 text-sm font-medium text-fg-soft">
         {t('admin.organizations')}
       </h2>
       <DataTable
         rows={orgs}
         rowKey={(o) => o.id}
-        empty={<p className="text-sm text-zinc-500">{t('admin.noOrgs')}</p>}
+        empty={<p className="text-sm text-fg-subtle">{t('admin.noOrgs')}</p>}
         columns={[
           {
             header: t('admin.name'),
-            cell: (o) => <span className="text-zinc-200">{o.name}</span>,
+            cell: (o) => <span className="text-fg">{o.name}</span>,
           },
           {
             header: t('admin.people'),
-            cell: (o) => <span className="text-zinc-300">{o.members}</span>,
+            cell: (o) => <span className="text-fg-soft">{o.members}</span>,
           },
           {
             header: t('admin.organization'),
             cell: (o) => (
-              <span className="font-mono text-[12px] text-zinc-500">{o.id}</span>
+              <span className="font-mono text-[12px] text-fg-subtle">{o.id}</span>
             ),
           },
           {
             header: t('admin.created'),
             cell: (o) => (
-              <span className="text-zinc-500">{timeAgo(o.createdAt)}</span>
+              <span className="text-fg-subtle">{timeAgo(o.createdAt)}</span>
             ),
           },
         ]}
       />
 
       <div className="mt-8 mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-medium text-zinc-300">{t('admin.staff')}</h2>
+        <h2 className="text-sm font-medium text-fg-soft">{t('admin.staff')}</h2>
         <button onClick={() => setEditor('new')} className="btn-secondary">
           {t('admin.newStaff')}
         </button>
       </div>
-      <p className="mb-3 text-xs text-zinc-500">{t('admin.staffHint')}</p>
+      <p className="mb-3 text-xs text-fg-subtle">{t('admin.staffHint')}</p>
       <DataTable
         rows={staff}
         rowKey={(s) => s.id}
-        empty={<p className="text-sm text-zinc-500">{t('admin.noStaff')}</p>}
+        empty={<p className="text-sm text-fg-subtle">{t('admin.noStaff')}</p>}
         columns={[
           {
             header: t('staff.name'),
-            cell: (s) => <span className="text-zinc-200">{s.name}</span>,
+            cell: (s) => <span className="text-fg">{s.name}</span>,
           },
           {
             header: t('staff.slug'),
             cell: (s) => (
-              <span className="font-mono text-[12px] text-zinc-500">{s.slug}</span>
+              <span className="font-mono text-[12px] text-fg-subtle">{s.slug}</span>
             ),
           },
           {
             header: t('staff.locale'),
-            cell: (s) => <span className="text-zinc-400">{s.locale || '—'}</span>,
+            cell: (s) => <span className="text-fg-muted">{s.locale || '—'}</span>,
           },
           {
             header: t('staff.age'),
             cell: (s) => (
-              <span className="text-zinc-400 tabular-nums">{s.age > 0 ? s.age : '—'}</span>
+              <span className="text-fg-muted tabular-nums">{s.age > 0 ? s.age : '—'}</span>
             ),
           },
           {
             header: t('staff.model'),
-            cell: (s) => <span className="text-zinc-400">{s.model || '—'}</span>,
+            cell: (s) => <span className="text-fg-muted">{s.model || '—'}</span>,
           },
           {
             header: t('staff.updated'),
             cell: (s) => (
-              <span className="text-zinc-500">{timeAgo(s.updatedAt)}</span>
+              <span className="text-fg-subtle">{timeAgo(s.updatedAt)}</span>
             ),
           },
           {
@@ -202,7 +202,7 @@ export default function AdminPage() {
             cell: (s) => (
               <button
                 onClick={() => setEditor(s)}
-                className="text-xs text-zinc-500 hover:text-zinc-200"
+                className="text-xs text-fg-subtle hover:text-fg"
               >
                 {t('common.edit')}
               </button>
@@ -290,78 +290,78 @@ function StaffForm({
   return (
     <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
       {error && (
-        <p className="rounded-lg border border-rose-400/20 px-3 py-2 text-sm text-rose-400">
+        <p className="rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
           {error}
         </p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm text-zinc-300">
+        <label className="text-sm text-fg-soft">
           {t('staff.name')}
           <input
             type="text"
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
           />
         </label>
-        <label className="text-sm text-zinc-300">
+        <label className="text-sm text-fg-soft">
           {t('staff.locale')}
           <input
             type="text"
             value={locale}
             onChange={(e) => setLocale(e.target.value)}
             placeholder="pl"
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
           />
         </label>
-        <label className="text-sm text-zinc-300">
+        <label className="text-sm text-fg-soft">
           {t('staff.age')}
           <input
             type="number"
             min={0}
             value={age}
             onChange={(e) => setAge(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
           />
         </label>
-        <label className="text-sm text-zinc-300">
+        <label className="text-sm text-fg-soft">
           {t('staff.wordBudget')}
           <input
             type="number"
             min={0}
             value={wordBudget}
             onChange={(e) => setWordBudget(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
           />
         </label>
-        <label className="text-sm text-zinc-300 sm:col-span-2">
+        <label className="text-sm text-fg-soft sm:col-span-2">
           {t('staff.model')}
           <input
             type="text"
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[12px] text-zinc-100"
+            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
           />
         </label>
       </div>
 
-      <section className="rounded-lg border border-white/10 p-4">
-        <h3 className="text-sm font-medium text-zinc-200">{t('staff.bigFive')}</h3>
-        <p className="mt-1 text-xs text-zinc-500">{t('staff.bigFiveHint')}</p>
+      <section className="rounded-lg border border-line-2 p-4">
+        <h3 className="text-sm font-medium text-fg">{t('staff.bigFive')}</h3>
+        <p className="mt-1 text-xs text-fg-subtle">{t('staff.bigFiveHint')}</p>
         <div className="mt-3">
           <BigFiveFields value={bigFive} onChange={setBigFive} />
         </div>
       </section>
 
-      <label className="text-sm text-zinc-300">
+      <label className="text-sm text-fg-soft">
         {t('staff.brief')}
         <textarea
           rows={3}
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+          className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
         />
       </label>
 
@@ -397,9 +397,9 @@ function slugify(name: string): string {
 
 function KPI({ label, value }: { label: string; value: string | number | undefined }) {
   return (
-    <div className="rounded-lg border border-white/8 bg-zinc-950/40 px-3 py-2.5">
-      <p className="text-[11px] tracking-wide text-zinc-500 uppercase">{label}</p>
-      <p className="mt-1 text-lg font-medium text-zinc-100 tabular-nums">
+    <div className="rounded-lg border border-line-2 bg-fill-sunken px-3 py-2.5">
+      <p className="text-[11px] tracking-wide text-fg-subtle uppercase">{label}</p>
+      <p className="mt-1 text-lg font-medium text-fg-strong tabular-nums">
         {value ?? '—'}
       </p>
     </div>

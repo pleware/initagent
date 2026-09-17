@@ -46,10 +46,10 @@ export default function SkillsPage() {
       <div className="mb-6 flex items-end justify-between">
         <div>
           <p className="eyebrow mb-3">{t('skills.eyebrow')}</p>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-100">
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-fg-strong">
             {t('skills.title')}
           </h1>
-          <p className="mt-1 text-sm text-zinc-400">{t('skills.subtitle')}</p>
+          <p className="mt-1 text-sm text-fg-muted">{t('skills.subtitle')}</p>
         </div>
         <button onClick={() => setEditor('new')} className="btn-primary">
           {t('skills.newSkill')}
@@ -57,7 +57,7 @@ export default function SkillsPage() {
       </div>
 
       {error && (
-        <p className="mb-4 rounded-lg border border-rose-400/20 px-3 py-2 text-sm text-rose-400">
+        <p className="mb-4 rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
           {error}
         </p>
       )}
@@ -65,38 +65,38 @@ export default function SkillsPage() {
       <DataTable
         rows={skills}
         rowKey={(s) => s.id}
-        empty={<p className="text-sm text-zinc-500">{t('skills.noSkills')}</p>}
+        empty={<p className="text-sm text-fg-subtle">{t('skills.noSkills')}</p>}
         columns={[
           {
             header: t('skills.name'),
-            cell: (s) => <span className="text-zinc-200">{s.name}</span>,
+            cell: (s) => <span className="text-fg">{s.name}</span>,
           },
           {
             header: t('skills.description'),
             cell: (s) => (
-              <span className="text-zinc-400">{s.description || '—'}</span>
+              <span className="text-fg-muted">{s.description || '—'}</span>
             ),
           },
           {
             header: t('skills.mcp'),
             cell: (s) =>
               s.mcp ? (
-                <span className="rounded-full border border-lime-400/30 px-2 py-0.5 text-xs text-lime-300">
+                <span className="rounded-full border border-accent/30 px-2 py-0.5 text-xs text-accent">
                   {t('skills.mcpBadge')}
                 </span>
               ) : (
-                <span className="text-zinc-600">—</span>
+                <span className="text-fg-faint">—</span>
               ),
           },
           {
             header: t('skills.enabled'),
             cell: (s) =>
               s.enabled ? (
-                <span className="rounded-full border border-lime-400/30 px-2 py-0.5 text-xs text-lime-300">
+                <span className="rounded-full border border-accent/30 px-2 py-0.5 text-xs text-accent">
                   {t('skills.enabled')}
                 </span>
               ) : (
-                <span className="rounded-full border border-zinc-600/40 px-2 py-0.5 text-xs text-zinc-500">
+                <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-subtle">
                   {t('skills.disabled')}
                 </span>
               ),
@@ -109,13 +109,13 @@ export default function SkillsPage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setEditor(s)}
-                  className="text-xs text-zinc-500 hover:text-zinc-200"
+                  className="text-xs text-fg-subtle hover:text-fg"
                 >
                   {t('common.edit')}
                 </button>
                 <button
                   onClick={() => void remove(s)}
-                  className="text-xs text-zinc-500 hover:text-rose-400"
+                  className="text-xs text-fg-subtle hover:text-fail-fg"
                 >
                   {t('common.delete')}
                 </button>
@@ -198,94 +198,94 @@ function SkillForm({
   return (
     <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
       {error && (
-        <p className="rounded-lg border border-rose-400/20 px-3 py-2 text-sm text-rose-400">
+        <p className="rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
           {error}
         </p>
       )}
 
-      <label className="text-sm text-zinc-300">
+      <label className="text-sm text-fg-soft">
         {t('skills.name')}
         <input
           type="text"
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+          className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
         />
       </label>
 
-      <label className="text-sm text-zinc-300">
+      <label className="text-sm text-fg-soft">
         {t('skills.description')}
         <input
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+          className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
         />
       </label>
 
-      <label className="text-sm text-zinc-300">
+      <label className="text-sm text-fg-soft">
         {t('skills.body')}
         <textarea
           required
           rows={6}
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[12px] text-zinc-100"
+          className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
         />
       </label>
 
-      <section className="rounded-lg border border-white/10 p-4">
-        <h3 className="text-sm font-medium text-zinc-200">{t('skills.mcp')}</h3>
-        <p className="mt-1 text-xs text-zinc-500">{t('skills.mcpHint')}</p>
+      <section className="rounded-lg border border-line-2 p-4">
+        <h3 className="text-sm font-medium text-fg">{t('skills.mcp')}</h3>
+        <p className="mt-1 text-xs text-fg-subtle">{t('skills.mcpHint')}</p>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          <label className="text-sm text-zinc-300">
+          <label className="text-sm text-fg-soft">
             {t('skills.mcpCommand')}
             <input
               type="text"
               value={command}
               onChange={(e) => setCommand(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[12px] text-zinc-100"
+              className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
             />
           </label>
-          <label className="text-sm text-zinc-300">
+          <label className="text-sm text-fg-soft">
             {t('skills.mcpUrl')}
             <input
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[12px] text-zinc-100"
+              className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
             />
           </label>
         </div>
-        <label className="mt-3 block text-sm text-zinc-300">
+        <label className="mt-3 block text-sm text-fg-soft">
           {t('skills.mcpArgs')}
           <input
             type="text"
             value={args}
             onChange={(e) => setArgs(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[12px] text-zinc-100"
+            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
           />
-          <span className="mt-1 block text-xs text-zinc-500">{t('skills.mcpArgsHint')}</span>
+          <span className="mt-1 block text-xs text-fg-subtle">{t('skills.mcpArgsHint')}</span>
         </label>
-        <label className="mt-3 block text-sm text-zinc-300">
+        <label className="mt-3 block text-sm text-fg-soft">
           {t('skills.mcpEnv')}
           <textarea
             rows={4}
             value={env}
             onChange={(e) => setEnv(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[12px] text-zinc-100"
+            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
           />
-          <span className="mt-1 block text-xs text-zinc-500">{t('skills.mcpEnvHint')}</span>
+          <span className="mt-1 block text-xs text-fg-subtle">{t('skills.mcpEnvHint')}</span>
         </label>
       </section>
 
-      <label className="flex items-center gap-2 text-sm text-zinc-300">
+      <label className="flex items-center gap-2 text-sm text-fg-soft">
         <input
           type="checkbox"
           checked={enabled}
           onChange={(e) => setEnabled(e.target.checked)}
-          className="accent-lime-400"
+          className="accent-accent"
         />
         {t('skills.enabled')}
       </label>

@@ -184,13 +184,13 @@ export default function TeamPage({
       <div className="page-shell">
         <div className="mb-6">
           <p className="eyebrow mb-3">{t('team.eyebrow')}</p>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-100">
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-fg-strong">
             {t('team.title')}
           </h1>
         </div>
         <div className="surface rounded-2xl p-12 text-center">
-          <p className="mb-2 text-zinc-300">{t('team.noOrgTitle')}</p>
-          <p className="text-sm text-zinc-500">{t('team.noOrgHint')}</p>
+          <p className="mb-2 text-fg-soft">{t('team.noOrgTitle')}</p>
+          <p className="text-sm text-fg-subtle">{t('team.noOrgHint')}</p>
         </div>
       </div>
     )
@@ -201,10 +201,10 @@ export default function TeamPage({
       <div className="mb-6 flex items-end justify-between">
         <div>
           <p className="eyebrow mb-3">{t('team.eyebrow')}</p>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-zinc-100">
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-fg-strong">
             {t('team.title')}
           </h1>
-          <p className="mt-1 text-sm text-zinc-400">
+          <p className="mt-1 text-sm text-fg-muted">
             {t('team.subtitle', { org: current?.name, role: myRole })}
           </p>
         </div>
@@ -218,7 +218,7 @@ export default function TeamPage({
       </div>
 
       {error && (
-        <p className="mb-4 rounded-lg border border-rose-400/20 px-3 py-2 text-sm text-rose-400">
+        <p className="mb-4 rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
           {error}
         </p>
       )}
@@ -226,15 +226,15 @@ export default function TeamPage({
       <DataTable
         rows={members}
         rowKey={(m) => m.accountId}
-        empty={<p className="text-sm text-zinc-500">{t('team.empty')}</p>}
+        empty={<p className="text-sm text-fg-subtle">{t('team.empty')}</p>}
         columns={[
           {
             header: t('team.email'),
             cell: (m) => (
-              <span className="text-zinc-200">
+              <span className="text-fg">
                 {m.email}
                 {m.accountId === me.accountId && (
-                  <span className="ml-2 text-xs text-zinc-500">
+                  <span className="ml-2 text-xs text-fg-subtle">
                     {t('team.you')}
                   </span>
                 )}
@@ -253,7 +253,7 @@ export default function TeamPage({
                   items={roles.map((role) => ({ value: role, label: t('orgs.roles.' + role, { defaultValue: role }) }))}
                 />
               ) : (
-                <span className="text-zinc-400">
+                <span className="text-fg-muted">
                   {t('orgs.roles.' + m.role, { defaultValue: m.role })}
                 </span>
               ),
@@ -261,7 +261,7 @@ export default function TeamPage({
           {
             header: t('team.joined'),
             cell: (m) => (
-              <span className="text-zinc-500">{timeAgo(m.createdAt)}</span>
+              <span className="text-fg-subtle">{timeAgo(m.createdAt)}</span>
             ),
           },
           {
@@ -275,7 +275,7 @@ export default function TeamPage({
                 <button
                   onClick={() => remove(m)}
                   disabled={busy === m.accountId}
-                  className="text-xs text-zinc-500 hover:text-rose-400"
+                  className="text-xs text-fg-subtle hover:text-fail-fg"
                 >
                   {m.accountId === me.accountId
                     ? t('team.leave')
@@ -288,8 +288,8 @@ export default function TeamPage({
 
       {canManage && (
         <section className="mt-10">
-          <h2 className="text-lg font-semibold text-zinc-100">{t('team.inviteTitle')}</h2>
-          <p className="mt-1 text-sm text-zinc-400">{t('team.inviteHint')}</p>
+          <h2 className="text-lg font-semibold text-fg-strong">{t('team.inviteTitle')}</h2>
+          <p className="mt-1 text-sm text-fg-muted">{t('team.inviteHint')}</p>
           <form
             className="mt-4 flex flex-wrap items-end gap-3"
             onSubmit={(e) => {
@@ -297,17 +297,17 @@ export default function TeamPage({
               void sendInvite()
             }}
           >
-            <label className="min-w-56 flex-1 text-sm text-zinc-300">
+            <label className="min-w-56 flex-1 text-sm text-fg-soft">
               {t('team.email')}
               <input
                 type="email"
                 required
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+                className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
               />
             </label>
-            <label className="text-sm text-zinc-300">
+            <label className="text-sm text-fg-soft">
               {t('team.role')}
               <div className="mt-1">
                 <SimpleSelect
@@ -326,12 +326,12 @@ export default function TeamPage({
             <HubError error={inviteError} fallback={t('team.inviteFailed')} />
           </div>
           {inviteLink && (
-            <p className="mt-3 text-sm text-zinc-300">
+            <p className="mt-3 text-sm text-fg-soft">
               {t('team.inviteLinkOnce')}{' '}
               <button
                 type="button"
                 onClick={() => void copyLink(inviteLink)}
-                className="underline underline-offset-2 hover:text-zinc-100"
+                className="underline underline-offset-2 hover:text-fg-strong"
               >
                 {t('team.copyLink')}
               </button>
@@ -345,16 +345,16 @@ export default function TeamPage({
               columns={[
                 {
                   header: t('team.email'),
-                  cell: (inv) => <span className="text-zinc-200">{inv.email}</span>,
+                  cell: (inv) => <span className="text-fg">{inv.email}</span>,
                 },
                 {
                   header: t('team.role'),
-                  cell: (inv) => <span className="text-zinc-400">{inv.role}</span>,
+                  cell: (inv) => <span className="text-fg-muted">{inv.role}</span>,
                 },
                 {
                   header: t('team.expires'),
                   cell: (inv) => (
-                    <span className="text-zinc-500">
+                    <span className="text-fg-subtle">
                       {new Date(inv.expiresAt * 1000).toLocaleDateString()}
                     </span>
                   ),
@@ -368,7 +368,7 @@ export default function TeamPage({
                       type="button"
                       onClick={() => void revokeInvite(inv)}
                       disabled={busy === inv.id}
-                      className="text-xs text-zinc-500 hover:text-rose-400"
+                      className="text-xs text-fg-subtle hover:text-fail-fg"
                     >
                       {t('team.revoke')}
                     </button>
@@ -381,22 +381,22 @@ export default function TeamPage({
       )}
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold text-zinc-100">{t('team.staff')}</h2>
-        <p className="mt-1 text-sm text-zinc-400">
+        <h2 className="text-lg font-semibold text-fg-strong">{t('team.staff')}</h2>
+        <p className="mt-1 text-sm text-fg-muted">
           {t('team.staffHint', { org: current?.name })}
         </p>
         <div className="mt-4">
           <DataTable
             rows={staff}
             rowKey={(s) => s.id}
-            empty={<p className="text-sm text-zinc-500">{t('team.staffEmpty')}</p>}
+            empty={<p className="text-sm text-fg-subtle">{t('team.staffEmpty')}</p>}
             columns={[
               {
                 header: t('staff.name'),
                 cell: (s) => (
-                  <span className="text-zinc-200">
+                  <span className="text-fg">
                     {s.name}{' '}
-                    <span className="ml-1 rounded-full border border-lime-400/30 px-2 py-0.5 text-xs text-lime-300">
+                    <span className="ml-1 rounded-full border border-accent/30 px-2 py-0.5 text-xs text-accent">
                       {t('team.staffBadge')}
                     </span>
                   </span>
@@ -404,12 +404,12 @@ export default function TeamPage({
               },
               {
                 header: t('staff.model'),
-                cell: (s) => <span className="text-zinc-400">{s.model || '—'}</span>,
+                cell: (s) => <span className="text-fg-muted">{s.model || '—'}</span>,
               },
               {
                 header: t('staff.wordBudget'),
                 cell: (s) => (
-                  <span className="text-zinc-400 tabular-nums">
+                  <span className="text-fg-muted tabular-nums">
                     {s.wordBudget > 0 ? s.wordBudget : '—'}
                   </span>
                 ),
@@ -424,14 +424,14 @@ export default function TeamPage({
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => setStaffEditor(s)}
-                            className="text-xs text-zinc-500 hover:text-zinc-200"
+                            className="text-xs text-fg-subtle hover:text-fg"
                           >
                             {t('common.edit')}
                           </button>
                           <button
                             onClick={() => void resetStaff(s)}
                             disabled={busy === s.id}
-                            className="text-xs text-zinc-500 hover:text-rose-400"
+                            className="text-xs text-fg-subtle hover:text-fail-fg"
                           >
                             {t('team.resetOverride')}
                           </button>
@@ -530,67 +530,67 @@ function OrgStaffForm({
   return (
     <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
       {error && (
-        <p className="rounded-lg border border-rose-400/20 px-3 py-2 text-sm text-rose-400">
+        <p className="rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
           {error}
         </p>
       )}
 
-      <div className="rounded-lg border border-white/10 p-4">
-        <p className="text-xs text-zinc-500">{t('staff.inherited')}</p>
+      <div className="rounded-lg border border-line-2 p-4">
+        <p className="text-xs text-fg-subtle">{t('staff.inherited')}</p>
         <dl className="mt-2 grid grid-cols-3 gap-3 text-sm">
           <div>
-            <dt className="text-xs text-zinc-500">{t('staff.name')}</dt>
-            <dd className="mt-0.5 text-zinc-200">{staff.name}</dd>
+            <dt className="text-xs text-fg-subtle">{t('staff.name')}</dt>
+            <dd className="mt-0.5 text-fg">{staff.name}</dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500">{t('staff.locale')}</dt>
-            <dd className="mt-0.5 text-zinc-200">{staff.locale || '—'}</dd>
+            <dt className="text-xs text-fg-subtle">{t('staff.locale')}</dt>
+            <dd className="mt-0.5 text-fg">{staff.locale || '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500">{t('staff.age')}</dt>
-            <dd className="mt-0.5 text-zinc-200">{staff.age > 0 ? staff.age : '—'}</dd>
+            <dt className="text-xs text-fg-subtle">{t('staff.age')}</dt>
+            <dd className="mt-0.5 text-fg">{staff.age > 0 ? staff.age : '—'}</dd>
           </div>
         </dl>
       </div>
 
-      <p className="text-xs text-zinc-500">{t('team.overrideHint')}</p>
+      <p className="text-xs text-fg-subtle">{t('team.overrideHint')}</p>
 
-      <section className="rounded-lg border border-white/10 p-4">
-        <h3 className="text-sm font-medium text-zinc-200">{t('staff.bigFive')}</h3>
-        <p className="mt-1 text-xs text-zinc-500">{t('staff.bigFiveHint')}</p>
+      <section className="rounded-lg border border-line-2 p-4">
+        <h3 className="text-sm font-medium text-fg">{t('staff.bigFive')}</h3>
+        <p className="mt-1 text-xs text-fg-subtle">{t('staff.bigFiveHint')}</p>
         <div className="mt-3">
           <BigFiveFields value={bigFive} onChange={setBigFive} />
         </div>
       </section>
 
-      <label className="text-sm text-zinc-300">
+      <label className="text-sm text-fg-soft">
         {t('staff.brief')}
         <textarea
           rows={3}
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+          className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
         />
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm text-zinc-300">
+        <label className="text-sm text-fg-soft">
           {t('staff.wordBudget')}
           <input
             type="number"
             min={0}
             value={wordBudget}
             onChange={(e) => setWordBudget(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-zinc-100"
+            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
           />
         </label>
-        <label className="text-sm text-zinc-300">
+        <label className="text-sm text-fg-soft">
           {t('staff.model')}
           <input
             type="text"
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[12px] text-zinc-100"
+            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
           />
         </label>
       </div>

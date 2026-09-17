@@ -95,7 +95,7 @@ function LayoutShell({ me }: { me: Me }) {
       <div className="mobile-bar">
         <button onClick={() => setMobileOpen(true)} aria-label="Open navigation" className="toolbar-button"><MenuIcon /></button>
         <Brand />
-        <span className="ml-auto flex items-center gap-1.5 text-[10px] text-zinc-500"><span className="node-dot node-dot-online" />online</span>
+        <span className="ml-auto flex items-center gap-1.5 text-[10px] text-fg-subtle"><span className="node-dot node-dot-online" />online</span>
       </div>
 
       {mobileOpen && <button className="sidebar-scrim" onClick={() => setMobileOpen(false)} aria-label="Close navigation" />}
@@ -103,8 +103,8 @@ function LayoutShell({ me }: { me: Me }) {
       <aside className={`app-sidebar ${mobileOpen ? 'app-sidebar-open' : ''}`}>
         <div className="sidebar-head">
           <Brand />
-          <span className="rounded border border-white/[0.08] px-1.5 py-0.5 font-mono text-[9px] text-zinc-600">fx</span>
-          <button onClick={() => setMobileOpen(false)} className="ml-auto text-zinc-600 hover:text-white lg:hidden" aria-label="Close navigation">×</button>
+          <span className="rounded border border-line-2 px-1.5 py-0.5 font-mono text-[9px] text-fg-faint">fx</span>
+          <button onClick={() => setMobileOpen(false)} className="ml-auto text-fg-faint hover:text-fg-strong lg:hidden" aria-label="Close navigation">×</button>
         </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
@@ -170,7 +170,7 @@ function LayoutShell({ me }: { me: Me }) {
                 <span className="truncate">{project.name}</span>
               </NavLink>
             ))}
-            {railProjects.length === 0 && <p className="px-2 py-3 text-xs leading-5 text-zinc-700">No projects yet</p>}
+            {railProjects.length === 0 && <p className="px-2 py-3 text-xs leading-5 text-fg-ghost">No projects yet</p>}
           </div>
         </section>
 
@@ -217,15 +217,15 @@ function LayoutShell({ me }: { me: Me }) {
             {operatorInitials(me.email)}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-xs font-medium text-zinc-300">
+            <p className="truncate text-xs font-medium text-fg-soft">
               {me.orgs?.[0]?.name ?? me.email ?? 'Personal fleet'}
             </p>
-            <p className="font-mono text-[9px] text-zinc-700">{me.version || 'development'}</p>
+            <p className="font-mono text-[9px] text-fg-ghost">{me.version || 'development'}</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <ThemeSwitcher />
             <LanguageSwitcher persist />
-            <button onClick={logout} className="text-[11px] text-zinc-600 hover:text-zinc-200">Log out</button>
+            <button onClick={logout} className="text-[11px] text-fg-faint hover:text-fg">Log out</button>
           </div>
         </footer>
       </aside>
@@ -280,7 +280,7 @@ function twoLetters(first: string, second: string): string {
 
 function Brand() {
   return (
-    <NavLink to="/code" className="flex items-center gap-2 text-zinc-100">
+    <NavLink to="/code" className="flex items-center gap-2 text-fg-strong">
       <BrandMark
         className="h-7 w-auto"
         fallback={

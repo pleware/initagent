@@ -104,8 +104,8 @@ export default function CodingPage({
       <div className="code-empty">
         <div className="code-empty-mark"><span>fx</span></div>
         <p className="eyebrow mt-7">{t('code.operatorEmptyEyebrow')}</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-white">{t('code.operatorEmptyTitle')}</h1>
-        <p className="mt-3 max-w-lg text-center text-sm leading-6 text-zinc-500">
+        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-fg-strong">{t('code.operatorEmptyTitle')}</h1>
+        <p className="mt-3 max-w-lg text-center text-sm leading-6 text-fg-subtle">
           {t('code.operatorEmptyHint')}
         </p>
       </div>
@@ -138,8 +138,8 @@ export default function CodingPage({
       <div className="code-empty">
         <div className="code-empty-mark"><span>fx</span></div>
         <p className="eyebrow mt-7">Coding workspace</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-white">What should we build?</h1>
-        <p className="mt-3 max-w-lg text-center text-sm leading-6 text-zinc-500">
+        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-fg-strong">What should we build?</h1>
+        <p className="mt-3 max-w-lg text-center text-sm leading-6 text-fg-subtle">
           Add a project, choose the PC where its files live, and let fx work there from this browser.
         </p>
         <button onClick={() => setShowModal(true)} className="btn-primary mt-6">Add your first project</button>
@@ -155,12 +155,12 @@ export default function CodingPage({
   }
 
   if (!projectsReady || (!project && !projectId)) {
-    return <div className="grid h-full place-items-center text-sm text-zinc-600">{t('code.loading')}</div>
+    return <div className="grid h-full place-items-center text-sm text-fg-faint">{t('code.loading')}</div>
   }
 
   if (!project) {
     return (
-      <div className="grid h-full place-items-center px-6 text-center text-sm text-zinc-500">
+      <div className="grid h-full place-items-center px-6 text-center text-sm text-fg-subtle">
         <div>
           <p>{t('code.missing')}</p>
           <button type="button" onClick={() => navigate(`/code/${projects[0].id}`)} className="btn-primary mt-4">
@@ -185,10 +185,10 @@ export default function CodingPage({
       <header className="coding-toolbar">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="truncate text-sm font-semibold text-zinc-100">{project.name}</h1>
+            <h1 className="truncate text-sm font-semibold text-fg-strong">{project.name}</h1>
             <span className={`node-dot ${connector?.online ? 'node-dot-online' : ''}`} />
           </div>
-          <p className="mt-0.5 truncate font-mono text-[10px] text-zinc-600">{project.path}</p>
+          <p className="mt-0.5 truncate font-mono text-[10px] text-fg-faint">{project.path}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="machine-pill">

@@ -299,6 +299,7 @@
     "staffEmpty": "Nie ma jeszcze nikogo.",
     "staffBadge": "Zespół biurka",
     "overrideTitle": "Dostrój: {{name}}",
+    "overrideHint": "Nietknięte pola zachowują wartość z huba — zapisuje się tylko to, co tu zmienisz.",
     "resetOverride": "Reset",
     "resetOverrideConfirm": "Przywrócić {{name}} do ustawień huba?",
     "overrideFailed": "Nie udało się zapisać ustawień",

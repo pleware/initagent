@@ -299,6 +299,7 @@
     "staffEmpty": "No staff yet.",
     "staffBadge": "Desk staff",
     "overrideTitle": "Tune {{name}}",
+    "overrideHint": "Untouched fields keep the hub's value — only what you change here is saved.",
     "resetOverride": "Reset",
     "resetOverrideConfirm": "Reset {{name}} to the hub defaults?",
     "overrideFailed": "Could not save the override",

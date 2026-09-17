@@ -493,15 +493,32 @@ function OrgStaffForm({
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    // The override body carries only the fields the user actually changed:
+    // an absent field means "inherit the hub's value", and echoing the
+    // untouched fields back as concrete values would overwrite the canonical
+    // row for this org.
+    const payload: {
+      bigFive?: Character
+      brief?: string
+      model?: string
+      wordBudget?: number
+    } = {}
+    if (!sameBigFive(bigFive, staff.bigFive)) payload.bigFive = bigFive
+    const nextBrief = brief.trim()
+    if (nextBrief !== staff.brief) payload.brief = nextBrief
+    const nextModel = model.trim()
+    if (nextModel !== staff.model) payload.model = nextModel
+    const nextWordBudget = Number(wordBudget) || 0
+    if (nextWordBudget !== staff.wordBudget) payload.wordBudget = nextWordBudget
+
+    if (Object.keys(payload).length === 0) {
+      onSaved()
+      return
+    }
     setBusy(true)
     setError('')
     try {
-      await api.patch(`/api/orgs/${orgId}/staff/${staff.id}`, {
-        bigFive,
-        brief: brief.trim(),
-        model: model.trim(),
-        wordBudget: Number(wordBudget) || 0,
-      })
+      await api.patch(`/api/orgs/${orgId}/staff/${staff.id}`, payload)
       onSaved()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('people.overrideFailed'))
@@ -535,6 +552,8 @@ function OrgStaffForm({
           </div>
         </dl>
       </div>
+
+      <p className="text-xs text-zinc-500">{t('people.overrideHint')}</p>
 
       <section className="rounded-lg border border-white/10 p-4">
         <h3 className="text-sm font-medium text-zinc-200">{t('staff.bigFive')}</h3>
@@ -585,5 +604,15 @@ function OrgStaffForm({
         </button>
       </div>
     </form>
+  )
+}
+
+function sameBigFive(a: Character, b: Character): boolean {
+  return (
+    a.openness === b.openness &&
+    a.conscientiousness === b.conscientiousness &&
+    a.extraversion === b.extraversion &&
+    a.agreeableness === b.agreeableness &&
+    a.neuroticism === b.neuroticism
   )
 }

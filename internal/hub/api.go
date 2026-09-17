@@ -316,6 +316,17 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	resp["tokenScopes"] = scopes
+	// The installation scopes an operator may hand to a machine. Like
+	// `tokenScopes`, the list travels from here so the cockpit's checkboxes
+	// cannot name a verb this hub refuses; unlike them, it is the platform
+	// operator's alone — a customer token never carries hub administration.
+	if requester.Platform {
+		admin := make([]string, 0, len(authz.InstallationGrantableScopes()))
+		for _, scope := range authz.InstallationGrantableScopes() {
+			admin = append(admin, string(scope))
+		}
+		resp["adminTokenScopes"] = admin
+	}
 	orgs := []Membership{}
 	if requester.Account != "" {
 		if a, err := s.store.AccountById(requester.Account); err == nil && a != nil {

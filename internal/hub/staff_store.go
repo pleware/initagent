@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/store"
 )
 
 // --- staff ---
@@ -118,39 +119,58 @@ func (s *Store) UpsertStaff(slug, name, locale, model, brief, soulCore, voice, s
 	if err := validateStaffScope(slug, scope, boxID); err != nil {
 		return nil, err
 	}
-	bigFiveJSON, err := encodeBigFive(bigFive)
-	if err != nil {
-		return nil, err
-	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
+	st, existingID, err := upsertStaffTx(tx, slug, name, locale, model, brief, soulCore, voice, scope, boxID, age, wordBudget, bigFive)
+	if err != nil {
+		return nil, err
+	}
+	if scope == "org" {
+		if err := bumpAllBoxes(tx); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	if st != nil {
+		return st, nil
+	}
+	return s.StaffById(existingID)
+}
+
+// upsertStaffTx is the SELECT/UPDATE/INSERT core of a staff upsert, shared
+// by UpsertStaff and UpdateBoxNarrator. It runs inside the caller's
+// transaction: an existing key is updated and the row's id comes back with
+// a nil staff — the caller re-reads it after commit, so it sees the
+// committed row — while a new key mints a `staff-` identifier and returns
+// the freshly built row whose fields are exactly the submitted values. The
+// config_version bump the write causes is the caller's business, not the
+// core's.
+func upsertStaffTx(tx *store.Tx, slug, name, locale, model, brief, soulCore, voice, scope, boxID string, age, wordBudget int, bigFive Character) (*Staff, string, error) {
+	bigFiveJSON, err := encodeBigFive(bigFive)
+	if err != nil {
+		return nil, "", err
+	}
 	var existing string
 	err = tx.QueryRow(`SELECT id FROM staff WHERE slug = ? AND COALESCE(box_id, '') = COALESCE(?, '')`, slug, boxID).Scan(&existing)
 	if err == nil {
 		if _, err = tx.Exec(`UPDATE staff SET name = ?, locale = ?, model = ?, brief = ?, age = ?, word_budget = ?, soul_core = ?, voice = ?, big_five = ?, scope = ?, box_id = ?, updated_at = ?
 			WHERE id = ?`, name, locale, model, brief, age, wordBudget, soulCore, voice, bigFiveJSON, scope, boxID, time.Now().Unix(), existing); err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		if scope == "org" {
-			if err := bumpAllBoxes(tx); err != nil {
-				return nil, err
-			}
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, err
-		}
-		return s.StaffById(existing)
+		return nil, existing, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
+		return nil, "", err
 	}
 
 	staffId, err := id.New(id.Staff)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	now := time.Now().Unix()
 	st := &Staff{
@@ -174,19 +194,43 @@ func (s *Store) UpsertStaff(slug, name, locale, model, brief, soulCore, voice, s
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		st.ID, st.Slug, st.Name, st.Locale, st.Age, bigFiveJSON, st.Brief, st.WordBudget, st.Model, st.SoulCore, st.Voice, st.Scope, st.BoxID, st.CreatedAt, st.UpdatedAt); err != nil {
 		if uniqueConstraint(err) {
-			return nil, fmt.Errorf("staff slug %q already exists: %w", slug, err)
+			return nil, "", fmt.Errorf("staff slug %q already exists: %w", slug, err)
 		}
+		return nil, "", err
+	}
+	return st, "", nil
+}
+
+// UpdateBoxNarrator writes the narrator staff row of one box — the
+// box-scoped "Data" (st_b_dt) — and bumps the box's config_version in the
+// same transaction, so a connector's next sync picks the edited narrator
+// up. CreateBox seeds the row, so the normal path is an update; the upsert
+// core also creates the row when it is missing. The bump is single-box
+// (bumpBoxConfig), unlike UpsertStaff's org-scoped bumpAllBoxes: an edit
+// changes only this box's manifest.
+func (s *Store) UpdateBoxNarrator(boxID, name, locale, model, brief, soulCore, voice string, age, wordBudget int, bigFive Character) (*Staff, error) {
+	if err := validateStaffScope("st_b_dt", "box", boxID); err != nil {
 		return nil, err
 	}
-	if scope == "org" {
-		if err := bumpAllBoxes(tx); err != nil {
-			return nil, err
-		}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	st, existingID, err := upsertStaffTx(tx, "st_b_dt", name, locale, model, brief, soulCore, voice, "box", boxID, age, wordBudget, bigFive)
+	if err != nil {
+		return nil, err
+	}
+	if err := bumpBoxConfig(tx, boxID); err != nil {
+		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return st, nil
+	if st != nil {
+		return st, nil
+	}
+	return s.StaffById(existingID)
 }
 
 // StaffForOrg returns the staff roster as one organization sees it: each

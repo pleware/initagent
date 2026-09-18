@@ -189,6 +189,14 @@ func bumpConfigForOrg(tx *store.Tx, orgID string) error {
 	return err
 }
 
+// bumpBoxConfig advances config_version on one box. A narrator edit only
+// changes that box's manifest, so only that box has to re-sync. It runs
+// inside the caller's transaction, like bumpAllBoxes.
+func bumpBoxConfig(tx *store.Tx, boxID string) error {
+	_, err := tx.Exec(`UPDATE boxes SET config_version = config_version + 1 WHERE id = ?`, boxID)
+	return err
+}
+
 // ListBoxOrgs returns the organization ids bound to a box, ordered by id.
 // A box with no organizations yields an empty slice, not nil.
 func (s *Store) ListBoxOrgs(boxID string) ([]string, error) {

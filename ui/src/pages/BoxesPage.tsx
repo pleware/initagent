@@ -240,6 +240,7 @@ export default function BoxesPage() {
         <Modal
           title={t('boxes.tokensTitle', { name: tokensBox.name })}
           onClose={() => setTokensBox(null)}
+          wide
         >
           <TokensPanel box={tokensBox} />
         </Modal>
@@ -667,7 +668,7 @@ function TokensPanel({ box }: { box: Box }) {
         <div className="rounded-lg border border-ok/30 bg-ok/10 p-3">
           <p className="mb-2 text-xs text-ok">{t('boxes.tokenShownOnce')}</p>
           <div className="flex items-center gap-2">
-            <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-[13px] text-ok">
+            <code className="min-w-0 flex-1 break-all font-mono text-[13px] text-ok">
               {fresh.token}
             </code>
             <button onClick={() => void copy()} className="btn-secondary">

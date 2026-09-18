@@ -1,10 +1,13 @@
 package hub
 
 import (
+	"errors"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/store"
 )
 
 // testStaff is a fully-populated staff member used where a test needs a set one.
@@ -17,6 +20,8 @@ func testStaff() Staff {
 		Brief:      "a sharp coder",
 		Age:        41,
 		WordBudget: 2500,
+		SoulCore:   "debug first, explain after",
+		Voice:      "zeta-v1",
 		BigFive: Character{
 			Openness:          0.9,
 			Conscientiousness: 0.8,
@@ -60,7 +65,7 @@ func findStaff(t *testing.T, list []Staff, slug string) *Staff {
 func newBaseStaff(t *testing.T, s *Store) Staff {
 	t.Helper()
 	st := testStaff()
-	created, err := s.UpsertStaff(st.Slug, st.Name, st.Locale, st.Model, st.Brief, st.Age, st.WordBudget, st.BigFive)
+	created, err := s.UpsertStaff(st.Slug, st.Name, st.Locale, st.Model, st.Brief, st.SoulCore, st.Voice, "org", "", st.Age, st.WordBudget, st.BigFive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +97,7 @@ func countSlug(list []Staff, slug string) int {
 func TestListStaffOrderedBySlug(t *testing.T) {
 	s := testStore(t)
 	for _, slug := range []string{"zeta", "alpha", "mike"} {
-		if _, err := s.UpsertStaff(slug, slug, "en", "", "", 30, 0, Character{}); err != nil {
+		if _, err := s.UpsertStaff(slug, slug, "en", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -142,7 +147,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := testStore(t)
-			created, err := s.UpsertStaff(tt.in.Slug, tt.in.Name, tt.in.Locale, tt.in.Model, tt.in.Brief, tt.in.Age, tt.in.WordBudget, tt.in.BigFive)
+			created, err := s.UpsertStaff(tt.in.Slug, tt.in.Name, tt.in.Locale, tt.in.Model, tt.in.Brief, tt.in.SoulCore, tt.in.Voice, "org", "", tt.in.Age, tt.in.WordBudget, tt.in.BigFive)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -159,7 +164,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 			}
 			if got.Slug != tt.in.Slug || got.Name != tt.in.Name || got.Locale != tt.in.Locale ||
 				got.Model != tt.in.Model || got.Brief != tt.in.Brief || got.Age != tt.in.Age ||
-				got.WordBudget != tt.in.WordBudget {
+				got.WordBudget != tt.in.WordBudget || got.SoulCore != tt.in.SoulCore || got.Voice != tt.in.Voice {
 				t.Errorf("round trip = %+v, want %+v", got, tt.in)
 			}
 			if !reflect.DeepEqual(got.BigFive, tt.in.BigFive) {
@@ -179,7 +184,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 func TestUpsertStaffUpdate(t *testing.T) {
 	s := testStore(t)
 	base := testStaff()
-	created, err := s.UpsertStaff(base.Slug, base.Name, base.Locale, base.Model, base.Brief, base.Age, base.WordBudget, base.BigFive)
+	created, err := s.UpsertStaff(base.Slug, base.Name, base.Locale, base.Model, base.Brief, base.SoulCore, base.Voice, "org", "", base.Age, base.WordBudget, base.BigFive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +194,7 @@ func TestUpsertStaffUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := s.UpsertStaff("coder-zeta", "Zeta Two", "en", "zeta2.glb", "sharper now", 42, 3000,
+	got, err := s.UpsertStaff("coder-zeta", "Zeta Two", "en", "zeta2.glb", "sharper now", "explain first", "zeta-v2", "org", "", 42, 3000,
 		Character{Openness: 1, Conscientiousness: 1, Extraversion: 1, Agreeableness: 1, Neuroticism: 0})
 	if err != nil {
 		t.Fatal(err)
@@ -201,7 +206,8 @@ func TestUpsertStaffUpdate(t *testing.T) {
 		t.Errorf("ID = %q, want %q (update must not mint a new id)", got.ID, created.ID)
 	}
 	if got.Name != "Zeta Two" || got.Locale != "en" || got.Model != "zeta2.glb" ||
-		got.Brief != "sharper now" || got.Age != 42 || got.WordBudget != 3000 {
+		got.Brief != "sharper now" || got.Age != 42 || got.WordBudget != 3000 ||
+		got.SoulCore != "explain first" || got.Voice != "zeta-v2" {
 		t.Errorf("updated fields = %+v", got)
 	}
 	wantBigFive := Character{Openness: 1, Conscientiousness: 1, Extraversion: 1, Agreeableness: 1, Neuroticism: 0}
@@ -226,7 +232,7 @@ func TestUpsertStaffUpdate(t *testing.T) {
 
 func TestUpsertStaffSlugUnique(t *testing.T) {
 	s := testStore(t)
-	if _, err := s.UpsertStaff("staff-taken", "One", "en", "", "", 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("staff-taken", "One", "en", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
 	// A direct second insert on the same slug is refused by the unique index.
@@ -234,6 +240,148 @@ func TestUpsertStaffSlugUnique(t *testing.T) {
 		VALUES ('staff-00000000-0000-0000-0000-000000000000', 'staff-taken', 'Two', 'en', 31, '{}', '', 0, '', 1, 1)`)
 	if err == nil {
 		t.Fatal("second insert with the same slug succeeded, want a unique constraint refusal")
+	}
+}
+
+func TestUpsertStaffScopeValidation(t *testing.T) {
+	s := testStore(t)
+	const boxID = "box-00000000-0000-0000-0000-000000000000"
+	tests := []struct {
+		name      string
+		slug      string
+		scope     string
+		boxID     string
+		wantError error
+	}{
+		{name: "box slug with box scope", slug: "st_b_dt", scope: "box", boxID: boxID},
+		{name: "box slug with org scope", slug: "st_b_dt", scope: "org", wantError: ErrStaffScopeMismatch},
+		{name: "box slug without a box", slug: "st_b_dt", scope: "box", wantError: ErrStaffScopeMismatch},
+		{name: "org slug with org scope", slug: "staff-mike-00", scope: "org"},
+		{name: "org slug with box scope", slug: "staff-mike-00", scope: "box", boxID: boxID, wantError: ErrStaffScopeMismatch},
+		{name: "org slug carrying a box", slug: "sto_da", scope: "org", boxID: boxID, wantError: ErrStaffScopeMismatch},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := s.UpsertStaff(tt.slug, tt.slug, "en", "", "", "", "", tt.scope, tt.boxID, 30, 0, Character{})
+			if tt.wantError != nil {
+				if !errors.Is(err, tt.wantError) {
+					t.Fatalf("UpsertStaff error = %v, want %v", err, tt.wantError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("UpsertStaff = %v, want success", err)
+			}
+		})
+	}
+}
+
+func TestUpsertStaffScopeRoundTrip(t *testing.T) {
+	s := testStore(t)
+	box, err := s.CreateBox("box-one", "One", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	narrator, err := s.UpsertStaff("st_b_dt", "Data", "en", "", "", "", "", "box", box.ID, 30, 0, Character{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.StaffById(narrator.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Scope != "box" || got.BoxID != box.ID {
+		t.Errorf("box-scoped row = scope %q box_id %q, want box/%s", got.Scope, got.BoxID, box.ID)
+	}
+
+	orgStaff, err := s.UpsertStaff("staff-nova-00", "Nova", "en", "", "", "", "", "org", "", 30, 0, Character{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.StaffById(orgStaff.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Scope != "org" || got.BoxID != "" {
+		t.Errorf("org-scoped row = scope %q box_id %q, want org/empty", got.Scope, got.BoxID)
+	}
+}
+
+func TestStaffForBoxReturnsBoxScopedOnly(t *testing.T) {
+	s := testStore(t)
+	boxA, err := s.CreateBox("box-a", "A", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	boxB, err := s.CreateBox("box-b", "B", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertStaff("staff-org-00", "Org Narr", "en", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertStaff("st_b_dt", "Data", "en", "", "", "", "", "box", boxA.ID, 30, 0, Character{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertStaff("st_b_jl", "Jean-Luc", "en", "", "", "", "", "box", boxB.ID, 30, 0, Character{}); err != nil {
+		t.Fatal(err)
+	}
+
+	rosterA, err := s.StaffForBox(boxA.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rosterA) != 1 {
+		t.Fatalf("StaffForBox(%s) = %d rows, want only the box narrator", boxA.ID, len(rosterA))
+	}
+	if got := rosterA[0]; got.Slug != "st_b_dt" || got.Scope != "box" || got.BoxID != boxA.ID {
+		t.Errorf("box A narrator = %+v, want the st_b_dt box-scoped row", got)
+	}
+
+	rosterB, err := s.StaffForBox(boxB.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rosterB) != 1 || rosterB[0].Slug != "st_b_jl" {
+		t.Errorf("StaffForBox(%s) = %+v, want the st_b_jl row", boxB.ID, rosterB)
+	}
+
+	empty, err := s.StaffForBox("box-00000000-0000-0000-0000-000000000000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(empty) != 0 {
+		t.Errorf("StaffForBox for an unknown box = %d rows, want 0", len(empty))
+	}
+}
+
+func TestStaffForOrgExcludesBoxScoped(t *testing.T) {
+	s := testStore(t)
+	box, err := s.CreateBox("box-x", "X", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpsertStaff("st_b_dt", "Data", "en", "", "", "", "", "box", box.ID, 30, 0, Character{}); err != nil {
+		t.Fatal(err)
+	}
+
+	roster, err := s.StaffForOrg("org-anyone")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, st := range roster {
+		if st.Scope != "org" {
+			t.Errorf("org roster row %s has scope %q, want org", st.Slug, st.Scope)
+		}
+		if st.BoxID != "" {
+			t.Errorf("org roster row %s carries box_id %q, want empty", st.Slug, st.BoxID)
+		}
+	}
+	if n := countSlug(roster, "st_b_dt"); n != 0 {
+		t.Errorf("org roster contains the box narrator %d times, want 0", n)
+	}
+	if n := countSlug(roster, "staff-male-00"); n != 1 {
+		t.Errorf("org roster contains the seed staff-male-00 %d times, want 1", n)
 	}
 }
 
@@ -245,48 +393,127 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 	base := testStaff()
 	overrideBF := Character{Openness: 0.1, Conscientiousness: 0.2, Extraversion: 0.3, Agreeableness: 0.4, Neuroticism: 0.9}
 	zeroBF := Character{}
+	overrideName := "Zed"
+	overrideAge := 7
+	overrideSoul := "walk-up soul"
+	overrideVoice := "walk-up-v1"
 	overrideBrief := "override brief"
 	overrideModel := "override.glb"
 	overrideBudget := 99
 	full := OrgStaffOverride{
-		OrgID:      orgA,
-		BigFive:    &overrideBF,
-		Brief:      &overrideBrief,
-		Model:      &overrideModel,
-		WordBudget: &overrideBudget,
+		OrgID:        orgA,
+		Name:         &overrideName,
+		Age:          &overrideAge,
+		SoulOverride: &overrideSoul,
+		Voice:        &overrideVoice,
+		BigFive:      &overrideBF,
+		Brief:        &overrideBrief,
+		Model:        &overrideModel,
+		WordBudget:   &overrideBudget,
 	}
 
 	tests := []struct {
-		name           string
-		override       *OrgStaffOverride // applied to org A; nil means none
-		clearAfter     bool
-		org            string
-		wantBigFive    Character
-		wantBrief      string
-		wantModel      string
-		wantWordBudget int
+		name             string
+		override         *OrgStaffOverride // applied to org A; nil means none
+		clearAfter       bool
+		org              string
+		wantName         string
+		wantAge          int
+		wantSoulCore     string
+		wantSoulOverride string
+		wantVoice        string
+		wantBigFive      Character
+		wantBrief        string
+		wantModel        string
+		wantWordBudget   int
 	}{
 		{
 			name:           "missing override returns base",
 			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    base.BigFive,
 			wantBrief:      base.Brief,
 			wantModel:      base.Model,
 			wantWordBudget: base.WordBudget,
 		},
 		{
-			name:           "full override replaces every overridable field",
-			override:       &full,
+			name:             "full override replaces every overridable field",
+			override:         &full,
+			org:              orgA,
+			wantName:         overrideName,
+			wantAge:          overrideAge,
+			wantSoulCore:     base.SoulCore,
+			wantSoulOverride: overrideSoul,
+			wantVoice:        overrideVoice,
+			wantBigFive:      overrideBF,
+			wantBrief:        overrideBrief,
+			wantModel:        overrideModel,
+			wantWordBudget:   overrideBudget,
+		},
+		{
+			name:           "name override only",
+			override:       &OrgStaffOverride{OrgID: orgA, Name: &overrideName},
 			org:            orgA,
-			wantBigFive:    overrideBF,
-			wantBrief:      overrideBrief,
-			wantModel:      overrideModel,
-			wantWordBudget: overrideBudget,
+			wantName:       overrideName,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
+			wantBigFive:    base.BigFive,
+			wantBrief:      base.Brief,
+			wantModel:      base.Model,
+			wantWordBudget: base.WordBudget,
+		},
+		{
+			name:           "age override only",
+			override:       &OrgStaffOverride{OrgID: orgA, Age: &overrideAge},
+			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        overrideAge,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
+			wantBigFive:    base.BigFive,
+			wantBrief:      base.Brief,
+			wantModel:      base.Model,
+			wantWordBudget: base.WordBudget,
+		},
+		{
+			name:             "soul override only",
+			override:         &OrgStaffOverride{OrgID: orgA, SoulOverride: &overrideSoul},
+			org:              orgA,
+			wantName:         base.Name,
+			wantAge:          base.Age,
+			wantSoulCore:     base.SoulCore,
+			wantSoulOverride: overrideSoul,
+			wantVoice:        base.Voice,
+			wantBigFive:      base.BigFive,
+			wantBrief:        base.Brief,
+			wantModel:        base.Model,
+			wantWordBudget:   base.WordBudget,
+		},
+		{
+			name:           "voice override only",
+			override:       &OrgStaffOverride{OrgID: orgA, Voice: &overrideVoice},
+			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      overrideVoice,
+			wantBigFive:    base.BigFive,
+			wantBrief:      base.Brief,
+			wantModel:      base.Model,
+			wantWordBudget: base.WordBudget,
 		},
 		{
 			name:           "big five override only",
 			override:       &OrgStaffOverride{OrgID: orgA, BigFive: &overrideBF},
 			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    overrideBF,
 			wantBrief:      base.Brief,
 			wantModel:      base.Model,
@@ -296,6 +523,10 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			name:           "brief override only",
 			override:       &OrgStaffOverride{OrgID: orgA, Brief: &overrideBrief},
 			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    base.BigFive,
 			wantBrief:      overrideBrief,
 			wantModel:      base.Model,
@@ -305,6 +536,10 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			name:           "model override only",
 			override:       &OrgStaffOverride{OrgID: orgA, Model: &overrideModel},
 			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    base.BigFive,
 			wantBrief:      base.Brief,
 			wantModel:      overrideModel,
@@ -314,15 +549,75 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			name:           "word budget override only",
 			override:       &OrgStaffOverride{OrgID: orgA, WordBudget: &overrideBudget},
 			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    base.BigFive,
 			wantBrief:      base.Brief,
 			wantModel:      base.Model,
 			wantWordBudget: overrideBudget,
 		},
 		{
+			name:           "empty name override still wins over base",
+			override:       &OrgStaffOverride{OrgID: orgA, Name: strPtr("")},
+			org:            orgA,
+			wantName:       "",
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
+			wantBigFive:    base.BigFive,
+			wantBrief:      base.Brief,
+			wantModel:      base.Model,
+			wantWordBudget: base.WordBudget,
+		},
+		{
+			name:           "zero age override still wins over base",
+			override:       &OrgStaffOverride{OrgID: orgA, Age: intPtr(0)},
+			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        0,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
+			wantBigFive:    base.BigFive,
+			wantBrief:      base.Brief,
+			wantModel:      base.Model,
+			wantWordBudget: base.WordBudget,
+		},
+		{
+			name:           "empty soul override still records the override",
+			override:       &OrgStaffOverride{OrgID: orgA, SoulOverride: strPtr("")},
+			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
+			wantBigFive:    base.BigFive,
+			wantBrief:      base.Brief,
+			wantModel:      base.Model,
+			wantWordBudget: base.WordBudget,
+		},
+		{
+			name:           "empty voice override still wins over base",
+			override:       &OrgStaffOverride{OrgID: orgA, Voice: strPtr("")},
+			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      "",
+			wantBigFive:    base.BigFive,
+			wantBrief:      base.Brief,
+			wantModel:      base.Model,
+			wantWordBudget: base.WordBudget,
+		},
+		{
 			name:           "empty brief override still wins over base",
 			override:       &OrgStaffOverride{OrgID: orgA, Brief: strPtr("")},
 			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    base.BigFive,
 			wantBrief:      "",
 			wantModel:      base.Model,
@@ -332,6 +627,10 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			name:           "empty model override still wins over base",
 			override:       &OrgStaffOverride{OrgID: orgA, Model: strPtr("")},
 			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    base.BigFive,
 			wantBrief:      base.Brief,
 			wantModel:      "",
@@ -341,6 +640,10 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			name:           "zero word budget override still wins over base",
 			override:       &OrgStaffOverride{OrgID: orgA, WordBudget: intPtr(0)},
 			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    base.BigFive,
 			wantBrief:      base.Brief,
 			wantModel:      base.Model,
@@ -350,6 +653,10 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			name:           "zero big five override still wins over base",
 			override:       &OrgStaffOverride{OrgID: orgA, BigFive: &zeroBF},
 			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    zeroBF,
 			wantBrief:      base.Brief,
 			wantModel:      base.Model,
@@ -359,6 +666,10 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			name:           "org B does not inherit org A override",
 			override:       &full,
 			org:            orgB,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    base.BigFive,
 			wantBrief:      base.Brief,
 			wantModel:      base.Model,
@@ -369,6 +680,10 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			override:       &full,
 			clearAfter:     true,
 			org:            orgA,
+			wantName:       base.Name,
+			wantAge:        base.Age,
+			wantSoulCore:   base.SoulCore,
+			wantVoice:      base.Voice,
 			wantBigFive:    base.BigFive,
 			wantBrief:      base.Brief,
 			wantModel:      base.Model,
@@ -381,7 +696,7 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			s := testStore(t)
 			st := newBaseStaff(t, s)
 			if tt.override != nil {
-				if err := s.SetOrgStaffOverride(orgA, st.ID, tt.override.BigFive, tt.override.Brief, tt.override.Model, tt.override.WordBudget); err != nil {
+				if err := s.SetOrgStaffOverride(orgA, st.ID, tt.override.Name, tt.override.Age, tt.override.SoulOverride, tt.override.Voice, tt.override.BigFive, tt.override.Brief, tt.override.Model, tt.override.WordBudget); err != nil {
 					t.Fatal(err)
 				}
 				if tt.clearAfter {
@@ -392,6 +707,21 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			}
 
 			got := findStaff(t, mustStaffForOrg(t, s, tt.org), base.Slug)
+			if got.Name != tt.wantName {
+				t.Errorf("Name = %q, want %q", got.Name, tt.wantName)
+			}
+			if got.Age != tt.wantAge {
+				t.Errorf("Age = %d, want %d", got.Age, tt.wantAge)
+			}
+			if got.SoulCore != tt.wantSoulCore {
+				t.Errorf("SoulCore = %q, want %q", got.SoulCore, tt.wantSoulCore)
+			}
+			if got.SoulOverride != tt.wantSoulOverride {
+				t.Errorf("SoulOverride = %q, want %q", got.SoulOverride, tt.wantSoulOverride)
+			}
+			if got.Voice != tt.wantVoice {
+				t.Errorf("Voice = %q, want %q", got.Voice, tt.wantVoice)
+			}
 			if !reflect.DeepEqual(got.BigFive, tt.wantBigFive) {
 				t.Errorf("BigFive = %+v, want %+v", got.BigFive, tt.wantBigFive)
 			}
@@ -404,10 +734,10 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			if got.WordBudget != tt.wantWordBudget {
 				t.Errorf("WordBudget = %d, want %d", got.WordBudget, tt.wantWordBudget)
 			}
-			// Non-overridable fields always come from the base row.
-			if got.Name != base.Name || got.Locale != base.Locale || got.Age != base.Age {
-				t.Errorf("non-overridable fields = %q/%q/%d, want %q/%q/%d",
-					got.Name, got.Locale, got.Age, base.Name, base.Locale, base.Age)
+			// The locale is the one field an org cannot override; it always
+			// comes from the base row.
+			if got.Locale != base.Locale {
+				t.Errorf("locale = %q, want %q", got.Locale, base.Locale)
 			}
 		})
 	}
@@ -418,12 +748,12 @@ func TestSetOrgStaffOverrideUpsert(t *testing.T) {
 	st := newBaseStaff(t, s)
 	org := "org-a"
 
-	if err := s.SetOrgStaffOverride(org, st.ID, nil, strPtr("first brief"), strPtr("first.glb"), nil); err != nil {
+	if err := s.SetOrgStaffOverride(org, st.ID, nil, nil, nil, nil, nil, strPtr("first brief"), strPtr("first.glb"), nil); err != nil {
 		t.Fatal(err)
 	}
 	// The second write replaces the row in place: a new brief, the model
 	// cleared back to NULL so the base row wins again.
-	if err := s.SetOrgStaffOverride(org, st.ID, nil, strPtr("second brief"), nil, nil); err != nil {
+	if err := s.SetOrgStaffOverride(org, st.ID, nil, nil, nil, nil, nil, strPtr("second brief"), nil, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -448,7 +778,7 @@ func TestClearOrgStaffOverride(t *testing.T) {
 	st := newBaseStaff(t, s)
 	org := "org-a"
 	bf := Character{Openness: 0.2, Conscientiousness: 0.2, Extraversion: 0.2, Agreeableness: 0.2, Neuroticism: 0.2}
-	if err := s.SetOrgStaffOverride(org, st.ID, &bf, strPtr("override"), strPtr("override.glb"), intPtr(7)); err != nil {
+	if err := s.SetOrgStaffOverride(org, st.ID, nil, nil, nil, nil, &bf, strPtr("override"), strPtr("override.glb"), intPtr(7)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -477,9 +807,10 @@ func TestEnsureSeedStaffIdempotent(t *testing.T) {
 		wantName  string
 		wantAge   int
 		wantModel string
+		wantVoice string
 	}{
-		{name: "male seed", slug: "staff-male-00", wantName: "Adam", wantAge: 35},
-		{name: "female seed", slug: "staff-female-00", wantName: "Ewa", wantAge: 32, wantModel: "arianna.glb"},
+		{name: "male seed", slug: "staff-male-00", wantName: "Adam", wantAge: 35, wantVoice: "pl_PL-mc_speech-medium"},
+		{name: "female seed", slug: "staff-female-00", wantName: "Ewa", wantAge: 32, wantModel: "arianna.glb", wantVoice: "pl_PL-gosia-medium"},
 	}
 	assertSeeds := func(t *testing.T) {
 		t.Helper()
@@ -500,6 +831,12 @@ func TestEnsureSeedStaffIdempotent(t *testing.T) {
 			}
 			if got.Model != tt.wantModel {
 				t.Errorf("%s model = %q, want %q", tt.slug, got.Model, tt.wantModel)
+			}
+			if got.Voice != tt.wantVoice {
+				t.Errorf("%s voice = %q, want %q", tt.slug, got.Voice, tt.wantVoice)
+			}
+			if got.SoulCore != "" {
+				t.Errorf("%s soul_core = %q, want empty", tt.slug, got.SoulCore)
 			}
 			if got.Brief != "" || got.WordBudget != 0 {
 				t.Errorf("%s brief/word_budget = %q/%d, want empty/0", tt.slug, got.Brief, got.WordBudget)
@@ -537,5 +874,134 @@ func TestEnsureSeedStaffIdempotent(t *testing.T) {
 	}
 	if len(list) != 2 {
 		t.Fatalf("ListStaff after two seed runs = %d rows, want 2", len(list))
+	}
+}
+
+// A store whose staff and org_staff_overrides tables predate the profile
+// columns gains them on reopen. CREATE TABLE IF NOT EXISTS will not add
+// columns to a live table, so ensureStaffProfileColumns is the only path a
+// claimed, upgraded hub takes: old staff rows read the empty defaults the
+// column declaration writes, and old override rows read NULL on the re-added
+// columns, which means "inherit the base row" until the org tunes them again.
+func TestOpenStoreMigratesLegacyStaffColumns(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "staff-migration.db")
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// One org override row makes the override table live too; brief is the
+	// survivor that must keep applying across the migration.
+	list, err := s.ListStaff()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) == 0 {
+		t.Fatal("store opened with no staff rows to migrate")
+	}
+	base := list[0]
+	org := "org-migration"
+	overrideName := "Pre"
+	overrideAge := 60
+	if err := s.SetOrgStaffOverride(org, base.ID, &overrideName, &overrideAge, nil, nil, nil, strPtr("kept brief"), nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate the pre-migration shape: none of the profile columns exist.
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, drop := range []string{
+		`ALTER TABLE staff DROP COLUMN soul_core`,
+		`ALTER TABLE staff DROP COLUMN voice`,
+		`ALTER TABLE org_staff_overrides DROP COLUMN name`,
+		`ALTER TABLE org_staff_overrides DROP COLUMN age`,
+		`ALTER TABLE org_staff_overrides DROP COLUMN soul_override`,
+		`ALTER TABLE org_staff_overrides DROP COLUMN voice`,
+		`ALTER TABLE staff DROP COLUMN scope`,
+		`ALTER TABLE staff DROP COLUMN box_id`,
+		`DROP TABLE boxes`,
+		`DROP TABLE box_orgs`,
+	} {
+		if _, err := db.Exec(drop); err != nil {
+			_ = db.Close()
+			t.Fatalf("%s: %v", drop, err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopen on a pre-profile staff schema: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+
+	// The migration path must have re-added every column. A regression that
+	// drops one from ensureStaffProfileColumns fails here, not in a later,
+	// unrelated query.
+	for _, col := range []string{"soul_core", "voice", "scope", "box_id"} {
+		ok, err := again.hasColumn("staff", col)
+		if err != nil || !ok {
+			t.Fatalf("staff.%s after reopen: ok=%v err=%v", col, ok, err)
+		}
+	}
+	// The Faza B tables are created by the schema batch on every open, so a
+	// live store that predates boxes gains them without a dedicated
+	// migration.
+	for _, table := range []string{"boxes", "box_orgs"} {
+		ok, err := again.hasTable(table)
+		if err != nil || !ok {
+			t.Fatalf("table %s after reopen: ok=%v err=%v", table, ok, err)
+		}
+	}
+	// Old staff rows read the org default, not a NULL.
+	var scope string
+	if err := again.db.QueryRow(`SELECT scope FROM staff LIMIT 1`).Scan(&scope); err != nil {
+		t.Fatal(err)
+	}
+	if scope != "org" {
+		t.Errorf("migrated staff scope = %q, want the org default", scope)
+	}
+	for _, col := range []string{"name", "age", "soul_override", "voice"} {
+		ok, err := again.hasColumn("org_staff_overrides", col)
+		if err != nil || !ok {
+			t.Fatalf("org_staff_overrides.%s after reopen: ok=%v err=%v", col, ok, err)
+		}
+	}
+
+	// Old staff rows read the empty defaults, not their pre-migration values.
+	after, err := again.ListStaff()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != 2 {
+		t.Fatalf("ListStaff after migration = %d rows, want the 2 carried rows", len(after))
+	}
+	for _, got := range after {
+		if got.Voice != "" || got.SoulCore != "" {
+			t.Errorf("%s after migration: voice=%q soul_core=%q, want the empty defaults", got.Slug, got.Voice, got.SoulCore)
+		}
+	}
+
+	// The pre-migration override row reads NULL on the re-added columns, so
+	// the base row wins there while the surviving brief still applies.
+	roster, err := again.StaffForOrg(org)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := findStaff(t, roster, base.Slug)
+	if got.Name != base.Name || got.Age != base.Age {
+		t.Errorf("migrated override row name/age = %q/%d, want the base %q/%d", got.Name, got.Age, base.Name, base.Age)
+	}
+	if got.Voice != "" || got.SoulCore != "" {
+		t.Errorf("migrated override row voice/soul_core = %q/%q, want the empty base defaults", got.Voice, got.SoulCore)
+	}
+	if got.Brief != "kept brief" {
+		t.Errorf("migrated override row brief = %q, want the surviving override value", got.Brief)
 	}
 }

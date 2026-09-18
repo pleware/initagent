@@ -480,6 +480,17 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/admin/staff", s.requireCredential(s.handleUpsertStaff))
 	m.HandleFunc("PATCH /api/admin/staff/{id}", s.requireCredential(s.handleUpsertStaff))
 
+	// Boxes: the PWare OS appliances this installation configures (58).
+	// Box administration is the platform admin's until the dedicated
+	// admin:box / read:box capabilities land, so the handlers share the
+	// staff catalogue's empty-boundary gate.
+	m.HandleFunc("POST /api/boxes", s.requireCredential(s.handleCreateBox))
+	m.HandleFunc("GET /api/boxes", s.requireCredential(s.handleListBoxes))
+	m.HandleFunc("GET /api/boxes/{id}", s.requireCredential(s.handleGetBox))
+	m.HandleFunc("PATCH /api/boxes/{id}", s.requireCredential(s.handleUpdateBox))
+	m.HandleFunc("PUT /api/boxes/{id}/orgs", s.requireCredential(s.handleSetBoxOrgs))
+	m.HandleFunc("GET /api/boxes/{id}/narrator", s.requireCredential(s.handleGetBoxNarrator))
+
 	// Operating the installation, which is not something a machine secret
 	// reaches: a token's boundary is a project or a tenant.
 	m.HandleFunc("GET /api/updates", s.requireInstallation(authz.ReadUpdate, s.handleUpdateStatus))

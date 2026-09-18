@@ -14,6 +14,7 @@ import CodingPage from './pages/CodingPage'
 import TasksPage from './pages/TasksPage'
 import AdminPage from './pages/AdminPage'
 import SkillsPage from './pages/SkillsPage'
+import BoxesPage from './pages/BoxesPage'
 import TeamPage from './pages/TeamPage'
 import PlansPage from './pages/PlansPage'
 import AcceptInvite from './pages/AcceptInvite'
@@ -138,6 +139,7 @@ export default function App() {
             refusal, and the endpoints behind it check the same thing. */}
         {me.platformAdmin && <Route path="/admin" element={<AdminPage />} />}
         {me.platformAdmin && <Route path="/skills" element={<SkillsPage />} />}
+        {me.platformAdmin && <Route path="/boxes" element={<BoxesPage />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

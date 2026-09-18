@@ -486,6 +486,10 @@ function OrgStaffForm({
   onSaved: () => void
 }) {
   const { t } = useTranslation()
+  const [name, setName] = useState(staff.name)
+  const [age, setAge] = useState(staff.age > 0 ? String(staff.age) : '')
+  const [soulOverride, setSoulOverride] = useState(staff.soulOverride ?? '')
+  const [voice, setVoice] = useState(staff.voice)
   const [bigFive, setBigFive] = useState<Character>(staff.bigFive)
   const [brief, setBrief] = useState(staff.brief)
   const [model, setModel] = useState(staff.model)
@@ -497,16 +501,38 @@ function OrgStaffForm({
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    // Mirror the hub's checks before anything travels: the name keeps at
+    // least two characters after trimming, and age is never negative.
+    const nextName = name.trim()
+    if (nextName.length < 2) {
+      setError(t('validation.minLength', { min: 2 }))
+      return
+    }
+    const nextAge = Number(age) || 0
+    if (nextAge < 0) {
+      setError(t('staff.ageInvalid'))
+      return
+    }
     // The override body carries only the fields the user actually changed:
     // an absent field means "inherit the hub's value", and echoing the
     // untouched fields back as concrete values would overwrite the canonical
     // row for this org.
     const payload: {
+      name?: string
+      age?: number
+      soulOverride?: string
+      voice?: string
       bigFive?: Character
       brief?: string
       model?: string
       wordBudget?: number
     } = {}
+    if (nextName !== staff.name) payload.name = nextName
+    if (nextAge !== staff.age) payload.age = nextAge
+    const nextSoulOverride = soulOverride.trim()
+    if (nextSoulOverride !== (staff.soulOverride ?? '')) payload.soulOverride = nextSoulOverride
+    const nextVoice = voice.trim()
+    if (nextVoice !== staff.voice) payload.voice = nextVoice
     if (!sameBigFive(bigFive, staff.bigFive)) payload.bigFive = bigFive
     const nextBrief = brief.trim()
     if (nextBrief !== staff.brief) payload.brief = nextBrief
@@ -543,21 +569,61 @@ function OrgStaffForm({
         <p className="text-xs text-fg-subtle">{t('staff.inherited')}</p>
         <dl className="mt-2 grid grid-cols-3 gap-3 text-sm">
           <div>
-            <dt className="text-xs text-fg-subtle">{t('staff.name')}</dt>
-            <dd className="mt-0.5 text-fg">{staff.name}</dd>
-          </div>
-          <div>
             <dt className="text-xs text-fg-subtle">{t('staff.locale')}</dt>
             <dd className="mt-0.5 text-fg">{staff.locale || '—'}</dd>
           </div>
-          <div>
-            <dt className="text-xs text-fg-subtle">{t('staff.age')}</dt>
-            <dd className="mt-0.5 text-fg">{staff.age > 0 ? staff.age : '—'}</dd>
+          <div className="col-span-2">
+            <dt className="text-xs text-fg-subtle">{t('staff.soulCore')}</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap text-fg">
+              {staff.soulCore || '—'}
+            </dd>
           </div>
         </dl>
       </div>
 
       <p className="text-xs text-fg-subtle">{t('team.overrideHint')}</p>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="field-label">{t('staff.name')}</span>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="field-input mt-2"
+          />
+        </label>
+        <label className="block">
+          <span className="field-label">{t('staff.age')}</span>
+          <input
+            type="number"
+            min={0}
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            className="field-input mt-2"
+          />
+        </label>
+      </div>
+
+      <label className="block">
+        <span className="field-label">{t('staff.soulOverride')}</span>
+        <textarea
+          rows={3}
+          value={soulOverride}
+          onChange={(e) => setSoulOverride(e.target.value)}
+          className="field-input mt-2"
+        />
+      </label>
+
+      <label className="block">
+        <span className="field-label">{t('staff.voice')}</span>
+        <input
+          type="text"
+          value={voice}
+          onChange={(e) => setVoice(e.target.value)}
+          className="field-input mt-2"
+        />
+      </label>
 
       <section className="rounded-lg border border-line-2 p-4">
         <h3 className="text-sm font-medium text-fg">{t('staff.bigFive')}</h3>

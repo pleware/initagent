@@ -82,6 +82,7 @@ func TestOrgAdminSetsAndClearsStaffOverride(t *testing.T) {
 	}
 
 	resp := requestJSON(t, f.ts, adminClient, http.MethodPatch, "/api/orgs/"+f.orgId+"/staff/"+target.ID, map[string]any{
+		"name": "Renamed", "age": 55, "soulOverride": "terse and warm", "voice": "voice-7",
 		"bigFive": map[string]float64{
 			"openness": 0.9, "conscientiousness": 0.7, "extraversion": 0.4,
 			"agreeableness": 0.6, "neuroticism": 0.2,
@@ -101,8 +102,11 @@ func TestOrgAdminSetsAndClearsStaffOverride(t *testing.T) {
 		got.BigFive.Openness != 0.9 || got.BigFive.Neuroticism != 0.2 {
 		t.Errorf("effective row = %+v, want every overridden field", got)
 	}
-	if got.Name != target.Name || got.Age != target.Age {
-		t.Errorf("effective row = %+v, want the inherited canonical name and age", got)
+	if got.Name != "Renamed" || got.Age != 55 || got.SoulOverride != "terse and warm" || got.Voice != "voice-7" {
+		t.Errorf("effective row = %+v, want the overridden name, age, soul and voice", got)
+	}
+	if got.SoulCore != target.SoulCore {
+		t.Errorf("SoulCore = %q, want the canonical %q kept separate from the override", got.SoulCore, target.SoulCore)
 	}
 
 	otherEffective, err := f.srv.store.StaffForOrg(other.Id)
@@ -123,8 +127,52 @@ func TestOrgAdminSetsAndClearsStaffOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cleared := staffBySlug(t, effective, target.Slug); cleared.Brief != "" || cleared.WordBudget != 0 ||
-		cleared.Model != target.Model || cleared.BigFive.Openness != target.BigFive.Openness {
+		cleared.Model != target.Model || cleared.BigFive.Openness != target.BigFive.Openness ||
+		cleared.Name != target.Name || cleared.Age != target.Age ||
+		cleared.SoulCore != target.SoulCore || cleared.SoulOverride != "" || cleared.Voice != target.Voice {
 		t.Errorf("row after clear = %+v, want the canonical fields back", cleared)
+	}
+}
+
+// A name override has to be a real name: one character or whitespace-only
+// rejects 400, a trimmable name lands trimmed, and a negative age rejects
+// 400. The same admin session writes and reads through the wire.
+func TestOrgStaffOverrideValidatesFields(t *testing.T) {
+	f := claimedHub(t, offering.Selfhost)
+	f.addMember(t, "admin@example.com", "another-long-password", authz.RoleAdmin)
+	adminClient := f.signIn(t, "admin@example.com", "another-long-password")
+
+	canonical, err := f.srv.store.ListStaff()
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := canonical[0]
+
+	for _, c := range []struct {
+		name string
+		body map[string]any
+	}{
+		{"a one-character name", map[string]any{"name": "X"}},
+		{"a whitespace-only name", map[string]any{"name": "   "}},
+		{"a negative age", map[string]any{"age": -1}},
+	} {
+		resp := requestJSON(t, f.ts, adminClient, http.MethodPatch, "/api/orgs/"+f.orgId+"/staff/"+target.ID, c.body)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: %d, want 400", c.name, resp.StatusCode)
+		}
+	}
+
+	resp := requestJSON(t, f.ts, adminClient, http.MethodPatch,
+		"/api/orgs/"+f.orgId+"/staff/"+target.ID, map[string]any{"name": "  Ren  "})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("set a trimmable name: %d, want 200", resp.StatusCode)
+	}
+	effective, err := f.srv.store.StaffForOrg(f.orgId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := staffBySlug(t, effective, target.Slug); got.Name != "Ren" {
+		t.Errorf("effective name = %q, want the trimmed value", got.Name)
 	}
 }
 

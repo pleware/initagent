@@ -195,17 +195,38 @@ CREATE TABLE IF NOT EXISTS staff (
 	brief       TEXT NOT NULL DEFAULT '',
 	word_budget INTEGER NOT NULL DEFAULT 0,
 	model       TEXT NOT NULL DEFAULT '',
+	soul_core   TEXT NOT NULL DEFAULT '',
+	voice       TEXT NOT NULL DEFAULT '',
+	scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
+	box_id      TEXT,
 	created_at  INTEGER NOT NULL,
 	updated_at  INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_staff_overrides (
-	org_id      TEXT NOT NULL,
-	staff_id    TEXT NOT NULL,
-	big_five    TEXT,
-	brief       TEXT,
-	word_budget INTEGER,
-	model       TEXT,
+	org_id        TEXT NOT NULL,
+	staff_id      TEXT NOT NULL,
+	name          TEXT,
+	age           INTEGER,
+	soul_override TEXT,
+	voice         TEXT,
+	big_five      TEXT,
+	brief         TEXT,
+	word_budget   INTEGER,
+	model         TEXT,
 	PRIMARY KEY (org_id, staff_id)
+);
+CREATE TABLE IF NOT EXISTS boxes (
+	id         TEXT PRIMARY KEY,
+	slug       TEXT NOT NULL UNIQUE,
+	name       TEXT NOT NULL DEFAULT '',
+	host_id    TEXT,
+	created_at INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS box_orgs (
+	box_id TEXT NOT NULL,
+	org_id TEXT NOT NULL,
+	PRIMARY KEY (box_id, org_id)
 );
 `
 
@@ -379,17 +400,38 @@ CREATE TABLE IF NOT EXISTS staff (
 	brief       TEXT NOT NULL DEFAULT '',
 	word_budget BIGINT NOT NULL DEFAULT 0,
 	model       TEXT NOT NULL DEFAULT '',
+	soul_core   TEXT NOT NULL DEFAULT '',
+	voice       TEXT NOT NULL DEFAULT '',
+	scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
+	box_id      TEXT,
 	created_at  BIGINT NOT NULL,
 	updated_at  BIGINT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_staff_overrides (
-	org_id      TEXT NOT NULL,
-	staff_id    TEXT NOT NULL,
-	big_five    TEXT,
-	brief       TEXT,
-	word_budget BIGINT,
-	model       TEXT,
+	org_id        TEXT NOT NULL,
+	staff_id      TEXT NOT NULL,
+	name          TEXT,
+	age           BIGINT,
+	soul_override TEXT,
+	voice         TEXT,
+	big_five      TEXT,
+	brief         TEXT,
+	word_budget   BIGINT,
+	model         TEXT,
 	PRIMARY KEY (org_id, staff_id)
+);
+CREATE TABLE IF NOT EXISTS boxes (
+	id         TEXT PRIMARY KEY,
+	slug       TEXT NOT NULL UNIQUE,
+	name       TEXT NOT NULL DEFAULT '',
+	host_id    TEXT,
+	created_at BIGINT NOT NULL,
+	updated_at BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS box_orgs (
+	box_id TEXT NOT NULL,
+	org_id TEXT NOT NULL,
+	PRIMARY KEY (box_id, org_id)
 );
 `
 
@@ -421,6 +463,14 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureProjectOrgColumns(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring project org columns: %w", err)
+	}
+	if err := s.ensureStaffProfileColumns(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring staff profile columns: %w", err)
+	}
+	if err := s.ensureStaffScopeColumns(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring staff scope columns: %w", err)
 	}
 	if err := s.ensureProjectBoardingColumns(); err != nil {
 		db.Close()
@@ -548,6 +598,42 @@ func (s *Store) ensureProjectOrgColumns() error {
 		return err
 	}
 	return s.backfillProjectOrgs()
+}
+
+// ensureStaffProfileColumns adds the soul/voice columns to a live staff
+// table and the per-org override fields to a live org_staff_overrides table.
+// CREATE TABLE IF NOT EXISTS will not add columns to an existing table.
+// Override columns are nullable on purpose: NULL means "inherit the staff
+// row".
+func (s *Store) ensureStaffProfileColumns() error {
+	for _, col := range []string{"soul_core", "voice"} {
+		if err := s.ensureColumn("staff", col, "TEXT NOT NULL DEFAULT ''"); err != nil {
+			return err
+		}
+	}
+	ageDecl := "INTEGER"
+	if s.db.Dialect() == store.Postgres {
+		ageDecl = "BIGINT"
+	}
+	for _, col := range []string{"name", "soul_override", "voice"} {
+		if err := s.ensureColumn("org_staff_overrides", col, "TEXT"); err != nil {
+			return err
+		}
+	}
+	return s.ensureColumn("org_staff_overrides", "age", ageDecl)
+}
+
+// ensureStaffScopeColumns adds the scope/box columns to a live staff table.
+// CREATE TABLE IF NOT EXISTS will not add columns to an existing table, and
+// existing rows are org-scoped — which is what they were before boxes
+// existed. The scope CHECK lives only in the CREATE TABLE text: neither
+// dialect's ALTER TABLE ADD COLUMN can carry a CHECK, so a migrated table
+// gains the column and its default but not the constraint.
+func (s *Store) ensureStaffScopeColumns() error {
+	if err := s.ensureColumn("staff", "scope", "TEXT NOT NULL DEFAULT 'org'"); err != nil {
+		return err
+	}
+	return s.ensureColumn("staff", "box_id", "TEXT")
 }
 
 func (s *Store) ensureColumn(table, column, decl string) error {

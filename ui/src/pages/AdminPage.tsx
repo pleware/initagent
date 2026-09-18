@@ -255,6 +255,8 @@ function StaffForm({
   const [wordBudget, setWordBudget] = useState(
     staff && staff.wordBudget > 0 ? String(staff.wordBudget) : '',
   )
+  const [soulCore, setSoulCore] = useState(staff?.soulCore ?? '')
+  const [voice, setVoice] = useState(staff?.voice ?? '')
   const [bigFive, setBigFive] = useState<Character>(staff?.bigFive ?? neutralCharacter())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -271,6 +273,8 @@ function StaffForm({
       model: model.trim(),
       brief: brief.trim(),
       wordBudget: Number(wordBudget) || 0,
+      soulCore: soulCore.trim(),
+      voice: voice.trim(),
       bigFive,
     }
     try {
@@ -336,13 +340,22 @@ function StaffForm({
             className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
           />
         </label>
-        <label className="text-sm text-fg-soft sm:col-span-2">
+        <label className="text-sm text-fg-soft">
           {t('staff.model')}
           <input
             type="text"
             value={model}
             onChange={(e) => setModel(e.target.value)}
             className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
+          />
+        </label>
+        <label className="block">
+          <span className="field-label">{t('staff.voice')}</span>
+          <input
+            type="text"
+            value={voice}
+            onChange={(e) => setVoice(e.target.value)}
+            className="field-input mt-2"
           />
         </label>
       </div>
@@ -362,6 +375,16 @@ function StaffForm({
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
           className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
+        />
+      </label>
+
+      <label className="block">
+        <span className="field-label">{t('staff.soulCore')}</span>
+        <textarea
+          rows={3}
+          value={soulCore}
+          onChange={(e) => setSoulCore(e.target.value)}
+          className="field-input mt-2"
         />
       </label>
 

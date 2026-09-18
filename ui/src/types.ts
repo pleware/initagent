@@ -342,7 +342,8 @@ export interface Character {
 // Staff is a named synthetic teammate of the installation
 // (`initagent.hub.staff`). An organization's effective roster is the same
 // shape with that org's overrides already applied, so one interface serves
-// both the admin catalogue and the org staff endpoints.
+// both the admin catalogue and the org staff endpoints. `soulCore` is always
+// the canonical hub value; `soulOverride` is the org's own text when set.
 export interface Staff {
   id: string
   slug: string
@@ -353,6 +354,24 @@ export interface Staff {
   brief: string
   age: number
   wordBudget: number
+  soulCore: string
+  soulOverride?: string
+  voice: string
+  createdAt: number
+  updatedAt: number
+}
+
+// --- boxes ---
+
+// Box is the configurable PWare OS appliance (`initagent.fleet.box`): the
+// logical box a `fleet.host` machine runs, carrying its organizations, its
+// narrator and its staff overrides (58). hostId is empty until the box is
+// bound to a host machine.
+export interface Box {
+  id: string
+  slug: string
+  name: string
+  hostId?: string
   createdAt: number
   updatedAt: number
 }

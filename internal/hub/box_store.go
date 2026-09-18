@@ -1,0 +1,172 @@
+package hub
+
+import (
+	"database/sql"
+	"errors"
+	"time"
+
+	"github.com/pleware/initagent/internal/id"
+)
+
+// --- boxes ---
+
+// ErrBoxSlugTaken reports a CreateBox whose slug collides with an existing
+// box: the slug is the unique key of the boxes table.
+var ErrBoxSlugTaken = errors.New("a box with this slug already exists")
+
+// Box is the configurable PWare OS appliance (`initagent.fleet.box`): the
+// logical box, distinct from the physical `fleet.host` machine it runs on.
+// A host may run several boxes; each box carries its organizations, its
+// narrator and its staff overrides, and syncs them down to the machine (58).
+type Box struct {
+	ID        string `json:"id"`
+	Slug      string `json:"slug"`
+	Name      string `json:"name"`
+	HostID    string `json:"hostId,omitempty"`
+	CreatedAt int64  `json:"createdAt"`
+	UpdatedAt int64  `json:"updatedAt"`
+}
+
+// boxScanner is the shared shape of sql.Row and sql.Rows Scan methods, the
+// same role staffScanner plays for the staff table.
+type boxScanner interface {
+	Scan(dest ...any) error
+}
+
+// scanBox reads one boxes row selected in schema order:
+// id, slug, name, host_id, created_at, updated_at. A missing row is
+// (nil, nil). host_id is NULL until the box is bound to a host machine.
+func scanBox(row boxScanner) (*Box, error) {
+	var b Box
+	var hostID sql.NullString
+	if err := row.Scan(&b.ID, &b.Slug, &b.Name, &hostID, &b.CreatedAt, &b.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	b.HostID = hostID.String
+	return &b, nil
+}
+
+// CreateBox mints and stores a new box. The slug is unique per installation;
+// a collision returns ErrBoxSlugTaken. hostID is optional: an empty host
+// leaves the box unbound to a machine until a later UpdateBox.
+func (s *Store) CreateBox(slug, name, hostID string) (*Box, error) {
+	boxID, err := id.New(id.Box)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().Unix()
+	b := &Box{
+		ID:        boxID,
+		Slug:      slug,
+		Name:      name,
+		HostID:    hostID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	_, err = s.db.Exec(`INSERT INTO boxes (id, slug, name, host_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?)`,
+		b.ID, b.Slug, b.Name, nullableHostID(b.HostID), b.CreatedAt, b.UpdatedAt)
+	if uniqueConstraint(err) {
+		return nil, ErrBoxSlugTaken
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := s.EnsureSeedBoxNarrator(boxID); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// GetBox returns one box by id. A missing box is (nil, nil).
+func (s *Store) GetBox(id string) (*Box, error) {
+	return scanBox(s.db.QueryRow(`SELECT id, slug, name, host_id, created_at, updated_at
+		FROM boxes WHERE id = ?`, id))
+}
+
+// ListBoxes returns every box on this installation, ordered by slug.
+func (s *Store) ListBoxes() ([]Box, error) {
+	rows, err := s.db.Query(`SELECT id, slug, name, host_id, created_at, updated_at
+		FROM boxes ORDER BY slug`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Box{}
+	for rows.Next() {
+		b, err := scanBox(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *b)
+	}
+	return out, rows.Err()
+}
+
+// UpdateBox replaces the editable fields of a box and refreshes its
+// updated_at. A missing box is (nil, nil). An empty hostID clears the host
+// binding.
+func (s *Store) UpdateBox(id, name, hostID string) (*Box, error) {
+	_, err := s.db.Exec(`UPDATE boxes SET name = ?, host_id = ?, updated_at = ?
+		WHERE id = ?`, name, nullableHostID(hostID), time.Now().Unix(), id)
+	if err != nil {
+		return nil, err
+	}
+	return s.GetBox(id)
+}
+
+// SetBoxOrgs replaces the organization set bound to a box: the old rows are
+// deleted and the new ones inserted inside one transaction, so a concurrent
+// reader never sees a half-written set. Duplicate ids in orgIDs collapse.
+func (s *Store) SetBoxOrgs(boxID string, orgIDs []string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM box_orgs WHERE box_id = ?`, boxID); err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	for _, orgID := range orgIDs {
+		if seen[orgID] {
+			continue
+		}
+		seen[orgID] = true
+		if _, err := tx.Exec(`INSERT INTO box_orgs (box_id, org_id) VALUES (?, ?)`, boxID, orgID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// ListBoxOrgs returns the organization ids bound to a box, ordered by id.
+// A box with no organizations yields an empty slice, not nil.
+func (s *Store) ListBoxOrgs(boxID string) ([]string, error) {
+	rows, err := s.db.Query(`SELECT org_id FROM box_orgs WHERE box_id = ? ORDER BY org_id`, boxID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var orgID string
+		if err := rows.Scan(&orgID); err != nil {
+			return nil, err
+		}
+		out = append(out, orgID)
+	}
+	return out, rows.Err()
+}
+
+// nullableHostID maps an empty host binding to SQL NULL, the column's
+// "no host yet" marker. The read side (scanBox) turns NULL back into "".
+func nullableHostID(hostID string) any {
+	if hostID == "" {
+		return nil
+	}
+	return hostID
+}

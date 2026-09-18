@@ -2,6 +2,7 @@ package hub
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/pleware/initagent/internal/authz"
 )
@@ -31,9 +32,9 @@ func (s *Server) handleListOrgStaff(w http.ResponseWriter, r *http.Request, cred
 }
 
 // handleSetOrgStaffOverride writes this org's tuning of one staff member.
-// Only the overridable fields travel — BigFive, brief, model, word budget —
-// and a nil field means "inherit the canonical row". The upsert replaces a
-// previous override in place.
+// Only the overridable fields travel — name, age, soul override, voice,
+// BigFive, brief, model, word budget — and a nil field means "inherit the
+// canonical row". The upsert replaces a previous override in place.
 func (s *Server) handleSetOrgStaffOverride(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	orgID := r.PathValue("id")
 	if !cred.Can(authz.AdminStaff, orgID, "") {
@@ -41,16 +42,32 @@ func (s *Server) handleSetOrgStaffOverride(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var req struct {
-		BigFive    *Character `json:"bigFive"`
-		Brief      *string    `json:"brief"`
-		Model      *string    `json:"model"`
-		WordBudget *int       `json:"wordBudget"`
+		Name         *string    `json:"name"`
+		Age          *int       `json:"age"`
+		SoulOverride *string    `json:"soulOverride"`
+		Voice        *string    `json:"voice"`
+		BigFive      *Character `json:"bigFive"`
+		Brief        *string    `json:"brief"`
+		Model        *string    `json:"model"`
+		WordBudget   *int       `json:"wordBudget"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		httpError(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	if err := s.store.SetOrgStaffOverride(orgID, r.PathValue("staffId"), req.BigFive, req.Brief, req.Model, req.WordBudget); err != nil {
+	if req.Name != nil {
+		trimmed := strings.TrimSpace(*req.Name)
+		if len(trimmed) < 2 {
+			httpError(w, http.StatusBadRequest, "name must be at least two characters")
+			return
+		}
+		req.Name = &trimmed
+	}
+	if req.Age != nil && *req.Age < 0 {
+		httpError(w, http.StatusBadRequest, "age must be zero or more")
+		return
+	}
+	if err := s.store.SetOrgStaffOverride(orgID, r.PathValue("staffId"), req.Name, req.Age, req.SoulOverride, req.Voice, req.BigFive, req.Brief, req.Model, req.WordBudget); err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

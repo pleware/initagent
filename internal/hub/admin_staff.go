@@ -45,6 +45,8 @@ func (s *Server) handleUpsertStaff(w http.ResponseWriter, r *http.Request, cred 
 		Brief      string    `json:"brief"`
 		Age        int       `json:"age"`
 		WordBudget int       `json:"wordBudget"`
+		SoulCore   string    `json:"soulCore"`
+		Voice      string    `json:"voice"`
 		BigFive    Character `json:"bigFive"`
 	}
 	if err := readJSON(r, &req); err != nil {
@@ -57,7 +59,7 @@ func (s *Server) handleUpsertStaff(w http.ResponseWriter, r *http.Request, cred 
 		httpError(w, http.StatusBadRequest, "slug and name are required")
 		return
 	}
-	st, err := s.store.UpsertStaff(req.Slug, req.Name, req.Locale, req.Model, req.Brief, req.Age, req.WordBudget, req.BigFive)
+	st, err := s.store.UpsertStaff(req.Slug, req.Name, req.Locale, req.Model, req.Brief, req.SoulCore, req.Voice, "org", "", req.Age, req.WordBudget, req.BigFive)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

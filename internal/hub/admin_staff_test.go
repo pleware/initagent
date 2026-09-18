@@ -75,6 +75,7 @@ func TestAdminStaffCRUD(t *testing.T) {
 	resp = f.do(t, http.MethodPost, "/api/admin/staff", map[string]any{
 		"slug": "staff-nonbinary-00", "name": "Alex", "locale": "en", "age": 28,
 		"model": "alex.glb", "brief": "curious about everything", "wordBudget": 500,
+		"soulCore": "curious, warm, precise", "voice": "alex-v1",
 		"bigFive": map[string]float64{"openness": 0.8},
 	})
 	if resp.StatusCode != http.StatusOK {
@@ -88,7 +89,8 @@ func TestAdminStaffCRUD(t *testing.T) {
 		t.Errorf("created = %+v, want a minted row for the submitted slug and name", created)
 	}
 	if created.Locale != "en" || created.Age != 28 || created.WordBudget != 500 ||
-		created.Model != "alex.glb" || created.Brief != "curious about everything" {
+		created.Model != "alex.glb" || created.Brief != "curious about everything" ||
+		created.SoulCore != "curious, warm, precise" || created.Voice != "alex-v1" {
 		t.Errorf("created fields = %+v, want the submitted values", created)
 	}
 

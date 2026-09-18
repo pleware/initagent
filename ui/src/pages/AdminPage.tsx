@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, timeAgo } from '../api'
 import { usePoll } from '../hooks'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
-import StaffEditor, { slugify } from '../components/StaffEditor'
+import { slugify } from '../components/StaffEditor'
 import type { Account, KPISnapshot, Org, Staff } from '../types'
 
 // The operator's view of the installation they run: every account, every
@@ -16,11 +17,15 @@ import type { Account, KPISnapshot, Org, Staff } from '../types'
 // into customer data, and a screen is a poor place to answer it by accident.
 export default function AdminPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [accounts, setAccounts] = useState<Account[] | null>(null)
   const [orgs, setOrgs] = useState<Org[] | null>(null)
   const [kpis, setKpis] = useState<KPISnapshot | null>(null)
   const [staff, setStaff] = useState<Staff[] | null>(null)
-  const [editor, setEditor] = useState<Staff | 'new' | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [createBusy, setCreateBusy] = useState(false)
+  const [createError, setCreateError] = useState('')
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
@@ -42,6 +47,30 @@ export default function AdminPage() {
   }, [t])
 
   usePoll(load, 30_000)
+
+  // Create mints the row with only a slug and a name, then hands the rest
+  // of the tuning to the staff page. The slug is derived from the name —
+  // the hub keys the upsert on it, and the page echoes it on every PATCH.
+  const create = async (e: FormEvent) => {
+    e.preventDefault()
+    const name = newName.trim()
+    if (!name) return
+    setCreateBusy(true)
+    setCreateError('')
+    try {
+      const created = await api.post<Staff>('/api/admin/staff', {
+        slug: slugify(name),
+        name,
+      })
+      setCreating(false)
+      setNewName('')
+      navigate(`/admin/staff/${created.id}`)
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : t('staff.saveFailed'))
+    } finally {
+      setCreateBusy(false)
+    }
+  }
 
   return (
     <div className="page-shell">
@@ -155,7 +184,7 @@ export default function AdminPage() {
 
       <div className="mt-8 mb-3 flex items-center justify-between">
         <h2 className="text-sm font-medium text-fg-soft">{t('admin.staff')}</h2>
-        <button onClick={() => setEditor('new')} className="btn-secondary">
+        <button onClick={() => setCreating(true)} className="btn-secondary">
           {t('admin.newStaff')}
         </button>
       </div>
@@ -201,7 +230,7 @@ export default function AdminPage() {
             width: 'w-24',
             cell: (s) => (
               <button
-                onClick={() => setEditor(s)}
+                onClick={() => navigate(`/admin/staff/${s.id}`)}
                 className="text-xs text-fg-subtle hover:text-fg"
               >
                 {t('common.edit')}
@@ -211,33 +240,43 @@ export default function AdminPage() {
         ]}
       />
 
-      {editor !== null && (
-        <Modal
-          title={
-            editor === 'new' ? t('admin.newStaffTitle') : t('admin.editStaffTitle')
-          }
-          onClose={() => setEditor(null)}
-          wide
-        >
-          <StaffEditor
-            staff={editor === 'new' ? null : editor}
-            submit={(fields) =>
-              editor === 'new'
-                ? api.post<Staff>('/api/admin/staff', {
-                    ...fields,
-                    slug: slugify(fields.name),
-                  })
-                : api.patch<Staff>(`/api/admin/staff/${editor.id}`, {
-                    ...fields,
-                    slug: editor.slug,
-                  })
-            }
-            onSaved={() => {
-              setEditor(null)
-              void load()
-            }}
-            onCancel={() => setEditor(null)}
-          />
+      {creating && (
+        <Modal title={t('staff.createTitle')} onClose={() => setCreating(false)}>
+          <form onSubmit={(e) => void create(e)} className="flex flex-col gap-4">
+            <p className="text-xs text-fg-subtle">{t('staff.createHint')}</p>
+            {createError && (
+              <p className="rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
+                {createError}
+              </p>
+            )}
+            <label className="text-sm text-fg-soft">
+              {t('staff.name')}
+              <input
+                type="text"
+                required
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
+              />
+            </label>
+            <div className="mt-2 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setCreating(false)}
+                className="btn-secondary"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="submit"
+                disabled={createBusy || !newName.trim()}
+                className="btn-primary"
+              >
+                {createBusy ? t('common.loading') : t('common.add')}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>

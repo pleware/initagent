@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   api,
@@ -13,7 +14,7 @@ import { usePoll } from '../hooks'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
-import type { Box, BoxEdition, BoxToken, Org, Staff } from '../types'
+import type { Box, BoxEdition, BoxToken, Org } from '../types'
 
 // The editions the hub knows, weakest-named first, in select order. The
 // labels live in i18n under boxes.edition*.
@@ -27,12 +28,13 @@ const EDITIONS: { value: BoxEdition; labelKey: string }[] = [
 
 // The platform operator's boxes (58): the PWare OS appliances this
 // installation configures. One list, a create form, an organization binding
-// editor, a narrator preview, an edit form, a delete, and per-box tokens.
-// The hub owns the rules — a duplicate slug comes back as a 409 — this
-// screen only submits and shows what the hub answered, the same posture as
-// SkillsPage.
+// editor, an edit form, a delete, and per-box tokens. The narrator action
+// links to its own full-page editor (/boxes/:id/narrator). The hub owns the
+// rules — a duplicate slug comes back as a 409 — this screen only submits
+// and shows what the hub answered, the same posture as SkillsPage.
 export default function BoxesPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [boxes, setBoxes] = useState<Box[] | null>(null)
   // Each box's bound org set, keyed by box id. Loaded from the hub on every
   // refresh so the org count and the org editor's checkboxes reflect the
@@ -41,7 +43,6 @@ export default function BoxesPage() {
   const [error, setError] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [orgEditor, setOrgEditor] = useState<Box | null>(null)
-  const [narratorBox, setNarratorBox] = useState<Box | null>(null)
   const [editBox, setEditBox] = useState<Box | null>(null)
   const [tokensBox, setTokensBox] = useState<Box | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Box | null>(null)
@@ -160,7 +161,7 @@ export default function BoxesPage() {
                   {t('boxes.orgs')}
                 </button>
                 <button
-                  onClick={() => setNarratorBox(b)}
+                  onClick={() => navigate('/boxes/' + b.id + '/narrator')}
                   className="text-xs text-fg-subtle hover:text-fg"
                 >
                   {t('boxes.narrator')}
@@ -216,15 +217,6 @@ export default function BoxesPage() {
               setOrgEditor(null)
             }}
           />
-        </Modal>
-      )}
-
-      {narratorBox !== null && (
-        <Modal
-          title={t('boxes.narratorTitle', { name: narratorBox.name })}
-          onClose={() => setNarratorBox(null)}
-        >
-          <NarratorPreview box={narratorBox} />
         </Modal>
       )}
 
@@ -492,77 +484,6 @@ function OrgEditor({
         </div>
       </div>
     </form>
-  )
-}
-
-// NarratorPreview reads the box's narrator — its box-scoped staff member —
-// and shows the voice and the soul. A box without one answers 404, which is
-// an empty state here, not an error.
-function NarratorPreview({ box }: { box: Box }) {
-  const { t } = useTranslation()
-  const [narrator, setNarrator] = useState<Staff | null>(null)
-  const [notFound, setNotFound] = useState(false)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    let cancelled = false
-    const fetchNarrator = async () => {
-      try {
-        const staff = await api.get<Staff>(`/api/boxes/${box.id}/narrator`)
-        if (!cancelled) setNarrator(staff)
-      } catch (err) {
-        if (cancelled) return
-        if (err instanceof ApiError && err.status === 404) {
-          setNotFound(true)
-        } else {
-          setError(err instanceof Error ? err.message : t('boxes.narratorLoadFailed'))
-        }
-      }
-    }
-    void fetchNarrator()
-    return () => {
-      cancelled = true
-    }
-  }, [box.id, t])
-
-  if (notFound) {
-    return (
-      <div className="surface rounded-2xl p-8 text-center">
-        <p className="mb-2 text-fg-soft">{t('boxes.narratorEmptyTitle')}</p>
-        <p className="text-sm text-fg-subtle">{t('boxes.narratorEmptyHint')}</p>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <p className="rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
-        {error}
-      </p>
-    )
-  }
-
-  if (narrator === null) {
-    return <p className="py-6 text-sm text-fg-subtle">{t('common.loading')}</p>
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <span className="text-fg">{narrator.name}</span>
-        <span className="font-mono text-[12px] text-fg-subtle">{narrator.slug}</span>
-      </div>
-      <div className="rounded-lg border border-line-2 p-4">
-        <p className="field-label">{t('staff.voice')}</p>
-        <p className="mt-1 font-mono text-[12px] text-fg-soft">{narrator.voice || '—'}</p>
-      </div>
-      <div className="rounded-lg border border-line-2 p-4">
-        <p className="field-label">{t('staff.soulCore')}</p>
-        <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-fg-soft">
-          {narrator.soulCore || '—'}
-        </p>
-      </div>
-    </div>
   )
 }
 

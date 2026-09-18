@@ -34,8 +34,9 @@ const EDITIONS: { value: BoxEdition; labelKey: string }[] = [
 export default function BoxesPage() {
   const { t } = useTranslation()
   const [boxes, setBoxes] = useState<Box[] | null>(null)
-  // The box endpoints have no read for a box's organization set, so the
-  // cockpit keeps what it has bound here until the hub grows one.
+  // Each box's bound org set, keyed by box id. Loaded from the hub on every
+  // refresh so the org count and the org editor's checkboxes reflect the
+  // database, not just this session's edits.
   const [boundOrgs, setBoundOrgs] = useState<Record<string, string[]>>({})
   const [error, setError] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
@@ -48,7 +49,19 @@ export default function BoxesPage() {
 
   const load = useCallback(async () => {
     try {
-      setBoxes(await api.get<Box[]>('/api/boxes'))
+      const boxes = await api.get<Box[]>('/api/boxes')
+      setBoxes(boxes)
+      // Fetch each box's bound org set so the count column and the org
+      // editor's checkboxes reflect what is actually bound in the database.
+      const sets = await Promise.all(
+        boxes.map(async (b) => {
+          const { orgIds } = await api.get<{ orgIds: string[] }>(
+            `/api/boxes/${b.id}/orgs`,
+          )
+          return [b.id, orgIds] as const
+        }),
+      )
+      setBoundOrgs(Object.fromEntries(sets))
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : t('boxes.loadFailed'))

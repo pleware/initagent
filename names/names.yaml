@@ -341,6 +341,7 @@ entities:
     go_const: Box
     mints: true
     lifetime: provisioned → decommissioned
+    capabilities: [read, admin]
     description: |-
       a PWare OS box — the configurable appliance, several per host
 

@@ -32,7 +32,10 @@
       "identifierPrefix": "box-",
       "mints": true,
       "lifetime": "provisioned → decommissioned",
-      "capabilities": [],
+      "capabilities": [
+        "admin:fleet.box",
+        "read:fleet.box"
+      ],
       "happeningPrefix": "fleet.box"
     },
     {
@@ -487,6 +490,7 @@
     }
   ],
   "capabilities": [
+    "admin:fleet.box",
     "admin:fleet.connector",
     "admin:hub.account",
     "admin:hub.org",
@@ -502,6 +506,7 @@
     "delete:hub.org",
     "delete:hub.project",
     "exec:fleet.connector",
+    "read:fleet.box",
     "read:fleet.connector",
     "read:fleet.file",
     "read:fleet.terminal",

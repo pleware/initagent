@@ -103,10 +103,12 @@ func validateStaffScope(slug, scope, boxID string) error {
 	return nil
 }
 
-// UpsertStaff writes a staff member keyed by slug: an existing slug updates
-// the row and refreshes updated_at, a new slug mints a `staff-` identifier.
-// scope and boxID are validated against the slug convention: a st_b_* slug
-// requires scope "box" and the box id, any other slug scope "org" and no box.
+// UpsertStaff writes a staff member keyed by scope-aware slug: an org-scoped
+// slug updates the row carrying that slug, a box-scoped slug updates the row
+// carrying that slug inside that box (58). An existing key updates the row
+// and refreshes updated_at, a new key mints a `staff-` identifier. scope and
+// boxID are validated against the slug convention: a st_b_* slug requires
+// scope "box" and the box id, any other slug scope "org" and no box.
 func (s *Store) UpsertStaff(slug, name, locale, model, brief, soulCore, voice, scope, boxID string, age, wordBudget int, bigFive Character) (*Staff, error) {
 	if err := validateStaffScope(slug, scope, boxID); err != nil {
 		return nil, err
@@ -116,7 +118,7 @@ func (s *Store) UpsertStaff(slug, name, locale, model, brief, soulCore, voice, s
 		return nil, err
 	}
 	var existing string
-	err = s.db.QueryRow(`SELECT id FROM staff WHERE slug = ?`, slug).Scan(&existing)
+	err = s.db.QueryRow(`SELECT id FROM staff WHERE slug = ? AND COALESCE(box_id, '') = COALESCE(?, '')`, slug, boxID).Scan(&existing)
 	if err == nil {
 		_, err = s.db.Exec(`UPDATE staff SET name = ?, locale = ?, model = ?, brief = ?, age = ?, word_budget = ?, soul_core = ?, voice = ?, big_five = ?, scope = ?, box_id = ?, updated_at = ?
 			WHERE id = ?`, name, locale, model, brief, age, wordBudget, soulCore, voice, bigFiveJSON, scope, boxID, time.Now().Unix(), existing)
@@ -360,13 +362,12 @@ func (s *Store) EnsureSeedStaff() error {
 // otherwise, so content written over the seed survives a restart.
 // Idempotent.
 //
-// The existence check keys on the slug alone, not on the box: slug is
-// UNIQUE across the whole installation, and UpsertStaff updates by slug,
-// so a box-scoped st_b_dt that already narrates another box must be left
-// untouched rather than re-homed through the update path (58).
+// The existence check keys on the box, not on the slug: slug uniqueness is
+// per scope (staff(slug) for org, staff(box_id, slug) for box), so every box
+// carries its own st_b_dt and UpsertStaff updates the one this box owns (58).
 func (s *Store) EnsureSeedBoxNarrator(boxID string) error {
 	var existing string
-	err := s.db.QueryRow(`SELECT id FROM staff WHERE slug = ?`, "st_b_dt").Scan(&existing)
+	err := s.db.QueryRow(`SELECT id FROM staff WHERE scope = 'box' AND box_id = ?`, boxID).Scan(&existing)
 	if err == nil {
 		return nil
 	}

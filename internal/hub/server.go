@@ -489,6 +489,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/boxes/{id}", s.requireCredential(s.handleGetBox))
 	m.HandleFunc("PATCH /api/boxes/{id}", s.requireCredential(s.handleUpdateBox))
 	m.HandleFunc("PUT /api/boxes/{id}/orgs", s.requireCredential(s.handleSetBoxOrgs))
+	m.HandleFunc("GET /api/boxes/{id}/orgs", s.requireCredential(s.handleListBoxOrgs))
 	m.HandleFunc("GET /api/boxes/{id}/narrator", s.requireCredential(s.handleGetBoxNarrator))
 
 	// Operating the installation, which is not something a machine secret

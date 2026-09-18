@@ -158,6 +158,26 @@ func (s *Server) handleSetBoxOrgs(w http.ResponseWriter, r *http.Request, cred a
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
+// handleListBoxOrgs serves the organization set bound to a box, in the same
+// {"orgIds":[...]} shape handleSetBoxOrgs accepts, so the operator reads back
+// exactly what a PUT wrote. A missing box is a 404.
+func (s *Server) handleListBoxOrgs(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.AdminStaff, "", "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	box, ok := s.boxOr404(w, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	orgIDs, err := s.store.ListBoxOrgs(box.ID)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string][]string{"orgIds": orgIDs})
+}
+
 // handleGetBoxNarrator serves the box's narrator — its one box-scoped staff
 // member (58). A box whose narrator has not been seeded yet answers 404
 // with the reason, so the cockpit can tell "nothing to show" from "not

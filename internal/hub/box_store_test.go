@@ -123,14 +123,15 @@ func TestEnsureSeedBoxNarratorIdempotent(t *testing.T) {
 	}
 }
 
-func TestEnsureSeedBoxNarratorLeavesForeignRowAlone(t *testing.T) {
+// Each box seeds its own st_b_dt: the slug is unique per box, not per
+// installation, so box B's seed mints a second st_b_dt row rather than
+// re-homing box A's through the slug-keyed update path.
+func TestEnsureSeedBoxNarratorPerBox(t *testing.T) {
 	s := testStore(t)
 	boxA, err := s.CreateBox("box-a", "A", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// st_b_dt already narrates box A, so box B's seed must not re-home the
-	// row through UpsertStaff's slug-keyed update.
 	boxB, err := s.CreateBox("box-b", "B", "")
 	if err != nil {
 		t.Fatal(err)
@@ -141,14 +142,40 @@ func TestEnsureSeedBoxNarratorLeavesForeignRowAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(rosterA) != 1 || rosterA[0].Slug != "st_b_dt" || rosterA[0].BoxID != boxA.ID {
-		t.Fatalf("box A narrator = %+v, want the st_b_dt row still bound to box A", rosterA)
+		t.Fatalf("box A narrator = %+v, want its own st_b_dt row", rosterA)
 	}
 	rosterB, err := s.StaffForBox(boxB.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rosterB) != 0 {
-		t.Errorf("box B roster = %+v, want empty: the narrator slug is installation-unique", rosterB)
+	if len(rosterB) != 1 || rosterB[0].Slug != "st_b_dt" || rosterB[0].BoxID != boxB.ID {
+		t.Fatalf("box B narrator = %+v, want its own st_b_dt row", rosterB)
+	}
+	if rosterA[0].ID == rosterB[0].ID {
+		t.Error("both boxes share one narrator row; each box must own its own")
+	}
+
+	// A re-seed still keys on the box: box A's tuned narrator is left alone,
+	// and box B keeps the row it owns.
+	if _, err := s.UpsertStaff("st_b_dt", "Lore", "en", "", "", "", "custom-voice", "box", boxA.ID, 0, 0, neutralBigFive()); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EnsureSeedBoxNarrator(boxB.ID); err != nil {
+		t.Fatal(err)
+	}
+	rosterA, err = s.StaffForBox(boxA.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rosterA[0].Name != "Lore" || rosterA[0].Voice != "custom-voice" {
+		t.Errorf("box A narrator after box B's re-seed = %+v, want the tuned row untouched", rosterA[0])
+	}
+	rosterB, err = s.StaffForBox(boxB.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rosterB) != 1 {
+		t.Fatalf("box B roster after re-seed = %+v, want its one narrator", rosterB)
 	}
 }
 

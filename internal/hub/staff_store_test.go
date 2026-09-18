@@ -243,6 +243,58 @@ func TestUpsertStaffSlugUnique(t *testing.T) {
 	}
 }
 
+// Slug uniqueness is per scope: an org-scoped slug stays unique across the
+// installation, while a box-scoped slug keys on the box — two boxes may
+// carry the same st_b_* slug, one box may not carry it twice, and tuning one
+// box's row must not touch another box's.
+func TestUpsertStaffSlugUniquePerScope(t *testing.T) {
+	s := testStore(t)
+	boxA, err := s.CreateBox("box-a", "A", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	boxB, err := s.CreateBox("box-b", "B", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := s.UpsertStaff("staff-org-only", "One", "en", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, model, created_at, updated_at)
+		VALUES ('staff-00000000-0000-0000-0000-000000000000', 'staff-org-only', 'Two', 'en', 31, '{}', '', 0, '', 1, 1)`)
+	if err == nil {
+		t.Fatal("second org-scoped insert with the same slug succeeded, want a unique constraint refusal")
+	}
+
+	// CreateBox already seeded st_b_dt for both boxes; the box-keyed update
+	// tunes only box B's row.
+	if _, err := s.UpsertStaff("st_b_dt", "Data B", "en", "", "", "", "", "box", boxB.ID, 0, 0, neutralBigFive()); err != nil {
+		t.Fatal(err)
+	}
+	rosterA, err := s.StaffForBox(boxA.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rosterA) != 1 || rosterA[0].Name != "Data" {
+		t.Errorf("box A narrator = %+v, want the untouched seed", rosterA)
+	}
+	rosterB, err := s.StaffForBox(boxB.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rosterB) != 1 || rosterB[0].Name != "Data B" {
+		t.Errorf("box B narrator = %+v, want the tuned row", rosterB)
+	}
+
+	// The same slug twice in one box is refused by the per-box partial index.
+	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, model, scope, box_id, created_at, updated_at)
+		VALUES ('staff-00000000-0000-0000-0000-000000000001', 'st_b_dt', 'Twin', 'en', 0, '{}', '', 0, '', 'box', ?, 1, 1)`, boxA.ID)
+	if err == nil {
+		t.Fatal("second insert of the same slug in the same box succeeded, want a unique constraint refusal")
+	}
+}
+
 func TestUpsertStaffScopeValidation(t *testing.T) {
 	s := testStore(t)
 	const boxID = "box-00000000-0000-0000-0000-000000000000"
@@ -342,7 +394,15 @@ func TestStaffForBoxReturnsBoxScopedOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rosterB) != 1 || rosterB[0].Slug != "st_b_jl" {
+	if len(rosterB) != 2 {
+		t.Fatalf("StaffForBox(%s) = %d rows, want the seeded st_b_dt and the added st_b_jl", boxB.ID, len(rosterB))
+	}
+	for _, st := range rosterB {
+		if st.BoxID != boxB.ID {
+			t.Errorf("box B row %s bound to %q, want box B", st.Slug, st.BoxID)
+		}
+	}
+	if countSlug(rosterB, "st_b_jl") != 1 {
 		t.Errorf("StaffForBox(%s) = %+v, want the st_b_jl row", boxB.ID, rosterB)
 	}
 
@@ -915,6 +975,10 @@ func TestOpenStoreMigratesLegacyStaffColumns(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, drop := range []string{
+		// The per-scope slug indexes index box_id/scope, and SQLite refuses
+		// to drop an indexed column: the truly pre-scope shape has neither.
+		`DROP INDEX IF EXISTS staff_slug_org_unique`,
+		`DROP INDEX IF EXISTS staff_slug_box_unique`,
 		`ALTER TABLE staff DROP COLUMN soul_core`,
 		`ALTER TABLE staff DROP COLUMN voice`,
 		`ALTER TABLE org_staff_overrides DROP COLUMN name`,
@@ -1004,4 +1068,119 @@ func TestOpenStoreMigratesLegacyStaffColumns(t *testing.T) {
 	if got.Brief != "kept brief" {
 		t.Errorf("migrated override row brief = %q, want the surviving override value", got.Brief)
 	}
+}
+
+// A store whose staff table predates per-scope slugs still carries the old
+// installation-wide UNIQUE on slug as an auto-index. The reopen must rebuild
+// the table without it, keep every row, and replace it with the two partial
+// indexes, so two boxes can each seed their own st_b_dt while an org-scoped
+// slug stays unique across the installation.
+func TestOpenStoreRelaxesGlobalStaffSlugUnique(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "staff-slug-migration.db")
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The pre-migration shape: slug UNIQUE, no profile/scope columns yet.
+	for _, ddl := range []string{
+		`CREATE TABLE staff (
+			id          TEXT PRIMARY KEY,
+			slug        TEXT NOT NULL UNIQUE,
+			name        TEXT NOT NULL,
+			locale      TEXT NOT NULL DEFAULT 'en',
+			age         INTEGER NOT NULL,
+			big_five    TEXT NOT NULL DEFAULT '{}',
+			brief       TEXT NOT NULL DEFAULT '',
+			word_budget INTEGER NOT NULL DEFAULT 0,
+			model       TEXT NOT NULL DEFAULT '',
+			created_at  INTEGER NOT NULL,
+			updated_at  INTEGER NOT NULL
+		)`,
+		`INSERT INTO staff (id, slug, name, locale, age, big_five, created_at, updated_at)
+			VALUES ('staff-carried', 'staff-carried-00', 'Carried', 'en', 40, '{}', 1, 1)`,
+	} {
+		if _, err := db.Exec(ddl); err != nil {
+			_ = db.Close()
+			t.Fatalf("building the pre-migration schema: %v", err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopen on a globally-unique staff slug schema: %v", err)
+	}
+
+	// The carried row survives the rebuild with its values.
+	carried, err := s.StaffById("staff-carried")
+	if err != nil || carried == nil {
+		t.Fatalf("StaffById on the migrated row: %v %v", carried, err)
+	}
+	if carried.Slug != "staff-carried-00" || carried.Name != "Carried" || carried.Age != 40 {
+		t.Errorf("migrated row = %+v, want the carried values", carried)
+	}
+
+	// The global unique is gone: two boxes seed their own st_b_dt.
+	boxA, err := s.CreateBox("box-a", "A", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	boxB, err := s.CreateBox("box-b", "B", "")
+	if err != nil {
+		t.Fatalf("second box under the relaxed slug contract: %v", err)
+	}
+	rosterA, err := s.StaffForBox(boxA.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rosterB, err := s.StaffForBox(boxB.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rosterA) != 1 || len(rosterB) != 1 || rosterA[0].ID == rosterB[0].ID {
+		t.Errorf("narrators after migration = %+v / %+v, want one distinct st_b_dt per box", rosterA, rosterB)
+	}
+
+	// Both partial indexes exist…
+	for _, index := range []string{"staff_slug_org_unique", "staff_slug_box_unique"} {
+		ok, err := s.sqliteIndexExists("staff", index)
+		if err != nil || !ok {
+			t.Fatalf("index %s after reopen: ok=%v err=%v", index, ok, err)
+		}
+	}
+
+	// …and the org contract still holds: the partial org index refuses a
+	// duplicate org-scoped slug.
+	if _, err := s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, created_at, updated_at)
+		VALUES ('staff-00000000-0000-0000-0000-000000000000', 'staff-carried-00', 'Twin', 'en', 1, '{}', 1, 1)`); err == nil {
+		t.Error("duplicate org-scoped slug succeeded after migration, want a unique constraint refusal")
+	}
+
+	// Idempotent: a second open changes nothing and loses no rows.
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("second reopen: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+	list, err := again.ListStaff()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 5 {
+		t.Errorf("ListStaff after the second open = %d rows, want the carried row, the two seeds and the two narrators", len(list))
+	}
+}
+
+// sqliteIndexExists reports whether one named SQLite index exists on a table.
+func (s *Store) sqliteIndexExists(table, index string) (bool, error) {
+	var n int
+	// pragma_index_list does not take a bound table name; the callers pass a
+	// constant from this file.
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM pragma_index_list('`+table+`') WHERE name = ?`, index).Scan(&n)
+	return n > 0, err
 }

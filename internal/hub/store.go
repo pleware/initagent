@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS skills (
 );
 CREATE TABLE IF NOT EXISTS staff (
 	id          TEXT PRIMARY KEY,
-	slug        TEXT NOT NULL UNIQUE,
+	slug        TEXT NOT NULL,
 	name        TEXT NOT NULL,
 	locale      TEXT NOT NULL DEFAULT 'en',
 	age         INTEGER NOT NULL,
@@ -392,7 +392,7 @@ CREATE TABLE IF NOT EXISTS skills (
 );
 CREATE TABLE IF NOT EXISTS staff (
 	id          TEXT PRIMARY KEY,
-	slug        TEXT NOT NULL UNIQUE,
+	slug        TEXT NOT NULL,
 	name        TEXT NOT NULL,
 	locale      TEXT NOT NULL DEFAULT 'en',
 	age         BIGINT NOT NULL,
@@ -471,6 +471,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureStaffScopeColumns(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring staff scope columns: %w", err)
+	}
+	if err := s.ensureStaffPerScopeSlugUniqueness(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring staff per-scope slug uniqueness: %w", err)
 	}
 	if err := s.ensureProjectBoardingColumns(); err != nil {
 		db.Close()
@@ -634,6 +638,201 @@ func (s *Store) ensureStaffScopeColumns() error {
 		return err
 	}
 	return s.ensureColumn("staff", "box_id", "TEXT")
+}
+
+// ensureStaffPerScopeSlugUniqueness relaxes the installation-wide UNIQUE on
+// staff.slug into per-scope uniqueness, which is what lets every box seed its
+// own st_b_dt narrator under the same slug (58). Two partial unique indexes
+// hold the contract after the migration:
+//
+//	staff(slug) WHERE scope = 'org'          — one slug per installation
+//	staff(box_id, slug) WHERE scope = 'box'  — one slug per box
+//
+// Detection and repair are dialect-specific because the old global unique is
+// stored differently. SQLite materializes a column UNIQUE as an auto-index
+// that ALTER TABLE cannot drop, so the table is rebuilt through a staff_new
+// copy; Postgres materializes it as a named constraint that can be dropped
+// directly. The partial indexes are then created idempotently, so a fresh
+// store — whose CREATE TABLE text already omits the global UNIQUE — takes the
+// same tail and lands on the same shape.
+func (s *Store) ensureStaffPerScopeSlugUniqueness() error {
+	switch s.db.Dialect() {
+	case store.Postgres:
+		if err := s.dropPostgresStaffSlugUnique(); err != nil {
+			return err
+		}
+	default:
+		if err := s.rebuildStaffWithoutGlobalSlugUnique(); err != nil {
+			return err
+		}
+	}
+	if _, err := s.db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS staff_slug_org_unique
+		ON staff(slug) WHERE scope = 'org'`); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS staff_slug_box_unique
+		ON staff(box_id, slug) WHERE scope = 'box'`)
+	return err
+}
+
+// staffSQLiteGlobalSlugUnique finds the auto-index SQLite built for the old
+// `slug TEXT NOT NULL UNIQUE` column declaration. A column UNIQUE is not part
+// of the stored column shape (pragma_table_info does not show it): it lives
+// as an index whose pragma_index_list origin is 'u' and whose single column
+// is slug. The PRIMARY KEY auto-index has origin 'pk' and never matches. An
+// empty name means the store already carries the per-scope shape.
+func (s *Store) staffSQLiteGlobalSlugUnique() (string, error) {
+	rows, err := s.db.Query(`SELECT name FROM pragma_index_list('staff') WHERE origin = 'u'`)
+	if err != nil {
+		return "", err
+	}
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			rows.Close()
+			return "", err
+		}
+		names = append(names, name)
+	}
+	// Close before the per-index queries below: SQLite runs on a single
+	// pooled connection, and a query issued while these rows are open would
+	// wait forever for the connection the rows hold.
+	if err := rows.Close(); err != nil {
+		return "", err
+	}
+	for _, name := range names {
+		cols, err := s.sqliteIndexColumns(name)
+		if err != nil {
+			return "", err
+		}
+		if len(cols) == 1 && cols[0] == "slug" {
+			return name, nil
+		}
+	}
+	return "", nil
+}
+
+// sqliteIndexColumns lists the column names one SQLite index covers, in order.
+func (s *Store) sqliteIndexColumns(index string) ([]string, error) {
+	// pragma_index_info does not take a bound parameter; the name comes from
+	// pragma_index_list above, never from request input.
+	rows, err := s.db.Query(`SELECT name FROM pragma_index_info('` + index + `')`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		out = append(out, name)
+	}
+	return out, rows.Err()
+}
+
+// rebuildStaffWithoutGlobalSlugUnique rebuilds the staff table so the global
+// unique on slug is gone. The copy names every column explicitly and refuses
+// to run when one is missing from the live table rather than silently
+// dropping data. No foreign key references staff (org_staff_overrides and
+// box_orgs carry none), so dropping the old table is safe; the PRIMARY KEY
+// auto-index is recreated by the new table, and the partial slug indexes are
+// created by the caller after the rename. The staff_new sweep makes a
+// half-finished previous run recover instead of colliding.
+func (s *Store) rebuildStaffWithoutGlobalSlugUnique() error {
+	name, err := s.staffSQLiteGlobalSlugUnique()
+	if err != nil || name == "" {
+		return err
+	}
+	cols := []string{"id", "slug", "name", "locale", "age", "big_five", "brief",
+		"word_budget", "model", "soul_core", "voice", "scope", "box_id", "created_at", "updated_at"}
+	for _, col := range cols {
+		ok, err := s.hasColumn("staff", col)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("staff rebuild: column %s is missing from the live table", col)
+		}
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DROP TABLE IF EXISTS staff_new`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`CREATE TABLE staff_new (
+		id          TEXT PRIMARY KEY,
+		slug        TEXT NOT NULL,
+		name        TEXT NOT NULL,
+		locale      TEXT NOT NULL DEFAULT 'en',
+		age         INTEGER NOT NULL,
+		big_five    TEXT NOT NULL DEFAULT '{}',
+		brief       TEXT NOT NULL DEFAULT '',
+		word_budget INTEGER NOT NULL DEFAULT 0,
+		model       TEXT NOT NULL DEFAULT '',
+		soul_core   TEXT NOT NULL DEFAULT '',
+		voice       TEXT NOT NULL DEFAULT '',
+		scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
+		box_id      TEXT,
+		created_at  INTEGER NOT NULL,
+		updated_at  INTEGER NOT NULL
+	)`); err != nil {
+		return err
+	}
+	list := strings.Join(cols, ", ")
+	if _, err := tx.Exec(`INSERT INTO staff_new (` + list + `) SELECT ` + list + ` FROM staff`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DROP TABLE staff`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`ALTER TABLE staff_new RENAME TO staff`); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// dropPostgresStaffSlugUnique drops the constraint Postgres materialized from
+// the old `slug TEXT NOT NULL UNIQUE` column declaration (auto-named
+// staff_slug_key). The lookup targets any single-column unique constraint on
+// slug, so an operator-made equivalent is relaxed too; the two partial
+// indexes the caller creates keep the per-scope contract.
+func (s *Store) dropPostgresStaffSlugUnique() error {
+	rows, err := s.db.Query(`SELECT c.conname FROM pg_constraint c
+		JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+		WHERE c.conrelid = 'staff'::regclass
+		AND c.contype = 'u'
+		AND cardinality(c.conkey) = 1
+		AND a.attname = 'slug'`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return err
+		}
+		names = append(names, name)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, name := range names {
+		// The name came from pg_constraint, not from request input; still
+		// quote and escape it like any identifier.
+		quoted := `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+		if _, err := s.db.Exec(`ALTER TABLE staff DROP CONSTRAINT ` + quoted); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Store) ensureColumn(table, column, decl string) error {

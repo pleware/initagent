@@ -111,6 +111,25 @@ func TestBoxSetOrgs(t *testing.T) {
 		t.Errorf("bound orgs = %v, want [org-a org-b]", got)
 	}
 
+	// The GET reads back exactly the set the PUT wrote, in the same shape.
+	resp = f.do(t, http.MethodGet, "/api/boxes/"+box.ID+"/orgs", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET orgs: %d, want 200", resp.StatusCode)
+	}
+	var bound struct {
+		OrgIDs []string `json:"orgIds"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&bound); err != nil {
+		t.Fatal(err)
+	}
+	if len(bound.OrgIDs) != 2 || bound.OrgIDs[0] != "org-a" || bound.OrgIDs[1] != "org-b" {
+		t.Errorf("GET orgs = %v, want [org-a org-b]", bound.OrgIDs)
+	}
+	resp = f.do(t, http.MethodGet, "/api/boxes/box-00000000-0000-0000-0000-000000000000/orgs", nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("GET orgs on a missing box: %d, want 404", resp.StatusCode)
+	}
+
 	// The second call replaces the set, not appends to it.
 	resp = f.do(t, http.MethodPut, "/api/boxes/"+box.ID+"/orgs", map[string]any{
 		"orgIds": []string{"org-c"},
@@ -364,6 +383,7 @@ func TestBoxGateRefusesWrongCredentialsOnIdHandlers(t *testing.T) {
 		{name: "get box", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleGetBox(w, r, cred) }},
 		{name: "update box", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleUpdateBox(w, r, cred) }},
 		{name: "set box orgs", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleSetBoxOrgs(w, r, cred) }},
+		{name: "list box orgs", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleListBoxOrgs(w, r, cred) }},
 		{name: "get box narrator", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleGetBoxNarrator(w, r, cred) }},
 	}
 	for _, c := range cases {

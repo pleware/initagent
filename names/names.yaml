@@ -336,6 +336,14 @@ entities:
     description: |-
       One physical machine. Two connectors on one box share a host, and the scheduler needs the difference because CPU and per-machine coding-CLI authentication belong to the host.
 
+  - name: initagent.fleet.box
+    context: fleet
+    go_const: Box
+    mints: true
+    lifetime: provisioned → decommissioned
+    description: |-
+      a PWare OS box — the configurable appliance, several per host
+
   - name: initagent.fleet.connector
     context: fleet
     go_const: Connector

@@ -26,6 +26,16 @@
       "happeningPrefix": "fleet.attachment"
     },
     {
+      "name": "initagent.fleet.box",
+      "context": "fleet",
+      "entity": "box",
+      "identifierPrefix": "box-",
+      "mints": true,
+      "lifetime": "provisioned → decommissioned",
+      "capabilities": [],
+      "happeningPrefix": "fleet.box"
+    },
+    {
       "name": "initagent.fleet.connector",
       "context": "fleet",
       "entity": "connector",
@@ -506,6 +516,7 @@
   ],
   "happeningPrefixes": [
     "fleet.attachment",
+    "fleet.box",
     "fleet.connector",
     "fleet.enrollment",
     "fleet.file",

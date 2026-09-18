@@ -17,6 +17,7 @@ var contexts = []Context{ContextHub, ContextProject, ContextFleet, ContextWorker
 // name, derived rather than declared, so the two cannot drift apart.
 const (
 	Attachment     Kind = "attachment"
+	Box            Kind = "box"
 	Connector      Kind = "connector"
 	Enrollment     Kind = "enrollment"
 	Host           Kind = "host"
@@ -62,6 +63,12 @@ var entities = map[Kind]Spec{
 		Context:     ContextFleet,
 		Description: "One browser view of a terminal. It exists so \"who is watching this session\" is answerable, and so closing a tab does not kill the process behind it.",
 		Lifetime:    "while the tab is open",
+	},
+	Box: {
+		Name:        "initagent.fleet.box",
+		Context:     ContextFleet,
+		Description: "a PWare OS box — the configurable appliance, several per host",
+		Lifetime:    "provisioned → decommissioned",
 	},
 	Connector: {
 		Name:        "initagent.fleet.connector",

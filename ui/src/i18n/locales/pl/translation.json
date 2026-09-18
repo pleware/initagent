@@ -632,10 +632,6 @@
     "selected_few": "{{count}} organizacje",
     "selected_many": "{{count}} organizacji",
     "narrator": "Narrator",
-    "narratorTitle": "Narrator boksu {{name}}",
-    "narratorLoadFailed": "Nie udało się wczytać narratora",
-    "narratorEmptyTitle": "Ten boks nie ma jeszcze narratora.",
-    "narratorEmptyHint": "Narrator jest zaszczepiany przy tworzeniu boksu. Jeśli wiersz został usunięty, zaszczep go ponownie na hubie.",
     "actions": "Akcje boksu",
     "edit": "Edytuj",
     "editTitle": "Edytuj {{name}}",
@@ -696,6 +692,12 @@
     "notFound": "Ta osoba nie istnieje.",
     "createTitle": "Nowa osoba w zespole",
     "createHint": "Na początek wystarczy imię — resztę dostroisz na kolejnej stronie."
+  },
+  "narrator": {
+    "pageTitle": "Narrator boksu",
+    "subtitle": "Głos i dusza, które boks prezentuje swoim ludziom. Wiersz jest kluczowany na slugu narratora st_b_dt.",
+    "loadFailed": "Nie udało się wczytać narratora",
+    "notFound": "Ten boks nie ma narratora."
   },
   "status": {
     "working": "pracuje",

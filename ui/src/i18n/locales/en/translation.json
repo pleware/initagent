@@ -624,10 +624,6 @@
     "selected_one": "{{count}} organization",
     "selected_other": "{{count}} organizations",
     "narrator": "Narrator",
-    "narratorTitle": "Narrator of {{name}}",
-    "narratorLoadFailed": "Could not load the narrator",
-    "narratorEmptyTitle": "This box has no narrator yet.",
-    "narratorEmptyHint": "A narrator is seeded when a box is created. If the row was removed, re-seed it on the hub.",
     "actions": "Box actions",
     "edit": "Edit",
     "editTitle": "Edit {{name}}",
@@ -688,6 +684,12 @@
     "notFound": "This staff member does not exist.",
     "createTitle": "New staff member",
     "createHint": "A name is enough to start — tune everything else on the next page."
+  },
+  "narrator": {
+    "pageTitle": "Box narrator",
+    "subtitle": "The voice and the soul the box presents to its people. The row is keyed on the narrator slug st_b_dt.",
+    "loadFailed": "Could not load the narrator",
+    "notFound": "This box has no narrator."
   },
   "status": {
     "working": "working",

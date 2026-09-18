@@ -620,6 +620,7 @@
     "slugPlaceholder": "axl-hq",
     "slugHint": "Ludzki klucz boksu — małe litery, cyfry i myślniki. Unikalny w obrębie instalacji.",
     "slugTaken": "Boks o tym slugu już istnieje",
+    "slugInvalid": "Używaj tylko małych liter, cyfr i myślników.",
     "host": "Host",
     "hostPlaceholder": "host-00000000-0000-0000-0000-000000000000",
     "hostHint": "Opcjonalnie: maszyna fleet.host, na której działa ten boks. Puste zostawia go niezwiązanym.",

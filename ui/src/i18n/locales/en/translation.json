@@ -613,6 +613,7 @@
     "slugPlaceholder": "axl-hq",
     "slugHint": "The human key of the box — lowercase letters, digits and dashes. Unique per installation.",
     "slugTaken": "A box with this slug already exists",
+    "slugInvalid": "Use lowercase letters, digits and dashes only.",
     "host": "Host",
     "hostPlaceholder": "host-00000000-0000-0000-0000-000000000000",
     "hostHint": "Optional: the fleet.host machine this box runs on. Empty leaves it unbound.",

@@ -196,8 +196,9 @@ func TestBoxNarrator(t *testing.T) {
 	}
 }
 
-// Box creation needs a nameable box: slug and name are required, and a
-// missing box answers 404 on the read paths.
+// Box creation needs a nameable box: slug and name are required, the slug
+// must fit the [a-z0-9-] shape, and a missing box answers 404 on the read
+// paths.
 func TestBoxValidation(t *testing.T) {
 	f := claimedHub(t, offering.Selfhost)
 
@@ -209,6 +210,8 @@ func TestBoxValidation(t *testing.T) {
 		{"blank slug", map[string]any{"slug": "   ", "name": "Nova"}},
 		{"no name", map[string]any{"slug": "box-nova"}},
 		{"blank name", map[string]any{"slug": "box-nova", "name": " "}},
+		{"slug with capitals and a space", map[string]any{"slug": "AXL HQ!", "name": "Nova"}},
+		{"slug with underscores and capitals", map[string]any{"slug": "AxL_hq", "name": "Nova"}},
 	} {
 		resp := f.do(t, http.MethodPost, "/api/boxes", c.body)
 		if resp.StatusCode != http.StatusBadRequest {
@@ -216,7 +219,13 @@ func TestBoxValidation(t *testing.T) {
 		}
 	}
 
-	resp := f.do(t, http.MethodPatch, "/api/boxes/box-00000000-0000-0000-0000-000000000000",
+	// The same handler admits a slug in the promised shape.
+	resp := f.do(t, http.MethodPost, "/api/boxes", map[string]any{"slug": "axl-hq", "name": "Nova"})
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("valid slug: %d, want 200", resp.StatusCode)
+	}
+
+	resp = f.do(t, http.MethodPatch, "/api/boxes/box-00000000-0000-0000-0000-000000000000",
 		map[string]any{"name": "Nope"})
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("PATCH a missing box: %d, want 404", resp.StatusCode)

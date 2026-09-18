@@ -186,6 +186,8 @@ function CreateBoxForm({
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setError(t('boxes.slugTaken'))
+      } else if (err instanceof ApiError && err.status === 400) {
+        setError(t('boxes.slugInvalid'))
       } else {
         setError(err instanceof Error ? err.message : t('boxes.createFailed'))
       }
@@ -208,8 +210,11 @@ function CreateBoxForm({
           type="text"
           required
           value={slug}
-          onChange={(e) => setSlug(e.target.value)}
+          onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
           placeholder={t('boxes.slugPlaceholder')}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           className="field-input mt-2 font-mono text-[12px]"
         />
         <span className="mt-1 block text-xs text-fg-subtle">{t('boxes.slugHint')}</span>

@@ -3,6 +3,7 @@ package hub
 import (
 	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/pleware/initagent/internal/authz"
@@ -21,6 +22,12 @@ import (
 // the middleware and refused — or admitted — here, the same shape the
 // staff, skill and org admin surfaces use.
 
+// boxSlugRe is the box slug's shape (58): lowercase letters, digits and
+// dashes. The cockpit filters the input to this alphabet; the server refuses
+// anything else so a non-browser client cannot mint a slug with capitals,
+// underscores or spaces.
+var boxSlugRe = regexp.MustCompile(`^[a-z0-9-]+$`)
+
 // boxOr404 loads a box for a handler, or writes the 404 itself. Every
 // caller passed the installation gate first, so "no such box" is the
 // honest answer, not a way to conceal a row from somebody who may see
@@ -38,9 +45,9 @@ func (s *Server) boxOr404(w http.ResponseWriter, boxID string) (*Box, bool) {
 	return box, true
 }
 
-// handleCreateBox mints a new box. The slug is the box's unique key, so
-// the store refuses a collision with ErrBoxSlugTaken; hostId is optional
-// and may be bound in a later PATCH.
+// handleCreateBox mints a new box. The slug is the box's unique key in
+// [a-z0-9-] form; the store refuses a collision with ErrBoxSlugTaken, and
+// hostId is optional and may be bound in a later PATCH.
 func (s *Server) handleCreateBox(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	if !cred.Can(authz.AdminStaff, "", "") {
 		forbid(w, authz.ErrForbidden)
@@ -59,6 +66,10 @@ func (s *Server) handleCreateBox(w http.ResponseWriter, r *http.Request, cred au
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Slug == "" || req.Name == "" {
 		httpError(w, http.StatusBadRequest, "slug and name are required")
+		return
+	}
+	if !boxSlugRe.MatchString(req.Slug) {
+		httpError(w, http.StatusBadRequest, "slug must contain only lowercase letters, digits and dashes")
 		return
 	}
 	box, err := s.store.CreateBox(req.Slug, req.Name, req.HostID)

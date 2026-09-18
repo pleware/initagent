@@ -15,12 +15,12 @@ import (
 // narrator and its staff overrides, and syncs them down to the machine.
 // The box store is box_store.go.
 //
-// Box administration is the platform admin's: the handlers share the
-// canonical staff catalogue's empty-boundary gate (admin_staff.go) until
-// the dedicated admin:box / read:box capabilities land. The gate lives in
-// the handler, so an installation token carrying the verb is admitted at
-// the middleware and refused — or admitted — here, the same shape the
-// staff, skill and org admin surfaces use.
+// Box administration is the platform admin's, split on the box's two
+// verbs: the read handlers gate on `read:fleet.box` and the mutations on
+// `admin:fleet.box`. The gate lives in the handler, so an installation
+// token carrying the verb is admitted at the middleware and refused — or
+// admitted — here, the same shape the staff, skill and org admin
+// surfaces use.
 
 // boxSlugRe is the box slug's shape (58): lowercase letters, digits and
 // dashes. The cockpit filters the input to this alphabet; the server refuses
@@ -49,7 +49,7 @@ func (s *Server) boxOr404(w http.ResponseWriter, boxID string) (*Box, bool) {
 // [a-z0-9-] form; the store refuses a collision with ErrBoxSlugTaken, and
 // hostId is optional and may be bound in a later PATCH.
 func (s *Server) handleCreateBox(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminStaff, "", "") {
+	if !cred.Can(authz.AdminBox, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -86,7 +86,7 @@ func (s *Server) handleCreateBox(w http.ResponseWriter, r *http.Request, cred au
 
 // handleListBoxes serves every box on this installation, ordered by slug.
 func (s *Server) handleListBoxes(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminStaff, "", "") {
+	if !cred.Can(authz.ReadBox, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -100,7 +100,7 @@ func (s *Server) handleListBoxes(w http.ResponseWriter, r *http.Request, cred au
 
 // handleGetBox serves one box by id. A missing box is a 404.
 func (s *Server) handleGetBox(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminStaff, "", "") {
+	if !cred.Can(authz.ReadBox, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -114,7 +114,7 @@ func (s *Server) handleGetBox(w http.ResponseWriter, r *http.Request, cred authz
 // handleUpdateBox replaces the editable fields of a box: its name and its
 // host binding. An empty hostId clears the binding. A missing box is a 404.
 func (s *Server) handleUpdateBox(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminStaff, "", "") {
+	if !cred.Can(authz.AdminBox, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -147,7 +147,7 @@ func (s *Server) handleUpdateBox(w http.ResponseWriter, r *http.Request, cred au
 // carries the whole new set; duplicate ids collapse and an absent orgIds
 // clears the box, matching the store's replace semantics.
 func (s *Server) handleSetBoxOrgs(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminStaff, "", "") {
+	if !cred.Can(authz.AdminBox, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -173,7 +173,7 @@ func (s *Server) handleSetBoxOrgs(w http.ResponseWriter, r *http.Request, cred a
 // {"orgIds":[...]} shape handleSetBoxOrgs accepts, so the operator reads back
 // exactly what a PUT wrote. A missing box is a 404.
 func (s *Server) handleListBoxOrgs(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminStaff, "", "") {
+	if !cred.Can(authz.ReadBox, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}
@@ -194,7 +194,7 @@ func (s *Server) handleListBoxOrgs(w http.ResponseWriter, r *http.Request, cred 
 // with the reason, so the cockpit can tell "nothing to show" from "not
 // authorized".
 func (s *Server) handleGetBoxNarrator(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
-	if !cred.Can(authz.AdminStaff, "", "") {
+	if !cred.Can(authz.ReadBox, "", "") {
 		forbid(w, authz.ErrForbidden)
 		return
 	}

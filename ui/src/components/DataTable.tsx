@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 // One table for the hub's own surfaces.
 //
@@ -31,8 +32,9 @@ export default function DataTable<T>({
   rowKey: (row: T) => string
   empty: ReactNode
 }) {
+  const { t } = useTranslation()
   if (rows === null) {
-    return <p className="text-fg-subtle">Loading…</p>
+    return <p className="text-fg-subtle">{t('dataTable.loading')}</p>
   }
   if (rows.length === 0) {
     return <div className="surface rounded-2xl p-12 text-center">{empty}</div>
@@ -48,7 +50,7 @@ export default function DataTable<T>({
                 className={`px-4 py-2.5 font-medium ${column.width ?? ''}`}
               >
                 {column.header || (
-                  <span className="sr-only">{column.srHeader ?? 'Actions'}</span>
+                  <span className="sr-only">{column.srHeader ?? t('dataTable.actions')}</span>
                 )}
               </th>
             ))}

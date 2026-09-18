@@ -1,26 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight, BellRinging, CircleNotch, Check } from "@phosphor-icons/react";
+import { useTranslation } from "react-i18next";
 import { Reveal } from "../lib/reveal";
 import { RELEASES, WAITLIST_ENDPOINT } from "../lib/site";
-
-const INTENT = [
-  {
-    title: "It starts with more than one machine",
-    body: "Most coding agents assume a single working directory on a single laptop. This one is handed a fleet, and plans against it.",
-  },
-  {
-    title: "Work you can walk away from",
-    body: "Runs inside a persistent session on the target device, so closing the lid does not end the task. Pick it back up from a phone.",
-  },
-  {
-    title: "Nothing extra to install",
-    body: "Same static binary as the hub, the agent, and the CLI. If a device has joined, it is already there.",
-  },
-];
 
 type State = "idle" | "invalid" | "sending" | "done" | "error";
 
 function Waitlist() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [state, setState] = useState<State>("idle");
 
@@ -47,7 +34,7 @@ function Waitlist() {
     return (
       <div className="flex items-center gap-2.5 rounded-control border border-accent/35 bg-accent/10 px-4 py-3.5 text-[14.5px] text-fg">
         <Check size={17} weight="bold" className="text-accent" />
-        You are on the list. We will write once, when it ships.
+        {t("code.waitlist.done")}
       </div>
     );
   }
@@ -58,7 +45,7 @@ function Waitlist() {
         htmlFor="waitlist-email"
         className="block text-[13.5px] font-medium text-fg"
       >
-        Email
+        {t("code.waitlist.email")}
       </label>
       <div className="mt-2 flex flex-col gap-2.5 sm:flex-row">
         <input
@@ -69,7 +56,7 @@ function Waitlist() {
             setEmail(e.target.value);
             if (state !== "sending") setState("idle");
           }}
-          placeholder="you@example.com"
+          placeholder={t("code.waitlist.placeholder")}
           aria-invalid={state === "invalid"}
           aria-describedby="waitlist-help"
           className="flex-1 rounded-control border border-line-2 bg-canvas px-3.5 py-2.5 text-[14.5px] text-fg placeholder:text-fg-subtle focus:border-accent focus:outline-none"
@@ -82,10 +69,10 @@ function Waitlist() {
           {state === "sending" ? (
             <>
               <CircleNotch size={16} weight="bold" className="animate-spin" />
-              Sending
+              {t("code.waitlist.sending")}
             </>
           ) : (
-            "Notify me"
+            t("code.waitlist.notify")
           )}
         </button>
       </div>
@@ -98,16 +85,32 @@ function Waitlist() {
         }`}
       >
         {state === "invalid"
-          ? "That address does not look right. Check it and try again."
+          ? t("code.waitlist.invalid")
           : state === "error"
-            ? "That did not go through. Try again in a moment."
-            : "One email when it ships. Nothing else."}
+            ? t("code.waitlist.error")
+            : t("code.waitlist.quiet")}
       </p>
     </form>
   );
 }
 
 export function OverseerCode() {
+  const { t } = useTranslation();
+  const intent = [
+    {
+      title: t("code.intent.startTitle"),
+      body: t("code.intent.startBody"),
+    },
+    {
+      title: t("code.intent.walkTitle"),
+      body: t("code.intent.walkBody"),
+    },
+    {
+      title: t("code.intent.installTitle"),
+      body: t("code.intent.installBody"),
+    },
+  ];
+
   return (
     <section
       id="code"
@@ -123,22 +126,20 @@ export function OverseerCode() {
           {/* Status sits beside the title, not stacked above it as a label. */}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
             <h2 className="text-[2.6rem] leading-[1.03] font-semibold tracking-tight sm:text-[3.2rem] lg:text-[3.8rem]">
-              initagent Code
+              {t("code.title")}
             </h2>
             <span className="rounded-control border border-accent/40 px-2.5 py-1 font-mono text-[11.5px] text-accent">
-              in development
+              {t("code.badge")}
             </span>
           </div>
           <p className="mt-5 max-w-[54ch] text-[17px] leading-relaxed text-fg-muted">
-            initagent already drives other people&rsquo;s coding agents. The next
-            piece is our own: a coding agent that treats your machines as one
-            place to work, not one laptop at a time.
+            {t("code.intro")}
           </p>
         </Reveal>
 
         <Reveal delay={0.08}>
           <div className="mt-14 grid grid-cols-1 gap-px overflow-hidden rounded-panel border border-line-2 bg-line-2 lg:grid-cols-3">
-            {INTENT.map((item) => (
+            {intent.map((item) => (
               <div key={item.title} className="bg-sidebar p-6 lg:p-7">
                 <h3 className="text-[15.5px] font-semibold tracking-tight text-balance">
                   {item.title}
@@ -164,7 +165,7 @@ export function OverseerCode() {
                   className="group flex items-center gap-2 rounded-control bg-accent px-5 py-3 text-[14.5px] font-semibold whitespace-nowrap text-accent-on transition-all duration-150 hover:bg-accent-hover active:scale-[0.98]"
                 >
                   <BellRinging size={17} weight="regular" />
-                  Watch releases
+                  {t("code.watchReleases")}
                   <ArrowRight
                     size={16}
                     weight="bold"
@@ -172,7 +173,7 @@ export function OverseerCode() {
                   />
                 </a>
                 <p className="text-[14px] text-fg-subtle">
-                  GitHub will tell you the moment it lands.
+                  {t("code.githubHint")}
                 </p>
               </div>
             )}

@@ -1,7 +1,10 @@
+import i18n from "../i18n/config";
 import { HUB } from "./site";
 
 /** Public Hardware cards. Specs, photos, and prices stay a backlog
- *  fill from `docs/HARDWARE_PWARE.md` — do not copy BOM or margin here. */
+ *  fill from `docs/HARDWARE_PWARE.md` — do not copy BOM or margin here.
+ *  Product names are brand; the rest of the copy resolves through
+ *  i18n when the card renders. */
 export type Station = {
   id: string;
   name: string;
@@ -14,33 +17,45 @@ export const STATIONS: Station[] = [
   {
     id: "one-16",
     name: "PWARE AI ONE 16",
-    role: "One GPU. A first box.",
-    items: [
-      "16 GB GPU memory on one card",
-      "PWare OS preinstalled",
-      "initagent worker ready to join a hub",
-    ],
+    get role() {
+      return i18n.t("hardware.stations.one16.role");
+    },
+    get items() {
+      return [
+        i18n.t("hardware.stations.one16.gpu"),
+        i18n.t("hardware.stations.preinstalled"),
+        i18n.t("hardware.stations.workerReady"),
+      ];
+    },
   },
   {
     id: "duo-2x16",
     name: "PWARE AI DUO 2×16",
-    role: "Two cards. The station we recommend.",
+    get role() {
+      return i18n.t("hardware.stations.duo2x16.role");
+    },
     featured: true,
-    items: [
-      "2×16 GB GPU memory, not one shared 32 GB pool",
-      "PWare OS preinstalled",
-      "initagent worker ready to join a hub",
-    ],
+    get items() {
+      return [
+        i18n.t("hardware.stations.duo2x16.gpu"),
+        i18n.t("hardware.stations.preinstalled"),
+        i18n.t("hardware.stations.workerReady"),
+      ];
+    },
   },
   {
     id: "pro-24-ecc",
     name: "PWARE AI PRO 24 ECC",
-    role: "One professional GPU, ECC memory.",
-    items: [
-      "24 GB ECC GPU memory on one card",
-      "PWare OS preinstalled",
-      "initagent worker ready to join a hub",
-    ],
+    get role() {
+      return i18n.t("hardware.stations.pro24ecc.role");
+    },
+    get items() {
+      return [
+        i18n.t("hardware.stations.pro24ecc.gpu"),
+        i18n.t("hardware.stations.preinstalled"),
+        i18n.t("hardware.stations.workerReady"),
+      ];
+    },
   },
 ];
 

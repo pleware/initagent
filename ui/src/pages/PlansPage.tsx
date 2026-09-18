@@ -215,10 +215,10 @@ export default function PlansPage({ me }: { me: Me }) {
               <p className="mt-3 text-2xl font-semibold text-fg-strong">{price}</p>
               <p className="mt-1 text-xs text-fg-subtle">{cfg.charge.perPerson ? t('plans.perPerson') : id === 'free' ? t('plans.onePerson') : t('plans.contract')}</p>
               <ul className="mt-4 flex-1 space-y-1 text-sm text-fg-muted">
-                {cfg.limits.people === 1 && <li>{t('plans.capPeople', { n: 1 })}</li>}
-                {cfg.limits.projects > 0 && <li>{t('plans.capProjects', { n: cfg.limits.projects })}</li>}
+                {cfg.limits.people === 1 && <li>{t('plans.capPeople', { count: 1 })}</li>}
+                {cfg.limits.projects > 0 && <li>{t('plans.capProjects', { count: cfg.limits.projects })}</li>}
                 {cfg.limits.projects === 0 && <li>{t('plans.noProjectCap')}</li>}
-                {cfg.limits.workersPerProject > 0 && <li>{t('plans.capMachines', { n: cfg.limits.workersPerProject })}</li>}
+                {cfg.limits.workersPerProject > 0 && <li>{t('plans.capMachines', { count: cfg.limits.workersPerProject })}</li>}
               </ul>
               {currentPlan && <p className="mt-4 text-xs font-medium text-accent">{t('plans.current')}</p>}
               {!currentPlan && canPay && id !== 'free' && id !== 'enterprise' && (

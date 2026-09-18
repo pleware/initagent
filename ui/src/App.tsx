@@ -18,10 +18,12 @@ import TeamPage from './pages/TeamPage'
 import PlansPage from './pages/PlansPage'
 import AcceptInvite from './pages/AcceptInvite'
 import type { Me } from './types'
+import { useTranslation } from 'react-i18next'
 import i18n from './i18n/config'
 import { resolveLocale } from '../../web/locale.ts'
 
 export default function App() {
+  const { t } = useTranslation()
   const [me, setMe] = useState<Me | null>(null)
   const navigate = useNavigate()
 
@@ -67,7 +69,7 @@ export default function App() {
   if (me === null) {
     return (
       <div className="flex h-full items-center justify-center text-fg-muted">
-        Loading…
+        {t('common.loading')}
       </div>
     )
   }

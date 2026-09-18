@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import { execProject } from '../api'
@@ -14,6 +15,7 @@ type FxRuntime = {
 }
 
 export default function FxTerminal({ project, connector }: { project: Project; connector?: Connector }) {
+  const { t } = useTranslation()
   const hostRef = useRef<HTMLDivElement>(null)
   const runtimeRef = useRef<FxRuntime | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'unsupported' | 'failed'>('loading')
@@ -133,7 +135,7 @@ export default function FxTerminal({ project, connector }: { project: Project; c
     }).catch((cause) => {
       if (disposed) return
       setState('failed')
-      setError(cause instanceof Error ? cause.message : 'fx could not start')
+      setError(cause instanceof Error ? cause.message : t('fx.couldNotStart'))
     })
 
     return () => {
@@ -148,8 +150,8 @@ export default function FxTerminal({ project, connector }: { project: Project; c
   if (!connector?.online) {
     return (
       <TerminalNotice
-        title={`${connector?.name ?? 'This machine'} is offline`}
-        body="Reconnect the machine or move this project to an online node. Your fx session is safe in this browser."
+        title={connector?.name ? t('fx.offlineNamed', { name: connector.name }) : t('fx.offlineGeneric')}
+        body={t('fx.offlineBody')}
       />
     )
   }
@@ -157,14 +159,14 @@ export default function FxTerminal({ project, connector }: { project: Project; c
   if (state === 'unsupported') {
     return (
       <TerminalNotice
-        title="This browser cannot run embedded fx"
-        body="Open LiveAgent in Chrome or Edge 137+ with WebAssembly JSPI enabled. Fleet terminals remain available on the connector pages."
+        title={t('fx.unsupportedTitle')}
+        body={t('fx.unsupportedBody')}
       />
     )
   }
 
   if (state === 'failed') {
-    return <TerminalNotice title="fx could not start" body={error} />
+    return <TerminalNotice title={t('fx.couldNotStart')} body={error} />
   }
 
   return (
@@ -172,7 +174,7 @@ export default function FxTerminal({ project, connector }: { project: Project; c
       <div ref={hostRef} className="fx-terminal-host h-full w-full px-3 py-4 sm:px-5" />
       {state === 'loading' && (
         <div className="absolute inset-0 grid place-items-center bg-canvas-sunken text-xs text-fg-subtle">
-          <span className="flex items-center gap-2"><span className="spinner" />Booting fx runtime…</span>
+          <span className="flex items-center gap-2"><span className="spinner" />{t('fx.booting')}</span>
         </div>
       )}
     </div>

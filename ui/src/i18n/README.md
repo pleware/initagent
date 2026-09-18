@@ -4,30 +4,36 @@ This directory contains the i18n setup for the initagent UI.
 
 ## Current state
 
-- **English (en)**: Complete ✅
-- **Polish (pl)**: Not yet implemented ⏳
+- **English (en)**: Complete ✅ (in `locales/en/translation.json`)
+- **Polish (pl)**: Complete ✅ (in `locales/pl/translation.json`)
 
 ## Adding a new language
 
-1. Create a new directory under `locales/` (e.g., `locales/pl/`)
+1. Create a new directory under `locales/` (e.g., `locales/de/`)
 2. Copy `locales/en/translation.json` to the new directory
 3. Translate all strings in the new `translation.json`
-4. Add the language to `config.ts`:
+4. Register the language in `config.ts`:
    ```ts
-   import plTranslation from './locales/pl/translation.json';
-   
+   import deTranslation from './locales/de/translation.json';
+
    const resources = {
      en: { translation: enTranslation },
-     pl: { translation: plTranslation }, // Add this line
+     pl: { translation: plTranslation },
+     de: { translation: deTranslation },
    };
+
+   // and add it to supportedLngs:
+   supportedLngs: ['en', 'pl', 'de'],
    ```
-5. Add the language to `LanguageSwitcher.tsx`:
+5. Register the language in `web/locale.ts`:
    ```ts
-   const LANGUAGES = [
-     { code: 'en', name: 'English', flag: '🇬🇧' },
-     { code: 'pl', name: 'Polski', flag: '🇵🇱' }, // Uncomment this
-   ];
+   export const LOCALES = [
+     { value: 'en', label: 'EN' },
+     { value: 'pl', label: 'PL' },
+     { value: 'de', label: 'DE' },
+   ] as const
    ```
+   `resolveLocale` collapses a BCP 47 tag onto the supported languages; extend it to return the new code. The `LanguageSwitcher` components are driven by `LOCALES`, so no other edit is needed.
 
 ## Usage in components
 
@@ -82,6 +88,5 @@ The app detects language in this order:
 
 ## Notes
 
-- The i18n setup is **ready** but only English is available
-- Polish translations can be added in one PR later
+- Both English and Polish are shipped; the language switcher stores the choice on the signed-in account
 - All new UI strings should go through `t()` from the start

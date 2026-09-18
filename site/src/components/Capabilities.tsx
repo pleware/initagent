@@ -5,6 +5,7 @@ import {
   Terminal,
   DeviceMobile,
 } from "@phosphor-icons/react";
+import { useTranslation } from "react-i18next";
 import { Reveal } from "../lib/reveal";
 import { Screenshot } from "./Screenshot";
 
@@ -53,12 +54,14 @@ function Shot({ src, alt }: { src: string; alt: string }) {
 }
 
 export function Capabilities() {
+  const { t } = useTranslation();
+
   return (
     <section className="border-t border-line-1 py-24 lg:py-32">
       <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
         <Reveal className="max-w-[42ch]">
           <h2 className="text-[2rem] leading-[1.1] font-semibold tracking-tight text-balance sm:text-[2.4rem]">
-            What you get the moment a device joins.
+            {t("capabilities.heading")}
           </h2>
         </Reveal>
 
@@ -67,8 +70,8 @@ export function Capabilities() {
             <Cell className="lg:col-span-2">
               <Copy
                 icon={DeviceMobile}
-                title="Sessions survive you"
-                body="Terminals run in tmux on the device itself. Shut the laptop, reopen on your phone, the agent is still mid-task."
+                title={t("capabilities.sessions.title")}
+                body={t("capabilities.sessions.body")}
               />
             </Cell>
 
@@ -76,13 +79,13 @@ export function Capabilities() {
               <div className="flex items-center gap-2.5 px-6 pt-6 pb-5">
                 <Terminal size={18} weight="regular" className="text-accent" />
                 <h3 className="text-[15.5px] font-semibold tracking-tight">
-                  A real terminal in the browser
+                  {t("capabilities.terminal.title")}
                 </h3>
               </div>
               <div className="h-[260px] overflow-hidden border-t border-line-2">
                 <Shot
                   src="/shots/terminal.png"
-                  alt="An initagent browser terminal attached to a live shell session on a joined device."
+                  alt={t("capabilities.terminal.shotAlt")}
                 />
               </div>
             </Cell>
@@ -91,13 +94,13 @@ export function Capabilities() {
               <div className="flex items-center gap-2.5 px-6 pt-6 pb-5">
                 <FolderOpen size={18} weight="regular" className="text-accent" />
                 <h3 className="text-[15.5px] font-semibold tracking-tight">
-                  Browse and move files across connectors
+                  {t("capabilities.files.title")}
                 </h3>
               </div>
               <div className="h-[260px] overflow-hidden border-t border-line-2">
                 <Shot
                   src="/shots/files.png"
-                  alt="The initagent file browser listing directories on a remote device."
+                  alt={t("capabilities.files.shotAlt")}
                 />
               </div>
             </Cell>
@@ -105,8 +108,8 @@ export function Capabilities() {
             <Cell className="lg:col-span-2">
               <Copy
                 icon={Cube}
-                title="One binary, nothing else"
-                body="Hub, device agent, CLI, and MCP server are the same static executable. The web UI is compiled into it."
+                title={t("capabilities.binary.title")}
+                body={t("capabilities.binary.body")}
               />
             </Cell>
 
@@ -123,13 +126,10 @@ export function Capabilities() {
                     className="text-accent"
                   />
                   <h3 className="mt-4 text-[17px] font-semibold tracking-tight">
-                    Updates that can be undone
+                    {t("capabilities.updates.title")}
                   </h3>
                   <p className="mt-2.5 max-w-[52ch] text-[14.5px] leading-relaxed text-fg-muted">
-                    Every download is checked against the release checksums, and
-                    the staged binary has to report the version it claims before
-                    anything is replaced. The previous binary stays on disk, so
-                    one click puts it back.
+                    {t("capabilities.updates.body")}
                   </p>
                 </div>
                 <div className="rounded-control border border-line-2 bg-canvas/70 p-5 font-mono text-[12.5px] leading-[2] text-fg-muted">

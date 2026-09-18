@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { api } from '../api'
 import Boarding, { isHostedOperator, orgNeedsName } from '../components/Boarding'
 import type { HubOutlet } from '../components/Layout'
@@ -137,12 +137,12 @@ export default function CodingPage({
     return (
       <div className="code-empty">
         <div className="code-empty-mark"><span>fx</span></div>
-        <p className="eyebrow mt-7">Coding workspace</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-fg-strong">What should we build?</h1>
+        <p className="eyebrow mt-7">{t('code.emptyEyebrow')}</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.045em] text-fg-strong">{t('code.emptyTitle')}</h1>
         <p className="mt-3 max-w-lg text-center text-sm leading-6 text-fg-subtle">
-          Add a project, choose the PC where its files live, and let fx work there from this browser.
+          {t('code.emptyHint')}
         </p>
-        <button onClick={() => setShowModal(true)} className="btn-primary mt-6">Add your first project</button>
+        <button onClick={() => setShowModal(true)} className="btn-primary mt-6">{t('code.emptyCta')}</button>
         {showModal && (
           <ProjectModal
             connectors={connectors}
@@ -193,9 +193,9 @@ export default function CodingPage({
         <div className="ml-auto flex items-center gap-2">
           <span className="machine-pill">
             <ConnectorIcon />
-            {connector?.name ?? 'Unknown machine'}
+            {connector?.name ?? t('code.unknownMachineName')}
           </span>
-          <button onClick={() => { setEditing(project); setShowModal(true) }} className="toolbar-button" aria-label="Edit project"><SlidersIcon /></button>
+          <button onClick={() => { setEditing(project); setShowModal(true) }} className="toolbar-button"             aria-label={t('code.editAria')}><SlidersIcon /></button>
           <button
             onClick={() => { setDeleteError(''); setShowDelete(true) }}
             className="toolbar-button toolbar-button-danger"
@@ -209,8 +209,18 @@ export default function CodingPage({
       {showLoginHint && (
         <div className="fx-login-hint">
           <span className="fx-wordmark">fx</span>
-          <p><strong>One fx login, every machine.</strong> Type <code>/login</code> below once. Your session stays in this browser while project commands run on <span>{connector?.name}</span>.</p>
-          <button onClick={() => { localStorage.setItem('liveagent.fx.login-hint', 'hidden'); setShowLoginHint(false) }} aria-label="Dismiss login hint">×</button>
+          <p>
+            <Trans
+              i18nKey="code.loginHint"
+              values={{ machine: connector?.name }}
+              components={{
+                strong: <strong />,
+                code: <code />,
+                machine: <span />,
+              }}
+            />
+          </p>
+          <button onClick={() => { localStorage.setItem('liveagent.fx.login-hint', 'hidden'); setShowLoginHint(false) }} aria-label={t('code.loginHintDismissAria')}>×</button>
         </div>
       )}
 
@@ -219,9 +229,9 @@ export default function CodingPage({
       </main>
 
       <footer className="coding-statusbar">
-        <span className="inline-flex items-center gap-1.5"><span className={`node-dot ${connector?.online ? 'node-dot-online' : ''}`} />{connector?.online ? 'Connected' : 'Offline'}</span>
-        <span className="hidden items-center gap-1.5 font-mono min-[480px]:inline-flex">fx / browser runtime</span>
-        <span className="ml-auto hidden sm:inline">Commands execute in {project.path}</span>
+        <span className="inline-flex items-center gap-1.5"><span className={`node-dot ${connector?.online ? 'node-dot-online' : ''}`} />{connector?.online ? t('code.connected') : t('code.offline')}</span>
+        <span className="hidden items-center gap-1.5 font-mono min-[480px]:inline-flex">{t('code.browserRuntime')}</span>
+        <span className="ml-auto hidden sm:inline">{t('code.commandsExecuteIn', { path: project.path })}</span>
       </footer>
 
       {showDelete && (

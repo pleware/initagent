@@ -1,19 +1,20 @@
+import { useTranslation } from "react-i18next";
 import { Reveal } from "../lib/reveal";
 import { HARDWARE_ENQUIRE, STATIONS } from "../lib/hardware";
 
 export function Hardware() {
+  const { t } = useTranslation();
+
   return (
     <main>
       <section className="pt-24 pb-24 lg:pt-32 lg:pb-32">
         <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
           <Reveal className="max-w-[46ch]">
             <h1 className="text-[2rem] leading-[1.1] font-semibold tracking-tight text-balance sm:text-[2.4rem]">
-              Your machines. Our OS.
+              {t("hardware.title")}
             </h1>
             <p className="mt-5 text-[16px] leading-relaxed text-fg-muted">
-              PWARE AI stations ship with PWare already installed and an
-              initagent worker waiting to join a hub. The box is yours. We
-              never host the workers.
+              {t("hardware.body")}
             </p>
           </Reveal>
 
@@ -38,7 +39,7 @@ export function Hardware() {
                     ))}
                   </ul>
                   <p className="mt-6 text-[13.5px] text-fg-subtle">
-                    Price on request
+                    {t("hardware.priceNote")}
                   </p>
                   <a
                     href={HARDWARE_ENQUIRE}
@@ -48,7 +49,7 @@ export function Hardware() {
                         : "border border-line-2 text-fg hover:border-fg-subtle hover:bg-shell"
                     }`}
                   >
-                    Enquire
+                    {t("hardware.enquire")}
                   </a>
                 </article>
               ))}

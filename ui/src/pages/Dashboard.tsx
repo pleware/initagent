@@ -49,20 +49,20 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <section className="mb-7 grid grid-cols-2 overflow-hidden rounded-xl border border-line-2 bg-fill-1 sm:grid-cols-4" aria-label="Fleet summary">
-        <Summary label="Online" value={`${fleet.online}/${fleet.total}`} tone="good" />
-        <Summary label="Platforms" value={String(fleet.platforms)} />
-        <Summary label="High CPU" value={String(fleet.attention)} tone={fleet.attention ? 'warn' : 'muted'} />
-        <Summary label="Remote setup" value="Ready" tone="good" />
+      <section className="mb-7 grid grid-cols-2 overflow-hidden rounded-xl border border-line-2 bg-fill-1 sm:grid-cols-4" aria-label={t('dashboard.fleetSummary')}>
+        <Summary label={t('dashboard.stats.online')} value={`${fleet.online}/${fleet.total}`} tone="good" />
+        <Summary label={t('dashboard.stats.platforms')} value={String(fleet.platforms)} />
+        <Summary label={t('dashboard.stats.highCpu')} value={String(fleet.attention)} tone={fleet.attention ? 'warn' : 'muted'} />
+        <Summary label={t('dashboard.stats.remoteSetup')} value={t('dashboard.stats.ready')} tone="good" />
       </section>
 
       {connectors === null ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((x) => <div key={x} className="surface h-72 animate-pulse rounded-2xl" />)}</div>
       ) : connectors.length === 0 ? (
         <div className="surface rounded-2xl px-6 py-16 text-center">
-          <p className="font-medium text-fg">This fleet is empty</p>
-          <p className="mt-2 text-sm text-fg-subtle">Add your first computer with one install command.</p>
-          <button onClick={() => setShowAdd(true)} className="btn-primary mt-5">Add first connector</button>
+          <p className="font-medium text-fg">{t('dashboard.emptyFleet')}</p>
+          <p className="mt-2 text-sm text-fg-subtle">{t('dashboard.emptyFleetHint')}</p>
+          <button onClick={() => setShowAdd(true)} className="btn-primary mt-5">{t('dashboard.addFirstConnector')}</button>
         </div>
       ) : (
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -81,6 +81,7 @@ function Summary({ label, value, tone = 'muted' }: { label: string; value: strin
 }
 
 function ConnectorCard({ connector: d }: { connector: Connector }) {
+  const { t } = useTranslation()
   const stats = d.stats
   const memory = ratio(stats?.memUsed, stats?.memTotal)
   const disk = ratio(stats?.diskUsed, stats?.diskTotal)
@@ -95,7 +96,7 @@ function ConnectorCard({ connector: d }: { connector: Connector }) {
               <h2 className="truncate font-semibold tracking-tight text-fg-strong group-hover:text-fg-strong">{d.name}</h2>
               {d.isHub && <span className="rounded bg-fill-4 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-fg-muted">hub</span>}
             </div>
-            <p className="mt-0.5 truncate text-[11px] text-fg-faint">{d.hostname || 'hostname unavailable'}</p>
+            <p className="mt-0.5 truncate text-[11px] text-fg-faint">{d.hostname || t('dashboard.hostnameUnavailable')}</p>
           </div>
         </div>
         <span className="shrink-0 font-mono text-[10px] text-fg-faint">{d.os}/{d.arch}</span>
@@ -104,25 +105,25 @@ function ConnectorCard({ connector: d }: { connector: Connector }) {
       {d.online && stats ? (
         <>
           <div className="mt-6 grid grid-cols-3 gap-4">
-            <Meter label="CPU" pct={stats.cpuPercent} value={`${Math.round(stats.cpuPercent)}%`} />
-            <Meter label="Memory" pct={memory} value={`${Math.round(memory)}%`} />
-            <Meter label="Disk" pct={disk} value={`${Math.round(disk)}%`} />
+            <Meter label={t('dashboard.card.cpu')} pct={stats.cpuPercent} value={`${Math.round(stats.cpuPercent)}%`} />
+            <Meter label={t('dashboard.card.memory')} pct={memory} value={`${Math.round(memory)}%`} />
+            <Meter label={t('dashboard.card.disk')} pct={disk} value={`${Math.round(disk)}%`} />
           </div>
           <dl className="mt-6 grid grid-cols-3 gap-x-3 gap-y-4 border-t border-line-1 pt-4">
-            <Fact label="Load" value={stats.load1 ? stats.load1.toFixed(2) : '—'} />
-            <Fact label="Cores" value={String(stats.cpuCores || '—')} />
-            <Fact label="Processes" value={String(stats.processCount || '—')} />
-            <Fact label="Uptime" value={formatDuration(stats.uptimeSec)} />
-            <Fact label="Network" value={network ? formatBytes(network) : '—'} />
-            <Fact label="Agent" value={cleanVersion(d.agentVersion)} />
+            <Fact label={t('dashboard.card.load')} value={stats.load1 ? stats.load1.toFixed(2) : '—'} />
+            <Fact label={t('dashboard.card.cores')} value={String(stats.cpuCores || '—')} />
+            <Fact label={t('dashboard.card.processes')} value={String(stats.processCount || '—')} />
+            <Fact label={t('dashboard.card.uptime')} value={formatDuration(stats.uptimeSec)} />
+            <Fact label={t('dashboard.card.network')} value={network ? formatBytes(network) : '—'} />
+            <Fact label={t('dashboard.card.agent')} value={cleanVersion(d.agentVersion)} />
           </dl>
         </>
       ) : d.online ? (
-        <div className="mt-7 space-y-3"><div className="skeleton h-2 w-full" /><div className="skeleton h-2 w-4/5" /><p className="pt-3 text-xs text-fg-faint">Collecting the first health snapshot…</p></div>
+        <div className="mt-7 space-y-3"><div className="skeleton h-2 w-full" /><div className="skeleton h-2 w-4/5" /><p className="pt-3 text-xs text-fg-faint">{t('dashboard.collectingSnapshot')}</p></div>
       ) : (
-        <div className="flex flex-1 flex-col justify-end pt-12"><p className="text-sm text-fg-subtle">Offline</p><p className="mt-1 text-xs text-fg-ghost">Last seen {timeAgo(d.lastSeen)}</p></div>
+        <div className="flex flex-1 flex-col justify-end pt-12"><p className="text-sm text-fg-subtle">{t('connectors.status.offline')}</p><p className="mt-1 text-xs text-fg-ghost">{t('connectors.lastSeen')} {timeAgo(d.lastSeen)}</p></div>
       )}
-      {d.online && !d.tmux && d.os !== 'windows' && <p className="mt-4 border-t border-warn/10 pt-3 text-xs text-warn-fg/60">Install tmux for reconnectable terminals.</p>}
+      {d.online && !d.tmux && d.os !== 'windows' && <p className="mt-4 border-t border-warn/10 pt-3 text-xs text-warn-fg/60">{t('dashboard.tmuxHint')}</p>}
     </Link>
   )
 }

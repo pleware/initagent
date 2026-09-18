@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api, formatBytes } from '../api'
 import type { FsListing } from '../types'
 
 export default function FileBrowser({ connectorId }: { connectorId: string }) {
+  const { t } = useTranslation()
   const [listing, setListing] = useState<FsListing | null>(null)
   const [error, setError] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -18,10 +20,10 @@ export default function FileBrowser({ connectorId }: { connectorId: string }) {
           ),
         )
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'failed to list directory')
+        setError(e instanceof Error ? e.message : t('fileBrowser.listFailed'))
       }
     },
-    [connectorId],
+    [connectorId, t],
   )
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function FileBrowser({ connectorId }: { connectorId: string }) {
       }
       load(listing.path)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'upload failed')
+      setError(e instanceof Error ? e.message : t('fileBrowser.uploadFailed'))
     } finally {
       setUploading(false)
     }
@@ -73,7 +75,7 @@ export default function FileBrowser({ connectorId }: { connectorId: string }) {
           disabled={!listing || listing.path === '/'}
           className="rounded-lg border border-line-3 px-3 py-1.5 text-sm text-fg-soft hover:bg-sidebar disabled:opacity-40"
         >
-          ↑ Up
+          ↑ {t('fileBrowser.up')}
         </button>
         <code className="flex-1 truncate rounded-lg bg-canvas-sunken px-3 py-1.5 font-mono text-sm text-fg-soft">
           {listing?.path ?? '…'}
@@ -83,7 +85,7 @@ export default function FileBrowser({ connectorId }: { connectorId: string }) {
           disabled={uploading || !listing}
           className="btn-primary"
         >
-          {uploading ? 'Uploading…' : 'Upload here'}
+          {uploading ? t('fileBrowser.uploading') : t('fileBrowser.uploadHere')}
         </button>
         <input
           ref={fileInput}
@@ -103,9 +105,9 @@ export default function FileBrowser({ connectorId }: { connectorId: string }) {
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-canvas text-left text-xs text-fg-subtle">
             <tr>
-              <th className="px-4 py-2 font-medium">Name</th>
-              <th className="w-28 px-4 py-2 font-medium">Size</th>
-              <th className="w-40 px-4 py-2 font-medium">Modified</th>
+              <th className="px-4 py-2 font-medium">{t('fileBrowser.name')}</th>
+              <th className="w-28 px-4 py-2 font-medium">{t('fileBrowser.size')}</th>
+              <th className="w-40 px-4 py-2 font-medium">{t('fileBrowser.modified')}</th>
               <th className="w-24 px-4 py-2" />
             </tr>
           </thead>
@@ -136,16 +138,15 @@ export default function FileBrowser({ connectorId }: { connectorId: string }) {
                       onClick={() => download(e.name)}
                       className="text-xs text-fg-muted hover:text-accent"
                     >
-                      Download
-                    </button>
-                  )}
+                      {t('fileBrowser.download')}
+                    </button>                  )}
                 </td>
               </tr>
             ))}
             {listing && listing.entries.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-4 py-8 text-center text-fg-subtle">
-                  Empty directory
+                  {t('fileBrowser.empty')}
                 </td>
               </tr>
             )}

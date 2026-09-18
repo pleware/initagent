@@ -12,12 +12,12 @@ import ThemeSwitcher from './ThemeSwitcher'
 import { isHostedOperator } from './Boarding'
 
 const links = [
-  { to: '/code', label: 'Code', icon: 'compose' },
-  { to: '/tasks', label: 'Tasks', icon: 'terminal' },
-  { to: '/fleet', label: 'Fleet', icon: 'grid' },
-  { to: '/agents', label: 'Agent runs', icon: 'pulse' },
-  { to: '/setup', label: 'Set up nodes', icon: 'spark' },
-  { to: '/settings', label: 'Settings', icon: 'sliders' },
+  { to: '/code', label: 'layout.navCode', icon: 'compose' },
+  { to: '/tasks', label: 'nav.tasks', icon: 'terminal' },
+  { to: '/fleet', label: 'layout.navFleet', icon: 'grid' },
+  { to: '/agents', label: 'layout.navAgentRuns', icon: 'pulse' },
+  { to: '/setup', label: 'layout.navSetupNodes', icon: 'spark' },
+  { to: '/settings', label: 'nav.settings', icon: 'sliders' },
 ]
 
 export type HubOutlet = {
@@ -90,24 +90,24 @@ function LayoutShell({ me }: { me: Me }) {
 
   return (
     <div className="app-frame">
-      <a href="#main-content" className="skip-link">Skip to content</a>
+      <a href="#main-content" className="skip-link">{t('layout.skipToContent')}</a>
 
       <div className="mobile-bar">
-        <button onClick={() => setMobileOpen(true)} aria-label="Open navigation" className="toolbar-button"><MenuIcon /></button>
+        <button onClick={() => setMobileOpen(true)} aria-label={t('layout.openNavigation')} className="toolbar-button"><MenuIcon /></button>
         <Brand />
-        <span className="ml-auto flex items-center gap-1.5 text-[10px] text-fg-subtle"><span className="node-dot node-dot-online" />online</span>
+        <span className="ml-auto flex items-center gap-1.5 text-[10px] text-fg-subtle"><span className="node-dot node-dot-online" />{t('connectors.status.online')}</span>
       </div>
 
-      {mobileOpen && <button className="sidebar-scrim" onClick={() => setMobileOpen(false)} aria-label="Close navigation" />}
+      {mobileOpen && <button className="sidebar-scrim" onClick={() => setMobileOpen(false)} aria-label={t('layout.closeNavigation')} />}
 
       <aside className={`app-sidebar ${mobileOpen ? 'app-sidebar-open' : ''}`}>
         <div className="sidebar-head">
           <Brand />
           <span className="rounded border border-line-2 px-1.5 py-0.5 font-mono text-[9px] text-fg-faint">fx</span>
-          <button onClick={() => setMobileOpen(false)} className="ml-auto text-fg-faint hover:text-fg-strong lg:hidden" aria-label="Close navigation">×</button>
+          <button onClick={() => setMobileOpen(false)} className="ml-auto text-fg-faint hover:text-fg-strong lg:hidden" aria-label={t('layout.closeNavigation')}>×</button>
         </div>
 
-        <nav className="sidebar-nav" aria-label="Main navigation">
+        <nav className="sidebar-nav" aria-label={t('layout.mainNavigation')}>
           {links.map((link) => (
             <NavLink
               key={link.to}
@@ -117,13 +117,13 @@ function LayoutShell({ me }: { me: Me }) {
               className={({ isActive }) => `sidebar-link ${isActive ? 'sidebar-link-active' : ''}`}
             >
               <NavIcon name={link.icon} />
-              <span>{link.label}</span>
+              <span>{t(link.label)}</span>
             </NavLink>
           ))}
         </nav>
 
         {hubLinks.length > 0 && (
-          <nav className="sidebar-nav" aria-label="Hub navigation">
+          <nav className="sidebar-nav" aria-label={t('layout.hubNavigation')}>
             {hubLinks.map((link) => (
               <NavLink
                 key={link.to}
@@ -153,9 +153,9 @@ function LayoutShell({ me }: { me: Me }) {
 
         <section className="sidebar-projects">
           <div className="sidebar-section-title">
-            <span>Projects</span>
+            <span>{t('layout.projects')}</span>
             {!isHostedOperator(me) && (
-              <NavLink to="/code?new=1" onClick={() => setMobileOpen(false)} aria-label="Add project" className="sidebar-add">+</NavLink>
+              <NavLink to="/code?new=1" onClick={() => setMobileOpen(false)} aria-label={t('layout.addProject')} className="sidebar-add">+</NavLink>
             )}
           </div>
           <div className="space-y-0.5">
@@ -170,7 +170,7 @@ function LayoutShell({ me }: { me: Me }) {
                 <span className="truncate">{project.name}</span>
               </NavLink>
             ))}
-            {railProjects.length === 0 && <p className="px-2 py-3 text-xs leading-5 text-fg-ghost">No projects yet</p>}
+            {railProjects.length === 0 && <p className="px-2 py-3 text-xs leading-5 text-fg-ghost">{t('layout.noProjects')}</p>}
           </div>
         </section>
 
@@ -218,14 +218,14 @@ function LayoutShell({ me }: { me: Me }) {
           </div>
           <div className="min-w-0">
             <p className="truncate text-xs font-medium text-fg-soft">
-              {me.orgs?.[0]?.name ?? me.email ?? 'Personal fleet'}
+              {me.orgs?.[0]?.name ?? me.email ?? t('layout.personalFleet')}
             </p>
             <p className="font-mono text-[9px] text-fg-ghost">{me.version || 'development'}</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <ThemeSwitcher />
             <LanguageSwitcher persist />
-            <button onClick={logout} className="text-[11px] text-fg-faint hover:text-fg">Log out</button>
+            <button onClick={logout} className="text-[11px] text-fg-faint hover:text-fg">{t('auth.logout')}</button>
           </div>
         </footer>
       </aside>

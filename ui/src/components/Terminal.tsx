@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Terminal as Xterm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { wsURL } from '../api'
@@ -16,6 +17,7 @@ export default function Terminal({
   const hostRef = useRef<HTMLDivElement>(null)
   const onExitRef = useRef(onExit)
   onExitRef.current = onExit
+  const { t } = useTranslation()
 
   useEffect(() => {
     const host = hostRef.current
@@ -52,7 +54,7 @@ export default function Terminal({
           const m = JSON.parse(ev.data)
           if (m.type === 'exit') {
             closedByServer = true
-            term.write('\r\n\x1b[90m[session ended')
+            term.write('\r\n\x1b[90m[' + t('terminal.sessionEnded'))
             if (m.error) term.write(`: ${m.error}`)
             term.write(']\x1b[0m\r\n')
             onExitRef.current?.(m.error || '')
@@ -66,7 +68,7 @@ export default function Terminal({
     }
     ws.onclose = () => {
       if (!closedByServer) {
-        term.write('\r\n\x1b[90m[disconnected]\x1b[0m\r\n')
+        term.write('\r\n\x1b[90m[' + t('terminal.disconnected') + ']\x1b[0m\r\n')
         onExitRef.current?.('disconnected')
       }
     }

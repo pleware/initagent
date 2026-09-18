@@ -1,31 +1,34 @@
+import { useTranslation } from "react-i18next";
 import { Reveal } from "../lib/reveal";
 import { ROUTES } from "../lib/routes";
 
-const DOORS = [
-  {
-    href: ROUTES.plans,
-    title: "Plans",
-    body: "Pay for people. We never host workers.",
-  },
-  {
-    href: ROUTES.developers,
-    title: "For Developers",
-    body: "Self-host the same binary. Installers and MCP.",
-  },
-  {
-    href: ROUTES.hardware,
-    title: "Hardware",
-    body: "Stations with PWare already on the disk.",
-  },
-];
-
 export function NextPages() {
+  const { t } = useTranslation();
+
+  const doors = [
+    {
+      href: ROUTES.plans,
+      title: t("nav.plans"),
+      body: t("nextPages.plansBody"),
+    },
+    {
+      href: ROUTES.developers,
+      title: t("nav.developers"),
+      body: t("nextPages.developersBody"),
+    },
+    {
+      href: ROUTES.hardware,
+      title: t("nav.hardware"),
+      body: t("nextPages.hardwareBody"),
+    },
+  ];
+
   return (
     <section className="border-t border-line-1 py-24 lg:py-32">
       <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
         <Reveal>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {DOORS.map((door) => (
+            {doors.map((door) => (
               <a
                 key={door.href}
                 href={door.href}

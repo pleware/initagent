@@ -1,17 +1,19 @@
-import { ApiError } from '../api'
+import { useTranslation } from 'react-i18next'
+import { ApiError, localizeError } from '../api'
 
 const publicPlans = '/plans'
 
 export default function PlanWall({ error }: { error: unknown }) {
+  const { t } = useTranslation()
   if (!(error instanceof ApiError) || error.code !== 'plan_limit') {
     return null
   }
   return (
     <div className="rounded-lg border border-line-2 bg-fill-2 px-3 py-3 text-sm text-fg">
-      <p>{error.message}</p>
-      <p className="mt-2 text-fg-muted">You pay for people. Machines stay yours. We never host workers.</p>
+      <p>{localizeError(error, t)}</p>
+      <p className="mt-2 text-fg-muted">{t('errors.planLimitHint')}</p>
       <a href={publicPlans} className="mt-3 inline-block text-sm underline-offset-2 hover:underline">
-        See plans
+        {t('errors.planLimitCta')}
       </a>
     </div>
   )

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppleLogo, Check, Copy, LinuxLogo, WindowsLogo } from "@phosphor-icons/react";
+import { useTranslation } from "react-i18next";
 import { SITE } from "../lib/site";
 import { Reveal } from "../lib/reveal";
 
@@ -9,7 +10,7 @@ type Platform = {
   icon: typeof LinuxLogo;
   shell: string;
   command: string;
-  note: string;
+  noteKey: string;
 };
 
 const PLATFORMS: Platform[] = [
@@ -19,7 +20,7 @@ const PLATFORMS: Platform[] = [
     icon: LinuxLogo,
     shell: "sh",
     command: `curl -fsSL ${SITE}/install.sh | sh`,
-    note: "Installs a systemd unit. The recommended home for an always-on hub.",
+    noteKey: "install.linuxNote",
   },
   {
     id: "macos",
@@ -27,7 +28,7 @@ const PLATFORMS: Platform[] = [
     icon: AppleLogo,
     shell: "sh",
     command: `curl -fsSL ${SITE}/install-macos.sh | sh`,
-    note: "Runs in your signed-in session and starts again at login. Intel or Apple Silicon.",
+    noteKey: "install.macosNote",
   },
   {
     id: "windows",
@@ -35,26 +36,30 @@ const PLATFORMS: Platform[] = [
     icon: WindowsLogo,
     shell: "powershell",
     command: `irm ${SITE}/install.ps1 | iex`,
-    note: "Windows 10/11 or Server 2016+, x64 or ARM64. Terminals use native ConPTY.",
+    noteKey: "install.windowsNote",
   },
 ];
 
 const BEATS = [
   {
-    title: "Install the hub",
-    body: "One machine runs the hub. It serves the web UI, the API, and the join script on port 4200.",
+    id: "install",
+    titleKey: "install.beats.install.title",
+    bodyKey: "install.beats.install.body",
   },
   {
-    title: "Join a device",
-    body: "The UI hands you a one-line command. Paste it anywhere. The device appears within seconds.",
+    id: "join",
+    titleKey: "install.beats.join.title",
+    bodyKey: "install.beats.join.body",
   },
   {
-    title: "Launch an agent",
-    body: "Pick Claude Code, Codex, or a plain shell, choose a working directory, and watch it run.",
+    id: "launch",
+    titleKey: "install.beats.launch.title",
+    bodyKey: "install.beats.launch.body",
   },
 ];
 
 function CommandBlock({ platform }: { platform: Platform }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -81,12 +86,12 @@ function CommandBlock({ platform }: { platform: Platform }) {
           {copied ? (
             <>
               <Check size={13} weight="bold" className="text-accent" />
-              copied
+              {t("install.copied")}
             </>
           ) : (
             <>
               <Copy size={13} weight="regular" />
-              copy
+              {t("install.copy")}
             </>
           )}
         </button>
@@ -102,6 +107,7 @@ function CommandBlock({ platform }: { platform: Platform }) {
 }
 
 export function Install() {
+  const { t } = useTranslation();
   const [active, setActive] = useState(PLATFORMS[0]);
 
   return (
@@ -109,22 +115,20 @@ export function Install() {
       <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
         <Reveal className="max-w-[46ch]">
           <p className="font-mono text-[12px] tracking-wide text-accent">
-            Self-host
+            {t("nav.selfHost")}
           </p>
           <h2 className="mt-3 text-[2rem] leading-[1.1] font-semibold tracking-tight text-balance sm:text-[2.4rem]">
-            Run the hub on your machine. €0, single user.
+            {t("install.title")}
           </h2>
           <p className="mt-5 text-[16px] leading-relaxed text-fg-muted">
-            Same binary as the hosted hub. One paste per device — no SSH keys,
-            no port forwarding. Connectors dial out over a single WebSocket, so
-            NAT and firewalls stay as they are. We never see your fleet.
+            {t("install.body")}
           </p>
         </Reveal>
 
         <Reveal delay={0.08} className="mt-10">
           <div
             role="tablist"
-            aria-label="Hub install command by operating system"
+            aria-label={t("install.tabsAriaLabel")}
             className="mb-3 flex flex-wrap gap-1.5"
           >
             {PLATFORMS.map((p) => {
@@ -150,23 +154,23 @@ export function Install() {
           </div>
 
           <CommandBlock platform={active} />
-          <p className="mt-3 text-[13.5px] text-fg-subtle">{active.note}</p>
+          <p className="mt-3 text-[13.5px] text-fg-subtle">{t(active.noteKey)}</p>
         </Reveal>
 
         <Reveal delay={0.14}>
           <ol className="mt-16 grid grid-cols-1 gap-px overflow-hidden rounded-panel border border-line-2 bg-line-2 sm:grid-cols-3">
             {BEATS.map((b, i) => (
-              <li key={b.title} className="bg-sidebar px-6 py-7">
+              <li key={b.id} className="bg-sidebar px-6 py-7">
                 <div className="flex items-baseline gap-3">
                   <span className="font-mono text-[12px] text-accent">
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <h3 className="text-[15.5px] font-semibold tracking-tight">
-                    {b.title}
+                    {t(b.titleKey)}
                   </h3>
                 </div>
                 <p className="mt-2.5 text-[14px] leading-relaxed text-fg-muted">
-                  {b.body}
+                  {t(b.bodyKey)}
                 </p>
               </li>
             ))}

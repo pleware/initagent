@@ -312,7 +312,7 @@ function StaffForm({
             type="text"
             value={locale}
             onChange={(e) => setLocale(e.target.value)}
-            placeholder="pl"
+            placeholder={t('staff.localePlaceholder')}
             className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
           />
         </label>

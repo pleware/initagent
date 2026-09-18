@@ -1,12 +1,21 @@
+import { useTranslation } from "react-i18next";
 import { Reveal } from "../lib/reveal";
 
-const GROUPS = [
+type ToolGroup = {
+  id: string;
+  labelKey: string;
+  tools: string[];
+};
+
+const GROUPS: ToolGroup[] = [
   {
-    group: "Connectors",
+    id: "connectors",
+    labelKey: "fleet.groups.connectors",
     tools: ["list_connectors", "run_command"],
   },
   {
-    group: "Sessions",
+    id: "sessions",
+    labelKey: "fleet.groups.sessions",
     tools: [
       "list_sessions",
       "create_session",
@@ -16,25 +25,25 @@ const GROUPS = [
     ],
   },
   {
-    group: "Files",
+    id: "files",
+    labelKey: "fleet.groups.files",
     tools: ["list_files", "read_file", "write_file"],
   },
 ];
 
 export function FleetAgents() {
+  const { t } = useTranslation();
+
   return (
     <section id="agents" className="border-t border-line-1 py-24 lg:py-32">
       <div className="mx-auto grid max-w-[1240px] grid-cols-1 gap-14 px-5 lg:grid-cols-12 lg:gap-16 lg:px-8">
         <div className="lg:col-span-5">
           <Reveal>
             <h2 className="text-[2rem] leading-[1.1] font-semibold tracking-tight text-balance sm:text-[2.4rem]">
-              Let a coding agent run the fleet.
+              {t("fleet.title")}
             </h2>
             <p className="mt-5 max-w-[48ch] text-[16px] leading-relaxed text-fg-muted">
-              Claude Code, Codex, and Cursor connect over MCP and treat every
-              joined machine as one workspace. The hub also serves the same
-              tools over HTTP, so ChatGPT and any other remote connector can
-              reach them.
+              {t("fleet.body")}
             </p>
           </Reveal>
 
@@ -56,12 +65,10 @@ export function FleetAgents() {
           <Reveal delay={0.14}>
             <figure className="mt-8 border-l-2 border-accent/60 pl-5">
               <blockquote className="text-[16px] leading-relaxed text-fg italic">
-                &ldquo;Launch claude in ~/projects/api on the homelab box, have
-                it fix the failing tests, then report back.&rdquo;
+                {t("fleet.quote")}
               </blockquote>
               <figcaption className="mt-2.5 text-[13.5px] text-fg-subtle">
-                The kind of instruction the senior agent turns into work on
-                another machine.
+                {t("fleet.quoteCaption")}
               </figcaption>
             </figure>
           </Reveal>
@@ -72,25 +79,25 @@ export function FleetAgents() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {GROUPS.map((g) => (
                 <div
-                  key={g.group}
+                  key={g.id}
                   className={`rounded-panel border border-line-2 bg-sidebar p-5 ${
                     // Sessions carries the most tools, so it takes the tall
                     // right-hand cell and the other two stack beside it.
-                    g.group === "Sessions"
+                    g.id === "sessions"
                       ? "sm:col-start-2 sm:row-span-2 sm:row-start-1"
                       : ""
                   }`}
                 >
                   <h3 className="text-[14.5px] font-semibold tracking-tight">
-                    {g.group}
+                    {t(g.labelKey)}
                   </h3>
                   <ul className="mt-4 flex flex-wrap gap-2">
-                    {g.tools.map((t) => (
+                    {g.tools.map((tool) => (
                       <li
-                        key={t}
+                        key={tool}
                         className="rounded-control border border-line-2 bg-shell px-2.5 py-1.5 font-mono text-[12px] text-fg-muted"
                       >
-                        {t}
+                        {tool}
                       </li>
                     ))}
                   </ul>
@@ -99,7 +106,7 @@ export function FleetAgents() {
 
               <div className="rounded-panel border border-accent/25 bg-accent/10 p-5 sm:col-span-2">
                 <h3 className="text-[14.5px] font-semibold tracking-tight">
-                  Same tools from the CLI
+                  {t("fleet.cliTitle")}
                 </h3>
                 <div className="mt-4 overflow-x-auto font-mono text-[12px] leading-[2] whitespace-pre text-fg-muted">
                   <div>initagent fleet connectors</div>

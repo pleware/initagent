@@ -349,7 +349,11 @@ export default function TeamPage({
                 },
                 {
                   header: t('team.role'),
-                  cell: (inv) => <span className="text-fg-muted">{inv.role}</span>,
+                  cell: (inv) => (
+                    <span className="text-fg-muted">
+                      {t('orgs.roles.' + inv.role, { defaultValue: inv.role })}
+                    </span>
+                  ),
                 },
                 {
                   header: t('team.expires'),

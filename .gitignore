@@ -44,6 +44,8 @@
 
 # Local dev data
 /tmp/
+/ui/tmp/
+/site/tmp/
 *.db
 *.db-shm
 *.db-wal

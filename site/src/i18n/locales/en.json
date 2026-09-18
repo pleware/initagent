@@ -29,5 +29,193 @@
     "selfHost": "Self-host",
     "note": "One free project on our hub. From €5 per person after that. Self-host is €0. Machines stay yours.",
     "shotAlt": "The initagent fleet dashboard showing a connected device with live CPU, memory and disk readings."
+  },
+  "fleet": {
+    "title": "Let a coding agent run the fleet.",
+    "body": "Claude Code, Codex, and Cursor connect over MCP and treat every joined machine as one workspace. The hub also serves the same tools over HTTP, so ChatGPT and any other remote connector can reach them.",
+    "quote": "“Launch claude in ~/projects/api on the homelab box, have it fix the failing tests, then report back.”",
+    "quoteCaption": "The kind of instruction the senior agent turns into work on another machine.",
+    "cliTitle": "Same tools from the CLI",
+    "groups": {
+      "connectors": "Connectors",
+      "sessions": "Sessions",
+      "files": "Files"
+    }
+  },
+  "install": {
+    "title": "Run the hub on your machine. €0, single user.",
+    "body": "Same binary as the hosted hub. One paste per device — no SSH keys, no port forwarding. Connectors dial out over a single WebSocket, so NAT and firewalls stay as they are. We never see your fleet.",
+    "copy": "copy",
+    "copied": "copied",
+    "tabsAriaLabel": "Hub install command by operating system",
+    "linuxNote": "Installs a systemd unit. The recommended home for an always-on hub.",
+    "macosNote": "Runs in your signed-in session and starts again at login. Intel or Apple Silicon.",
+    "windowsNote": "Windows 10/11 or Server 2016+, x64 or ARM64. Terminals use native ConPTY.",
+    "beats": {
+      "install": {
+        "title": "Install the hub",
+        "body": "One machine runs the hub. It serves the web UI, the API, and the join script on port 4200."
+      },
+      "join": {
+        "title": "Join a device",
+        "body": "The UI hands you a one-line command. Paste it anywhere. The device appears within seconds."
+      },
+      "launch": {
+        "title": "Launch an agent",
+        "body": "Pick Claude Code, Codex, or a plain shell, choose a working directory, and watch it run."
+      }
+    }
+  },
+  "capabilities": {
+    "heading": "What you get the moment a device joins.",
+    "sessions": {
+      "title": "Sessions survive you",
+      "body": "Terminals run in tmux on the device itself. Shut the laptop, reopen on your phone, the agent is still mid-task."
+    },
+    "terminal": {
+      "title": "A real terminal in the browser",
+      "shotAlt": "An initagent browser terminal attached to a live shell session on a joined device."
+    },
+    "files": {
+      "title": "Browse and move files across connectors",
+      "shotAlt": "The initagent file browser listing directories on a remote device."
+    },
+    "binary": {
+      "title": "One binary, nothing else",
+      "body": "Hub, device agent, CLI, and MCP server are the same static executable. The web UI is compiled into it."
+    },
+    "updates": {
+      "title": "Updates that can be undone",
+      "body": "Every download is checked against the release checksums, and the staged binary has to report the version it claims before anything is replaced. The previous binary stays on disk, so one click puts it back."
+    }
+  },
+  "how": {
+    "heading": "One outbound WebSocket per device.",
+    "body": "Terminal streams, machine stats, file transfers, and control all share the same connection. Nothing dials in to your connectors.",
+    "browser": "Your browser",
+    "browserSub": "desktop or phone",
+    "hub": "Hub",
+    "hubSub": "web UI, API, SQLite",
+    "outbound": "one WebSocket, dialed out",
+    "nodeMacbook": "MacBook",
+    "launchd": "launchd",
+    "nodeHomelab": "Homelab",
+    "systemd": "systemd",
+    "nodeCloud": "Cloud VM",
+    "agentsFootnote": "Each agent handles PTYs, tmux sessions, machine stats, and file access on its own box."
+  },
+  "code": {
+    "title": "initagent Code",
+    "badge": "in development",
+    "intro": "initagent already drives other people’s coding agents. The next piece is our own: a coding agent that treats your machines as one place to work, not one laptop at a time.",
+    "intent": {
+      "startTitle": "It starts with more than one machine",
+      "startBody": "Most coding agents assume a single working directory on a single laptop. This one is handed a fleet, and plans against it.",
+      "walkTitle": "Work you can walk away from",
+      "walkBody": "Runs inside a persistent session on the target device, so closing the lid does not end the task. Pick it back up from a phone.",
+      "installTitle": "Nothing extra to install",
+      "installBody": "Same static binary as the hub, the agent, and the CLI. If a device has joined, it is already there."
+    },
+    "waitlist": {
+      "done": "You are on the list. We will write once, when it ships.",
+      "email": "Email",
+      "placeholder": "you@example.com",
+      "sending": "Sending",
+      "notify": "Notify me",
+      "invalid": "That address does not look right. Check it and try again.",
+      "error": "That did not go through. Try again in a moment.",
+      "quiet": "One email when it ships. Nothing else."
+    },
+    "watchReleases": "Watch releases",
+    "githubHint": "GitHub will tell you the moment it lands."
+  },
+  "developers": {
+    "title": "Run the same binary on your machines.",
+    "body": "Self-host is €0. Install the hub, join a device, launch an agent. We never host your workers."
+  },
+  "exposure": {
+    "warningTitle": "Read this before you put it on the internet.",
+    "warningBeforeCode": "initagent binds to",
+    "warningAfterCode": "over plain HTTP, which is right for a trusted LAN and wrong for a public address. The MCP endpoint is effectively a remote shell: anyone holding a valid API token can run commands and write files on every joined device. Treat that token like an SSH key, keep the endpoint behind TLS, and rotate it in Settings if it leaks.",
+    "routes": {
+      "letsEncrypt": {
+        "title": "Built-in Let's Encrypt",
+        "body": "Point a domain at the machine, open 80 and 443, and the hub obtains and renews a real certificate itself."
+      },
+      "tailscale": {
+        "title": "Tailscale",
+        "body": "Put the hub and your phone on the same tailnet and browse to its tailnet address. No open ports, no domain."
+      },
+      "proxy": {
+        "title": "A TLS reverse proxy",
+        "body": "Caddy, nginx, or Traefik in front of the single hub port, if you already run one."
+      }
+    }
+  },
+  "hardware": {
+    "title": "Your machines. Our OS.",
+    "body": "PWARE AI stations ship with PWare already installed and an initagent worker waiting to join a hub. The box is yours. We never host the workers.",
+    "priceNote": "Price on request",
+    "enquire": "Enquire",
+    "stations": {
+      "one16": {
+        "role": "One GPU. A first box.",
+        "gpu": "16 GB GPU memory on one card"
+      },
+      "duo2x16": {
+        "role": "Two cards. The station we recommend.",
+        "gpu": "2×16 GB GPU memory, not one shared 32 GB pool"
+      },
+      "pro24ecc": {
+        "role": "One professional GPU, ECC memory.",
+        "gpu": "24 GB ECC GPU memory on one card"
+      },
+      "preinstalled": "PWare OS preinstalled",
+      "workerReady": "initagent worker ready to join a hub"
+    }
+  },
+  "nextPages": {
+    "plansBody": "Pay for people. We never host workers.",
+    "developersBody": "Self-host the same binary. Installers and MCP.",
+    "hardwareBody": "Stations with PWare already on the disk."
+  },
+  "notFound": {
+    "title": "This page is not here.",
+    "body": "The address does not match a page on this site.",
+    "back": "Back to {{name}}"
+  },
+  "plans": {
+    "title": "Pay for people. Machines stay yours.",
+    "body": "You pay for each person in the organization. Free, Starter, and Team plug in machines you already run. Enterprise is still your hardware — with our OS (PWare) on the disk. We never host workers.",
+    "cards": {
+      "free": {
+        "name": "Free",
+        "period": "one person"
+      },
+      "starter": {
+        "name": "Starter"
+      },
+      "team": {
+        "name": "Team"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "period": "no public price",
+        "cta": "Contact sales",
+        "extra": "Your machines, running PWare"
+      },
+      "perPersonMonth": "per person / month",
+      "people_one": "{{count}} person",
+      "people_other": "{{count}} people",
+      "projects_one": "{{count}} project",
+      "projects_other": "{{count}} projects",
+      "projectsUnlimited": "No project cap",
+      "machinesUnlimited": "No machine cap",
+      "machinesOnProject": "{{count}} of your machines on that project",
+      "machinesPerProject": "{{count}} of your machines per project"
+    },
+    "price": {
+      "talkToUs": "Talk to us"
+    }
   }
 }

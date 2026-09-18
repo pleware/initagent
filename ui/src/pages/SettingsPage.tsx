@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useMemo, useState, type ComponentType, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { ArrowClockwiseIcon, KeyIcon, PlugsConnectedIcon, RocketLaunchIcon, ShieldCheckIcon } from '@phosphor-icons/react'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@ia/web/ui/accordion'
@@ -68,6 +68,7 @@ function SettingsPanel({
 }
 
 function SoftwareUpdates() {
+  const { t } = useTranslation()
   const [status, setStatus] = useState<UpdateStatus | null>(null)
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
@@ -85,16 +86,16 @@ function SoftwareUpdates() {
     setBusy(action)
     setMessage('')
     try {
-      if (action === 'rollback' && !confirm(`Restore ${status?.rollbackVersion}? The hub will restart.`)) return
+      if (action === 'rollback' && !confirm(t('settings.updates.rollbackConfirm', { version: status?.rollbackVersion }))) return
       const next = await api.post<UpdateStatus | { ok: boolean }>(`/api/updates/${action}`)
       if ('currentVersion' in next) setStatus(next)
       if (action !== 'check') {
-        setMessage(action === 'install' ? 'Verified update is installing. The hub will restart automatically.' : 'Previous version is being restored. The hub will restart automatically.')
+        setMessage(action === 'install' ? t('settings.updates.installStarted') : t('settings.updates.rollbackStarted'))
         setTimeout(() => location.reload(), 7000)
       }
       await load()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Update action failed')
+      setMessage(error instanceof Error ? error.message : t('settings.updates.actionFailed'))
     } finally {
       setBusy('')
     }
@@ -107,7 +108,7 @@ function SoftwareUpdates() {
       await api.patch('/api/updates', { autoUpdate: enabled })
     } catch (error) {
       setStatus({ ...status, autoUpdate: !enabled })
-      setMessage(error instanceof Error ? error.message : 'Could not save update preference')
+      setMessage(error instanceof Error ? error.message : t('settings.updates.saveFailed'))
     }
   }
 
@@ -115,13 +116,13 @@ function SoftwareUpdates() {
     <div>
       <div className="flex flex-col gap-4">
         <p className="max-w-xl text-sm leading-6 text-fg-muted">
-          Stable releases are checksum-verified, tested before replacement, and keep one previous version ready for rollback.
+          {t('settings.updates.blurb')}
           {status?.updateAvailable ? (
-            <span className="ml-2 rounded-full bg-accent/10 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-accent">Update ready</span>
+            <span className="ml-2 rounded-full bg-accent/10 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-accent">{t('settings.updates.updateReady')}</span>
           ) : null}
         </p>
         <label className="flex items-center gap-3 text-sm text-fg-soft">
-          <span>Auto-update</span>
+          <span>{t('settings.updates.autoUpdate')}</span>
           <input
             type="checkbox"
             checked={status?.autoUpdate ?? true}
@@ -133,24 +134,24 @@ function SoftwareUpdates() {
       </div>
 
       <div className="mt-5 grid gap-px overflow-hidden rounded-xl border border-line-2 bg-sidebar sm:grid-cols-3">
-        <div className="bg-canvas-sunken/70 p-4"><p className="eyebrow">Installed</p><p className="mt-2 font-mono text-sm text-fg">{status?.currentVersion || 'Loading…'}</p></div>
-        <div className="bg-canvas-sunken/70 p-4"><p className="eyebrow">Stable release</p><p className="mt-2 font-mono text-sm text-fg">{status?.latestVersion || 'Not checked'}</p></div>
-        <div className="bg-canvas-sunken/70 p-4"><p className="eyebrow">Connector fleet</p><p className="mt-2 text-sm text-fg">{status ? `${status.fleetTotal - status.fleetOutdated}/${status.fleetTotal} current` : 'Loading…'}</p></div>
+        <div className="bg-canvas-sunken/70 p-4"><p className="eyebrow">{t('settings.updates.installed')}</p><p className="mt-2 font-mono text-sm text-fg">{status?.currentVersion || t('common.loading')}</p></div>
+        <div className="bg-canvas-sunken/70 p-4"><p className="eyebrow">{t('settings.updates.stableRelease')}</p><p className="mt-2 font-mono text-sm text-fg">{status?.latestVersion || t('settings.updates.notChecked')}</p></div>
+        <div className="bg-canvas-sunken/70 p-4"><p className="eyebrow">{t('settings.updates.connectorFleet')}</p><p className="mt-2 text-sm text-fg">{status ? t('settings.updates.fleetCurrent', { current: status.fleetTotal - status.fleetOutdated, total: status.fleetTotal }) : t('common.loading')}</p></div>
       </div>
 
       {!status?.managed && status && (
         <p className="mt-4 rounded-lg border border-warn/20 bg-warn/5 p-3 text-xs leading-5 text-warn-fg/80">
-          This is a standalone/debug run. It can check releases, but automatic replacement is enabled after installing initagent as a background service. You can also run <code className="font-mono">initagent update</code> manually.
+          <Trans i18nKey="settings.updates.standaloneHint" components={{ code: <code className="font-mono" /> }} />
         </p>
       )}
       {(message || status?.error) && <p className="mt-4 text-xs leading-5 text-fg-muted">{message || status?.error}</p>}
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <button className="btn-secondary" disabled={!!busy} onClick={() => run('check')}>{busy === 'check' ? 'Checking…' : 'Check now'}</button>
-        {status?.updateAvailable && status.managed && <button className="btn-primary" disabled={!!busy} onClick={() => run('install')}>{busy === 'install' ? 'Installing…' : `Install ${status.latestVersion}`}</button>}
-        {status?.rollbackVersion && status.managed && <button className="btn-secondary" disabled={!!busy} onClick={() => run('rollback')}>Restore {status.rollbackVersion}</button>}
+        <button className="btn-secondary" disabled={!!busy} onClick={() => run('check')}>{busy === 'check' ? t('settings.updates.checking') : t('settings.updates.checkNow')}</button>
+        {status?.updateAvailable && status.managed && <button className="btn-primary" disabled={!!busy} onClick={() => run('install')}>{busy === 'install' ? t('settings.updates.installing') : t('settings.updates.install', { version: status.latestVersion })}</button>}
+        {status?.rollbackVersion && status.managed && <button className="btn-secondary" disabled={!!busy} onClick={() => run('rollback')}>{t('settings.updates.restore', { version: status.rollbackVersion })}</button>}
       </div>
-      {status?.lastChecked ? <p className="mt-3 text-[11px] text-fg-faint">Last checked {timeAgo(status.lastChecked)} · managed agents retry automatically and update to the hub release.</p> : null}
+      {status?.lastChecked ? <p className="mt-3 text-[11px] text-fg-faint">{t('settings.updates.lastChecked', { ago: timeAgo(status.lastChecked) })}</p> : null}
     </div>
   )
 }
@@ -177,6 +178,7 @@ function scopeGroups(scopes: string[]) {
 // sits apart and unchecked: it is the one scope whose misuse is not a data
 // leak but a command running on someone's machine.
 function ApiTokens({ me }: { me: Me }) {
+  const { t } = useTranslation()
   const memberships = me.orgs ?? []
   const catalogue = me.tokenScopes ?? []
 
@@ -246,16 +248,16 @@ function ApiTokens({ me }: { me: Me }) {
       setChosen([])
       load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not mint the token')
+      setError(err instanceof Error ? err.message : t('settings.adminTokensPanel.createError'))
     }
   }
 
   const revoke = async (id: string) => {
-    if (!confirm('Revoke this token? Anything using it will lose access.')) return
+    if (!confirm(t('settings.tokens.revokeConfirm'))) return
     try {
       await api.del(`/api/tokens/${id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not revoke the token')
+      setError(err instanceof Error ? err.message : t('settings.adminTokensPanel.revokeError'))
     }
     load()
   }
@@ -263,17 +265,12 @@ function ApiTokens({ me }: { me: Me }) {
   return (
     <div>
       <p className="mb-4 text-sm text-fg-muted">
-        For the <code className="text-accent">initagent fleet</code> CLI and
-        the MCP server — this is how your coding agents get hands on the fleet.
-        A token never exceeds your own permissions, and it stops working the
-        moment you leave the organization it names.
+        <Trans i18nKey="settings.tokens.intro" components={{ code: <code className="text-accent" /> }} />
       </p>
 
       {memberships.length === 0 ? (
         <p className="mb-4 rounded-lg border border-warn/20 bg-warn/5 p-3 text-xs leading-5 text-warn-fg/80">
-          A token acts as a person inside an organization, and this session
-          belongs to none. Create an organization first, or sign in with an
-          account that is a member of one.
+          {t('settings.tokens.noMembershipHint')}
         </p>
       ) : (
         <form onSubmit={create} className="mb-5 flex flex-col gap-3">
@@ -281,7 +278,7 @@ function ApiTokens({ me }: { me: Me }) {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="token name, e.g. senior-agent"
+              placeholder={t('settings.tokens.namePlaceholder')}
               required
               className={`${inputClass} flex-1`}
             />
@@ -293,7 +290,7 @@ function ApiTokens({ me }: { me: Me }) {
                 setProjectId('')
               }}
               className="min-w-40"
-              aria-label="Organization"
+              aria-label={t('settings.tokens.organization')}
               items={memberships.map((m) => ({ value: m.orgId, label: m.name }))}
             />
             <SimpleSelect
@@ -301,16 +298,16 @@ function ApiTokens({ me }: { me: Me }) {
               value={projectId}
               onValueChange={setProjectId}
               className="min-w-40"
-              aria-label="Project"
+              aria-label={t('settings.tokens.project')}
               items={[
-                { value: '', label: 'every project in this organization' },
+                { value: '', label: t('settings.tokens.everyProject') },
                 ...narrowable.map((p) => ({ value: p.id, label: p.name })),
               ]}
             />
           </div>
 
           <fieldset className="rounded-xl border border-line-2 p-4">
-            <legend className="eyebrow px-1">What it may do</legend>
+            <legend className="eyebrow px-1">{t('settings.adminTokensPanel.scopesLegend')}</legend>
             <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
               {safe.map(([entity, group]) => (
                 <div key={entity}>
@@ -335,8 +332,7 @@ function ApiTokens({ me }: { me: Me }) {
             {dangerous.length > 0 && (
               <div className="mt-4 rounded-lg border border-fail/25 bg-fail/5 p-3">
                 <p className="mb-2 text-xs leading-5 text-fail-fg/80">
-                  Running a command is not reading data. Anything holding one
-                  of these can execute code on the machines in scope.
+                  {t('settings.tokens.dangerousHint')}
                 </p>
                 {dangerous.map(({ scope }) => (
                   <label key={scope} className="flex items-center gap-2 py-0.5 text-sm text-fail-fg">
@@ -355,12 +351,12 @@ function ApiTokens({ me }: { me: Me }) {
 
           <div className="flex items-center gap-3">
             <button className="btn-primary" disabled={chosen.length === 0}>
-              Create
+              {t('settings.adminTokensPanel.create')}
             </button>
             <span className="text-xs text-fg-subtle">
               {chosen.length === 0
-                ? 'Pick at least one thing it may do.'
-                : `${chosen.length} scope${chosen.length === 1 ? '' : 's'} selected`}
+                ? t('settings.adminTokensPanel.pickOne')
+                : t('settings.tokens.selected', { count: chosen.length })}
             </span>
           </div>
         </form>
@@ -374,7 +370,7 @@ function ApiTokens({ me }: { me: Me }) {
       {fresh && (
         <div className="mb-4 rounded-lg border border-ok/30 bg-ok/10 p-3">
           <p className="mb-2 text-xs text-ok">
-            Copy this now — it won't be shown again:
+            {t('settings.adminTokensPanel.copyNow')}
           </p>
           <code className="block overflow-x-auto whitespace-nowrap font-mono text-[13px] text-ok">
             {fresh}
@@ -382,16 +378,16 @@ function ApiTokens({ me }: { me: Me }) {
         </div>
       )}
       <ul className="divide-y divide-line-2/60">
-        {tokens.map((t) => (
-          <li key={t.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+        {tokens.map((token) => (
+          <li key={token.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
             <div className="min-w-0">
-              <p className="text-sm text-fg">{t.name}</p>
+              <p className="text-sm text-fg">{token.name}</p>
               <p className="mt-0.5 text-xs text-fg-subtle">
-                {orgName(t.orgId)}
-                {t.projectId ? ` · ${projectName(t.projectId)}` : ' · every project'}
+                {orgName(token.orgId)}
+                {token.projectId ? ` · ${projectName(token.projectId)}` : t('settings.tokens.everyProjectShort')}
               </p>
               <p className="mt-1 flex flex-wrap gap-1">
-                {t.scopes.map((scope) => (
+                {token.scopes.map((scope) => (
                   <span
                     key={scope}
                     className={`rounded px-1.5 py-0.5 font-mono text-[10px] ${
@@ -407,19 +403,21 @@ function ApiTokens({ me }: { me: Me }) {
             </div>
             <span className="flex items-center gap-4">
               <span className="text-xs text-fg-subtle">
-                {t.lastUsedAt ? `used ${timeAgo(t.lastUsedAt)}` : 'never used'}
+                {token.lastUsedAt
+                  ? t('settings.adminTokensPanel.used', { ago: timeAgo(token.lastUsedAt) })
+                  : t('settings.adminTokensPanel.neverUsed')}
               </span>
               <button
-                onClick={() => revoke(t.id)}
+                onClick={() => revoke(token.id)}
                 className="text-xs text-fg-subtle hover:text-fail-fg"
               >
-                Revoke
+                {t('settings.adminTokensPanel.revoke')}
               </button>
             </span>
           </li>
         ))}
         {tokens.length === 0 && (
-          <li className="py-2 text-sm text-fg-subtle">No tokens yet.</li>
+          <li className="py-2 text-sm text-fg-subtle">{t('settings.adminTokensPanel.none')}</li>
         )}
       </ul>
     </div>
@@ -580,6 +578,7 @@ function AdminTokens({ me }: { me: Me }) {
 }
 
 function Presets() {
+  const { t } = useTranslation()
   const [presets, setPresets] = useState<Preset[]>([])
   const [name, setName] = useState('')
   const [command, setCommand] = useState('')
@@ -609,24 +608,24 @@ function Presets() {
   return (
     <div>
       <p className="mb-4 text-sm text-fg-muted">
-        One-click commands in the Launch dialog. Add your favorite agents.
+        {t('settings.presets.hint')}
       </p>
       <form onSubmit={create} className="mb-4 flex flex-col gap-2 sm:flex-row">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="name, e.g. Aider"
+          placeholder={t('settings.presets.namePlaceholder')}
           required
           className={`${inputClass} w-full sm:w-40`}
         />
         <input
           value={command}
           onChange={(e) => setCommand(e.target.value)}
-          placeholder="command, e.g. aider"
+          placeholder={t('settings.presets.commandPlaceholder')}
           className={`${inputClass} flex-1 font-mono`}
         />
         <button className="btn-primary">
-          Add
+          {t('common.add')}
         </button>
       </form>
       <ul className="divide-y divide-line-2/60">
@@ -635,13 +634,13 @@ function Presets() {
             <span className="text-sm text-fg">{p.name}</span>
             <span className="flex items-center gap-4">
               <code className="font-mono text-xs text-fg-muted">
-                {p.command || '(shell)'}
+                {p.command || t('settings.presets.shellFallback')}
               </code>
               <button
                 onClick={() => remove(p.id)}
                 className="text-xs text-fg-subtle hover:text-fail-fg"
               >
-                Delete
+                {t('common.delete')}
               </button>
             </span>
           </li>
@@ -652,48 +651,36 @@ function Presets() {
 }
 
 function McpHelp() {
+  const { t } = useTranslation()
   const origin = location.origin
   return (
     <div>
       <p className="mb-4 text-sm text-fg-muted">
-        Run a coding agent on any machine with the{' '}
-        <code className="text-accent">initagent</code> binary and an API token,
-        and it can see every connector, launch worker agents, read their output,
-        and steer them. For Claude Code:
+        <Trans i18nKey="settings.mcp.intro" components={{ code: <code className="text-accent" /> }} />
       </p>
       <pre className="overflow-x-auto rounded-lg border border-line-3 bg-canvas-sunken p-4 font-mono text-[13px] leading-relaxed text-fg-soft">
         {`initagent fleet login --hub ${origin} --token YOUR_API_TOKEN
 claude mcp add initagent -- initagent mcp`}
       </pre>
       <p className="mt-3 text-xs text-fg-subtle">
-        Then ask it things like “launch claude in ~/projects/api on the
-        homelab box and have it fix the failing tests.”
+        {t('settings.mcp.thenAsk')}
       </p>
       <p className="mt-2 text-xs text-fg-subtle">
-        An agent needs the connector, task and terminal scopes to do that, plus{' '}
-        <code className="font-mono text-fg-muted">exec:fleet.connector</code> if
-        you want it running commands directly. If a tool comes back refused,
-        the hub names the scope the token is missing — mint a new one with it
-        rather than widening the old.
+        <Trans i18nKey="settings.mcp.scopesHint" components={{ code: <code className="font-mono text-fg-muted" /> }} />
       </p>
 
       <div className="mt-6 border-t border-line-2 pt-5">
         <h3 className="mb-1 text-sm font-medium text-fg-strong">
-          Remote MCP (ChatGPT, Claude, Cursor)
+          {t('settings.mcp.remoteTitle')}
         </h3>
         <p className="mb-3 text-sm text-fg-muted">
-          Any client that supports remote MCP connectors can drive your fleet
-          over HTTPS. Add this endpoint and paste an API token as the Bearer
-          credential:
+          {t('settings.mcp.remoteIntro')}
         </p>
         <pre className="overflow-x-auto rounded-lg border border-line-3 bg-canvas-sunken p-4 font-mono text-[13px] leading-relaxed text-fg-soft">
           {`${origin.replace(/^http:/, 'https:')}/mcp`}
         </pre>
         <div className="mt-3 rounded-lg border border-warn/25 bg-warn/8 p-3 text-xs text-warn-fg/90">
-          ⚠️ This is a remote shell — the tools run commands and write files on
-          your connectors. Only expose it over HTTPS ({''}
-          <code className="font-mono">--tls-domain</code> or a TLS proxy), and
-          treat the API token like an SSH key. Revoke it above if it leaks.
+          <Trans i18nKey="settings.mcp.remoteWarning" components={{ code: <code className="font-mono" /> }} />
         </div>
       </div>
     </div>

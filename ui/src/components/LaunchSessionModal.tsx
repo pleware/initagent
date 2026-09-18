@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api } from '../api'
 import type { Connector, Preset } from '../types'
@@ -16,6 +17,7 @@ export default function LaunchSessionModal({
   onLaunched: (connectorId: string, session: string) => void
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const online = connectors.filter((d) => d.online)
   const [connectorId, setConnectorId] = useState(online[0]?.id ?? '')
   const [presets, setPresets] = useState<Preset[]>([])
@@ -61,7 +63,7 @@ export default function LaunchSessionModal({
       })
       onLaunched(connectorId, name)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'failed to launch')
+      setError(err instanceof Error ? err.message : t('launch.failed'))
       setBusy(false)
     }
   }
@@ -70,12 +72,12 @@ export default function LaunchSessionModal({
     'w-full rounded-lg border border-line-3 bg-canvas-sunken px-3 py-2 text-sm text-fg-strong outline-none focus:border-accent'
 
   return (
-    <Modal title="Launch session" onClose={onClose}>
+    <Modal title={t('launch.title')} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         {connectors.length > 1 && (
           <div>
             <label className="mb-1 block text-sm font-medium text-fg-soft">
-              Connector
+              {t('agents.connector')}
             </label>
             <SimpleSelect
               size="default"
@@ -92,7 +94,7 @@ export default function LaunchSessionModal({
 
         <div>
           <label className="mb-1 block text-sm font-medium text-fg-soft">
-            What to run
+            {t('launch.whatToRun')}
           </label>
           <div className="flex flex-wrap gap-2">
             {presets.map((p) => (
@@ -114,7 +116,7 @@ export default function LaunchSessionModal({
 
         <div>
           <label className="mb-1 block text-sm font-medium text-fg-soft">
-            Command
+            {t('tasks.commandLabel')}
           </label>
           <input
             value={command}
@@ -122,7 +124,7 @@ export default function LaunchSessionModal({
               setCommand(e.target.value)
               setPresetId(null)
             }}
-            placeholder="empty = plain shell"
+            placeholder={t('launch.commandPlaceholder')}
             className={`${inputClass} font-mono`}
           />
         </div>
@@ -130,25 +132,25 @@ export default function LaunchSessionModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-fg-soft">
-              Session name
+              {t('launch.sessionName')}
             </label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
               pattern="[a-zA-Z0-9._\-]+"
-              title="Letters, digits, dots, dashes, underscores"
+              title={t('launch.namePattern')}
               className={`${inputClass} font-mono`}
             />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-fg-soft">
-              Working directory
+              {t('common.workingDirectory')}
             </label>
             <input
               value={cwd}
               onChange={(e) => setCwd(e.target.value)}
-              placeholder="~ (home)"
+              placeholder={t('launch.cwdPlaceholder')}
               className={`${inputClass} font-mono`}
             />
           </div>
@@ -160,7 +162,7 @@ export default function LaunchSessionModal({
           disabled={busy || !connectorId}
           className="btn-primary"
         >
-          {busy ? 'Launching…' : 'Launch'}
+          {busy ? t('launch.launching') : t('tasks.launch')}
         </button>
       </form>
     </Modal>

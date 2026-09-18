@@ -1,4 +1,5 @@
 import { Browsers, HardDrives, Cloud, Laptop } from "@phosphor-icons/react";
+import { useTranslation } from "react-i18next";
 import { Reveal } from "../lib/reveal";
 
 function Node({
@@ -33,13 +34,14 @@ function Node({
   );
 }
 
-const AGENTS = [
-  { icon: Laptop, title: "MacBook", sub: "launchd" },
-  { icon: HardDrives, title: "Homelab", sub: "systemd" },
-  { icon: Cloud, title: "Cloud VM", sub: "systemd" },
-];
-
 export function HowItWorks() {
+  const { t } = useTranslation();
+  const agents = [
+    { icon: Laptop, title: t("how.nodeMacbook"), sub: t("how.launchd") },
+    { icon: HardDrives, title: t("how.nodeHomelab"), sub: t("how.systemd") },
+    { icon: Cloud, title: t("how.nodeCloud"), sub: t("how.systemd") },
+  ];
+
   return (
     <section id="how" className="relative border-t border-line-1 py-24 lg:py-32">
       <div
@@ -50,11 +52,10 @@ export function HowItWorks() {
       <div className="relative mx-auto max-w-[1240px] px-5 lg:px-8">
         <Reveal className="max-w-[46ch]">
           <h2 className="text-[2rem] leading-[1.1] font-semibold tracking-tight text-balance sm:text-[2.4rem]">
-            One outbound WebSocket per device.
+            {t("how.heading")}
           </h2>
           <p className="mt-5 text-[16px] leading-relaxed text-fg-muted">
-            Terminal streams, machine stats, file transfers, and control all
-            share the same connection. Nothing dials in to your connectors.
+            {t("how.body")}
           </p>
         </Reveal>
 
@@ -63,8 +64,8 @@ export function HowItWorks() {
             <div className="mx-auto max-w-[280px]">
               <Node
                 icon={Browsers}
-                title="Your browser"
-                sub="desktop or phone"
+                title={t("how.browser")}
+                sub={t("how.browserSub")}
               />
             </div>
 
@@ -78,8 +79,8 @@ export function HowItWorks() {
             <div className="mx-auto max-w-[280px]">
               <Node
                 icon={HardDrives}
-                title="Hub"
-                sub="web UI, API, SQLite"
+                title={t("how.hub")}
+                sub={t("how.hubSub")}
                 accent
               />
             </div>
@@ -87,7 +88,7 @@ export function HowItWorks() {
             <div className="relative flex justify-center py-3">
               <div className="h-12 w-px bg-line-2" />
               <span className="absolute top-1/2 left-1/2 ml-3 -translate-y-1/2 font-mono text-[11px] whitespace-nowrap text-fg-subtle">
-                one WebSocket, dialed out
+                {t("how.outbound")}
               </span>
             </div>
 
@@ -95,7 +96,7 @@ export function HowItWorks() {
             <div className="mx-auto hidden h-px w-2/3 bg-line-2 sm:block" />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5">
-              {AGENTS.map((a) => (
+              {agents.map((a) => (
                 <div key={a.title}>
                   <div className="mx-auto hidden h-8 w-px bg-line-2 sm:block" />
                   <div className="mx-auto flex h-6 w-px justify-center bg-line-2 sm:hidden" />
@@ -105,8 +106,7 @@ export function HowItWorks() {
             </div>
 
             <p className="mt-8 text-center text-[13.5px] text-fg-subtle">
-              Each agent handles PTYs, tmux sessions, machine stats, and file
-              access on its own box.
+              {t("how.agentsFootnote")}
             </p>
           </div>
         </Reveal>

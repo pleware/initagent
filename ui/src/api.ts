@@ -2,6 +2,8 @@
 // the session cookie; 401s bounce the user to the login screen via the
 // listener App.tsx registers here.
 
+import i18n from './i18n/config'
+
 let onUnauthorized: (() => void) | null = null
 export function setUnauthorizedHandler(fn: () => void) {
   onUnauthorized = fn
@@ -19,6 +21,26 @@ export class ApiError extends Error {
     this.wall = wall
     this.limit = limit
   }
+}
+
+// errorCodeKeys maps a backend ApiError.code (snake_case) to its localized
+// errors.* key (camelCase). Only known codes get a translated message; all
+// other codes keep the server-provided one. wall/limit carry plan detail and
+// are ignored here: the message is chosen from code alone.
+const errorCodeKeys: Record<string, string> = {
+  plan_limit: 'errors.planLimit',
+}
+
+// localizeError returns the localized errors.* message for a known
+// ApiError.code, and err.message otherwise. t is the translation function
+// from useTranslation, passed in so the helper stays pure and testable.
+export function localizeError(err: unknown, t: (key: string) => string): string {
+  if (err instanceof ApiError && err.code) {
+    const key = errorCodeKeys[err.code]
+    if (key) return t(key)
+  }
+  if (err instanceof Error) return err.message
+  return String(err)
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -107,6 +129,10 @@ export function wsURL(path: string): string {
 }
 
 export function formatBytes(n: number): string {
+  // The empty placeholder stays a plain dash on purpose: a dash is
+  // locale-neutral typography, not prose, so it reads the same in every
+  // language. The unit suffixes (B/KB/MB/GB/TB) are technical SI symbols
+  // and are likewise left untranslated.
   if (!n && n !== 0) return '-'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   let i = 0
@@ -119,11 +145,11 @@ export function formatBytes(n: number): string {
 }
 
 export function timeAgo(unixSec: number): string {
-  if (!unixSec) return 'never'
+  if (!unixSec) return i18n.t('time.never')
   const s = Math.max(0, Math.floor(Date.now() / 1000 - unixSec))
-  if (s < 5) return 'just now'
-  if (s < 60) return `${s}s ago`
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
-  return `${Math.floor(s / 86400)}d ago`
+  if (s < 5) return i18n.t('time.justNow')
+  if (s < 60) return i18n.t('time.secondsAgo', { count: s })
+  if (s < 3600) return i18n.t('time.minutesAgo', { count: Math.floor(s / 60) })
+  if (s < 86400) return i18n.t('time.hoursAgo', { count: Math.floor(s / 3600) })
+  return i18n.t('time.daysAgo', { count: Math.floor(s / 86400) })
 }

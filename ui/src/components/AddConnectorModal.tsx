@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api, forProject } from '../api'
 import { useHubEvents } from '../hooks'
 import Modal from './Modal'
@@ -6,6 +7,7 @@ import Modal from './Modal'
 // projectId names which project the new connector joins. Omitting it is correct
 // on a hub with one project, which the hub resolves for us.
 export default function AddConnectorModal({ onClose, projectId }: { onClose: () => void; projectId?: string }) {
+  const { t } = useTranslation()
   const [command, setCommand] = useState('')
   const [windowsCommand, setWindowsCommand] = useState('')
   const [platform, setPlatform] = useState<'unix' | 'windows'>('unix')
@@ -37,10 +39,9 @@ export default function AddConnectorModal({ onClose, projectId }: { onClose: () 
   const activeCommand = platform === 'windows' ? windowsCommand : command
 
   return (
-    <Modal title="Add a connector" onClose={onClose}>
+    <Modal title={t('addConnector.title')} onClose={onClose}>
       <p className="mb-4 text-sm text-fg-muted">
-        Paste this on the machine you want to add. It installs the agent,
-        connects it to this hub, and keeps it running in the background.
+        {t('addConnector.hint')}
       </p>
       {error ? (
         <p className="text-sm text-fail-fg">{error}</p>
@@ -56,7 +57,7 @@ export default function AddConnectorModal({ onClose, projectId }: { onClose: () 
                   : 'text-fg-muted hover:text-fg'
               }`}
             >
-              Linux / macOS
+              {t('boarding.unix')}
             </button>
             <button
               type="button"
@@ -67,43 +68,42 @@ export default function AddConnectorModal({ onClose, projectId }: { onClose: () 
                   : 'text-fg-muted hover:text-fg'
               }`}
             >
-              Windows
+              {t('boarding.windows')}
             </button>
           </div>
           <div className="mb-4 flex items-stretch gap-2">
             <code className="flex-1 overflow-x-auto whitespace-nowrap rounded-lg border border-line-3 bg-canvas-sunken p-3 font-mono text-[13px] text-ok">
-              {activeCommand || 'Generating…'}
+              {activeCommand || t('addConnector.generating')}
             </code>
             <button
               onClick={copy}
               disabled={!activeCommand}
               className="shrink-0 rounded-lg border border-line-3 px-3 text-sm text-fg-soft transition hover:bg-sidebar disabled:opacity-50"
             >
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? t('boarding.copied') : t('boarding.copy')}
             </button>
           </div>
         </>
       )}
       <p className="mb-4 text-xs text-fg-subtle">
-        The link is single-use and expires in 15 minutes. Generate a new one
-        per connector.
+        {t('addConnector.expire')}
       </p>
       {joined ? (
         <div className="flex items-center justify-between rounded-lg border border-ok/30 bg-ok/10 p-3">
           <span className="text-sm font-medium text-ok">
-            Connector connected
+            {t('addConnector.joined')}
           </span>
           <button
             onClick={onClose}
             className="rounded-lg bg-ok px-3 py-1.5 text-sm font-medium text-ok-on hover:brightness-110"
           >
-            See it
+            {t('addConnector.seeIt')}
           </button>
         </div>
       ) : (
         <div className="flex items-center gap-2 text-sm text-fg-subtle">
           <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
-          Waiting for the connector to join…
+          {t('addConnector.waiting')}
         </div>
       )}
     </Modal>

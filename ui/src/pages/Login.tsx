@@ -11,12 +11,12 @@ import { resolveLocale } from '../../../web/locale.ts'
 // from the outside.
 const offeringLabel: Record<string, { label: string; hint: string }> = {
   hosted: {
-    label: 'Hosted',
-    hint: 'This is a managed initagent hub.',
+    label: 'auth.offeringHosted',
+    hint: 'auth.offeringHostedHint',
   },
   selfhost: {
-    label: 'Self-hosted',
-    hint: 'This hub runs on your own infrastructure.',
+    label: 'auth.offeringSelfHost',
+    hint: 'auth.offeringSelfHostHint',
   },
 }
 
@@ -68,7 +68,7 @@ export default function Login({
       }
       onSuccess()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setError(err instanceof Error ? err.message : t('errors.generic'))
     } finally {
       setBusy(false)
     }
@@ -87,10 +87,10 @@ export default function Login({
           <AuthMark className="size-10" />
           {mode && (
             <span
-              title={mode.hint}
+              title={t(mode.hint)}
               className="ml-auto rounded-full border border-line-2 px-2 py-0.5 text-xs font-medium text-fg-muted"
             >
-              {mode.label}
+              {t(mode.label)}
             </span>
           )}
         </div>

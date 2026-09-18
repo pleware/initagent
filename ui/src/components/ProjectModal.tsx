@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api } from '../api'
 import type { Connector, Project } from '../types'
@@ -24,6 +25,7 @@ export default function ProjectModal({
   onSaved: (project: Project) => void
   onUpdated?: (project: Project) => void
 }) {
+  const { t } = useTranslation()
   const online = useMemo(() => connectors.filter((item) => item.online), [connectors])
   const firstConnector = online[0]?.id ?? connectors[0]?.id ?? ''
   const [name, setName] = useState(project?.name ?? '')
@@ -95,26 +97,26 @@ export default function ProjectModal({
   }
 
   return (
-    <Modal title={project ? 'Edit project' : 'Add a project'} onClose={onClose}>
+    <Modal title={project ? t('project.editTitle') : t('project.addTitle')} onClose={onClose}>
       <form onSubmit={save} className="space-y-5">
         <label className="block">
-          <span className="field-label">Project name</span>
+          <span className="field-label">{t('project.name')}</span>
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
             autoFocus
             maxLength={80}
-            placeholder="Storefront"
+            placeholder={t('project.namePlaceholder')}
             className="field-input mt-2"
           />
         </label>
 
         {editing ? (
           <div>
-            <span className="field-label">Your machines</span>
+            <span className="field-label">{t('project.machines')}</span>
             <ul className="mt-2 space-y-2">
               {enrolled.length === 0 ? (
-                <li className="text-xs text-fg-faint">No machine on this project yet.</li>
+                <li className="text-xs text-fg-faint">{t('project.noMachines')}</li>
               ) : (
                 enrolled.map((id) => {
                   const connector = connectorById.get(id)
@@ -122,7 +124,9 @@ export default function ProjectModal({
                     <li key={id} className="flex items-center gap-2 rounded-lg border border-line-2 px-3 py-2">
                       <span className="min-w-0 flex-1 truncate text-sm text-fg">
                         {connector?.name ?? id}
-                        <span className="ml-2 text-xs text-fg-faint">{connector?.online ? 'online' : 'offline'}</span>
+                        <span className="ml-2 text-xs text-fg-faint">
+                          {connector?.online ? t('project.online') : t('project.offline')}
+                        </span>
                       </span>
                       <button
                         type="button"
@@ -130,7 +134,7 @@ export default function ProjectModal({
                         disabled={adding}
                         className="text-xs text-fg-subtle hover:text-fail-fg"
                       >
-                        Remove
+                        {t('team.remove')}
                       </button>
                     </li>
                   )
@@ -145,15 +149,15 @@ export default function ProjectModal({
                   onValueChange={setAddId}
                   className="min-w-0 flex-1"
                   items={[
-                    { value: '', label: 'Add a machine…' },
+                    { value: '', label: t('project.addMachine') },
                     ...available.map((connector) => ({
                       value: connector.id,
-                      label: `${connector.name} ${connector.online ? '· online' : '· offline'}`,
+                      label: `${connector.name} · ${t(connector.online ? 'project.online' : 'project.offline')}`,
                     })),
                   ]}
                 />
                 <button type="button" onClick={addMachine} disabled={adding || !addId} className="btn-secondary shrink-0">
-                  {adding ? 'Adding…' : 'Add'}
+                  {adding ? t('project.adding') : t('common.add')}
                 </button>
               </div>
             ) : null}
@@ -161,7 +165,7 @@ export default function ProjectModal({
         ) : null}
 
         <label className="block">
-          <span className="field-label">Run on</span>
+          <span className="field-label">{t('project.runOn')}</span>
           <div className="mt-2">
             <SimpleSelect
               size="default"
@@ -172,34 +176,32 @@ export default function ProjectModal({
                 const connector = connectorById.get(id)
                 return {
                   value: id,
-                  label: `${connector?.name ?? id} ${connector?.online ? '· online' : '· offline'}`,
+                  label: `${connector?.name ?? id} · ${t(connector?.online ? 'project.online' : 'project.offline')}`,
                 }
               })}
             />
           </div>
           <span className="mt-2 block text-xs text-fg-faint">
-            {editing
-              ? 'fx sends commands only to this machine. Other enrolled machines stay on the project.'
-              : 'fx sends commands only to this machine for this project.'}
+            {editing ? t('project.fxRunOnEdit') : t('project.fxRunOnNew')}
           </span>
         </label>
 
         <label className="block">
-          <span className="field-label">Working directory</span>
+          <span className="field-label">{t('common.workingDirectory')}</span>
           <input
             value={path}
             onChange={(event) => setPath(event.target.value)}
-            placeholder="/Users/you/Projects/storefront"
+            placeholder={t('project.pathPlaceholder')}
             className="field-input mt-2 font-mono text-xs"
           />
         </label>
 
-        {error ? <HubError error={error} fallback="Could not save project" className="rounded-lg border border-fail/20 bg-fail/10 px-3 py-2 text-sm text-fail-fg" /> : null}
+        {error ? <HubError error={error} fallback={t('project.saveFailed')} className="rounded-lg border border-fail/20 bg-fail/10 px-3 py-2 text-sm text-fail-fg" /> : null}
 
         <div className="flex justify-end gap-2 border-t border-line-2 pt-4">
-          <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+          <button type="button" onClick={onClose} className="btn-secondary">{t('common.cancel')}</button>
           <button type="submit" disabled={saving || !name.trim() || !connectorId || !path.trim()} className="btn-primary">
-            {saving ? 'Saving…' : project ? 'Save changes' : 'Add project'}
+            {saving ? t('project.saving') : project ? t('project.saveChanges') : t('project.addProject')}
           </button>
         </div>
       </form>

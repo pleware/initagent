@@ -1,25 +1,28 @@
 import { Warning } from "@phosphor-icons/react";
+import { useTranslation } from "react-i18next";
 import { Reveal } from "../lib/reveal";
 
-const ROUTES = [
-  {
-    title: "Built-in Let's Encrypt",
-    body: "Point a domain at the machine, open 80 and 443, and the hub obtains and renews a real certificate itself.",
-    code: "initagent serve --tls-domain initagent.example.com --tls-email you@example.com",
-  },
-  {
-    title: "Tailscale",
-    body: "Put the hub and your phone on the same tailnet and browse to its tailnet address. No open ports, no domain.",
-    code: null,
-  },
-  {
-    title: "A TLS reverse proxy",
-    body: "Caddy, nginx, or Traefik in front of the single hub port, if you already run one.",
-    code: null,
-  },
-];
-
 export function Exposure() {
+  const { t } = useTranslation();
+
+  const routes = [
+    {
+      title: t("exposure.routes.letsEncrypt.title"),
+      body: t("exposure.routes.letsEncrypt.body"),
+      code: "initagent serve --tls-domain initagent.example.com --tls-email you@example.com",
+    },
+    {
+      title: t("exposure.routes.tailscale.title"),
+      body: t("exposure.routes.tailscale.body"),
+      code: null,
+    },
+    {
+      title: t("exposure.routes.proxy.title"),
+      body: t("exposure.routes.proxy.body"),
+      code: null,
+    },
+  ];
+
   return (
     <section className="border-t border-line-1 py-24 lg:py-32">
       <div className="mx-auto max-w-[1240px] px-5 lg:px-8">
@@ -33,15 +36,12 @@ export function Exposure() {
               />
               <div>
                 <h2 className="text-[1.6rem] leading-[1.15] font-semibold tracking-tight sm:text-[1.9rem]">
-                  Read this before you put it on the internet.
+                  {t("exposure.warningTitle")}
                 </h2>
                 <p className="mt-4 max-w-[70ch] text-[15.5px] leading-relaxed text-fg-muted">
-                  initagent binds to <code className="font-mono text-fg">0.0.0.0:4200</code>{" "}
-                  over plain HTTP, which is right for a trusted LAN and wrong for a
-                  public address. The MCP endpoint is effectively a remote shell:
-                  anyone holding a valid API token can run commands and write files
-                  on every joined device. Treat that token like an SSH key, keep the
-                  endpoint behind TLS, and rotate it in Settings if it leaks.
+                  {t("exposure.warningBeforeCode")}{" "}
+                  <code className="font-mono text-fg">0.0.0.0:4200</code>{" "}
+                  {t("exposure.warningAfterCode")}
                 </p>
               </div>
             </div>
@@ -50,7 +50,7 @@ export function Exposure() {
 
         <Reveal delay={0.08}>
           <div className="mt-6 divide-y divide-line-2 overflow-hidden rounded-panel border border-line-2 bg-sidebar">
-            {ROUTES.map((r) => (
+            {routes.map((r) => (
               <div
                 key={r.title}
                 className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-12 sm:items-baseline sm:gap-8"

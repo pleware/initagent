@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { api, formatBytes, timeAgo } from '../api'
 import { usePoll } from '../hooks'
 import type { Connector, Session } from '../types'
@@ -17,6 +18,7 @@ export default function ConnectorPage() {
   const requestedSession = searchParams.get('session')
   const [tab, setTab] = useState<'overview' | 'terminal' | 'files'>(requestedSession ? 'terminal' : 'overview')
   const [showLaunch, setShowLaunch] = useState(false)
+  const { t } = useTranslation()
 
   const load = useCallback(async () => {
     try {
@@ -66,7 +68,7 @@ export default function ConnectorPage() {
   }
 
   const killSession = async (name: string) => {
-    if (!confirm(`Kill session "${name}"? Anything running in it will stop.`)) return
+    if (!confirm(t('connectors.killConfirm', { name }))) return
     try {
       await api.del(`/api/connectors/${id}/sessions/${encodeURIComponent(name)}`)
     } catch {
@@ -78,14 +80,14 @@ export default function ConnectorPage() {
   }
 
   if (connector === null) {
-    return <div className="p-8 text-fg-subtle">Loading…</div>
+    return <div className="p-8 text-fg-subtle">{t('common.loading')}</div>
   }
 
   return (
     <div className="flex h-full min-h-[calc(100dvh-64px)] flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line-2 px-4 py-4 sm:px-7">
         <div className="flex items-center gap-3">
-          <Link to="/" className="text-fg-faint hover:text-fg" aria-label="Back to fleet">
+          <Link to="/" className="text-fg-faint hover:text-fg" aria-label={t('connectors.backToFleet')}>
             ←
           </Link>
           <span
@@ -98,20 +100,20 @@ export default function ConnectorPage() {
         </div>
         <div className="flex items-center gap-2">
           <TabButton active={tab === 'overview'} onClick={() => setTab('overview')}>
-            Overview
+            {t('connectors.overview')}
           </TabButton>
           <TabButton active={tab === 'terminal'} onClick={() => setTab('terminal')}>
-            Terminals
+            {t('connectors.terminals')}
           </TabButton>
           <TabButton active={tab === 'files'} onClick={() => setTab('files')}>
-            Files
+            {t('connectors.files')}
           </TabButton>
         </div>
       </header>
 
       {!connector.online ? (
         <div className="flex flex-1 items-center justify-center text-fg-subtle">
-          This connector is offline.
+          {t('connectors.offline')}
         </div>
       ) : tab === 'overview' ? (
         <ConnectorOverview connector={connector} onTerminal={() => setTab('terminal')} onFiles={() => setTab('files')} />
@@ -133,7 +135,7 @@ export default function ConnectorPage() {
                 <StatusBadge status={s.status} kind={s.kind} />
                 <span className="font-mono text-[13px]">{s.name}</span>
                 {s.ephemeral && (
-                  <span title="No tmux: this session won't survive disconnects">
+                  <span title={t('connectors.noTmux')}>
                     ⚡
                   </span>
                 )}
@@ -143,7 +145,7 @@ export default function ConnectorPage() {
                     killSession(s.name)
                   }}
                   className="hidden rounded p-0.5 text-fg-subtle hover:text-fail-fg group-hover:block"
-                  title="Kill session"
+                  title={t('connectors.killSession')}
                 >
                   ✕
                 </button>
@@ -152,16 +154,16 @@ export default function ConnectorPage() {
             <button
               onClick={newQuickTerminal}
               className="shrink-0 rounded-lg px-3 py-1.5 text-sm text-fg-subtle hover:bg-fill-3 hover:text-fg"
-              title="New terminal"
+              title={t('connectors.newTerminal')}
             >
-              + Terminal
+              {t('connectors.addTerminal')}
             </button>
             <button
               onClick={() => setShowLaunch(true)}
               className="shrink-0 rounded-lg px-3 py-1.5 text-sm text-accent hover:bg-accent/10"
-              title="Launch a coding agent"
+              title={t('connectors.launchAgentTitle')}
             >
-              ▸ Launch agent
+              {t('connectors.launchAgent')}
             </button>
           </div>
           <div className="min-h-0 flex-1">
@@ -175,8 +177,8 @@ export default function ConnectorPage() {
             ) : (
               <div className="flex h-full items-center justify-center text-fg-subtle">
                 {sessions.length === 0
-                  ? 'No sessions yet — open a terminal or launch an agent.'
-                  : 'Pick a session.'}
+                  ? t('connectors.noSessions')
+                  : t('connectors.pickSession')}
               </div>
             )}
           </div>
@@ -224,38 +226,39 @@ function TabButton({
 }
 
 function ConnectorOverview({ connector, onTerminal, onFiles }: { connector: Connector; onTerminal: () => void; onFiles: () => void }) {
+  const { t } = useTranslation()
   const s = connector.stats
   const pct = (used = 0, total = 0) => total ? (used / total) * 100 : 0
   return (
     <div className="page-shell flex-1">
       <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="eyebrow mb-2">Machine health</p>
+          <p className="eyebrow mb-2">{t('connectors.machineHealth')}</p>
           <h2 className="text-2xl font-semibold tracking-[-0.035em] text-fg-strong">{connector.platform || connector.os} {connector.platformVersion}</h2>
-          <p className="mt-2 font-mono text-xs text-fg-faint">{connector.hostname} · {connector.arch} · agent {connector.agentVersion || 'unknown'}</p>
+          <p className="mt-2 font-mono text-xs text-fg-faint">{connector.hostname} · {connector.arch} · {t('connectors.agentVersion', { version: connector.agentVersion || t('connectors.unknown') })}</p>
         </div>
-        <div className="flex gap-2"><button onClick={onTerminal} className="btn-primary">Open terminal</button><button onClick={onFiles} className="btn-secondary">Browse files</button></div>
+        <div className="flex gap-2"><button onClick={onTerminal} className="btn-primary">{t('connectors.openTerminal')}</button><button onClick={onFiles} className="btn-secondary">{t('connectors.browseFiles')}</button></div>
       </div>
       {s ? (
         <>
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <HealthMetric label="CPU" value={`${Math.round(s.cpuPercent)}%`} detail={`${s.cpuCores || '—'} logical cores`} pct={s.cpuPercent} />
-            <HealthMetric label="Memory" value={formatBytes(s.memUsed)} detail={`${formatBytes(s.memTotal)} total`} pct={pct(s.memUsed, s.memTotal)} />
-            <HealthMetric label="Disk" value={formatBytes(s.diskTotal - s.diskUsed)} detail="available" pct={pct(s.diskUsed, s.diskTotal)} />
-            <HealthMetric label="Load" value={s.load1 ? s.load1.toFixed(2) : '—'} detail={`${s.load5?.toFixed(2) || '—'} / ${s.load15?.toFixed(2) || '—'} over time`} />
+            <HealthMetric label="CPU" value={`${Math.round(s.cpuPercent)}%`} detail={`${s.cpuCores || '—'} ${t('connectors.logicalCores')}`} pct={s.cpuPercent} />
+            <HealthMetric label={t('connectors.memory')} value={formatBytes(s.memUsed)} detail={`${formatBytes(s.memTotal)} ${t('connectors.total')}`} pct={pct(s.memUsed, s.memTotal)} />
+            <HealthMetric label={t('connectors.disk')} value={formatBytes(s.diskTotal - s.diskUsed)} detail={t('connectors.available')} pct={pct(s.diskUsed, s.diskTotal)} />
+            <HealthMetric label={t('connectors.load')} value={s.load1 ? s.load1.toFixed(2) : '—'} detail={`${s.load5?.toFixed(2) || '—'} / ${s.load15?.toFixed(2) || '—'} ${t('connectors.overTime')}`} />
           </section>
           <section className="surface mt-4 grid grid-cols-2 overflow-hidden rounded-2xl sm:grid-cols-4">
-            <Detail label="Network received" value={formatBytes(s.netRxBytes)} />
-            <Detail label="Network sent" value={formatBytes(s.netTxBytes)} />
-            <Detail label="Processes" value={String(s.processCount || '—')} />
-            <Detail label="Last contact" value={timeAgo(connector.lastSeen)} />
+            <Detail label={t('connectors.networkReceived')} value={formatBytes(s.netRxBytes)} />
+            <Detail label={t('connectors.networkSent')} value={formatBytes(s.netTxBytes)} />
+            <Detail label={t('connectors.processes')} value={String(s.processCount || '—')} />
+            <Detail label={t('connectors.lastContact')} value={timeAgo(connector.lastSeen)} />
           </section>
           <section className="mt-6 grid gap-4 lg:grid-cols-2">
-            <div className="surface rounded-2xl p-5"><p className="eyebrow">Terminal continuity</p><p className="mt-3 text-lg font-semibold text-fg-strong">{connector.tmux ? 'Reconnectable sessions ready' : connector.os === 'windows' ? 'Windows terminal sessions are live' : 'Install tmux for persistence'}</p><p className="mt-2 text-sm leading-6 text-fg-subtle">{connector.tmux ? 'Agents and shells continue running after the browser closes.' : 'Commands still work, but sessions may end when the connection closes.'}</p></div>
-            <div className="surface rounded-2xl p-5"><p className="eyebrow">Kernel</p><p className="mt-3 break-words font-mono text-sm text-fg-soft">{connector.kernelVersion || 'Not reported by this agent version'}</p><p className="mt-2 text-sm text-fg-faint">Architecture: {connector.arch}</p></div>
+            <div className="surface rounded-2xl p-5"><p className="eyebrow">{t('connectors.terminalContinuity')}</p><p className="mt-3 text-lg font-semibold text-fg-strong">{connector.tmux ? t('connectors.reconnectableReady') : connector.os === 'windows' ? t('connectors.windowsSessionsLive') : t('connectors.installTmux')}</p><p className="mt-2 text-sm leading-6 text-fg-subtle">{connector.tmux ? t('connectors.continuityOn') : t('connectors.continuityOff')}</p></div>
+            <div className="surface rounded-2xl p-5"><p className="eyebrow">{t('connectors.kernel')}</p><p className="mt-3 break-words font-mono text-sm text-fg-soft">{connector.kernelVersion || t('connectors.kernelNotReported')}</p><p className="mt-2 text-sm text-fg-faint">{t('connectors.architecture')} {connector.arch}</p></div>
           </section>
         </>
-      ) : <div className="surface rounded-2xl p-10 text-center text-sm text-fg-subtle">Waiting for the first health snapshot…</div>}
+      ) : <div className="surface rounded-2xl p-10 text-center text-sm text-fg-subtle">{t('connectors.waitingHealth')}</div>}
     </div>
   )
 }

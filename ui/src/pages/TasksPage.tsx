@@ -50,7 +50,7 @@ export default function TasksPage() {
       if (connectorId) body.connectorId = connectorId
       setResult(await api.post<TaskView>(forProject('/api/tasks', projectId), body))
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(err instanceof Error ? err.message : t('errors.generic'))
     } finally {
       setSubmitting(false)
     }

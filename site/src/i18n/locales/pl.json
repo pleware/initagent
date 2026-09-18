@@ -29,5 +29,197 @@
     "selfHost": "Self-host",
     "note": "Jeden darmowy projekt na naszym hubie. Potem od 5 € za osobę. Self-host to 0 €. Maszyny zostają Twoje.",
     "shotAlt": "Pulpit floty initagent z podłączonym urządzeniem i odczytami CPU, pamięci i dysku na żywo."
+  },
+  "fleet": {
+    "title": "Niech agent kodujący prowadzi flotę.",
+    "body": "Claude Code, Codex i Cursor łączą się przez MCP i traktują każdą dołączoną maszynę jak jeden wspólny workspace. Hub udostępnia te same narzędzia także przez HTTP, więc ChatGPT i każdy inny zdalny łącznik może po nie sięgnąć.",
+    "quote": "„Uruchom claude w ~/projects/api na homelabie, niech naprawi padające testy i zamelduje się z powrotem.”",
+    "quoteCaption": "Rodzaj polecenia, które starszy agent zamienia w pracę na innej maszynie.",
+    "cliTitle": "Te same narzędzia z CLI",
+    "groups": {
+      "connectors": "Łączniki",
+      "sessions": "Sesje",
+      "files": "Pliki"
+    }
+  },
+  "install": {
+    "title": "Uruchom huba na swojej maszynie. 0 €, jeden użytkownik.",
+    "body": "Ta sama binarka co hostowany hub. Jedno wklejenie na urządzenie — bez kluczy SSH, bez przekierowania portów. Łączniki łączą się jednym WebSocketem na zewnątrz, więc NAT i firewalle zostają bez zmian. Nigdy nie widzimy Twojej floty.",
+    "copy": "kopiuj",
+    "copied": "skopiowano",
+    "tabsAriaLabel": "Polecenie instalacji huba według systemu operacyjnego",
+    "linuxNote": "Instaluje jednostkę systemd. Zalecane miejsce dla huba, który działa całą dobę.",
+    "macosNote": "Działa w Twojej zalogowanej sesji i uruchamia się ponownie przy logowaniu. Intel albo Apple Silicon.",
+    "windowsNote": "Windows 10/11 lub Server 2016+, x64 albo ARM64. Terminale używają natywnego ConPTY.",
+    "beats": {
+      "install": {
+        "title": "Zainstaluj huba",
+        "body": "Jedna maszyna uruchamia huba. Udostępnia interfejs webowy, API i skrypt dołączania na porcie 4200."
+      },
+      "join": {
+        "title": "Dołącz urządzenie",
+        "body": "Interfejs podaje jednolinijkowe polecenie. Wklej je gdziekolwiek. Urządzenie pojawia się w ciągu sekund."
+      },
+      "launch": {
+        "title": "Uruchom agenta",
+        "body": "Wybierz Claude Code, Codexa albo zwykłą powłokę, wskaż katalog roboczy i patrz, jak pracuje."
+      }
+    }
+  },
+  "capabilities": {
+    "heading": "Co dostajesz w chwili, gdy dołącza urządzenie.",
+    "sessions": {
+      "title": "Sesje, które Cię przeżyją",
+      "body": "Terminale działają w tmux na samym urządzeniu. Zamknij laptopa, otwórz na telefonie — agent nadal jest w trakcie zadania."
+    },
+    "terminal": {
+      "title": "Prawdziwy terminal w przeglądarce",
+      "shotAlt": "Terminal initagent w przeglądarce podłączony do żywej sesji powłoki na dołączonym urządzeniu."
+    },
+    "files": {
+      "title": "Przeglądaj i przenoś pliki między łącznikami",
+      "shotAlt": "Przeglądarka plików initagent pokazująca katalogi na zdalnym urządzeniu."
+    },
+    "binary": {
+      "title": "Jeden plik binarny, nic więcej",
+      "body": "Hub, agent urządzenia, CLI i serwer MCP to ten sam statyczny plik wykonywalny. Interfejs webowy jest w niego wkompilowany."
+    },
+    "updates": {
+      "title": "Aktualizacje, które można cofnąć",
+      "body": "Każde pobranie jest sprawdzane względem sum kontrolnych wydania, a przygotowana binarka musi zgłosić wersję, którą deklaruje, zanim cokolwiek zostanie podmienione. Poprzedni plik zostaje na dysku — jeden klik i wraca."
+    }
+  },
+  "how": {
+    "heading": "Jeden wychodzący WebSocket na urządzenie.",
+    "body": "Strumienie terminali, statystyki maszyn, transfer plików i sterowanie dzielą jedno połączenie. Nic nie łączy się do Twoich łączników.",
+    "browser": "Twoja przeglądarka",
+    "browserSub": "komputer albo telefon",
+    "hub": "Hub",
+    "hubSub": "web UI, API, SQLite",
+    "outbound": "jeden WebSocket, łączony na zewnątrz",
+    "nodeMacbook": "MacBook",
+    "launchd": "launchd",
+    "nodeHomelab": "Homelab",
+    "systemd": "systemd",
+    "nodeCloud": "VM w chmurze",
+    "agentsFootnote": "Każdy agent obsługuje PTY, sesje tmux, statystyki maszyny i dostęp do plików na własnym komputerze."
+  },
+  "code": {
+    "title": "initagent Code",
+    "badge": "w przygotowaniu",
+    "intro": "initagent już steruje agentami kodującymi innych osób. Następny element jest nasz: agent kodujący, który traktuje Twoje maszyny jak jedno miejsce pracy, a nie jednego laptopa naraz.",
+    "intent": {
+      "startTitle": "Zaczyna się od więcej niż jednej maszyny",
+      "startBody": "Większość agentów kodujących zakłada jeden katalog roboczy na jednym laptopie. Ten dostaje całą flotę i planuje wokół niej.",
+      "walkTitle": "Praca, od której możesz odejść",
+      "walkBody": "Działa w trwałej sesji na docelowym urządzeniu, więc zamknięcie klapy nie kończy zadania. Kontynuujesz z telefonu.",
+      "installTitle": "Nic do instalowania",
+      "installBody": "Ta sama statyczna binarka co hub, agent i CLI. Jeśli urządzenie dołączyło, już na nim jest."
+    },
+    "waitlist": {
+      "done": "Jesteś na liście. Napiszemy raz, gdy tylko się pojawi.",
+      "email": "E-mail",
+      "placeholder": "you@example.com",
+      "sending": "Wysyłanie",
+      "notify": "Powiadom mnie",
+      "invalid": "Ten adres nie wygląda poprawnie. Sprawdź go i spróbuj ponownie.",
+      "error": "Nie udało się wysłać. Spróbuj ponownie za chwilę.",
+      "quiet": "Jeden e-mail, gdy tylko się pojawi. Nic więcej."
+    },
+    "watchReleases": "Obserwuj wydania",
+    "githubHint": "GitHub da Ci znać, gdy tylko się pojawi."
+  },
+  "developers": {
+    "title": "Uruchom tę samą binarkę na swoich maszynach.",
+    "body": "Self-host to 0 €. Zainstaluj huba, dołącz urządzenie, uruchom agenta. Nigdy nie hostujemy Twoich workerów."
+  },
+  "exposure": {
+    "warningTitle": "Przeczytaj, zanim wystawisz to do internetu.",
+    "warningBeforeCode": "initagent nasłuchuje na",
+    "warningAfterCode": "po zwykłym HTTP — to właściwe dla zaufanej sieci LAN i złe dla publicznego adresu. Punkt końcowy MCP to w praktyce zdalna powłoka: każdy, kto ma ważny token API, może uruchamiać polecenia i zapisywać pliki na każdym dołączonym urządzeniu. Traktuj ten token jak klucz SSH, trzymaj punkt końcowy za TLS i zresetuj go w Ustawieniach, jeśli wycieknie.",
+    "routes": {
+      "letsEncrypt": {
+        "title": "Wbudowany Let's Encrypt",
+        "body": "Wskaż domenę na maszynę, otwórz porty 80 i 443, a hub sam uzyska i będzie odnawiał prawdziwy certyfikat."
+      },
+      "tailscale": {
+        "title": "Tailscale",
+        "body": "Postaw huba i telefon w tej samej sieci tailnet i wejdź na jego adres w tailnecie. Żadnych otwartych portów, żadnej domeny."
+      },
+      "proxy": {
+        "title": "Reverse proxy z TLS",
+        "body": "Caddy, nginx albo Traefik przed jedynym portem huba, jeśli już któregoś używasz."
+      }
+    }
+  },
+  "hardware": {
+    "title": "Twoje maszyny. Nasz system.",
+    "body": "Stacje PWARE AI są dostarczane z zainstalowanym PWare i workerem initagent gotowym do dołączenia do huba. Sprzęt jest Twój. Nigdy nie hostujemy workerów.",
+    "priceNote": "Cena na zapytanie",
+    "enquire": "Zapytaj",
+    "stations": {
+      "one16": {
+        "role": "Jeden GPU. Pierwsza stacja.",
+        "gpu": "16 GB pamięci GPU na jednej karcie"
+      },
+      "duo2x16": {
+        "role": "Dwie karty. Stacja, którą polecamy.",
+        "gpu": "2×16 GB pamięci GPU — nie jedna wspólna pula 32 GB"
+      },
+      "pro24ecc": {
+        "role": "Jeden profesjonalny GPU z pamięcią ECC.",
+        "gpu": "24 GB pamięci GPU ECC na jednej karcie"
+      },
+      "preinstalled": "PWare OS wstępnie zainstalowany",
+      "workerReady": "worker initagent gotowy do dołączenia do huba"
+    }
+  },
+  "nextPages": {
+    "plansBody": "Płacisz za ludzi. Nigdy nie hostujemy workerów.",
+    "developersBody": "Uruchom tę samą binarkę u siebie. Instalatory i MCP.",
+    "hardwareBody": "Stacje z PWare już na dysku."
+  },
+  "notFound": {
+    "title": "Tej strony tu nie ma.",
+    "body": "Ten adres nie pasuje do żadnej strony w tym serwisie.",
+    "back": "Wróć do {{name}}"
+  },
+  "plans": {
+    "title": "Płacisz za ludzi. Maszyny zostają Twoje.",
+    "body": "Płacisz za każdą osobę w organizacji. Free, Starter i Team podłączają maszyny, które już uruchamiasz. Enterprise to wciąż Twój sprzęt — z naszym systemem (PWare) na dysku. Nigdy nie hostujemy workerów.",
+    "cards": {
+      "free": {
+        "name": "Free",
+        "period": "jedna osoba"
+      },
+      "starter": {
+        "name": "Starter"
+      },
+      "team": {
+        "name": "Team"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "period": "bez publicznej ceny",
+        "cta": "Kontakt ze sprzedażą",
+        "extra": "Twoje maszyny z systemem PWare"
+      },
+      "perPersonMonth": "za osobę / miesiąc",
+      "people_one": "{{count}} osoba",
+      "people_few": "{{count}} osoby",
+      "people_many": "{{count}} osób",
+      "projects_one": "{{count}} projekt",
+      "projects_few": "{{count}} projekty",
+      "projects_many": "{{count}} projektów",
+      "projectsUnlimited": "Bez limitu projektów",
+      "machinesUnlimited": "Bez limitu maszyn",
+      "machinesOnProject": "{{count}} z Twoich maszyn w tym projekcie",
+      "machinesPerProject_one": "{{count}} Twoja maszyna na projekt",
+      "machinesPerProject_few": "{{count}} Twoje maszyny na projekt",
+      "machinesPerProject_many": "{{count}} Twoich maszyn na projekt"
+    },
+    "price": {
+      "talkToUs": "Porozmawiaj z nami"
+    }
   }
 }

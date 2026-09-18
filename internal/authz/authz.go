@@ -114,6 +114,16 @@ const (
 	// repository, and which machines may run its work.
 	AdminProject Capability = "admin:hub.project"
 
+	// ReadBox is seeing the installation's PWare OS boxes: the list, one
+	// box's row, its bound organizations and its narrator. Boxes are the
+	// appliance layer, so the verb is installation-level, not an org's.
+	ReadBox Capability = "read:fleet.box"
+
+	// AdminBox creates, edits and decommissions a box, and binds its
+	// organizations. Installation-level like ReadBox, and grantable so an
+	// installation token may carry it (58).
+	AdminBox Capability = "admin:fleet.box"
+
 	// ReadConnector is seeing the connectors enrolled into a project.
 	ReadConnector Capability = "read:fleet.connector"
 
@@ -187,6 +197,8 @@ var installation = map[Capability]bool{
 	AdminStaff:    true,
 	AdminSkill:    true,
 	ReadOrg:       true,
+	ReadBox:       true,
+	AdminBox:      true,
 	ReadUpdate:    true,
 	AdminUpdate:   true,
 }
@@ -266,6 +278,8 @@ var installationGrantable = map[Capability]bool{
 	AdminStaff: true,
 	AdminSkill: true,
 	ReadOrg:    true,
+	ReadBox:    true,
+	AdminBox:   true,
 }
 
 // InstallationGrantableScopes lists what an installation token may carry,
@@ -294,6 +308,10 @@ func InstallationScopeDescription(c Capability) string {
 		return "Manage the skill store: create, edit, enable/disable and delete skill packages."
 	case ReadOrg:
 		return "Read organizations: list them and see plan, status and roster size."
+	case ReadBox:
+		return "Read boxes: list the installation's boxes and their state."
+	case AdminBox:
+		return "Administer boxes: create, edit and bind boxes to organizations."
 	default:
 		return ""
 	}

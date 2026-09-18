@@ -400,6 +400,14 @@ func TestDeleteBoxCascades(t *testing.T) {
 	if err != nil || len(roster) != 1 {
 		t.Fatalf("StaffForBox before delete = (%v, %d), want one narrator", err, len(roster))
 	}
+	// A sync token, revoked so even a non-live row has to die with the box.
+	_, tokenRow, err := s.CreateBoxToken(box.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if revoked, err := s.RevokeBoxToken(tokenRow.Id, box.ID); err != nil || !revoked {
+		t.Fatalf("RevokeBoxToken = (%v, %v), want (true, nil)", revoked, err)
+	}
 
 	deleted, err := s.DeleteBox(box.ID)
 	if err != nil {
@@ -419,6 +427,13 @@ func TestDeleteBoxCascades(t *testing.T) {
 	roster, err = s.StaffForBox(box.ID)
 	if err != nil || len(roster) != 0 {
 		t.Fatalf("StaffForBox after delete = (%v, %v), want empty", roster, err)
+	}
+	var tokens int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM box_tokens WHERE box_id = ?`, box.ID).Scan(&tokens); err != nil {
+		t.Fatal(err)
+	}
+	if tokens != 0 {
+		t.Errorf("box_tokens rows after delete = %d, want 0", tokens)
 	}
 
 	// A second delete finds no row and leaves the store untouched.

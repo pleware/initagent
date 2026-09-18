@@ -1708,10 +1708,22 @@ func (s *Store) OrgById(orgId string) (*Org, error) {
 	return &o, nil
 }
 
-// RenameOrg changes an organization's display name.
+// RenameOrg changes an organization's display name. The name rides in the
+// manifest of every box bound to the org, so the rename and the
+// config_version bump on those boxes commit together.
 func (s *Store) RenameOrg(orgId, name string) error {
-	_, err := s.db.Exec(`UPDATE orgs SET name = ? WHERE id = ?`, name, orgId)
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`UPDATE orgs SET name = ? WHERE id = ?`, name, orgId); err != nil {
+		return err
+	}
+	if err := bumpConfigForOrg(tx, orgId); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // SetOrgPlan writes a catalogue id. Hosted signup always starts at free;

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/store"
 )
 
 // --- boxes ---
@@ -166,6 +167,26 @@ func (s *Store) SetBoxOrgs(boxID string, orgIDs []string) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// bumpAllBoxes advances config_version on every box. A canonical org-scoped
+// staff change reaches the manifest of every box — StaffForOrg serves all
+// org-scoped rows regardless of which org the box carries — so the whole
+// fleet has to re-sync. It runs inside the caller's transaction so the
+// write that caused it and the bump commit together.
+func bumpAllBoxes(tx *store.Tx) error {
+	_, err := tx.Exec(`UPDATE boxes SET config_version = config_version + 1`)
+	return err
+}
+
+// bumpConfigForOrg advances config_version on the boxes bound to one
+// organization. An org rename or an org staff override only changes the
+// manifest of the boxes carrying that org, so unbound boxes keep their
+// version. It runs inside the caller's transaction, like bumpAllBoxes.
+func bumpConfigForOrg(tx *store.Tx, orgID string) error {
+	_, err := tx.Exec(`UPDATE boxes SET config_version = config_version + 1
+		WHERE id IN (SELECT box_id FROM box_orgs WHERE org_id = ?)`, orgID)
+	return err
 }
 
 // ListBoxOrgs returns the organization ids bound to a box, ordered by id.

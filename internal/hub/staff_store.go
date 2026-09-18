@@ -109,6 +109,11 @@ func validateStaffScope(slug, scope, boxID string) error {
 // and refreshes updated_at, a new key mints a `staff-` identifier. scope and
 // boxID are validated against the slug convention: a st_b_* slug requires
 // scope "box" and the box id, any other slug scope "org" and no box.
+//
+// The write runs in a transaction with the config_version bump it causes:
+// an org-scoped write changes every box's manifest (bumpAllBoxes), while a
+// box-scoped write — the narrator — changes only that box and does not bump,
+// because a fresh box already starts at version 1 (CreateBox seeds it).
 func (s *Store) UpsertStaff(slug, name, locale, model, brief, soulCore, voice, scope, boxID string, age, wordBudget int, bigFive Character) (*Staff, error) {
 	if err := validateStaffScope(slug, scope, boxID); err != nil {
 		return nil, err
@@ -117,12 +122,24 @@ func (s *Store) UpsertStaff(slug, name, locale, model, brief, soulCore, voice, s
 	if err != nil {
 		return nil, err
 	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
 	var existing string
-	err = s.db.QueryRow(`SELECT id FROM staff WHERE slug = ? AND COALESCE(box_id, '') = COALESCE(?, '')`, slug, boxID).Scan(&existing)
+	err = tx.QueryRow(`SELECT id FROM staff WHERE slug = ? AND COALESCE(box_id, '') = COALESCE(?, '')`, slug, boxID).Scan(&existing)
 	if err == nil {
-		_, err = s.db.Exec(`UPDATE staff SET name = ?, locale = ?, model = ?, brief = ?, age = ?, word_budget = ?, soul_core = ?, voice = ?, big_five = ?, scope = ?, box_id = ?, updated_at = ?
-			WHERE id = ?`, name, locale, model, brief, age, wordBudget, soulCore, voice, bigFiveJSON, scope, boxID, time.Now().Unix(), existing)
-		if err != nil {
+		if _, err = tx.Exec(`UPDATE staff SET name = ?, locale = ?, model = ?, brief = ?, age = ?, word_budget = ?, soul_core = ?, voice = ?, big_five = ?, scope = ?, box_id = ?, updated_at = ?
+			WHERE id = ?`, name, locale, model, brief, age, wordBudget, soulCore, voice, bigFiveJSON, scope, boxID, time.Now().Unix(), existing); err != nil {
+			return nil, err
+		}
+		if scope == "org" {
+			if err := bumpAllBoxes(tx); err != nil {
+				return nil, err
+			}
+		}
+		if err := tx.Commit(); err != nil {
 			return nil, err
 		}
 		return s.StaffById(existing)
@@ -153,13 +170,20 @@ func (s *Store) UpsertStaff(slug, name, locale, model, brief, soulCore, voice, s
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
-	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, model, soul_core, voice, scope, box_id, created_at, updated_at)
+	if _, err = tx.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, model, soul_core, voice, scope, box_id, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		st.ID, st.Slug, st.Name, st.Locale, st.Age, bigFiveJSON, st.Brief, st.WordBudget, st.Model, st.SoulCore, st.Voice, st.Scope, st.BoxID, st.CreatedAt, st.UpdatedAt)
-	if uniqueConstraint(err) {
-		return nil, fmt.Errorf("staff slug %q already exists: %w", slug, err)
+		st.ID, st.Slug, st.Name, st.Locale, st.Age, bigFiveJSON, st.Brief, st.WordBudget, st.Model, st.SoulCore, st.Voice, st.Scope, st.BoxID, st.CreatedAt, st.UpdatedAt); err != nil {
+		if uniqueConstraint(err) {
+			return nil, fmt.Errorf("staff slug %q already exists: %w", slug, err)
+		}
+		return nil, err
 	}
-	if err != nil {
+	if scope == "org" {
+		if err := bumpAllBoxes(tx); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return st, nil
@@ -264,7 +288,9 @@ func scanStaffForOrg(row staffScanner) (*Staff, error) {
 // SetOrgStaffOverride writes one organization's tuning of a staff member:
 // name, age, soul override, voice, BigFive, brief, model and word budget. A
 // nil pointer leaves the column NULL ("inherit the base row"); the upsert
-// replaces a previous override in place.
+// replaces a previous override in place. An override reaches the manifest
+// of every box bound to the org, so the write and the config_version bump
+// on those boxes commit together.
 func (s *Store) SetOrgStaffOverride(orgID, staffID string, name *string, age *int, soulOverride, voice *string, bigFive *Character, brief, model *string, wordBudget *int) error {
 	var bigFiveJSON any
 	if bigFive != nil {
@@ -274,7 +300,12 @@ func (s *Store) SetOrgStaffOverride(orgID, staffID string, name *string, age *in
 		}
 		bigFiveJSON = string(b)
 	}
-	_, err := s.db.Exec(`INSERT INTO org_staff_overrides (org_id, staff_id, name, age, soul_override, voice, big_five, brief, word_budget, model)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO org_staff_overrides (org_id, staff_id, name, age, soul_override, voice, big_five, brief, word_budget, model)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(org_id, staff_id) DO UPDATE SET
 			name = excluded.name,
@@ -285,15 +316,32 @@ func (s *Store) SetOrgStaffOverride(orgID, staffID string, name *string, age *in
 			brief = excluded.brief,
 			word_budget = excluded.word_budget,
 			model = excluded.model`,
-		orgID, staffID, nullableString(name), nullableInt(age), nullableString(soulOverride), nullableString(voice), bigFiveJSON, nullableString(brief), nullableInt(wordBudget), nullableString(model))
-	return err
+		orgID, staffID, nullableString(name), nullableInt(age), nullableString(soulOverride), nullableString(voice), bigFiveJSON, nullableString(brief), nullableInt(wordBudget), nullableString(model)); err != nil {
+		return err
+	}
+	if err := bumpConfigForOrg(tx, orgID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // ClearOrgStaffOverride drops one organization's tuning of a staff member.
-// Clearing a missing override is not an error.
+// Clearing a missing override is not an error. Like the write, the clear
+// bumps the config_version of the boxes bound to the org in the same
+// transaction.
 func (s *Store) ClearOrgStaffOverride(orgID, staffID string) error {
-	_, err := s.db.Exec(`DELETE FROM org_staff_overrides WHERE org_id = ? AND staff_id = ?`, orgID, staffID)
-	return err
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM org_staff_overrides WHERE org_id = ? AND staff_id = ?`, orgID, staffID); err != nil {
+		return err
+	}
+	if err := bumpConfigForOrg(tx, orgID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func nullableString(p *string) any {

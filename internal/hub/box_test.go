@@ -304,21 +304,26 @@ func TestBoxMalformedBody(t *testing.T) {
 	}
 }
 
-// An installation token carrying admin:hub.staff stands at the empty
-// boundary, so the wire admits it on the box routes; a customer session
-// fails the gate with 403 and an anonymous caller is turned away at the
-// middleware with 401.
+// An installation token carrying read:fleet.box stands at the empty
+// boundary, so the wire admits it on the box read routes; the same token
+// is refused on the write routes, which gate on admin:fleet.box. A
+// customer session fails the gate with 403 and an anonymous caller is
+// turned away at the middleware with 401.
 func TestBoxGateRefusals(t *testing.T) {
 	// The installation token is minted by the platform admin on their own
 	// hub; the customer refusals run on a separate hosted hub.
 	tf := claimedHub(t, offering.Hosted)
-	secret, _, err := tf.srv.store.CreateAdminToken("ci", tf.ownerId, []authz.Capability{authz.AdminStaff})
+	secret, _, err := tf.srv.store.CreateAdminToken("ci", tf.ownerId, []authz.Capability{authz.ReadBox})
 	if err != nil {
 		t.Fatal(err)
 	}
 	resp := tf.withToken(t, secret, http.MethodGet, "/api/boxes")
 	if resp.StatusCode != http.StatusOK {
-		t.Errorf("list with an installation token: %d, want 200", resp.StatusCode)
+		t.Errorf("list with a read installation token: %d, want 200", resp.StatusCode)
+	}
+	resp = tf.withToken(t, secret, http.MethodPost, "/api/boxes")
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("create with a read-only installation token: %d, want 403", resp.StatusCode)
 	}
 
 	f := hostedCustomer(t)
@@ -337,8 +342,10 @@ func TestBoxGateRefusals(t *testing.T) {
 	}
 }
 
-// A credential that reaches the handler without the capability is refused
-// at the empty boundary, exactly like the staff catalogue it mirrors.
+// A credential that reaches the handler without the box capability is
+// refused at the empty boundary, whether the capability rides on an
+// installation token missing the verb or on an org token whose boundary
+// cannot contain the installation.
 func TestBoxGateRefusesWrongCredentials(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
 	cases := []struct {
@@ -356,7 +363,7 @@ func TestBoxGateRefusesWrongCredentials(t *testing.T) {
 			name: "org token carrying the capability",
 			cred: authz.Credential{
 				Requester: authz.Requester{Account: "account-ops", Platform: true},
-				Grant:     &authz.Grant{Org: "org-1", Scopes: []authz.Capability{authz.AdminStaff}},
+				Grant:     &authz.Grant{Org: "org-1", Scopes: []authz.Capability{authz.ReadBox}},
 			},
 		},
 	}
@@ -372,9 +379,11 @@ func TestBoxGateRefusesWrongCredentials(t *testing.T) {
 	}
 }
 
-// The id-bearing handlers share the list's empty-boundary gate: a credential
-// that reaches them without the installation capability is refused before
-// any lookup, so no box id leaks through the refusal.
+// The id-bearing handlers share the box surface's empty-boundary gates: a
+// credential that reaches them without the installation grant is refused
+// before any lookup, so no box id leaks through the refusal. The org
+// grant below carries both box verbs, which its boundary still cannot
+// hold at the installation.
 func TestBoxGateRefusesWrongCredentialsOnIdHandlers(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
 	box, err := f.srv.store.CreateBox("box-gate", "Gated", "")
@@ -383,7 +392,7 @@ func TestBoxGateRefusesWrongCredentialsOnIdHandlers(t *testing.T) {
 	}
 	cred := authz.Credential{
 		Requester: authz.Requester{Account: "account-ops", Platform: true},
-		Grant:     &authz.Grant{Org: "org-1", Scopes: []authz.Capability{authz.AdminStaff}},
+		Grant:     &authz.Grant{Org: "org-1", Scopes: []authz.Capability{authz.ReadBox, authz.AdminBox}},
 	}
 	cases := []struct {
 		name string
@@ -403,6 +412,89 @@ func TestBoxGateRefusesWrongCredentialsOnIdHandlers(t *testing.T) {
 			c.call(rec, req)
 			if rec.Code != http.StatusForbidden {
 				t.Errorf("handler: %d, want 403", rec.Code)
+			}
+		})
+	}
+}
+
+// The box surface splits on its two verbs: a token carrying only
+// read:fleet.box is admitted on the read handlers and refused on every
+// mutation, and a token carrying only admin:fleet.box is the mirror
+// image — admitted on the writes, refused on the reads. Each verb is
+// checked in both directions so neither gate can collapse into the
+// other.
+func TestBoxGateReadAdminSplit(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	box, err := f.srv.store.CreateBox("box-split", "Split", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	readOnly := authz.Credential{
+		Requester: authz.Requester{Account: "account-ops", Platform: true},
+		Grant:     &authz.Grant{Installation: true, Scopes: []authz.Capability{authz.ReadBox}},
+	}
+	adminOnly := authz.Credential{
+		Requester: authz.Requester{Account: "account-ops", Platform: true},
+		Grant:     &authz.Grant{Installation: true, Scopes: []authz.Capability{authz.AdminBox}},
+	}
+	get := httptest.NewRequest(http.MethodGet, "/api/boxes/"+box.ID, nil)
+	get.SetPathValue("id", box.ID)
+
+	// A read-only token is admitted on the read handlers.
+	rec := httptest.NewRecorder()
+	f.srv.handleListBoxes(rec, httptest.NewRequest(http.MethodGet, "/api/boxes", nil), readOnly)
+	if rec.Code != http.StatusOK {
+		t.Errorf("list boxes with a read-only token: %d, want 200", rec.Code)
+	}
+	rec = httptest.NewRecorder()
+	f.srv.handleGetBox(rec, get, readOnly)
+	if rec.Code != http.StatusOK {
+		t.Errorf("get box with a read-only token: %d, want 200", rec.Code)
+	}
+
+	// ...and refused on the mutating handlers.
+	mutating := []struct {
+		name string
+		call func(w http.ResponseWriter, r *http.Request, cred authz.Credential)
+	}{
+		{name: "create box", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleCreateBox(w, r, cred) }},
+		{name: "update box", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleUpdateBox(w, r, cred) }},
+		{name: "set box orgs", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleSetBoxOrgs(w, r, cred) }},
+	}
+	for _, c := range mutating {
+		t.Run(c.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c.call(rec, get, readOnly)
+			if rec.Code != http.StatusForbidden {
+				t.Errorf("with a read-only token: %d, want 403", rec.Code)
+			}
+		})
+	}
+
+	// An admin-only token is admitted on the writes...
+	update := httptest.NewRequest(http.MethodPatch, "/api/boxes/"+box.ID,
+		strings.NewReader(`{"name":"Split renamed"}`))
+	update.SetPathValue("id", box.ID)
+	update.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	f.srv.handleUpdateBox(rec, update, adminOnly)
+	if rec.Code != http.StatusOK {
+		t.Errorf("update box with an admin-only token: %d, want 200", rec.Code)
+	}
+
+	// ...and refused on the reads.
+	for _, c := range []struct {
+		name string
+		call func(w http.ResponseWriter, r *http.Request, cred authz.Credential)
+	}{
+		{name: "list boxes", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleListBoxes(w, r, cred) }},
+		{name: "get box", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleGetBox(w, r, cred) }},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c.call(rec, get, adminOnly)
+			if rec.Code != http.StatusForbidden {
+				t.Errorf("with an admin-only token: %d, want 403", rec.Code)
 			}
 		})
 	}

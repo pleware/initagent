@@ -270,3 +270,54 @@ func (s *Server) handleGetBoxNarrator(w http.ResponseWriter, r *http.Request, cr
 	}
 	writeJSON(w, staff[0])
 }
+
+// handleUpdateBoxNarrator edits the box's narrator — its one box-scoped
+// staff member (58). The write upserts the row (CreateBox seeds it, so the
+// normal path is an update) and bumps the box's config_version in the same
+// transaction, so the connector's next sync picks the edited narrator up.
+// A missing box is a 404; a blank name and a negative age or word budget
+// are refused with 400.
+func (s *Server) handleUpdateBoxNarrator(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.AdminBox, "", "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	box, ok := s.boxOr404(w, r.PathValue("id"))
+	if !ok {
+		return
+	}
+	var req struct {
+		Name       string    `json:"name"`
+		Locale     string    `json:"locale"`
+		Age        int       `json:"age"`
+		WordBudget int       `json:"wordBudget"`
+		Model      string    `json:"model"`
+		Voice      string    `json:"voice"`
+		BigFive    Character `json:"bigFive"`
+		Brief      string    `json:"brief"`
+		SoulCore   string    `json:"soulCore"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		httpError(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		httpError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	if req.Age < 0 {
+		httpError(w, http.StatusBadRequest, "age cannot be negative")
+		return
+	}
+	if req.WordBudget < 0 {
+		httpError(w, http.StatusBadRequest, "word budget cannot be negative")
+		return
+	}
+	staff, err := s.store.UpdateBoxNarrator(box.ID, req.Name, req.Locale, req.Model, req.Brief, req.SoulCore, req.Voice, req.Age, req.WordBudget, req.BigFive)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, staff)
+}

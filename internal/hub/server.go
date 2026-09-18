@@ -492,6 +492,7 @@ func (s *Server) routes() {
 	m.HandleFunc("PUT /api/boxes/{id}/orgs", s.requireCredential(s.handleSetBoxOrgs))
 	m.HandleFunc("GET /api/boxes/{id}/orgs", s.requireCredential(s.handleListBoxOrgs))
 	m.HandleFunc("GET /api/boxes/{id}/narrator", s.requireCredential(s.handleGetBoxNarrator))
+	m.HandleFunc("PATCH /api/boxes/{id}/narrator", s.requireCredential(s.handleUpdateBoxNarrator))
 
 	// Box sync tokens are session-only for the same reason credentials
 	// are: a token that can mint a token launders a narrow grant into a

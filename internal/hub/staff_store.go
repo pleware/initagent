@@ -55,10 +55,12 @@ func encodeBigFive(c Character) (string, error) {
 	return string(b), nil
 }
 
-// ListStaff returns every staff member on this installation, ordered by slug.
+// ListStaff returns the canonical org-scoped staff catalogue, ordered by
+// slug. Box-scoped narrators are never part of it — they are a box's own
+// rows, listed by StaffForBox, not the installation's roster.
 func (s *Store) ListStaff() ([]Staff, error) {
 	rows, err := s.db.Query(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, model, soul_core, voice, scope, box_id, created_at, updated_at
-		FROM staff ORDER BY slug`)
+		FROM staff WHERE scope = 'org' ORDER BY slug`)
 	if err != nil {
 		return nil, err
 	}

@@ -477,6 +477,7 @@ func (s *Server) routes() {
 	// token or customer session is refused there — the same shape the
 	// skill and org admin surfaces use.
 	m.HandleFunc("GET /api/admin/staff", s.requireCredential(s.handleListStaff))
+	m.HandleFunc("GET /api/admin/staff/{id}", s.requireCredential(s.handleGetStaff))
 	m.HandleFunc("POST /api/admin/staff", s.requireCredential(s.handleUpsertStaff))
 	m.HandleFunc("PATCH /api/admin/staff/{id}", s.requireCredential(s.handleUpsertStaff))
 

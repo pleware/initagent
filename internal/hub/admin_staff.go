@@ -28,6 +28,25 @@ func (s *Server) handleListStaff(w http.ResponseWriter, r *http.Request, cred au
 	writeJSON(w, staff)
 }
 
+// handleGetStaff serves one canonical staff member by id. A missing id is
+// a 404.
+func (s *Server) handleGetStaff(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.AdminStaff, "", "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	st, err := s.store.StaffById(r.PathValue("id"))
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if st == nil {
+		httpError(w, http.StatusNotFound, "no such staff member")
+		return
+	}
+	writeJSON(w, st)
+}
+
 // handleUpsertStaff writes one canonical staff member and answers with the
 // full row. POST creates and PATCH updates; the store's UpsertStaff keys on
 // slug and does both, so one handler serves the two routes and the {id} in

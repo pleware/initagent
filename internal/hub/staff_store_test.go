@@ -129,6 +129,93 @@ func TestStaffByIdMissing(t *testing.T) {
 	}
 }
 
+// The canonical list excludes box-scoped rows: a box's narrator stays
+// visible through StaffForBox but never reaches ListStaff.
+func TestListStaffExcludesBoxScoped(t *testing.T) {
+	s := testStore(t)
+	box, err := s.CreateBox("box-scope", "Scoped", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := s.ListStaff()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, st := range list {
+		if st.Scope == "box" {
+			t.Errorf("ListStaff carries the box-scoped %q", st.Slug)
+		}
+	}
+	roster, err := s.StaffForBox(box.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(roster) != 1 || roster[0].Slug != "st_b_dt" {
+		t.Errorf("StaffForBox = %+v, want the box's one narrator", roster)
+	}
+}
+
+// UpdateBoxNarrator round-trips the nine editable fields, bumps only the
+// edited box by exactly one, and creates the row when the seed has not
+// run; the seed itself still does not bump (a fresh box stays at 1).
+func TestUpdateBoxNarrator(t *testing.T) {
+	s := testStore(t)
+	boxA, err := s.CreateBox("box-narr-a", "A", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	boxB, err := s.CreateBox("box-narr-b", "B", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The seed does not bump: both fresh boxes sit at version 1.
+	if got, _ := s.GetBox(boxA.ID); got.ConfigVersion != 1 {
+		t.Fatalf("fresh box A config_version = %d, want 1", got.ConfigVersion)
+	}
+	if got, _ := s.GetBox(boxB.ID); got.ConfigVersion != 1 {
+		t.Fatalf("fresh box B config_version = %d, want 1", got.ConfigVersion)
+	}
+
+	want := Character{
+		Openness: 0.9, Conscientiousness: 0.8, Extraversion: 0.7,
+		Agreeableness: 0.6, Neuroticism: 0.2,
+	}
+	st, err := s.UpdateBoxNarrator(boxA.ID, "Lore", "en", "lore.glb", "warm and precise", "explain first", "lore-v2", 42, 1200, want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.ID == "" || st.Slug != "st_b_dt" || st.Scope != "box" || st.BoxID != boxA.ID {
+		t.Errorf("narrator identity = %+v, want the box-scoped st_b_dt row", st)
+	}
+	if st.Name != "Lore" || st.Locale != "en" || st.Age != 42 || st.WordBudget != 1200 ||
+		st.Model != "lore.glb" || st.Voice != "lore-v2" || st.Brief != "warm and precise" ||
+		st.SoulCore != "explain first" || st.BigFive != want {
+		t.Errorf("narrator after the edit = %+v, want the submitted nine fields", st)
+	}
+	if got, _ := s.GetBox(boxA.ID); got.ConfigVersion != 2 {
+		t.Errorf("box A after the edit = %d, want 2", got.ConfigVersion)
+	}
+	if got, _ := s.GetBox(boxB.ID); got.ConfigVersion != 1 {
+		t.Errorf("box B after editing box A = %d, want 1 (untouched)", got.ConfigVersion)
+	}
+
+	// The upsert core creates the row when the seed has not run, and the
+	// create path bumps too.
+	if _, err := s.db.Exec(`DELETE FROM staff WHERE scope = 'box' AND box_id = ?`, boxB.ID); err != nil {
+		t.Fatal(err)
+	}
+	created, err := s.UpdateBoxNarrator(boxB.ID, "Data", "pl", "", "", "", "pl-v1", 0, 0, Character{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.ID == "" || created.Slug != "st_b_dt" || created.BoxID != boxB.ID {
+		t.Errorf("created narrator = %+v, want a minted st_b_dt row on box B", created)
+	}
+	if got, _ := s.GetBox(boxB.ID); got.ConfigVersion != 2 {
+		t.Errorf("box B after the create-if-missing edit = %d, want 2", got.ConfigVersion)
+	}
+}
+
 func TestUpsertStaffCreate(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1171,8 +1258,16 @@ func TestOpenStoreRelaxesGlobalStaffSlugUnique(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 5 {
-		t.Errorf("ListStaff after the second open = %d rows, want the carried row, the two seeds and the two narrators", len(list))
+	// The canonical list carries the org-scoped rows only: the carried row
+	// and the two seeds. The two narrators are box-scoped — visible through
+	// StaffForBox, never through ListStaff.
+	if len(list) != 3 {
+		t.Errorf("ListStaff after the second open = %d rows, want the carried row and the two seeds", len(list))
+	}
+	for _, st := range list {
+		if st.Scope != "org" {
+			t.Errorf("ListStaff carries %q with scope %q, want org-scoped rows only", st.Slug, st.Scope)
+		}
 	}
 }
 

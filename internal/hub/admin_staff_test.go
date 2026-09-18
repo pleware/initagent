@@ -118,6 +118,41 @@ func TestAdminStaffCRUD(t *testing.T) {
 	}
 }
 
+// The operator reads one canonical staff member by id. A missing id is a
+// 404.
+func TestAdminStaffGet(t *testing.T) {
+	f := claimedHub(t, offering.Selfhost)
+
+	resp := f.do(t, http.MethodGet, "/api/admin/staff", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /api/admin/staff: %d, want 200", resp.StatusCode)
+	}
+	var seeded []Staff
+	if err := json.NewDecoder(resp.Body).Decode(&seeded); err != nil {
+		t.Fatal(err)
+	}
+	if len(seeded) == 0 {
+		t.Fatal("seeded staff list is empty")
+	}
+
+	resp = f.do(t, http.MethodGet, "/api/admin/staff/"+seeded[0].ID, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /api/admin/staff/%s: %d, want 200", seeded[0].ID, resp.StatusCode)
+	}
+	var got Staff
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != seeded[0].ID || got.Slug != seeded[0].Slug || got.Name != seeded[0].Name {
+		t.Errorf("GET staff = %+v, want the listed row %+v", got, seeded[0])
+	}
+
+	resp = f.do(t, http.MethodGet, "/api/admin/staff/staff-00000000-0000-0000-0000-000000000000", nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("GET a missing staff member: %d, want 404", resp.StatusCode)
+	}
+}
+
 // A canonical row has to be nameable and greettable: the slug and the name
 // are required, and neither may be blank after trimming.
 func TestAdminStaffRejectsMissingSlugOrName(t *testing.T) {
@@ -198,6 +233,7 @@ func TestAdminStaffSurfaceRefusals(t *testing.T) {
 	wide := f.mintToken(t, authz.Grant{Scopes: authz.GrantableScopes()})
 	for _, c := range []struct{ method, path string }{
 		{http.MethodGet, "/api/admin/staff"},
+		{http.MethodGet, "/api/admin/staff/staff-whatever"},
 		{http.MethodPost, "/api/admin/staff"},
 		{http.MethodPatch, "/api/admin/staff/staff-whatever"},
 	} {
@@ -209,6 +245,7 @@ func TestAdminStaffSurfaceRefusals(t *testing.T) {
 
 	for _, c := range []struct{ method, path string }{
 		{http.MethodGet, "/api/admin/staff"},
+		{http.MethodGet, "/api/admin/staff/staff-whatever"},
 		{http.MethodPost, "/api/admin/staff"},
 		{http.MethodPatch, "/api/admin/staff/staff-whatever"},
 	} {
@@ -220,6 +257,7 @@ func TestAdminStaffSurfaceRefusals(t *testing.T) {
 
 	for _, c := range []struct{ method, path string }{
 		{http.MethodGet, "/api/admin/staff"},
+		{http.MethodGet, "/api/admin/staff/staff-whatever"},
 		{http.MethodPost, "/api/admin/staff"},
 		{http.MethodPatch, "/api/admin/staff/staff-whatever"},
 	} {
@@ -306,6 +344,14 @@ func TestAdminStaffGateRefusesWrongCredentials(t *testing.T) {
 			f.srv.handleListStaff(rec, req, c.cred)
 			if rec.Code != http.StatusForbidden {
 				t.Errorf("list staff: %d, want 403", rec.Code)
+			}
+
+			req = httptest.NewRequest(http.MethodGet, "/api/admin/staff/staff-x", nil)
+			req.SetPathValue("id", "staff-x")
+			rec = httptest.NewRecorder()
+			f.srv.handleGetStaff(rec, req, c.cred)
+			if rec.Code != http.StatusForbidden {
+				t.Errorf("get staff: %d, want 403", rec.Code)
 			}
 		})
 	}

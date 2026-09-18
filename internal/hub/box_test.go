@@ -322,6 +322,111 @@ func TestBoxNarrator(t *testing.T) {
 	}
 }
 
+// Editing the narrator round-trips the nine editable fields, bumps the
+// box's config_version by exactly one per edit, and the seed does not
+// bump: a fresh box stays at version 1.
+func TestBoxNarratorEdit(t *testing.T) {
+	f := claimedHub(t, offering.Selfhost)
+	box, err := f.srv.store.CreateBox("box-narrator-edit", "Editable", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := f.srv.store.GetBox(box.ID); got.ConfigVersion != 1 {
+		t.Fatalf("fresh box config_version = %d, want 1 (the seed must not bump)", got.ConfigVersion)
+	}
+
+	want := Character{
+		Openness: 0.9, Conscientiousness: 0.8, Extraversion: 0.7,
+		Agreeableness: 0.6, Neuroticism: 0.2,
+	}
+	resp := f.do(t, http.MethodPatch, "/api/boxes/"+box.ID+"/narrator", map[string]any{
+		"name": "Lore", "locale": "en", "age": 42, "wordBudget": 1200,
+		"model": "lore.glb", "voice": "lore-v2", "brief": "warm and precise",
+		"soulCore": "explain first", "bigFive": map[string]float64{
+			"openness": 0.9, "conscientiousness": 0.8, "extraversion": 0.7,
+			"agreeableness": 0.6, "neuroticism": 0.2,
+		},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PATCH narrator: %d, want 200", resp.StatusCode)
+	}
+	var narrator Staff
+	if err := json.NewDecoder(resp.Body).Decode(&narrator); err != nil {
+		t.Fatal(err)
+	}
+	if narrator.Slug != "st_b_dt" || narrator.Scope != "box" || narrator.BoxID != box.ID {
+		t.Errorf("narrator identity = %+v, want the box-scoped st_b_dt row", narrator)
+	}
+	if narrator.Name != "Lore" || narrator.Locale != "en" || narrator.Age != 42 ||
+		narrator.WordBudget != 1200 || narrator.Model != "lore.glb" ||
+		narrator.Voice != "lore-v2" || narrator.Brief != "warm and precise" ||
+		narrator.SoulCore != "explain first" || narrator.BigFive != want {
+		t.Errorf("narrator after the edit = %+v, want the submitted nine fields", narrator)
+	}
+	if got, _ := f.srv.store.GetBox(box.ID); got.ConfigVersion != 2 {
+		t.Errorf("config_version after the edit = %d, want 2", got.ConfigVersion)
+	}
+
+	// The GET reads the same edited row back.
+	resp = f.do(t, http.MethodGet, "/api/boxes/"+box.ID+"/narrator", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET narrator after the edit: %d, want 200", resp.StatusCode)
+	}
+	var readBack Staff
+	if err := json.NewDecoder(resp.Body).Decode(&readBack); err != nil {
+		t.Fatal(err)
+	}
+	if readBack.ID != narrator.ID || readBack.Name != "Lore" {
+		t.Errorf("narrator read back = %+v, want the edited row %+v", readBack, narrator)
+	}
+
+	// A second edit bumps again, exactly once more.
+	resp = f.do(t, http.MethodPatch, "/api/boxes/"+box.ID+"/narrator", map[string]any{
+		"name": "Lore Two",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("second PATCH narrator: %d, want 200", resp.StatusCode)
+	}
+	if got, _ := f.srv.store.GetBox(box.ID); got.ConfigVersion != 3 {
+		t.Errorf("config_version after the second edit = %d, want 3", got.ConfigVersion)
+	}
+
+	// A missing box is a 404 before anything is written.
+	resp = f.do(t, http.MethodPatch, "/api/boxes/box-00000000-0000-0000-0000-000000000000/narrator",
+		map[string]any{"name": "Ghost"})
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("PATCH narrator of a missing box: %d, want 404", resp.StatusCode)
+	}
+}
+
+// The narrator edit refuses a blank name and a negative age or word budget
+// with 400, and a refused edit writes nothing.
+func TestBoxNarratorEditValidation(t *testing.T) {
+	f := claimedHub(t, offering.Selfhost)
+	box, err := f.srv.store.CreateBox("box-narrator-validation", "Strict", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, c := range []struct {
+		name string
+		body map[string]any
+	}{
+		{"no name", map[string]any{"locale": "en"}},
+		{"blank name", map[string]any{"name": "   "}},
+		{"negative age", map[string]any{"name": "Lore", "age": -1}},
+		{"negative word budget", map[string]any{"name": "Lore", "wordBudget": -1}},
+	} {
+		resp := f.do(t, http.MethodPatch, "/api/boxes/"+box.ID+"/narrator", c.body)
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("%s: %d, want 400", c.name, resp.StatusCode)
+		}
+	}
+	if got, _ := f.srv.store.GetBox(box.ID); got.ConfigVersion != 1 {
+		t.Errorf("config_version after the refusals = %d, want 1 (nothing written)", got.ConfigVersion)
+	}
+}
+
 // Box creation needs a nameable box: slug and name are required, the slug
 // must fit the [a-z0-9-] shape, and a missing box answers 404 on the read
 // paths.
@@ -412,6 +517,7 @@ func TestBoxMalformedBody(t *testing.T) {
 		{http.MethodPost, "/api/boxes"},
 		{http.MethodPatch, "/api/boxes/" + box.ID},
 		{http.MethodPut, "/api/boxes/" + box.ID + "/orgs"},
+		{http.MethodPatch, "/api/boxes/" + box.ID + "/narrator"},
 	}
 	for _, c := range cases {
 		req, err := http.NewRequest(c.method, f.ts.URL+c.path, strings.NewReader(`{"slug": `))
@@ -461,6 +567,7 @@ func TestBoxGateRefusals(t *testing.T) {
 		{http.MethodGet, "/api/boxes"},
 		{http.MethodPost, "/api/boxes"},
 		{http.MethodDelete, "/api/boxes/box-00000000-0000-0000-0000-000000000000"},
+		{http.MethodPatch, "/api/boxes/box-00000000-0000-0000-0000-000000000000/narrator"},
 	} {
 		resp := f.do(t, c.method, c.path, nil)
 		if resp.StatusCode != http.StatusForbidden {
@@ -535,6 +642,7 @@ func TestBoxGateRefusesWrongCredentialsOnIdHandlers(t *testing.T) {
 		{name: "set box orgs", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleSetBoxOrgs(w, r, cred) }},
 		{name: "list box orgs", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleListBoxOrgs(w, r, cred) }},
 		{name: "get box narrator", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleGetBoxNarrator(w, r, cred) }},
+		{name: "update box narrator", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleUpdateBoxNarrator(w, r, cred) }},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -592,7 +700,12 @@ func TestBoxGateReadAdminSplit(t *testing.T) {
 		{name: "create box", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleCreateBox(w, r, cred) }},
 		{name: "update box", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleUpdateBox(w, r, cred) }},
 		{name: "delete box", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleDeleteBox(w, r, cred) }},
-		{name: "set box orgs", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleSetBoxOrgs(w, r, cred) }},
+		{name: "set box orgs", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+			f.srv.handleSetBoxOrgs(w, r, cred)
+		}},
+		{name: "update box narrator", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+			f.srv.handleUpdateBoxNarrator(w, r, cred)
+		}},
 	}
 	for _, c := range mutating {
 		t.Run(c.name, func(t *testing.T) {

@@ -11,6 +11,132 @@ import (
 	"github.com/pleware/initagent/internal/offering"
 )
 
+// ParseEdition accepts the five appliance classes and the empty string,
+// trimmed and case-insensitive; the empty string is lite and an unknown
+// name is refused so a typo cannot mint the wrong appliance.
+func TestParseEdition(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+		ok   bool
+	}{
+		{name: "empty is lite", in: "", want: "lite", ok: true},
+		{name: "lite", in: "lite", want: "lite", ok: true},
+		{name: "company", in: "company", want: "company", ok: true},
+		{name: "home trimmed and cased", in: " Home ", want: "home", ok: true},
+		{name: "assist", in: "assist", want: "assist", ok: true},
+		{name: "care cased", in: "CARE", want: "care", ok: true},
+		{name: "unknown refused", in: "gaming", want: "", ok: false},
+		{name: "hub refused", in: "hub", want: "", ok: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseEdition(tt.in)
+			if tt.ok && err != nil {
+				t.Fatalf("ParseEdition(%q) error = %v, want nil", tt.in, err)
+			}
+			if !tt.ok && err == nil {
+				t.Fatalf("ParseEdition(%q) = %q, want an error", tt.in, got)
+			}
+			if got != tt.want {
+				t.Errorf("ParseEdition(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+// Edition travels on the wire: create defaults to lite, carries a named
+// edition, and refuses an unknown one with 400; update replaces it, and
+// each write bumps config_version so a connector's sync sees the change.
+func TestBoxEditionWire(t *testing.T) {
+	f := claimedHub(t, offering.Selfhost)
+
+	resp := f.do(t, http.MethodPost, "/api/boxes", map[string]any{"slug": "box-lite", "name": "Lite"})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST without an edition: %d, want 200", resp.StatusCode)
+	}
+	var lite Box
+	if err := json.NewDecoder(resp.Body).Decode(&lite); err != nil {
+		t.Fatal(err)
+	}
+	if lite.Edition != "lite" || lite.ConfigVersion != 1 {
+		t.Errorf("default create = %+v, want edition lite and configVersion 1", lite)
+	}
+
+	resp = f.do(t, http.MethodPost, "/api/boxes", map[string]any{
+		"slug": "box-company", "name": "Company", "edition": " Company ",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST with an edition: %d, want 200", resp.StatusCode)
+	}
+	var company Box
+	if err := json.NewDecoder(resp.Body).Decode(&company); err != nil {
+		t.Fatal(err)
+	}
+	if company.Edition != "company" || company.ConfigVersion != 1 {
+		t.Errorf("named create = %+v, want edition company and configVersion 1", company)
+	}
+
+	resp = f.do(t, http.MethodPost, "/api/boxes", map[string]any{
+		"slug": "box-bad", "name": "Bad", "edition": "gaming",
+	})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("POST with an unknown edition: %d, want 400", resp.StatusCode)
+	}
+
+	resp = f.do(t, http.MethodPatch, "/api/boxes/"+company.ID, map[string]any{"name": "Care", "edition": "care"})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PATCH with an edition: %d, want 200", resp.StatusCode)
+	}
+	var updated Box
+	if err := json.NewDecoder(resp.Body).Decode(&updated); err != nil {
+		t.Fatal(err)
+	}
+	if updated.Edition != "care" || updated.ConfigVersion != 2 {
+		t.Errorf("updated = %+v, want edition care and configVersion 2", updated)
+	}
+
+	resp = f.do(t, http.MethodPatch, "/api/boxes/"+company.ID, map[string]any{"name": "Bad", "edition": "bogus"})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("PATCH with an unknown edition: %d, want 400", resp.StatusCode)
+	}
+}
+
+// Deleting a box removes the row and everything bound to it; the second
+// delete answers 404.
+func TestBoxDelete(t *testing.T) {
+	f := claimedHub(t, offering.Selfhost)
+	box, err := f.srv.store.CreateBox("box-gone", "Gone", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.srv.store.SetBoxOrgs(box.ID, []string{"org-a"}); err != nil {
+		t.Fatal(err)
+	}
+
+	resp := f.do(t, http.MethodDelete, "/api/boxes/"+box.ID, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("DELETE /api/boxes/%s: %d, want 200", box.ID, resp.StatusCode)
+	}
+	if got, err := f.srv.store.GetBox(box.ID); err != nil || got != nil {
+		t.Fatalf("GetBox after delete = (%v, %v), want (nil, nil)", got, err)
+	}
+	roster, err := f.srv.store.StaffForBox(box.ID)
+	if err != nil || len(roster) != 0 {
+		t.Fatalf("StaffForBox after delete = (%v, %v), want empty", roster, err)
+	}
+	orgs, err := f.srv.store.ListBoxOrgs(box.ID)
+	if err != nil || len(orgs) != 0 {
+		t.Fatalf("ListBoxOrgs after delete = (%v, %v), want empty", orgs, err)
+	}
+
+	resp = f.do(t, http.MethodDelete, "/api/boxes/"+box.ID, nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("second DELETE: %d, want 404", resp.StatusCode)
+	}
+}
+
 // The platform operator creates, lists, reads and updates boxes over the
 // wire, and every write answers with the full row.
 func TestBoxCRUD(t *testing.T) {
@@ -325,11 +451,16 @@ func TestBoxGateRefusals(t *testing.T) {
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("create with a read-only installation token: %d, want 403", resp.StatusCode)
 	}
+	resp = tf.withToken(t, secret, http.MethodDelete, "/api/boxes/box-00000000-0000-0000-0000-000000000000")
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("delete with a read-only installation token: %d, want 403", resp.StatusCode)
+	}
 
 	f := hostedCustomer(t)
 	for _, c := range []struct{ method, path string }{
 		{http.MethodGet, "/api/boxes"},
 		{http.MethodPost, "/api/boxes"},
+		{http.MethodDelete, "/api/boxes/box-00000000-0000-0000-0000-000000000000"},
 	} {
 		resp := f.do(t, c.method, c.path, nil)
 		if resp.StatusCode != http.StatusForbidden {
@@ -400,6 +531,7 @@ func TestBoxGateRefusesWrongCredentialsOnIdHandlers(t *testing.T) {
 	}{
 		{name: "get box", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleGetBox(w, r, cred) }},
 		{name: "update box", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleUpdateBox(w, r, cred) }},
+		{name: "delete box", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleDeleteBox(w, r, cred) }},
 		{name: "set box orgs", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleSetBoxOrgs(w, r, cred) }},
 		{name: "list box orgs", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleListBoxOrgs(w, r, cred) }},
 		{name: "get box narrator", call: func(w http.ResponseWriter, r *http.Request) { f.srv.handleGetBoxNarrator(w, r, cred) }},
@@ -459,6 +591,7 @@ func TestBoxGateReadAdminSplit(t *testing.T) {
 	}{
 		{name: "create box", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleCreateBox(w, r, cred) }},
 		{name: "update box", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleUpdateBox(w, r, cred) }},
+		{name: "delete box", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleDeleteBox(w, r, cred) }},
 		{name: "set box orgs", call: func(w http.ResponseWriter, r *http.Request, cred authz.Credential) { f.srv.handleSetBoxOrgs(w, r, cred) }},
 	}
 	for _, c := range mutating {

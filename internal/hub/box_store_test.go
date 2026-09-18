@@ -2,10 +2,12 @@ package hub
 
 import (
 	"errors"
+	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/pleware/initagent/internal/id"
+	"github.com/pleware/initagent/internal/store"
 )
 
 func TestCreateBoxRoundTrip(t *testing.T) {
@@ -302,4 +304,192 @@ func TestListBoxOrgsEmptyBox(t *testing.T) {
 	if got == nil || len(got) != 0 {
 		t.Errorf("ListBoxOrgs for a box with no orgs = %v, want a non-nil empty slice", got)
 	}
+}
+
+func TestCreateBoxEditionRoundTrip(t *testing.T) {
+	s := testStore(t)
+	created, err := s.CreateBox("box-edition", "Edition", "", "care")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Edition != "care" {
+		t.Errorf("created edition = %q, want care", created.Edition)
+	}
+	if created.ConfigVersion != 1 {
+		t.Errorf("created config_version = %d, want 1", created.ConfigVersion)
+	}
+
+	got, err := s.GetBox(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || got.Edition != "care" || got.ConfigVersion != 1 {
+		t.Errorf("read-back = %+v, want the submitted edition and version 1", got)
+	}
+}
+
+func TestCreateBoxEditionDefaultsLite(t *testing.T) {
+	s := testStore(t)
+	created, err := s.CreateBox("box-lite", "Lite", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Edition != "lite" {
+		t.Errorf("empty edition stored as %q, want lite", created.Edition)
+	}
+	if _, err := s.CreateBox("box-bad", "Bad", "", "gaming"); err == nil {
+		t.Fatal("CreateBox with an unknown edition returned nil error, want a refusal")
+	}
+}
+
+func TestUpdateBoxBumpsConfigVersion(t *testing.T) {
+	s := testStore(t)
+	created, err := s.CreateBox("box-bump", "One", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.UpdateBox(created.ID, "Two", "", "company")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ConfigVersion != 2 {
+		t.Errorf("config_version after the first update = %d, want 2", got.ConfigVersion)
+	}
+	if got.Edition != "company" {
+		t.Errorf("edition after update = %q, want company", got.Edition)
+	}
+	got, err = s.UpdateBox(created.ID, "Three", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ConfigVersion != 3 {
+		t.Errorf("config_version after the second update = %d, want 3", got.ConfigVersion)
+	}
+}
+
+func TestSetBoxOrgsBumpsConfigVersion(t *testing.T) {
+	s := testStore(t)
+	box, err := s.CreateBox("box-org-bump", "Orgs", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetBoxOrgs(box.ID, []string{"org-a"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.GetBox(box.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ConfigVersion != 2 {
+		t.Errorf("config_version after SetBoxOrgs = %d, want 2", got.ConfigVersion)
+	}
+}
+
+func TestDeleteBoxCascades(t *testing.T) {
+	s := testStore(t)
+	box, err := s.CreateBox("box-doomed", "Doomed", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetBoxOrgs(box.ID, []string{"org-a", "org-b"}); err != nil {
+		t.Fatal(err)
+	}
+	// CreateBox seeds the box-scoped narrator, so the staff table has a row
+	// for this box before the delete.
+	roster, err := s.StaffForBox(box.ID)
+	if err != nil || len(roster) != 1 {
+		t.Fatalf("StaffForBox before delete = (%v, %d), want one narrator", err, len(roster))
+	}
+
+	deleted, err := s.DeleteBox(box.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !deleted {
+		t.Fatal("DeleteBox on an existing box reported false")
+	}
+	got, err := s.GetBox(box.ID)
+	if err != nil || got != nil {
+		t.Fatalf("GetBox after delete = (%v, %v), want (nil, nil)", got, err)
+	}
+	orgs, err := s.ListBoxOrgs(box.ID)
+	if err != nil || len(orgs) != 0 {
+		t.Fatalf("ListBoxOrgs after delete = (%v, %v), want empty", orgs, err)
+	}
+	roster, err = s.StaffForBox(box.ID)
+	if err != nil || len(roster) != 0 {
+		t.Fatalf("StaffForBox after delete = (%v, %v), want empty", roster, err)
+	}
+
+	// A second delete finds no row and leaves the store untouched.
+	deleted, err = s.DeleteBox(box.ID)
+	if err != nil || deleted {
+		t.Fatalf("second DeleteBox = (%v, %v), want (false, nil)", deleted, err)
+	}
+}
+
+// A store whose boxes table predates the edition columns gains them on
+// reopen with the schema defaults: edition lite and config_version 1, never
+// 0, so a migrated box's first sync serves a manifest. The migration is
+// idempotent — a third open finds both columns and skips.
+func TestOpenStoreMigratesBoxColumns(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "box-migration.db")
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	box, err := s.CreateBox("box-migrated", "Migrated", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate the pre-migration shape: the two columns do not exist.
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, drop := range []string{
+		`ALTER TABLE boxes DROP COLUMN edition`,
+		`ALTER TABLE boxes DROP COLUMN config_version`,
+	} {
+		if _, err := db.Exec(drop); err != nil {
+			_ = db.Close()
+			t.Fatalf("%s: %v", drop, err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopen on a pre-edition boxes table: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+	for _, col := range []string{"edition", "config_version"} {
+		ok, err := again.hasColumn("boxes", col)
+		if err != nil || !ok {
+			t.Fatalf("boxes.%s after reopen: ok=%v err=%v", col, ok, err)
+		}
+	}
+	got, err := again.GetBox(box.ID)
+	if err != nil || got == nil {
+		t.Fatalf("GetBox after migration = (%v, %v), want the carried row", got, err)
+	}
+	if got.Edition != "lite" || got.ConfigVersion != 1 {
+		t.Errorf("migrated row = %+v, want edition lite and config_version 1", got)
+	}
+
+	// The migration is a no-op on a store that already carries the columns.
+	if err := again.Close(); err != nil {
+		t.Fatal(err)
+	}
+	third, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("third open on a migrated store: %v", err)
+	}
+	t.Cleanup(func() { third.Close() })
 }

@@ -2,6 +2,7 @@
 // the session cookie; 401s bounce the user to the login screen via the
 // listener App.tsx registers here.
 
+import type { BoxToken } from './types'
 import i18n from './i18n/config'
 
 let onUnauthorized: (() => void) | null = null
@@ -153,4 +154,35 @@ export function timeAgo(unixSec: number): string {
   if (s < 3600) return i18n.t('time.minutesAgo', { count: Math.floor(s / 60) })
   if (s < 86400) return i18n.t('time.hoursAgo', { count: Math.floor(s / 3600) })
   return i18n.t('time.daysAgo', { count: Math.floor(s / 86400) })
+}
+
+// --- boxes ---
+
+// mintBoxToken mints one credential for a box's own surfaces. The secret is
+// returned exactly once here; every later listing carries rows, not secrets.
+export async function mintBoxToken(
+  boxId: string,
+): Promise<{ token: string; row: BoxToken }> {
+  return api.post<{ token: string; row: BoxToken }>(
+    `/api/boxes/${encodeURIComponent(boxId)}/tokens`,
+  )
+}
+
+// listBoxTokens lists a box's active credentials. lastUsedAt stays 0 until
+// the token is used.
+export function listBoxTokens(boxId: string): Promise<BoxToken[]> {
+  return api.get<BoxToken[]>(`/api/boxes/${encodeURIComponent(boxId)}/tokens`)
+}
+
+// revokeBoxToken invalidates one box credential.
+export function revokeBoxToken(boxId: string, tokenId: string): Promise<{ ok: boolean }> {
+  return api.del<{ ok: boolean }>(
+    `/api/boxes/${encodeURIComponent(boxId)}/tokens/${encodeURIComponent(tokenId)}`,
+  )
+}
+
+// deleteBox removes a box from the installation. A box that is already gone
+// answers 404.
+export function deleteBox(id: string): Promise<{ ok: boolean }> {
+  return api.del<{ ok: boolean }>(`/api/boxes/${encodeURIComponent(id)}`)
 }

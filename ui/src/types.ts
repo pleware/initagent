@@ -363,17 +363,34 @@ export interface Staff {
 
 // --- boxes ---
 
+// BoxEdition is one PWare OS flavour a box may be configured as. The hub is
+// the owner of the set; an unknown value on the wire defaults to `lite`.
+export type BoxEdition = 'company' | 'home' | 'assist' | 'care' | 'lite'
+
 // Box is the configurable PWare OS appliance (`initagent.fleet.box`): the
 // logical box a `fleet.host` machine runs, carrying its organizations, its
 // narrator and its staff overrides (58). hostId is empty until the box is
-// bound to a host machine.
+// bound to a host machine. edition is the box's flavour; configVersion bumps
+// every time the box's configuration changes.
 export interface Box {
   id: string
   slug: string
   name: string
   hostId?: string
+  edition: string
+  configVersion: number
   createdAt: number
   updatedAt: number
+}
+
+// BoxToken is one credential the box mints for its own surfaces. The secret
+// exists only in the mint response — the list carries rows, never secrets,
+// so a listed token cannot be re-read by anyone.
+export interface BoxToken {
+  id: string
+  boxId: string
+  createdAt: number
+  lastUsedAt: number
 }
 
 // --- skill store ---

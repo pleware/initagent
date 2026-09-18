@@ -230,6 +230,14 @@ CREATE TABLE IF NOT EXISTS box_orgs (
 	org_id TEXT NOT NULL,
 	PRIMARY KEY (box_id, org_id)
 );
+CREATE TABLE IF NOT EXISTS box_tokens (
+	id           TEXT PRIMARY KEY,
+	box_id       TEXT NOT NULL,
+	token_hash   TEXT NOT NULL UNIQUE,
+	created_at   INTEGER NOT NULL,
+	revoked_at   INTEGER NOT NULL DEFAULT 0,
+	last_used_at INTEGER NOT NULL DEFAULT 0
+);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -437,6 +445,14 @@ CREATE TABLE IF NOT EXISTS box_orgs (
 	org_id TEXT NOT NULL,
 	PRIMARY KEY (box_id, org_id)
 );
+CREATE TABLE IF NOT EXISTS box_tokens (
+	id           TEXT PRIMARY KEY,
+	box_id       TEXT NOT NULL,
+	token_hash   TEXT NOT NULL UNIQUE,
+	created_at   BIGINT NOT NULL,
+	revoked_at   BIGINT NOT NULL DEFAULT 0,
+	last_used_at BIGINT NOT NULL DEFAULT 0
+);
 `
 
 // OpenStore opens the hub store on a SQLite file (self-host / OSS path).
@@ -543,6 +559,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureBoxColumns(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring box columns: %w", err)
+	}
+	if err := s.ensureBoxTokens(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring box tokens: %w", err)
 	}
 	if err := s.ensureFleetConnectorScopes(); err != nil {
 		db.Close()
@@ -1178,6 +1198,32 @@ func (s *Store) ensureBoxColumns() error {
 		decl = "BIGINT NOT NULL DEFAULT 1"
 	}
 	return s.ensureColumn("boxes", "config_version", decl)
+}
+
+// ensureBoxTokens creates the box_tokens table on a store that predates
+// it. CREATE TABLE IF NOT EXISTS in the schema batch does not add a table
+// the batch has never seen, so the table is created here for stores that
+// opened before it existed; a fresh store already has it from the batch.
+func (s *Store) ensureBoxTokens() error {
+	ok, err := s.hasTable("box_tokens")
+	if err != nil || ok {
+		return err
+	}
+	createdAt := "INTEGER NOT NULL"
+	stamp := "INTEGER NOT NULL DEFAULT 0"
+	if s.db.Dialect() == store.Postgres {
+		createdAt = "BIGINT NOT NULL"
+		stamp = "BIGINT NOT NULL DEFAULT 0"
+	}
+	_, err = s.db.Exec(`CREATE TABLE box_tokens (
+		id           TEXT PRIMARY KEY,
+		box_id       TEXT NOT NULL,
+		token_hash   TEXT NOT NULL UNIQUE,
+		created_at   ` + createdAt + `,
+		revoked_at   ` + stamp + `,
+		last_used_at ` + stamp + `
+	)`)
+	return err
 }
 
 // ensureFleetConnectorScopes carries stored api token scopes written against

@@ -9,7 +9,7 @@ import type { Staff } from '../types'
 // the box-scoped staff row the box presents to its people. BoxesPage links
 // here instead of opening the old read-only preview, so the whole editor
 // gets the whole page. The identity is context, not a field: the hub keys
-// the row on the narrator slug st_b_dt, so the PATCH sends only the nine
+// the row on the narrator slug st_b_pi, so the PATCH sends only the nine
 // editable fields — no slug, no scope, no box id.
 export default function NarratorPage() {
   const { t } = useTranslation()

@@ -2,6 +2,7 @@ package hub
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -27,6 +28,31 @@ import (
 // anything else so a non-browser client cannot mint a slug with capitals,
 // underscores or spaces.
 var boxSlugRe = regexp.MustCompile(`^[a-z0-9-]+$`)
+
+// boxEditions names the appliance classes a box can be (58).
+var boxEditions = map[string]bool{
+	"company": true,
+	"home":    true,
+	"assist":  true,
+	"care":    true,
+	"lite":    true,
+}
+
+// ParseEdition accepts an edition name from the wire, trimmed and
+// case-insensitive. The empty string is the lite default — the zero-value
+// appliance a fresh box starts as. An unknown name is refused rather than
+// defaulted, the same convention ParseRole follows: a typo that silently
+// became `lite` would mint the wrong appliance.
+func ParseEdition(s string) (string, error) {
+	e := strings.ToLower(strings.TrimSpace(s))
+	if e == "" {
+		return "lite", nil
+	}
+	if !boxEditions[e] {
+		return "", fmt.Errorf("edition %q: want company, home, assist, care or lite", s)
+	}
+	return e, nil
+}
 
 // boxOr404 loads a box for a handler, or writes the 404 itself. Every
 // caller passed the installation gate first, so "no such box" is the
@@ -54,9 +80,10 @@ func (s *Server) handleCreateBox(w http.ResponseWriter, r *http.Request, cred au
 		return
 	}
 	var req struct {
-		Slug   string `json:"slug"`
-		Name   string `json:"name"`
-		HostID string `json:"hostId"`
+		Slug    string `json:"slug"`
+		Name    string `json:"name"`
+		HostID  string `json:"hostId"`
+		Edition string `json:"edition"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		httpError(w, http.StatusBadRequest, "bad request")
@@ -72,7 +99,12 @@ func (s *Server) handleCreateBox(w http.ResponseWriter, r *http.Request, cred au
 		httpError(w, http.StatusBadRequest, "slug must contain only lowercase letters, digits and dashes")
 		return
 	}
-	box, err := s.store.CreateBox(req.Slug, req.Name, req.HostID)
+	edition, err := ParseEdition(req.Edition)
+	if err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	box, err := s.store.CreateBox(req.Slug, req.Name, req.HostID, edition)
 	if err != nil {
 		if errors.Is(err, ErrBoxSlugTaken) {
 			httpError(w, http.StatusConflict, err.Error())
@@ -120,8 +152,9 @@ func (s *Server) handleUpdateBox(w http.ResponseWriter, r *http.Request, cred au
 	}
 	boxID := r.PathValue("id")
 	var req struct {
-		Name   string `json:"name"`
-		HostID string `json:"hostId"`
+		Name    string `json:"name"`
+		HostID  string `json:"hostId"`
+		Edition string `json:"edition"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		httpError(w, http.StatusBadRequest, "bad request")
@@ -131,7 +164,12 @@ func (s *Server) handleUpdateBox(w http.ResponseWriter, r *http.Request, cred au
 		httpError(w, http.StatusBadRequest, "name is required")
 		return
 	}
-	box, err := s.store.UpdateBox(boxID, req.Name, req.HostID)
+	edition, err := ParseEdition(req.Edition)
+	if err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	box, err := s.store.UpdateBox(boxID, req.Name, req.HostID, edition)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

@@ -216,12 +216,14 @@ CREATE TABLE IF NOT EXISTS org_staff_overrides (
 	PRIMARY KEY (org_id, staff_id)
 );
 CREATE TABLE IF NOT EXISTS boxes (
-	id         TEXT PRIMARY KEY,
-	slug       TEXT NOT NULL UNIQUE,
-	name       TEXT NOT NULL DEFAULT '',
-	host_id    TEXT,
-	created_at INTEGER NOT NULL,
-	updated_at INTEGER NOT NULL
+	id             TEXT PRIMARY KEY,
+	slug           TEXT NOT NULL UNIQUE,
+	name           TEXT NOT NULL DEFAULT '',
+	host_id        TEXT,
+	created_at     INTEGER NOT NULL,
+	updated_at     INTEGER NOT NULL,
+	edition        TEXT NOT NULL DEFAULT 'lite',
+	config_version INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS box_orgs (
 	box_id TEXT NOT NULL,
@@ -421,12 +423,14 @@ CREATE TABLE IF NOT EXISTS org_staff_overrides (
 	PRIMARY KEY (org_id, staff_id)
 );
 CREATE TABLE IF NOT EXISTS boxes (
-	id         TEXT PRIMARY KEY,
-	slug       TEXT NOT NULL UNIQUE,
-	name       TEXT NOT NULL DEFAULT '',
-	host_id    TEXT,
-	created_at BIGINT NOT NULL,
-	updated_at BIGINT NOT NULL
+	id             TEXT PRIMARY KEY,
+	slug           TEXT NOT NULL UNIQUE,
+	name           TEXT NOT NULL DEFAULT '',
+	host_id        TEXT,
+	created_at     BIGINT NOT NULL,
+	updated_at     BIGINT NOT NULL,
+	edition        TEXT NOT NULL DEFAULT 'lite',
+	config_version BIGINT NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS box_orgs (
 	box_id TEXT NOT NULL,
@@ -535,6 +539,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureApiTokenInstallation(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring api token installation column: %w", err)
+	}
+	if err := s.ensureBoxColumns(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring box columns: %w", err)
 	}
 	if err := s.ensureFleetConnectorScopes(); err != nil {
 		db.Close()
@@ -1154,6 +1162,22 @@ func (s *Store) ensureApiTokens() error {
 // org-scoped — and only CreateAdminToken writes a 1.
 func (s *Store) ensureApiTokenInstallation() error {
 	return s.ensureColumn("api_tokens", "installation", "INTEGER NOT NULL DEFAULT 0")
+}
+
+// ensureBoxColumns adds edition and config_version to a live boxes table.
+// CREATE TABLE IF NOT EXISTS will not add them to a table that already
+// exists. config_version defaults to 1 — never 0 — so a migrated box's
+// first sync serves a manifest instead of a spurious "nothing changed"
+// from a version-0 row (58).
+func (s *Store) ensureBoxColumns() error {
+	if err := s.ensureColumn("boxes", "edition", "TEXT NOT NULL DEFAULT 'lite'"); err != nil {
+		return err
+	}
+	decl := "INTEGER NOT NULL DEFAULT 1"
+	if s.db.Dialect() == store.Postgres {
+		decl = "BIGINT NOT NULL DEFAULT 1"
+	}
+	return s.ensureColumn("boxes", "config_version", decl)
 }
 
 // ensureFleetConnectorScopes carries stored api token scopes written against

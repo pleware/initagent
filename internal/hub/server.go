@@ -493,6 +493,13 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/boxes/{id}/orgs", s.requireCredential(s.handleListBoxOrgs))
 	m.HandleFunc("GET /api/boxes/{id}/narrator", s.requireCredential(s.handleGetBoxNarrator))
 
+	// Box sync tokens are session-only for the same reason credentials
+	// are: a token that can mint a token launders a narrow grant into a
+	// wide one (58). The AdminBox gate lives in the handler.
+	m.HandleFunc("POST /api/boxes/{id}/tokens", s.requireSession(s.handleCreateBoxToken))
+	m.HandleFunc("GET /api/boxes/{id}/tokens", s.requireSession(s.handleListBoxTokens))
+	m.HandleFunc("DELETE /api/boxes/{id}/tokens/{tokenId}", s.requireSession(s.handleRevokeBoxToken))
+
 	// Operating the installation, which is not something a machine secret
 	// reaches: a token's boundary is a project or a tenant.
 	m.HandleFunc("GET /api/updates", s.requireInstallation(authz.ReadUpdate, s.handleUpdateStatus))

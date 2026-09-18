@@ -181,6 +181,25 @@ func (s *Server) handleUpdateBox(w http.ResponseWriter, r *http.Request, cred au
 	writeJSON(w, box)
 }
 
+// handleDeleteBox removes a box and everything bound to it. A missing box
+// is a 404.
+func (s *Server) handleDeleteBox(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.AdminBox, "", "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	deleted, err := s.store.DeleteBox(r.PathValue("id"))
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if !deleted {
+		httpError(w, http.StatusNotFound, "no such box")
+		return
+	}
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
 // handleSetBoxOrgs replaces the organization set bound to a box. The body
 // carries the whole new set; duplicate ids collapse and an absent orgIds
 // clears the box, matching the store's replace semantics.

@@ -488,6 +488,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/boxes", s.requireCredential(s.handleListBoxes))
 	m.HandleFunc("GET /api/boxes/{id}", s.requireCredential(s.handleGetBox))
 	m.HandleFunc("PATCH /api/boxes/{id}", s.requireCredential(s.handleUpdateBox))
+	m.HandleFunc("DELETE /api/boxes/{id}", s.requireCredential(s.handleDeleteBox))
 	m.HandleFunc("PUT /api/boxes/{id}/orgs", s.requireCredential(s.handleSetBoxOrgs))
 	m.HandleFunc("GET /api/boxes/{id}/orgs", s.requireCredential(s.handleListBoxOrgs))
 	m.HandleFunc("GET /api/boxes/{id}/narrator", s.requireCredential(s.handleGetBoxNarrator))

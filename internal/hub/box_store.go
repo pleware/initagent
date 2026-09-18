@@ -195,3 +195,34 @@ func nullableHostID(hostID string) any {
 	}
 	return hostID
 }
+
+// DeleteBox removes a box and everything bound to it in one transaction:
+// its organization set, its box-scoped staff (the narrator), and the box
+// row itself. The cascade is hand-written because the schema carries no
+// foreign keys; a box_tokens delete joins it when that table lands in the
+// tokens wave. A missing box is (false, nil).
+func (s *Store) DeleteBox(id string) (bool, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM box_orgs WHERE box_id = ?`, id); err != nil {
+		return false, err
+	}
+	if _, err := tx.Exec(`DELETE FROM staff WHERE scope = 'box' AND box_id = ?`, id); err != nil {
+		return false, err
+	}
+	res, err := tx.Exec(`DELETE FROM boxes WHERE id = ?`, id)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if n == 0 {
+		return false, nil
+	}
+	return true, tx.Commit()
+}

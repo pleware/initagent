@@ -500,6 +500,10 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/boxes/{id}/tokens", s.requireSession(s.handleListBoxTokens))
 	m.HandleFunc("DELETE /api/boxes/{id}/tokens/{tokenId}", s.requireSession(s.handleRevokeBoxToken))
 
+	// The sync-down endpoint speaks the box token, not a session or an api
+	// token, so it is a plain handler with its own bearer gate (58).
+	m.HandleFunc("GET /api/boxes/{id}/changes", s.handleBoxChanges)
+
 	// Operating the installation, which is not something a machine secret
 	// reaches: a token's boundary is a project or a tenant.
 	m.HandleFunc("GET /api/updates", s.requireInstallation(authz.ReadUpdate, s.handleUpdateStatus))

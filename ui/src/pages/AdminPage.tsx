@@ -1,11 +1,11 @@
-import { useCallback, useState, type FormEvent } from 'react'
+import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, timeAgo } from '../api'
 import { usePoll } from '../hooks'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
-import BigFiveFields from '../components/BigFiveFields'
-import type { Account, Character, KPISnapshot, Org, Staff } from '../types'
+import StaffEditor, { slugify } from '../components/StaffEditor'
+import type { Account, KPISnapshot, Org, Staff } from '../types'
 
 // The operator's view of the installation they run: every account, every
 // organization (drafts 08, 17).
@@ -219,203 +219,29 @@ export default function AdminPage() {
           onClose={() => setEditor(null)}
           wide
         >
-          <StaffForm
+          <StaffEditor
             staff={editor === 'new' ? null : editor}
-            onClose={() => setEditor(null)}
+            submit={(fields) =>
+              editor === 'new'
+                ? api.post<Staff>('/api/admin/staff', {
+                    ...fields,
+                    slug: slugify(fields.name),
+                  })
+                : api.patch<Staff>(`/api/admin/staff/${editor.id}`, {
+                    ...fields,
+                    slug: editor.slug,
+                  })
+            }
             onSaved={() => {
               setEditor(null)
               void load()
             }}
+            onCancel={() => setEditor(null)}
           />
         </Modal>
       )}
     </div>
   )
-}
-
-// StaffForm creates or updates one canonical staff member. The slug is not a
-// form field: on create it derives from the name, on edit the stored slug
-// travels untouched — the hub keys the upsert on it, so inventing a new one
-// in edit mode would mint a second row instead of updating.
-function StaffForm({
-  staff,
-  onClose,
-  onSaved,
-}: {
-  staff: Staff | null
-  onClose: () => void
-  onSaved: () => void
-}) {
-  const { t } = useTranslation()
-  const [name, setName] = useState(staff?.name ?? '')
-  const [locale, setLocale] = useState(staff?.locale ?? '')
-  const [age, setAge] = useState(staff && staff.age > 0 ? String(staff.age) : '')
-  const [model, setModel] = useState(staff?.model ?? '')
-  const [brief, setBrief] = useState(staff?.brief ?? '')
-  const [wordBudget, setWordBudget] = useState(
-    staff && staff.wordBudget > 0 ? String(staff.wordBudget) : '',
-  )
-  const [soulCore, setSoulCore] = useState(staff?.soulCore ?? '')
-  const [voice, setVoice] = useState(staff?.voice ?? '')
-  const [bigFive, setBigFive] = useState<Character>(staff?.bigFive ?? neutralCharacter())
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    setBusy(true)
-    setError('')
-    const payload = {
-      slug: staff ? staff.slug : slugify(name),
-      name: name.trim(),
-      locale: locale.trim(),
-      age: Number(age) || 0,
-      model: model.trim(),
-      brief: brief.trim(),
-      wordBudget: Number(wordBudget) || 0,
-      soulCore: soulCore.trim(),
-      voice: voice.trim(),
-      bigFive,
-    }
-    try {
-      if (staff) {
-        await api.patch<Staff>(`/api/admin/staff/${staff.id}`, payload)
-      } else {
-        await api.post<Staff>('/api/admin/staff', payload)
-      }
-      onSaved()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('staff.saveFailed'))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
-      {error && (
-        <p className="rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
-          {error}
-        </p>
-      )}
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-sm text-fg-soft">
-          {t('staff.name')}
-          <input
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
-          />
-        </label>
-        <label className="text-sm text-fg-soft">
-          {t('staff.locale')}
-          <input
-            type="text"
-            value={locale}
-            onChange={(e) => setLocale(e.target.value)}
-            placeholder={t('staff.localePlaceholder')}
-            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
-          />
-        </label>
-        <label className="text-sm text-fg-soft">
-          {t('staff.age')}
-          <input
-            type="number"
-            min={0}
-            value={age}
-            onChange={(e) => setAge(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
-          />
-        </label>
-        <label className="text-sm text-fg-soft">
-          {t('staff.wordBudget')}
-          <input
-            type="number"
-            min={0}
-            value={wordBudget}
-            onChange={(e) => setWordBudget(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
-          />
-        </label>
-        <label className="text-sm text-fg-soft">
-          {t('staff.model')}
-          <input
-            type="text"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
-          />
-        </label>
-        <label className="block">
-          <span className="field-label">{t('staff.voice')}</span>
-          <input
-            type="text"
-            value={voice}
-            onChange={(e) => setVoice(e.target.value)}
-            className="field-input mt-2"
-          />
-        </label>
-      </div>
-
-      <section className="rounded-lg border border-line-2 p-4">
-        <h3 className="text-sm font-medium text-fg">{t('staff.bigFive')}</h3>
-        <p className="mt-1 text-xs text-fg-subtle">{t('staff.bigFiveHint')}</p>
-        <div className="mt-3">
-          <BigFiveFields value={bigFive} onChange={setBigFive} />
-        </div>
-      </section>
-
-      <label className="text-sm text-fg-soft">
-        {t('staff.brief')}
-        <textarea
-          rows={3}
-          value={brief}
-          onChange={(e) => setBrief(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
-        />
-      </label>
-
-      <label className="block">
-        <span className="field-label">{t('staff.soulCore')}</span>
-        <textarea
-          rows={3}
-          value={soulCore}
-          onChange={(e) => setSoulCore(e.target.value)}
-          className="field-input mt-2"
-        />
-      </label>
-
-      <div className="mt-2 flex items-center justify-end gap-3">
-        <button type="button" onClick={onClose} className="btn-secondary">
-          {t('common.cancel')}
-        </button>
-        <button type="submit" disabled={busy} className="btn-primary">
-          {busy ? t('common.loading') : t('common.save')}
-        </button>
-      </div>
-    </form>
-  )
-}
-
-function neutralCharacter(): Character {
-  return {
-    openness: 0.5,
-    conscientiousness: 0.5,
-    extraversion: 0.5,
-    agreeableness: 0.5,
-    neuroticism: 0.5,
-  }
-}
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
 }
 
 function KPI({ label, value }: { label: string; value: string | number | undefined }) {

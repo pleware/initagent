@@ -50,9 +50,7 @@
     "staff": "Staff",
     "staffHint": "The hub's named teammates. Every organization inherits them and may tune its own copy.",
     "noStaff": "No staff yet.",
-    "newStaff": "New staff",
-    "newStaffTitle": "New staff member",
-    "editStaffTitle": "Edit staff member"
+    "newStaff": "New staff"
   },
   "agents": {
     "eyebrow": "Active work",
@@ -685,7 +683,11 @@
     "inherited": "Inherited from the hub",
     "loadFailed": "Could not load staff",
     "saveFailed": "Could not save this staff member",
-    "localePlaceholder": "pl"
+    "localePlaceholder": "pl",
+    "pageTitle": "Edit staff member",
+    "notFound": "This staff member does not exist.",
+    "createTitle": "New staff member",
+    "createHint": "A name is enough to start — tune everything else on the next page."
   },
   "status": {
     "working": "working",

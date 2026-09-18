@@ -50,9 +50,7 @@
     "staff": "Zespół",
     "staffHint": "Nazwani współpracownicy huba. Każda organizacja ich dziedziczy i może dostroić swoją kopię.",
     "noStaff": "Nie ma jeszcze nikogo.",
-    "newStaff": "Nowa osoba",
-    "newStaffTitle": "Nowa osoba w zespole",
-    "editStaffTitle": "Edytuj osobę"
+    "newStaff": "Nowa osoba"
   },
   "agents": {
     "eyebrow": "Aktywna praca",
@@ -693,7 +691,11 @@
     "inherited": "Dziedziczone z huba",
     "loadFailed": "Nie udało się wczytać zespołu",
     "saveFailed": "Nie udało się zapisać tej osoby",
-    "localePlaceholder": "pl"
+    "localePlaceholder": "pl",
+    "pageTitle": "Edytuj osobę",
+    "notFound": "Ta osoba nie istnieje.",
+    "createTitle": "Nowa osoba w zespole",
+    "createHint": "Na początek wystarczy imię — resztę dostroisz na kolejnej stronie."
   },
   "status": {
     "working": "pracuje",

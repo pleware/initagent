@@ -18,13 +18,17 @@ var ErrBoxSlugTaken = errors.New("a box with this slug already exists")
 // logical box, distinct from the physical `fleet.host` machine it runs on.
 // A host may run several boxes; each box carries its organizations, its
 // narrator and its staff overrides, and syncs them down to the machine (58).
+// Edition is the appliance class (ParseEdition); ConfigVersion counts the
+// config writes a connector's sync has to pick up.
 type Box struct {
-	ID        string `json:"id"`
-	Slug      string `json:"slug"`
-	Name      string `json:"name"`
-	HostID    string `json:"hostId,omitempty"`
-	CreatedAt int64  `json:"createdAt"`
-	UpdatedAt int64  `json:"updatedAt"`
+	ID            string `json:"id"`
+	Slug          string `json:"slug"`
+	Name          string `json:"name"`
+	HostID        string `json:"hostId,omitempty"`
+	Edition       string `json:"edition"`
+	ConfigVersion int64  `json:"configVersion"`
+	CreatedAt     int64  `json:"createdAt"`
+	UpdatedAt     int64  `json:"updatedAt"`
 }
 
 // boxScanner is the shared shape of sql.Row and sql.Rows Scan methods, the
@@ -34,12 +38,14 @@ type boxScanner interface {
 }
 
 // scanBox reads one boxes row selected in schema order:
-// id, slug, name, host_id, created_at, updated_at. A missing row is
-// (nil, nil). host_id is NULL until the box is bound to a host machine.
+// id, slug, name, host_id, created_at, updated_at, edition, config_version.
+// A missing row is (nil, nil). host_id is NULL until the box is bound to a
+// host machine.
 func scanBox(row boxScanner) (*Box, error) {
 	var b Box
 	var hostID sql.NullString
-	if err := row.Scan(&b.ID, &b.Slug, &b.Name, &hostID, &b.CreatedAt, &b.UpdatedAt); err != nil {
+	if err := row.Scan(&b.ID, &b.Slug, &b.Name, &hostID, &b.CreatedAt, &b.UpdatedAt,
+		&b.Edition, &b.ConfigVersion); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -51,24 +57,32 @@ func scanBox(row boxScanner) (*Box, error) {
 
 // CreateBox mints and stores a new box. The slug is unique per installation;
 // a collision returns ErrBoxSlugTaken. hostID is optional: an empty host
-// leaves the box unbound to a machine until a later UpdateBox.
-func (s *Store) CreateBox(slug, name, hostID string) (*Box, error) {
+// leaves the box unbound to a machine until a later UpdateBox. The edition
+// runs through ParseEdition, so an empty input stores lite; a fresh box
+// starts at config_version 1.
+func (s *Store) CreateBox(slug, name, hostID, edition string) (*Box, error) {
+	edition, err := ParseEdition(edition)
+	if err != nil {
+		return nil, err
+	}
 	boxID, err := id.New(id.Box)
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now().Unix()
 	b := &Box{
-		ID:        boxID,
-		Slug:      slug,
-		Name:      name,
-		HostID:    hostID,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:            boxID,
+		Slug:          slug,
+		Name:          name,
+		HostID:        hostID,
+		Edition:       edition,
+		ConfigVersion: 1,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
-	_, err = s.db.Exec(`INSERT INTO boxes (id, slug, name, host_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		b.ID, b.Slug, b.Name, nullableHostID(b.HostID), b.CreatedAt, b.UpdatedAt)
+	_, err = s.db.Exec(`INSERT INTO boxes (id, slug, name, host_id, created_at, updated_at, edition, config_version)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		b.ID, b.Slug, b.Name, nullableHostID(b.HostID), b.CreatedAt, b.UpdatedAt, b.Edition, b.ConfigVersion)
 	if uniqueConstraint(err) {
 		return nil, ErrBoxSlugTaken
 	}
@@ -83,13 +97,13 @@ func (s *Store) CreateBox(slug, name, hostID string) (*Box, error) {
 
 // GetBox returns one box by id. A missing box is (nil, nil).
 func (s *Store) GetBox(id string) (*Box, error) {
-	return scanBox(s.db.QueryRow(`SELECT id, slug, name, host_id, created_at, updated_at
+	return scanBox(s.db.QueryRow(`SELECT id, slug, name, host_id, created_at, updated_at, edition, config_version
 		FROM boxes WHERE id = ?`, id))
 }
 
 // ListBoxes returns every box on this installation, ordered by slug.
 func (s *Store) ListBoxes() ([]Box, error) {
-	rows, err := s.db.Query(`SELECT id, slug, name, host_id, created_at, updated_at
+	rows, err := s.db.Query(`SELECT id, slug, name, host_id, created_at, updated_at, edition, config_version
 		FROM boxes ORDER BY slug`)
 	if err != nil {
 		return nil, err
@@ -106,12 +120,18 @@ func (s *Store) ListBoxes() ([]Box, error) {
 	return out, rows.Err()
 }
 
-// UpdateBox replaces the editable fields of a box and refreshes its
-// updated_at. A missing box is (nil, nil). An empty hostID clears the host
-// binding.
-func (s *Store) UpdateBox(id, name, hostID string) (*Box, error) {
-	_, err := s.db.Exec(`UPDATE boxes SET name = ?, host_id = ?, updated_at = ?
-		WHERE id = ?`, name, nullableHostID(hostID), time.Now().Unix(), id)
+// UpdateBox replaces the editable fields of a box, bumps its config_version
+// atomically in the same statement, and refreshes its updated_at. A missing
+// box is (nil, nil). An empty hostID clears the host binding. The edition
+// runs through ParseEdition, so an empty input stores lite.
+func (s *Store) UpdateBox(id, name, hostID, edition string) (*Box, error) {
+	edition, err := ParseEdition(edition)
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.db.Exec(`UPDATE boxes SET name = ?, host_id = ?, edition = ?,
+		config_version = config_version + 1, updated_at = ?
+		WHERE id = ?`, name, nullableHostID(hostID), edition, time.Now().Unix(), id)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +141,8 @@ func (s *Store) UpdateBox(id, name, hostID string) (*Box, error) {
 // SetBoxOrgs replaces the organization set bound to a box: the old rows are
 // deleted and the new ones inserted inside one transaction, so a concurrent
 // reader never sees a half-written set. Duplicate ids in orgIDs collapse.
+// The same transaction bumps the box's config_version so a connector's next
+// sync picks the new set up.
 func (s *Store) SetBoxOrgs(boxID string, orgIDs []string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -128,6 +150,9 @@ func (s *Store) SetBoxOrgs(boxID string, orgIDs []string) error {
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec(`DELETE FROM box_orgs WHERE box_id = ?`, boxID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE boxes SET config_version = config_version + 1 WHERE id = ?`, boxID); err != nil {
 		return err
 	}
 	seen := map[string]bool{}

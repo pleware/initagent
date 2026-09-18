@@ -10,7 +10,7 @@ import (
 
 func TestCreateBoxRoundTrip(t *testing.T) {
 	s := testStore(t)
-	created, err := s.CreateBox("box-alpha", "Alpha box", "host-00000000-0000-0000-0000-000000000000")
+	created, err := s.CreateBox("box-alpha", "Alpha box", "host-00000000-0000-0000-0000-000000000000", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,10 +38,10 @@ func TestCreateBoxRoundTrip(t *testing.T) {
 
 func TestCreateBoxSlugUnique(t *testing.T) {
 	s := testStore(t)
-	if _, err := s.CreateBox("box-dup", "One", ""); err != nil {
+	if _, err := s.CreateBox("box-dup", "One", "", ""); err != nil {
 		t.Fatal(err)
 	}
-	_, err := s.CreateBox("box-dup", "Two", "")
+	_, err := s.CreateBox("box-dup", "Two", "", "")
 	if !errors.Is(err, ErrBoxSlugTaken) {
 		t.Fatalf("second CreateBox = %v, want ErrBoxSlugTaken", err)
 	}
@@ -60,7 +60,7 @@ func TestGetBoxMissing(t *testing.T) {
 
 func TestCreateBoxSeedsNarrator(t *testing.T) {
 	s := testStore(t)
-	box, err := s.CreateBox("box-narrated", "Narrated", "")
+	box, err := s.CreateBox("box-narrated", "Narrated", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestCreateBoxSeedsNarrator(t *testing.T) {
 
 func TestEnsureSeedBoxNarratorIdempotent(t *testing.T) {
 	s := testStore(t)
-	box, err := s.CreateBox("box-idem", "Idem", "")
+	box, err := s.CreateBox("box-idem", "Idem", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,11 +128,11 @@ func TestEnsureSeedBoxNarratorIdempotent(t *testing.T) {
 // re-homing box A's through the slug-keyed update path.
 func TestEnsureSeedBoxNarratorPerBox(t *testing.T) {
 	s := testStore(t)
-	boxA, err := s.CreateBox("box-a", "A", "")
+	boxA, err := s.CreateBox("box-a", "A", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	boxB, err := s.CreateBox("box-b", "B", "")
+	boxB, err := s.CreateBox("box-b", "B", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestEnsureSeedBoxNarratorPerBox(t *testing.T) {
 func TestListBoxesOrderedBySlug(t *testing.T) {
 	s := testStore(t)
 	for _, slug := range []string{"box-zeta", "box-alpha", "box-mike"} {
-		if _, err := s.CreateBox(slug, slug, ""); err != nil {
+		if _, err := s.CreateBox(slug, slug, "", ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -203,11 +203,11 @@ func TestListBoxesOrderedBySlug(t *testing.T) {
 
 func TestUpdateBox(t *testing.T) {
 	s := testStore(t)
-	created, err := s.CreateBox("box-update", "Before", "")
+	created, err := s.CreateBox("box-update", "Before", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.UpdateBox(created.ID, "After", "host-00000000-0000-0000-0000-000000000001")
+	got, err := s.UpdateBox(created.ID, "After", "host-00000000-0000-0000-0000-000000000001", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,15 +224,15 @@ func TestUpdateBox(t *testing.T) {
 
 func TestUpdateBoxMissingAndClearHost(t *testing.T) {
 	s := testStore(t)
-	if got, err := s.UpdateBox("box-00000000-0000-0000-0000-000000000000", "Nope", ""); err != nil || got != nil {
+	if got, err := s.UpdateBox("box-00000000-0000-0000-0000-000000000000", "Nope", "", ""); err != nil || got != nil {
 		t.Fatalf("UpdateBox on a missing box = (%v, %v), want (nil, nil)", got, err)
 	}
 
-	created, err := s.CreateBox("box-unbind", "Bound", "host-00000000-0000-0000-0000-000000000002")
+	created, err := s.CreateBox("box-unbind", "Bound", "host-00000000-0000-0000-0000-000000000002", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.UpdateBox(created.ID, "Unbound", "")
+	got, err := s.UpdateBox(created.ID, "Unbound", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +243,7 @@ func TestUpdateBoxMissingAndClearHost(t *testing.T) {
 
 func TestSetBoxOrgsReplacesSet(t *testing.T) {
 	s := testStore(t)
-	box, err := s.CreateBox("box-orgs", "Orgs", "")
+	box, err := s.CreateBox("box-orgs", "Orgs", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -92,7 +92,7 @@ func TestBoxCRUD(t *testing.T) {
 // missing box is a 404 rather than a write.
 func TestBoxSetOrgs(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
-	box, err := f.srv.store.CreateBox("box-orgs", "Orgs", "")
+	box, err := f.srv.store.CreateBox("box-orgs", "Orgs", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestBoxSetOrgs(t *testing.T) {
 // seeded again.
 func TestBoxNarrator(t *testing.T) {
 	f := claimedHub(t, offering.Selfhost)
-	box, err := f.srv.store.CreateBox("box-nar", "Narrated", "")
+	box, err := f.srv.store.CreateBox("box-nar", "Narrated", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +240,7 @@ func TestBoxValidation(t *testing.T) {
 // name is a 400, and a malformed body is refused before any store call.
 func TestBoxUpdateValidation(t *testing.T) {
 	f := claimedHub(t, offering.Selfhost)
-	box, err := f.srv.store.CreateBox("box-patch", "Patchable", "")
+	box, err := f.srv.store.CreateBox("box-patch", "Patchable", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,7 +278,7 @@ func TestBoxUpdateValidation(t *testing.T) {
 // anything reaches the store.
 func TestBoxMalformedBody(t *testing.T) {
 	f := claimedHub(t, offering.Selfhost)
-	box, err := f.srv.store.CreateBox("box-json", "JSON", "")
+	box, err := f.srv.store.CreateBox("box-json", "JSON", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -386,7 +386,7 @@ func TestBoxGateRefusesWrongCredentials(t *testing.T) {
 // hold at the installation.
 func TestBoxGateRefusesWrongCredentialsOnIdHandlers(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
-	box, err := f.srv.store.CreateBox("box-gate", "Gated", "")
+	box, err := f.srv.store.CreateBox("box-gate", "Gated", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -425,7 +425,7 @@ func TestBoxGateRefusesWrongCredentialsOnIdHandlers(t *testing.T) {
 // other.
 func TestBoxGateReadAdminSplit(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
-	box, err := f.srv.store.CreateBox("box-split", "Split", "")
+	box, err := f.srv.store.CreateBox("box-split", "Split", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}

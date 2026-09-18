@@ -249,11 +249,11 @@ func TestUpsertStaffSlugUnique(t *testing.T) {
 // box's row must not touch another box's.
 func TestUpsertStaffSlugUniquePerScope(t *testing.T) {
 	s := testStore(t)
-	boxA, err := s.CreateBox("box-a", "A", "")
+	boxA, err := s.CreateBox("box-a", "A", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	boxB, err := s.CreateBox("box-b", "B", "")
+	boxB, err := s.CreateBox("box-b", "B", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +330,7 @@ func TestUpsertStaffScopeValidation(t *testing.T) {
 
 func TestUpsertStaffScopeRoundTrip(t *testing.T) {
 	s := testStore(t)
-	box, err := s.CreateBox("box-one", "One", "")
+	box, err := s.CreateBox("box-one", "One", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,11 +361,11 @@ func TestUpsertStaffScopeRoundTrip(t *testing.T) {
 
 func TestStaffForBoxReturnsBoxScopedOnly(t *testing.T) {
 	s := testStore(t)
-	boxA, err := s.CreateBox("box-a", "A", "")
+	boxA, err := s.CreateBox("box-a", "A", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	boxB, err := s.CreateBox("box-b", "B", "")
+	boxB, err := s.CreateBox("box-b", "B", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -417,7 +417,7 @@ func TestStaffForBoxReturnsBoxScopedOnly(t *testing.T) {
 
 func TestStaffForOrgExcludesBoxScoped(t *testing.T) {
 	s := testStore(t)
-	box, err := s.CreateBox("box-x", "X", "")
+	box, err := s.CreateBox("box-x", "X", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1123,11 +1123,11 @@ func TestOpenStoreRelaxesGlobalStaffSlugUnique(t *testing.T) {
 	}
 
 	// The global unique is gone: two boxes seed their own st_b_dt.
-	boxA, err := s.CreateBox("box-a", "A", "")
+	boxA, err := s.CreateBox("box-a", "A", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	boxB, err := s.CreateBox("box-b", "B", "")
+	boxB, err := s.CreateBox("box-b", "B", "", "")
 	if err != nil {
 		t.Fatalf("second box under the relaxed slug contract: %v", err)
 	}

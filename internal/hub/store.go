@@ -1211,7 +1211,7 @@ func (s *Store) ensureBoxColumns() error {
 const narratorOldSlug = "st_b" + "_dt"
 
 // ensureNarratorSlugRename carries box narrators seeded under the old slug
-// ("Data") over to st_b_pi ("Picard"). The slug rides in each box's
+// ("Data") over to st_b_pi ("Joe"). The slug rides in each box's
 // manifest, so the rename is content, not schema: every affected box's
 // config_version bumps exactly once, so a connector's next sync serves the
 // renamed narrator, and the seed stays a non-bumping idempotent check.
@@ -1246,7 +1246,7 @@ func (s *Store) ensureNarratorSlugRename() error {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`UPDATE staff SET slug = 'st_b_pi', name = 'Picard'
+	if _, err := tx.Exec(`UPDATE staff SET slug = 'st_b_pi', name = 'Joe'
 		WHERE scope = 'box' AND slug = ?`, narratorOldSlug); err != nil {
 		return err
 	}

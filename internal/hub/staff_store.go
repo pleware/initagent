@@ -204,7 +204,7 @@ func upsertStaffTx(tx *store.Tx, slug, name, locale, model, brief, soulCore, voi
 }
 
 // UpdateBoxNarrator writes the narrator staff row of one box — the
-// box-scoped "Picard" (st_b_pi) — and bumps the box's config_version in the
+// box-scoped "Joe" (st_b_pi) — and bumps the box's config_version in the
 // same transaction, so a connector's next sync picks the edited narrator
 // up. CreateBox seeds the row, so the normal path is an update; the upsert
 // core also creates the row when it is missing. The bump is single-box
@@ -452,7 +452,7 @@ func (s *Store) EnsureSeedStaff() error {
 }
 
 // EnsureSeedBoxNarrator creates the narrator staff row of a box — the
-// box-scoped "Picard" (st_b_pi) — when it is missing and leaves it alone
+// box-scoped "Joe" (st_b_pi) — when it is missing and leaves it alone
 // otherwise, so content written over the seed survives a restart.
 // Idempotent.
 //
@@ -468,6 +468,6 @@ func (s *Store) EnsureSeedBoxNarrator(boxID string) error {
 	if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	_, err = s.UpsertStaff("st_b_pi", "Picard", "pl", "", "", "", "pl_PL-mc_speech-medium", "box", boxID, 0, 0, neutralCharacter())
+	_, err = s.UpsertStaff("st_b_pi", "Joe", "pl", "", "", "", "pl_PL-mc_speech-medium", "box", boxID, 0, 0, neutralCharacter())
 	return err
 }

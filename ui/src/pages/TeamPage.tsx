@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { api, timeAgo } from '../api'
 import { useCurrentOrg } from '../current-org'
 import DataTable from '../components/DataTable'
-import Modal from '../components/Modal'
-import OrgStaffForm from '../components/OrgStaffForm'
 import { HubError } from '../components/PlanWall'
 import type { Me, OrgInvite, OrgMember, Staff } from '../types'
 
@@ -27,6 +26,7 @@ export default function TeamPage({
   onChanged: () => void
 }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const memberships = me.orgs ?? []
   // The sidebar Organizations section is the org switcher; this screen
   // reads the same cockpit-wide choice instead of keeping its own.
@@ -34,7 +34,6 @@ export default function TeamPage({
   const [members, setMembers] = useState<OrgMember[] | null>(null)
   const [invites, setInvites] = useState<OrgInvite[]>([])
   const [staff, setStaff] = useState<Staff[] | null>(null)
-  const [staffEditor, setStaffEditor] = useState<Staff | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('member')
   const [inviteLink, setInviteLink] = useState('')
@@ -427,7 +426,7 @@ export default function TeamPage({
                       cell: (s: Staff) => (
                         <div className="flex items-center gap-3">
                           <button
-                            onClick={() => setStaffEditor(s)}
+                            onClick={() => navigate(`/team/staff/${s.id}`)}
                             className="text-xs text-fg-subtle hover:text-fg"
                           >
                             {t('common.edit')}
@@ -448,24 +447,6 @@ export default function TeamPage({
           />
         </div>
       </section>
-
-      {staffEditor !== null && (
-        <Modal
-          title={t('team.overrideTitle', { name: staffEditor.name })}
-          onClose={() => setStaffEditor(null)}
-          wide
-        >
-          <OrgStaffForm
-            staff={staffEditor}
-            orgId={orgId}
-            onClose={() => setStaffEditor(null)}
-            onSaved={() => {
-              setStaffEditor(null)
-              void load()
-            }}
-          />
-        </Modal>
-      )}
     </div>
   )
 }

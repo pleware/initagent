@@ -22,3 +22,4 @@
 ./internal/mailer
 ./internal/funnel
 ./internal/names
+./internal/voices

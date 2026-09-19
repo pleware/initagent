@@ -409,6 +409,9 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/skills", s.handleListSkillsPublic)
 	m.HandleFunc("GET /api/skills/{id}", s.handleGetSkillPublic)
 
+	// Public voice catalog: the TTS voices this installation can serve.
+	m.HandleFunc("GET /api/voices", s.handleListVoices)
+
 	m.HandleFunc("POST /api/billing/webhook", s.handleBillingWebhook)
 	m.HandleFunc("GET /api/orgs/{id}/billing", s.requireCredential(s.handleGetBilling))
 	m.HandleFunc("PATCH /api/orgs/{id}/billing", s.requireCredential(s.handlePatchBilling))

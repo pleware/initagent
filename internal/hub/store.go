@@ -670,7 +670,7 @@ func (s *Store) ensureStaffScopeColumns() error {
 
 // ensureStaffPerScopeSlugUniqueness relaxes the installation-wide UNIQUE on
 // staff.slug into per-scope uniqueness, which is what lets every box seed its
-// own st_b_dt narrator under the same slug (58). Two partial unique indexes
+// own st_b_pi narrator under the same slug (58). Two partial unique indexes
 // hold the contract after the migration:
 //
 //	staff(slug) WHERE scope = 'org'          — one slug per installation

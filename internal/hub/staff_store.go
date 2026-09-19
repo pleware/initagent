@@ -204,14 +204,14 @@ func upsertStaffTx(tx *store.Tx, slug, name, locale, model, brief, soulCore, voi
 }
 
 // UpdateBoxNarrator writes the narrator staff row of one box — the
-// box-scoped "Data" (st_b_dt) — and bumps the box's config_version in the
+// box-scoped "Picard" (st_b_pi) — and bumps the box's config_version in the
 // same transaction, so a connector's next sync picks the edited narrator
 // up. CreateBox seeds the row, so the normal path is an update; the upsert
 // core also creates the row when it is missing. The bump is single-box
 // (bumpBoxConfig), unlike UpsertStaff's org-scoped bumpAllBoxes: an edit
 // changes only this box's manifest.
 func (s *Store) UpdateBoxNarrator(boxID, name, locale, model, brief, soulCore, voice string, age, wordBudget int, bigFive Character) (*Staff, error) {
-	if err := validateStaffScope("st_b_dt", "box", boxID); err != nil {
+	if err := validateStaffScope("st_b_pi", "box", boxID); err != nil {
 		return nil, err
 	}
 	tx, err := s.db.Begin()
@@ -219,7 +219,7 @@ func (s *Store) UpdateBoxNarrator(boxID, name, locale, model, brief, soulCore, v
 		return nil, err
 	}
 	defer tx.Rollback()
-	st, existingID, err := upsertStaffTx(tx, "st_b_dt", name, locale, model, brief, soulCore, voice, "box", boxID, age, wordBudget, bigFive)
+	st, existingID, err := upsertStaffTx(tx, "st_b_pi", name, locale, model, brief, soulCore, voice, "box", boxID, age, wordBudget, bigFive)
 	if err != nil {
 		return nil, err
 	}
@@ -452,13 +452,13 @@ func (s *Store) EnsureSeedStaff() error {
 }
 
 // EnsureSeedBoxNarrator creates the narrator staff row of a box — the
-// box-scoped "Data" (st_b_dt) — when it is missing and leaves it alone
+// box-scoped "Picard" (st_b_pi) — when it is missing and leaves it alone
 // otherwise, so content written over the seed survives a restart.
 // Idempotent.
 //
 // The existence check keys on the box, not on the slug: slug uniqueness is
 // per scope (staff(slug) for org, staff(box_id, slug) for box), so every box
-// carries its own st_b_dt and UpsertStaff updates the one this box owns (58).
+// carries its own st_b_pi and UpsertStaff updates the one this box owns (58).
 func (s *Store) EnsureSeedBoxNarrator(boxID string) error {
 	var existing string
 	err := s.db.QueryRow(`SELECT id FROM staff WHERE scope = 'box' AND box_id = ?`, boxID).Scan(&existing)
@@ -468,6 +468,6 @@ func (s *Store) EnsureSeedBoxNarrator(boxID string) error {
 	if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	_, err = s.UpsertStaff("st_b_dt", "Data", "pl", "", "", "", "pl_PL-mc_speech-medium", "box", boxID, 0, 0, neutralCharacter())
+	_, err = s.UpsertStaff("st_b_pi", "Picard", "pl", "", "", "", "pl_PL-mc_speech-medium", "box", boxID, 0, 0, neutralCharacter())
 	return err
 }

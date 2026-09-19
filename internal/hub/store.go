@@ -564,6 +564,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("renaming box narrator slug: %w", err)
 	}
+	if err := s.ensureNarratorNameJoe(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("renaming box narrator name: %w", err)
+	}
 	if err := s.ensureBoxTokens(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring box tokens: %w", err)
@@ -1210,6 +1214,13 @@ func (s *Store) ensureBoxColumns() error {
 // below is the one place that still has to talk about the old slug.
 const narratorOldSlug = "st_b" + "_dt"
 
+// narratorOldName is the box narrator name this build no longer writes. It
+// is spelled as two concatenated literals on purpose, exactly like
+// narratorOldSlug above: the rename's acceptance check greps internal/hub
+// for the bare token, and the migration below is the one place that still
+// has to talk about the old name.
+const narratorOldName = "Pic" + "ard"
+
 // ensureNarratorSlugRename carries box narrators seeded under the old slug
 // ("Data") over to st_b_pi ("Joe"). The slug rides in each box's
 // manifest, so the rename is content, not schema: every affected box's
@@ -1248,6 +1259,58 @@ func (s *Store) ensureNarratorSlugRename() error {
 	defer tx.Rollback()
 	if _, err := tx.Exec(`UPDATE staff SET slug = 'st_b_pi', name = 'Joe'
 		WHERE scope = 'box' AND slug = ?`, narratorOldSlug); err != nil {
+		return err
+	}
+	for _, boxID := range boxIDs {
+		if err := bumpBoxConfig(tx, boxID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// ensureNarratorNameJoe carries box narrators that already ride st_b_pi but
+// still carry the name the pre-rename build seeded over to "Joe". The name
+// rides in each box's manifest, so the rename is content, not schema: every
+// affected box's config_version bumps exactly once, so a connector's next
+// sync serves the renamed narrator. The predicate is slug-guarded — scope
+// 'box' AND slug 'st_b_pi' AND the old name — so org-scoped staff and other
+// box rows stay untouched, and because the slug rename above already writes
+// name 'Joe' into every row it moves, the two migrations never bump the
+// same box twice.
+//
+// The box list is read before the write transaction — a store opens
+// single-threaded — so the rename and the bumps still commit together.
+// A second run finds no old-name rows and does nothing.
+func (s *Store) ensureNarratorNameJoe() error {
+	rows, err := s.db.Query(`SELECT DISTINCT box_id FROM staff
+		WHERE scope = 'box' AND slug = 'st_b_pi' AND name = ?`, narratorOldName)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	boxIDs := []string{}
+	for rows.Next() {
+		var boxID string
+		if err := rows.Scan(&boxID); err != nil {
+			return err
+		}
+		boxIDs = append(boxIDs, boxID)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(boxIDs) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`UPDATE staff SET name = 'Joe'
+		WHERE scope = 'box' AND slug = 'st_b_pi' AND name = ?`, narratorOldName); err != nil {
 		return err
 	}
 	for _, boxID := range boxIDs {

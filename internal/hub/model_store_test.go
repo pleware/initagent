@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/pleware/initagent/internal/offering"
+	"github.com/pleware/initagent/internal/store"
 )
 
 func TestParsePurpose(t *testing.T) {
@@ -455,6 +456,160 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	}
 	if len(list) != 4 {
 		t.Errorf("reopen has %d pins, want 4", len(list))
+	}
+}
+
+// A store whose models table predates the org column gains it on reopen
+// and the rows it carries get org backfilled from source. This is the
+// live-store regression the hf-browser wave introduced: the fresh schema
+// carries org, but CREATE TABLE IF NOT EXISTS never adds a column to a
+// table that already exists, so the admin models page used to fail with
+// "column org does not exist". The backfill only touches rows still on the
+// empty default, so a second open is a no-op and an admin-set org survives.
+func TestOpenStoreMigratesModelOrg(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "model-org-migration.db")
+
+	// Build the pre-hf-browser shape by hand: a models table without org
+	// and one seed-like row whose source carries the namespace.
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE models (
+		id      TEXT PRIMARY KEY,
+		source  TEXT NOT NULL,
+		quant   TEXT NOT NULL,
+		digest  TEXT NOT NULL,
+		licence TEXT NOT NULL,
+		purpose TEXT NOT NULL
+	)`); err != nil {
+		_ = db.Close()
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO models (id, source, quant, digest, licence, purpose)
+		VALUES ('pre-org-pin', 'unsloth/Qwen3.5-4B-GGUF@rev', 'Q4_K_M', '', 'Apache-2.0', 'persona')`); err != nil {
+		_ = db.Close()
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopen on a pre-org models table: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+	ok, err := again.hasColumn("models", "org")
+	if err != nil || !ok {
+		t.Fatalf("models.org after reopen: ok=%v err=%v", ok, err)
+	}
+	m, err := again.GetModel("pre-org-pin")
+	if err != nil || m == nil {
+		t.Fatalf("GetModel after migration = (%v, %v), want the carried row", m, err)
+	}
+	if m.Org != "unsloth" {
+		t.Errorf("migrated org = %q, want unsloth backfilled from source", m.Org)
+	}
+
+	// An admin-set org survives a reopen: the backfill never rewrites a
+	// row that no longer carries the empty default.
+	if _, err := again.db.Exec(`UPDATE models SET org = 'custom' WHERE id = 'pre-org-pin'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := again.Close(); err != nil {
+		t.Fatal(err)
+	}
+	third, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { third.Close() })
+	m, err = third.GetModel("pre-org-pin")
+	if err != nil || m == nil {
+		t.Fatalf("GetModel after third open = (%v, %v), want the carried row", m, err)
+	}
+	if m.Org != "custom" {
+		t.Errorf("org after third open = %q, want custom untouched", m.Org)
+	}
+}
+
+// A store whose models table predates the canonical-quant normalization
+// gains it on reopen: q4_k_m becomes Q4_K_M. The write only touches rows
+// whose quant differs from its uppercase form, so a second open is a no-op
+// and an empty quant (a non-GGUF pin: embedding, stt) stays empty.
+func TestOpenStoreMigratesModelQuant(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "model-quant-migration.db")
+
+	// Build the pre-normalization shape by hand: org present (that
+	// migration already ran), quants still lowercase.
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE models (
+		id      TEXT PRIMARY KEY,
+		org     TEXT NOT NULL,
+		source  TEXT NOT NULL,
+		quant   TEXT NOT NULL,
+		digest  TEXT NOT NULL,
+		licence TEXT NOT NULL,
+		purpose TEXT NOT NULL
+	)`); err != nil {
+		_ = db.Close()
+		t.Fatal(err)
+	}
+	rows := []string{
+		`INSERT INTO models (id, org, source, quant, digest, licence, purpose)
+			VALUES ('pre-quant-pin', 'unsloth', 'unsloth/Qwen3.5-4B-GGUF@rev', 'q4_k_m', '', 'Apache-2.0', 'persona')`,
+		`INSERT INTO models (id, org, source, quant, digest, licence, purpose)
+			VALUES ('pre-quant-embed', 'BAAI', 'BAAI/bge-m3@rev', '', '', 'MIT', 'embedding')`,
+	}
+	for _, insert := range rows {
+		if _, err := db.Exec(insert); err != nil {
+			_ = db.Close()
+			t.Fatal(err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopen on a lowercase-quant models table: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+	m, err := again.GetModel("pre-quant-pin")
+	if err != nil || m == nil {
+		t.Fatalf("GetModel after migration = (%v, %v), want the carried row", m, err)
+	}
+	if m.Quant != "Q4_K_M" {
+		t.Errorf("migrated quant = %q, want Q4_K_M", m.Quant)
+	}
+	embed, err := again.GetModel("pre-quant-embed")
+	if err != nil || embed == nil {
+		t.Fatalf("GetModel of the embedding pin = (%v, %v)", embed, err)
+	}
+	if embed.Quant != "" {
+		t.Errorf("embedding quant after migration = %q, want the empty default untouched", embed.Quant)
+	}
+
+	// A second open finds canonical quants and writes nothing.
+	if err := again.Close(); err != nil {
+		t.Fatal(err)
+	}
+	third, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { third.Close() })
+	m, err = third.GetModel("pre-quant-pin")
+	if err != nil || m == nil {
+		t.Fatalf("GetModel after third open = (%v, %v)", m, err)
+	}
+	if m.Quant != "Q4_K_M" {
+		t.Errorf("quant after third open = %q, want Q4_K_M unchanged", m.Quant)
 	}
 }
 

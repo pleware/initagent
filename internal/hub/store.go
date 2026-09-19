@@ -618,6 +618,14 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring models: %w", err)
 	}
+	if err := s.ensureModelOrg(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring model org column: %w", err)
+	}
+	if err := s.ensureModelQuant(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("normalizing model quant: %w", err)
+	}
 	if err := s.EnsureSeedModels(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("seeding models: %w", err)
@@ -1457,6 +1465,40 @@ func (s *Store) ensureModels() error {
 		licence TEXT NOT NULL,
 		purpose TEXT NOT NULL
 	)`)
+	return err
+}
+
+// ensureModelOrg adds the org column to a live models table that predates
+// it and backfills it from source. CREATE TABLE IF NOT EXISTS does not add
+// a column to an existing table, so a store opened before the hf-browser
+// wave would otherwise fail every models query with "no such column"
+// (Postgres: 42703). The column arrives as TEXT NOT NULL DEFAULT ” and
+// the backfill derives org — the namespace part of source before the first
+// slash — for rows still on the default; the WHERE org = ” keeps a second
+// run a no-op. The UPDATE is dialect-split because split_part is
+// Postgres-only and substr/instr are SQLite.
+func (s *Store) ensureModelOrg() error {
+	if err := s.ensureColumn("models", "org", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	update := `UPDATE models SET org = substr(source, 1, instr(source, '/') - 1)
+		WHERE org = '' AND source LIKE '%/%'`
+	if s.db.Dialect() == store.Postgres {
+		update = `UPDATE models SET org = split_part(source, '/', 1)
+			WHERE org = '' AND source LIKE '%/%'`
+	}
+	_, err := s.db.Exec(update)
+	return err
+}
+
+// ensureModelQuant normalizes the quant column to canonical uppercase on a
+// live store that predates the canonical GGUF validation: the earlier seed
+// wrote q4_k_m and the hf-browser canonicalizes to Q4_K_M. upper() is
+// dialect-neutral, and the WHERE quant <> upper(quant) guard keeps a second
+// run a no-op. Empty quants (non-GGUF pins: embedding, stt) stay empty.
+func (s *Store) ensureModelQuant() error {
+	_, err := s.db.Exec(`UPDATE models SET quant = upper(quant)
+		WHERE quant <> upper(quant) AND quant <> ''`)
 	return err
 }
 

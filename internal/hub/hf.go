@@ -80,8 +80,8 @@ const (
 
 // suggestPurpose maps an HF pipeline tag to the hub purpose the admin will
 // most likely want. It is a suggestion, not an automatic decision: the
-// admin can change it on the form. Tags with no sensible mapping — text-to-
-// speech included, which the hub covers with Piper voices — suggest nothing.
+// admin can change it on the form. Tags with no sensible mapping suggest
+// nothing.
 func suggestPurpose(pipelineTag string) string {
 	switch pipelineTag {
 	case "text-generation", "image-text-to-text", "text2text-generation", "conversational":
@@ -92,6 +92,8 @@ func suggestPurpose(pipelineTag string) string {
 		return "stt"
 	case "audio-classification":
 		return "vad"
+	case "text-to-speech":
+		return "tts"
 	default:
 		return ""
 	}

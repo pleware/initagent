@@ -35,21 +35,22 @@ type Model struct {
 	Purpose string `json:"purpose"`
 }
 
-// modelPurposes names the five purposes a pinned model can serve: the
+// modelPurposes names the six purposes a pinned model can serve: the
 // persona's LLM, the coder's LLM, the embedder, the speech-to-text
-// transcriber, and the voice-activity detector.
+// transcriber, the voice-activity detector, and the text-to-speech voice.
 var modelPurposes = map[string]bool{
 	"persona":   true,
 	"worker":    true,
 	"embedding": true,
 	"stt":       true,
 	"vad":       true,
+	"tts":       true,
 }
 
-// modelPurposeOrder lists the five purposes in canonical order. Map
+// modelPurposeOrder lists the six purposes in canonical order. Map
 // iteration order is not deterministic, so ResolvedModels walks this slice
 // to build the roster in a stable order.
-var modelPurposeOrder = []string{"persona", "worker", "embedding", "stt", "vad"}
+var modelPurposeOrder = []string{"persona", "worker", "embedding", "stt", "vad", "tts"}
 
 // ParsePurpose accepts a model purpose from the wire, trimmed and
 // case-insensitive. There is no default — a model's purpose is required —
@@ -59,7 +60,7 @@ var modelPurposeOrder = []string{"persona", "worker", "embedding", "stt", "vad"}
 func ParsePurpose(s string) (string, error) {
 	p := strings.ToLower(strings.TrimSpace(s))
 	if !modelPurposes[p] {
-		return "", fmt.Errorf("purpose %q: want persona, worker, embedding, stt or vad", s)
+		return "", fmt.Errorf("purpose %q: want persona, worker, embedding, stt, vad or tts", s)
 	}
 	return p, nil
 }
@@ -360,6 +361,15 @@ func (s *Store) EnsureSeedModels() error {
 			purpose: "stt",
 		},
 		{
+			id:      "faster-whisper-large-v3",
+			org:     "Systran",
+			source:  "Systran/faster-whisper-large-v3@edaa852ec7e145841d8ffdb056a99866b5f0a478",
+			quant:   "",
+			digest:  "64b4dc2dfe6589860e4e39e0ba4f50ea0f6026e509447d8873368e1a73a3bd0a",
+			licence: "MIT",
+			purpose: "stt",
+		},
+		{
 			id:      "silero-vad",
 			org:     "istupakov",
 			source:  "istupakov/silero-vad-onnx@b3e3ee3cce4c11ceb63b1a0b229d916069c1ddf6",
@@ -367,6 +377,51 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "bd861b19a51c83ee067b54d7d8b7f40bc11bafcc526506edc00b163e1c53bb8e",
 			licence: "MIT",
 			purpose: "vad",
+		},
+		{
+			id:      "pl_PL-bass-high",
+			org:     "rhasspy",
+			source:  "rhasspy/piper-voices@c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+			quant:   "",
+			digest:  "d122a10b565681d97ae302b0a4cc617ca59e0cd87b5196ec667ff9c125357b9f",
+			licence: "MIT",
+			purpose: "tts",
+		},
+		{
+			id:      "pl_PL-darkman-medium",
+			org:     "rhasspy",
+			source:  "rhasspy/piper-voices@c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+			quant:   "",
+			digest:  "7554030dd8b3cd40529098054600dc7194f4d146e29fc24f89b89a94c7a43df4",
+			licence: "MIT",
+			purpose: "tts",
+		},
+		{
+			id:      "pl_PL-gosia-medium",
+			org:     "rhasspy",
+			source:  "rhasspy/piper-voices@c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+			quant:   "",
+			digest:  "cec3f38aa9c14d2dfbe43465e818253ee0ed05854288cde7bfda7131acc4fa1b",
+			licence: "MIT",
+			purpose: "tts",
+		},
+		{
+			id:      "pl_PL-mc_speech-medium",
+			org:     "rhasspy",
+			source:  "rhasspy/piper-voices@c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+			quant:   "",
+			digest:  "9ee4676f29dc7125a591f7eb1bdd7a26808040183b3629a7cef56e158fc9132d",
+			licence: "MIT",
+			purpose: "tts",
+		},
+		{
+			id:      "pl_PL-mls_6892-low",
+			org:     "rhasspy",
+			source:  "rhasspy/piper-voices@c10ece1aade47bb51c153c893d14e5bf8e5b7117",
+			quant:   "",
+			digest:  "e9e2971ac7132984c6f6958c21501dec46638332b9e1bcc113a417aead270cde",
+			licence: "MIT",
+			purpose: "tts",
 		},
 	}
 

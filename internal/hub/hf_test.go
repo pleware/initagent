@@ -39,7 +39,7 @@ func TestSuggestPurpose(t *testing.T) {
 		{"sentence similarity", "sentence-similarity", "embedding"},
 		{"feature extraction", "feature-extraction", "embedding"},
 		{"asr", "automatic-speech-recognition", "stt"},
-		{"text to speech is skipped", "text-to-speech", ""},
+		{"text to speech", "text-to-speech", "tts"},
 		{"unmapped tag", "image-classification", ""},
 		{"empty tag", "", ""},
 	}

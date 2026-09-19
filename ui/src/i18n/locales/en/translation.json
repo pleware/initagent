@@ -731,7 +731,8 @@
     "worker": "Worker",
     "embedding": "Embedding",
     "stt": "STT",
-    "vad": "VAD"
+    "vad": "VAD",
+    "tts": "TTS"
   },
   "staff": {
     "name": "Name",

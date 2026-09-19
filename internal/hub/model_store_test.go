@@ -308,8 +308,8 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 5 {
-		t.Fatalf("ListModels = %+v, want the five factory pins", list)
+	if len(list) != 11 {
+		t.Fatalf("ListModels = %+v, want the eleven factory pins", list)
 	}
 	byID := map[string]Model{}
 	for _, m := range list {
@@ -328,7 +328,13 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		{"qwen2.5-coder-7b-q4_k_m", "Qwen", "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@", "Q4_K_M", "e0abfc1f71fa8f1454f3bc443f7608a63263ed2d41664f2820c3d92c45f3bd52", "Apache-2.0", "worker"},
 		{"bge-m3", "gpustack", "gpustack/bge-m3-GGUF@", "Q4_K_M", "f455475d60569f7ba086863c6ff4b79bb19201664259c5128b9f4f131408dd32", "MIT", "embedding"},
 		{"faster-whisper-medium", "Systran", "Systran/faster-whisper-medium@", "", "7b1053dea7640cc96b5b65b7168487db81010bfce317115d17ca358db970673d", "MIT", "stt"},
+		{"faster-whisper-large-v3", "Systran", "Systran/faster-whisper-large-v3@", "", "64b4dc2dfe6589860e4e39e0ba4f50ea0f6026e509447d8873368e1a73a3bd0a", "MIT", "stt"},
 		{"silero-vad", "istupakov", "istupakov/silero-vad-onnx@", "", "bd861b19a51c83ee067b54d7d8b7f40bc11bafcc526506edc00b163e1c53bb8e", "MIT", "vad"},
+		{"pl_PL-bass-high", "rhasspy", "rhasspy/piper-voices@", "", "d122a10b565681d97ae302b0a4cc617ca59e0cd87b5196ec667ff9c125357b9f", "MIT", "tts"},
+		{"pl_PL-darkman-medium", "rhasspy", "rhasspy/piper-voices@", "", "7554030dd8b3cd40529098054600dc7194f4d146e29fc24f89b89a94c7a43df4", "MIT", "tts"},
+		{"pl_PL-gosia-medium", "rhasspy", "rhasspy/piper-voices@", "", "cec3f38aa9c14d2dfbe43465e818253ee0ed05854288cde7bfda7131acc4fa1b", "MIT", "tts"},
+		{"pl_PL-mc_speech-medium", "rhasspy", "rhasspy/piper-voices@", "", "9ee4676f29dc7125a591f7eb1bdd7a26808040183b3629a7cef56e158fc9132d", "MIT", "tts"},
+		{"pl_PL-mls_6892-low", "rhasspy", "rhasspy/piper-voices@", "", "e9e2971ac7132984c6f6958c21501dec46638332b9e1bcc113a417aead270cde", "MIT", "tts"},
 	}
 	for _, tt := range tests {
 		m, ok := byID[tt.id]
@@ -371,8 +377,8 @@ func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 5 {
-		t.Errorf("ListModels after reseed has %d rows, want 5", len(list))
+	if len(list) != 11 {
+		t.Errorf("ListModels after reseed has %d rows, want 11", len(list))
 	}
 }
 
@@ -414,8 +420,8 @@ func TestEnsureSeedModelsBumpsBoxesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 5 {
-		t.Errorf("ListModels after reseed has %d rows, want 5", len(list))
+	if len(list) != 11 {
+		t.Errorf("ListModels after reseed has %d rows, want 11", len(list))
 	}
 }
 
@@ -429,8 +435,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 5 {
-		t.Errorf("fresh open has %d pins, want the five seeds", len(list))
+	if len(list) != 11 {
+		t.Errorf("fresh open has %d pins, want the eleven seeds", len(list))
 	}
 	box, err := s.CreateBox("reopen-box", "Reopen", "", "")
 	if err != nil {
@@ -458,8 +464,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 5 {
-		t.Errorf("reopen has %d pins, want 5", len(list))
+	if len(list) != 11 {
+		t.Errorf("reopen has %d pins, want 11", len(list))
 	}
 }
 
@@ -639,8 +645,8 @@ func TestListModelsPublic(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 5 {
-		t.Fatalf("public catalog has %d pins, want the five seeds", len(got))
+	if len(got) != 11 {
+		t.Fatalf("public catalog has %d pins, want the eleven seeds", len(got))
 	}
 	for _, m := range got {
 		if m.ID == "" || m.Org == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
@@ -716,8 +722,8 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 6 {
-		t.Errorf("list has %d pins, want 6 (seeds + admin-model)", len(list))
+	if len(list) != 12 {
+		t.Errorf("list has %d pins, want 12 (seeds + admin-model)", len(list))
 	}
 
 	// Delete.

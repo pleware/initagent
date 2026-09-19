@@ -35,20 +35,21 @@ type Model struct {
 	Purpose string `json:"purpose"`
 }
 
-// modelPurposes names the four purposes a pinned model can serve: the
-// persona's LLM, the coder's LLM, the embedder, and the speech-to-text
-// transcriber.
+// modelPurposes names the five purposes a pinned model can serve: the
+// persona's LLM, the coder's LLM, the embedder, the speech-to-text
+// transcriber, and the voice-activity detector.
 var modelPurposes = map[string]bool{
 	"persona":   true,
 	"worker":    true,
 	"embedding": true,
 	"stt":       true,
+	"vad":       true,
 }
 
-// modelPurposeOrder lists the four purposes in canonical order. Map
+// modelPurposeOrder lists the five purposes in canonical order. Map
 // iteration order is not deterministic, so ResolvedModels walks this slice
 // to build the roster in a stable order.
-var modelPurposeOrder = []string{"persona", "worker", "embedding", "stt"}
+var modelPurposeOrder = []string{"persona", "worker", "embedding", "stt", "vad"}
 
 // ParsePurpose accepts a model purpose from the wire, trimmed and
 // case-insensitive. There is no default — a model's purpose is required —
@@ -58,7 +59,7 @@ var modelPurposeOrder = []string{"persona", "worker", "embedding", "stt"}
 func ParsePurpose(s string) (string, error) {
 	p := strings.ToLower(strings.TrimSpace(s))
 	if !modelPurposes[p] {
-		return "", fmt.Errorf("purpose %q: want persona, worker, embedding or stt", s)
+		return "", fmt.Errorf("purpose %q: want persona, worker, embedding, stt or vad", s)
 	}
 	return p, nil
 }
@@ -354,6 +355,15 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "",
 			licence: "MIT",
 			purpose: "stt",
+			// TODO(developer): compute BLAKE3 from the pinned HF artifact and fill
+		},
+		{
+			id:      "silero-vad",
+			org:     "istupakov",
+			source:  "istupakov/silero-vad-onnx@b3e3ee3cce4c11ceb63b1a0b229d916069c1ddf6",
+			quant:   "",
+			licence: "MIT",
+			purpose: "vad",
 			// TODO(developer): compute BLAKE3 from the pinned HF artifact and fill
 		},
 	}

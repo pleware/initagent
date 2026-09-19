@@ -738,7 +738,8 @@
     "persona": "Persona",
     "worker": "Worker",
     "embedding": "Embedding",
-    "stt": "STT"
+    "stt": "STT",
+    "vad": "VAD"
   },
   "staff": {
     "name": "Imię",

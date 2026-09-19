@@ -90,6 +90,8 @@ func suggestPurpose(pipelineTag string) string {
 		return "embedding"
 	case "automatic-speech-recognition":
 		return "stt"
+	case "audio-classification":
+		return "vad"
 	default:
 		return ""
 	}

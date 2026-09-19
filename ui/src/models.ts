@@ -4,7 +4,7 @@ import type { Model, Purpose } from './types'
 // admin page and the per-box override panel iterate this list, so it lives
 // here rather than in either page. The labels sit in i18n under purpose.*
 // and stay identical in both locales.
-export const PURPOSES: Purpose[] = ['persona', 'worker', 'embedding', 'stt']
+export const PURPOSES: Purpose[] = ['persona', 'worker', 'embedding', 'stt', 'vad']
 
 // modelLabel renders one picker line: the pin id, and its quantisation when
 // the pin carries one (embedding and stt pins do not).

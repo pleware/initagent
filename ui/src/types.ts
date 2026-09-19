@@ -440,7 +440,7 @@ export interface Skill {
 // Purpose is the role a pinned model serves on a box. The hub owns the set;
 // an unknown value on the wire never reaches this union — the hub refuses it
 // with a 400 before it gets here.
-export type Purpose = 'persona' | 'worker' | 'embedding' | 'stt'
+export type Purpose = 'persona' | 'worker' | 'embedding' | 'stt' | 'vad'
 
 // Model is one pinned model of the installation's registry
 // (`initagent.hub.model`): identity and provenance only — the hub holds no

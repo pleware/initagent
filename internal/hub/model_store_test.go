@@ -308,8 +308,8 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 4 {
-		t.Fatalf("ListModels = %+v, want the four factory pins", list)
+	if len(list) != 5 {
+		t.Fatalf("ListModels = %+v, want the five factory pins", list)
 	}
 	byID := map[string]Model{}
 	for _, m := range list {
@@ -367,8 +367,8 @@ func TestEnsureSeedModelsKeepsAdminEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 4 {
-		t.Errorf("ListModels after reseed has %d rows, want 4 (nothing inserted)", len(list))
+	if len(list) != 5 {
+		t.Errorf("ListModels after reseed has %d rows, want 5 (nothing inserted)", len(list))
 	}
 }
 
@@ -410,8 +410,8 @@ func TestEnsureSeedModelsBumpsBoxesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 4 {
-		t.Errorf("ListModels after reseed has %d rows, want 4", len(list))
+	if len(list) != 5 {
+		t.Errorf("ListModels after reseed has %d rows, want 5", len(list))
 	}
 }
 
@@ -425,8 +425,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 4 {
-		t.Errorf("fresh open has %d pins, want the four seeds", len(list))
+	if len(list) != 5 {
+		t.Errorf("fresh open has %d pins, want the five seeds", len(list))
 	}
 	box, err := s.CreateBox("reopen-box", "Reopen", "", "")
 	if err != nil {
@@ -454,8 +454,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 4 {
-		t.Errorf("reopen has %d pins, want 4", len(list))
+	if len(list) != 5 {
+		t.Errorf("reopen has %d pins, want 5", len(list))
 	}
 }
 
@@ -635,8 +635,8 @@ func TestListModelsPublic(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 4 {
-		t.Fatalf("public catalog has %d pins, want the four seeds", len(got))
+	if len(got) != 5 {
+		t.Fatalf("public catalog has %d pins, want the five seeds", len(got))
 	}
 	for _, m := range got {
 		if m.ID == "" || m.Org == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
@@ -712,8 +712,8 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 5 {
-		t.Errorf("list has %d pins, want 5 (seeds + admin-model)", len(list))
+	if len(list) != 6 {
+		t.Errorf("list has %d pins, want 6 (seeds + admin-model)", len(list))
 	}
 
 	// Delete.

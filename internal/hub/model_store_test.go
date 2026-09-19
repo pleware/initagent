@@ -325,9 +325,9 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		purpose      string
 	}{
 		{"qwen3.5-4b-q4_k_m", "bartowski", "bartowski/Qwen_Qwen3.5-4B-GGUF@", "Q4_K_M", "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980", "Apache-2.0", "persona"},
-		{"qwen2.5-coder-7b-q4_k_m", "Qwen", "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@", "Q4_K_M", "", "Apache-2.0", "worker"},
-		{"bge-m3", "gpustack", "gpustack/bge-m3-GGUF@", "Q4_K_M", "", "MIT", "embedding"},
-		{"faster-whisper-medium", "Systran", "Systran/faster-whisper-medium@", "", "", "MIT", "stt"},
+		{"qwen2.5-coder-7b-q4_k_m", "Qwen", "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@", "Q4_K_M", "e0abfc1f71fa8f1454f3bc443f7608a63263ed2d41664f2820c3d92c45f3bd52", "Apache-2.0", "worker"},
+		{"bge-m3", "gpustack", "gpustack/bge-m3-GGUF@", "Q4_K_M", "f455475d60569f7ba086863c6ff4b79bb19201664259c5128b9f4f131408dd32", "MIT", "embedding"},
+		{"faster-whisper-medium", "Systran", "Systran/faster-whisper-medium@", "", "7b1053dea7640cc96b5b65b7168487db81010bfce317115d17ca358db970673d", "MIT", "stt"},
 		{"silero-vad", "istupakov", "istupakov/silero-vad-onnx@", "", "bd861b19a51c83ee067b54d7d8b7f40bc11bafcc526506edc00b163e1c53bb8e", "MIT", "vad"},
 	}
 	for _, tt := range tests {

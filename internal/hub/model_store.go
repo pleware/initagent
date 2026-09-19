@@ -337,27 +337,27 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "Qwen",
 			source:  "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@13fb94bfda8c8cf22497dc57b78f391a9acb426a",
 			quant:   "Q4_K_M",
+			digest:  "e0abfc1f71fa8f1454f3bc443f7608a63263ed2d41664f2820c3d92c45f3bd52",
 			licence: "Apache-2.0",
 			purpose: "worker",
-			// TODO(developer): compute BLAKE3 from the pinned HF artifact and fill
 		},
 		{
 			id:      "bge-m3",
 			org:     "gpustack",
 			source:  "gpustack/bge-m3-GGUF@2d48f1737679ad900d5c26c5aad5410e9c70fdca",
 			quant:   "Q4_K_M",
+			digest:  "f455475d60569f7ba086863c6ff4b79bb19201664259c5128b9f4f131408dd32",
 			licence: "MIT",
 			purpose: "embedding",
-			// TODO(developer): compute BLAKE3 from the pinned HF artifact and fill
 		},
 		{
 			id:      "faster-whisper-medium",
 			org:     "Systran",
 			source:  "Systran/faster-whisper-medium@08e178d48790749d25932bbc082711ddcfdfbc4f",
 			quant:   "",
+			digest:  "7b1053dea7640cc96b5b65b7168487db81010bfce317115d17ca358db970673d",
 			licence: "MIT",
 			purpose: "stt",
-			// TODO(developer): compute BLAKE3 from the pinned HF artifact and fill
 		},
 		{
 			id:      "silero-vad",

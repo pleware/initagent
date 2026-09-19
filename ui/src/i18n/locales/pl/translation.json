@@ -692,6 +692,7 @@
     "saveFailed": "Nie udało się zapisać tej osoby",
     "localePlaceholder": "pl",
     "pageTitle": "Edytuj osobę",
+    "pageTitleOverride": "Dostrój: {{name}}",
     "notFound": "Ta osoba nie istnieje.",
     "createTitle": "Nowa osoba w zespole",
     "createHint": "Na początek wystarczy imię — resztę dostroisz na kolejnej stronie."
@@ -778,7 +779,6 @@
     "staffHint": "Współpracownicy huba dostrojeni dla {{org}}.",
     "staffEmpty": "Nie ma jeszcze nikogo.",
     "staffBadge": "Zespół biurka",
-    "overrideTitle": "Dostrój: {{name}}",
     "overrideHint": "Nietknięte pola zachowują wartość z huba — zapisuje się tylko to, co tu zmienisz.",
     "resetOverride": "Reset",
     "resetOverrideConfirm": "Przywrócić {{name}} do ustawień huba?",

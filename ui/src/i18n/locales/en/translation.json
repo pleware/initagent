@@ -684,6 +684,7 @@
     "saveFailed": "Could not save this staff member",
     "localePlaceholder": "pl",
     "pageTitle": "Edit staff member",
+    "pageTitleOverride": "Tune {{name}}",
     "notFound": "This staff member does not exist.",
     "createTitle": "New staff member",
     "createHint": "A name is enough to start — tune everything else on the next page."
@@ -770,7 +771,6 @@
     "staffHint": "The hub's teammates as tuned for {{org}}.",
     "staffEmpty": "No staff yet.",
     "staffBadge": "Desk staff",
-    "overrideTitle": "Tune {{name}}",
     "overrideHint": "Untouched fields keep the hub's value — only what you change here is saved.",
     "resetOverride": "Reset",
     "resetOverrideConfirm": "Reset {{name}} to the hub defaults?",

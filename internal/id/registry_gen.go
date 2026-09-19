@@ -298,6 +298,12 @@ var unminted = []Spec{
 		Lifetime:    "until unlinked",
 	},
 	{
+		Name:        "initagent.hub.model",
+		Context:     ContextHub,
+		Description: "One model pin in the hub's registry: where the weights come from, the quant, the licence, and the admin-provided digest. The hub holds the pin and never the weights, so a model row is metadata a box fetches and verifies rather than a download it performs.",
+		Lifetime:    "until deleted",
+	},
+	{
 		Name:        "initagent.hub.preset",
 		Context:     ContextHub,
 		Description: "A saved command a person can run on a machine, seeded at first open and editable afterwards. It is stored on the hub, which is why it is a hub word even though what it runs is a fleet thing.",

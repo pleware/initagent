@@ -409,6 +409,10 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/skills", s.handleListSkillsPublic)
 	m.HandleFunc("GET /api/skills/{id}", s.handleGetSkillPublic)
 
+	// Public model catalog: the pin registry this installation offers, so a
+	// box installer can resolve model identity without an account.
+	m.HandleFunc("GET /api/models", s.handleListModelsPublic)
+
 	// Public voice catalog: the TTS voices this installation can serve.
 	m.HandleFunc("GET /api/voices", s.handleListVoices)
 
@@ -497,6 +501,9 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/boxes/{id}/orgs", s.requireCredential(s.handleListBoxOrgs))
 	m.HandleFunc("GET /api/boxes/{id}/narrator", s.requireCredential(s.handleGetBoxNarrator))
 	m.HandleFunc("PATCH /api/boxes/{id}/narrator", s.requireCredential(s.handleUpdateBoxNarrator))
+	m.HandleFunc("GET /api/boxes/{id}/models", s.requireCredential(s.handleListBoxModels))
+	m.HandleFunc("PUT /api/boxes/{id}/models", s.requireCredential(s.handleSetBoxModelOverride))
+	m.HandleFunc("DELETE /api/boxes/{id}/models/{purpose}", s.requireCredential(s.handleClearBoxModelOverride))
 
 	// Box sync tokens are session-only for the same reason credentials
 	// are: a token that can mint a token launders a narrow grant into a
@@ -536,6 +543,13 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/admin/skills", s.requireCredential(s.handleCreateSkill))
 	m.HandleFunc("PATCH /api/admin/skills/{id}", s.requireCredential(s.handleUpdateSkill))
 	m.HandleFunc("DELETE /api/admin/skills/{id}", s.requireCredential(s.handleDeleteSkill))
+	m.HandleFunc("GET /api/admin/models", s.requireCredential(s.handleListModels))
+	m.HandleFunc("POST /api/admin/models", s.requireCredential(s.handleCreateModel))
+	m.HandleFunc("PATCH /api/admin/models/{id}", s.requireCredential(s.handleUpdateModel))
+	m.HandleFunc("DELETE /api/admin/models/{id}", s.requireCredential(s.handleDeleteModel))
+	m.HandleFunc("GET /api/admin/models/assignments", s.requireCredential(s.handleListAssignments))
+	m.HandleFunc("PUT /api/admin/models/assignments", s.requireCredential(s.handleSetAssignment))
+	m.HandleFunc("DELETE /api/admin/models/assignments/{purpose}", s.requireCredential(s.handleClearAssignment))
 	m.HandleFunc("PATCH /api/orgs/{id}", s.requireCredential(s.handleRenameOrg))
 	m.HandleFunc("GET /api/orgs/{id}/members", s.requireCredential(s.handleListOrgMembers))
 	m.HandleFunc("PATCH /api/orgs/{id}/members/{accountId}", s.requireCredential(s.handleSetOrgMemberRole))

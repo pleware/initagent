@@ -14,7 +14,8 @@ import { usePoll } from '../hooks'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
-import type { Box, BoxEdition, BoxToken, Org } from '../types'
+import { PURPOSES, modelLabel } from '../models'
+import type { Box, BoxEdition, BoxToken, Model, ModelAssignment, Org, Purpose } from '../types'
 
 // The editions the hub knows, weakest-named first, in select order. The
 // labels live in i18n under boxes.edition*.
@@ -45,6 +46,7 @@ export default function BoxesPage() {
   const [orgEditor, setOrgEditor] = useState<Box | null>(null)
   const [editBox, setEditBox] = useState<Box | null>(null)
   const [tokensBox, setTokensBox] = useState<Box | null>(null)
+  const [modelsBox, setModelsBox] = useState<Box | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Box | null>(null)
   const [busyDelete, setBusyDelete] = useState(false)
 
@@ -151,7 +153,7 @@ export default function BoxesPage() {
           {
             header: '',
             srHeader: t('boxes.actions'),
-            width: 'w-72',
+            width: 'w-80',
             cell: (b) => (
               <div className="flex items-center gap-3">
                 <button
@@ -165,6 +167,12 @@ export default function BoxesPage() {
                   className="text-xs text-fg-subtle hover:text-fg"
                 >
                   {t('boxes.narrator')}
+                </button>
+                <button
+                  onClick={() => setModelsBox(b)}
+                  className="text-xs text-fg-subtle hover:text-fg"
+                >
+                  {t('boxes.models')}
                 </button>
                 <button
                   onClick={() => setEditBox(b)}
@@ -243,6 +251,16 @@ export default function BoxesPage() {
           wide
         >
           <TokensPanel box={tokensBox} />
+        </Modal>
+      )}
+
+      {modelsBox !== null && (
+        <Modal
+          title={t('boxes.modelsTitle', { name: modelsBox.name })}
+          onClose={() => setModelsBox(null)}
+          wide
+        >
+          <ModelsPanel box={modelsBox} />
         </Modal>
       )}
 
@@ -707,6 +725,164 @@ function TokensPanel({ box }: { box: Box }) {
               </button>
             </li>
           ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// ModelsPanel shows one box's resolved model roster and the per-box pins
+// that shadow the factory assignments. The roster is what the box syncs
+// (override ?? factory, a purpose with neither is omitted); the select only
+// offers models of the same purpose, and the clear action restores the
+// factory pin. The hub owns the rules — an unverified model comes back as a
+// 400 — so this panel submits and shows what the hub answered.
+function ModelsPanel({ box }: { box: Box }) {
+  const { t } = useTranslation()
+  const [roster, setRoster] = useState<Partial<Record<Purpose, Model>> | null>(null)
+  const [catalog, setCatalog] = useState<Model[] | null>(null)
+  const [assignments, setAssignments] = useState<ModelAssignment[] | null>(null)
+  const [busy, setBusy] = useState<Purpose | null>(null)
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    try {
+      const [rosterRows, publicModels] = await Promise.all([
+        api.get<Partial<Record<Purpose, Model>>>(`/api/boxes/${box.id}/models`),
+        api.get<Model[]>('/api/models'),
+      ])
+      setRoster(rosterRows)
+      setCatalog(publicModels)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('models.loadFailed'))
+    }
+    // The factory list distinguishes an override from an inherited pin. It is
+    // not fatal when it cannot load — the clear action then simply asks the
+    // hub, which answers 404 when there is nothing to clear.
+    try {
+      setAssignments(await api.get<ModelAssignment[]>('/api/admin/models/assignments'))
+    } catch {
+      setAssignments(null)
+    }
+  }, [box.id, t])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const setOverride = async (purpose: Purpose, modelId: string) => {
+    setBusy(purpose)
+    setError('')
+    try {
+      await api.put(`/api/boxes/${box.id}/models`, { purpose, modelId })
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('models.overrideFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const clearOverride = async (purpose: Purpose) => {
+    if (!window.confirm(t('models.clearOverrideConfirm'))) return
+    setBusy(purpose)
+    setError('')
+    try {
+      await api.del(`/api/boxes/${box.id}/models/${purpose}`)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('models.clearOverrideFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const isOverride = (purpose: Purpose): boolean => {
+    const resolved = roster?.[purpose]
+    if (!resolved) return false
+    if (assignments === null) return true
+    return assignments.find((a) => a.purpose === purpose)?.modelId !== resolved.id
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {error && (
+        <p className="rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
+          {error}
+        </p>
+      )}
+
+      <p className="text-xs text-fg-subtle">{t('models.overrideHint')}</p>
+
+      {roster === null && !error && (
+        <p className="py-6 text-sm text-fg-subtle">{t('common.loading')}</p>
+      )}
+
+      {roster !== null && (
+        <ul className="divide-y divide-line-2/60">
+          {PURPOSES.map((purpose) => {
+            const resolved = roster[purpose]
+            const pickable = (catalog ?? []).filter((m) => m.purpose === purpose)
+            const items = pickable.map((m) => ({ value: m.id, label: modelLabel(m) }))
+            if (resolved && !items.some((item) => item.value === resolved.id)) {
+              items.unshift({ value: resolved.id, label: modelLabel(resolved) })
+            }
+            if (!resolved) {
+              items.unshift({ value: '', label: t('models.noModel') })
+            }
+            return (
+              <li
+                key={purpose}
+                className="flex flex-wrap items-center gap-3 py-3"
+              >
+                <span className="w-28 shrink-0 text-sm font-medium text-fg">
+                  {t('purpose.' + purpose)}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">
+                  {resolved ? (
+                    <>
+                      <span className="font-mono text-[12px] text-fg">{modelLabel(resolved)}</span>
+                      <span
+                        className={
+                          isOverride(purpose)
+                            ? 'ml-2 rounded-full border border-accent/30 px-2 py-0.5 text-xs text-accent'
+                            : 'ml-2 rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-subtle'
+                        }
+                      >
+                        {isOverride(purpose) ? t('models.override') : t('models.factory')}
+                      </span>
+                    </>
+                  ) : (
+                    t('models.noModel')
+                  )}
+                </span>
+                {catalog !== null && pickable.length === 0 && !resolved ? (
+                  <span className="text-xs text-fg-subtle">{t('models.noModelsForPurpose')}</span>
+                ) : (
+                  <SimpleSelect
+                    className="w-64"
+                    value={resolved?.id ?? ''}
+                    disabled={busy === purpose}
+                    onValueChange={(value) => {
+                      if (value !== '') void setOverride(purpose, value)
+                    }}
+                    aria-label={t('purpose.' + purpose)}
+                    items={items}
+                  />
+                )}
+                {isOverride(purpose) && (
+                  <button
+                    onClick={() => void clearOverride(purpose)}
+                    disabled={busy === purpose}
+                    className="text-xs text-fg-subtle hover:text-fg disabled:opacity-50"
+                  >
+                    {t('models.clearOverride')}
+                  </button>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>

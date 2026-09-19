@@ -158,3 +158,69 @@ func TestBuildBoxManifestMissingBox(t *testing.T) {
 		t.Errorf("BuildBoxManifest on a missing box = (%v, %v), want an error", got, err)
 	}
 }
+
+// The manifest models section is the resolved roster: per purpose the five
+// pin fields, the override winning over the assignment, and a purpose with
+// neither omitted. The value carries exactly id, source, quant, digest and
+// licence — the purpose rides in the key, never inside the value.
+func TestBuildBoxManifestModelsSection(t *testing.T) {
+	s := testStore(t)
+	canonical := verifiedModel(t, s, "manifest-worker", "canonical-digest", "worker")
+	if _, err := s.SetAssignment("worker", canonical.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	factoryBox := testBox(t, s, "manifest-factory-box")
+	got, err := s.BuildBoxManifest(factoryBox.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	models, ok := got["models"].(map[string]map[string]any)
+	if !ok {
+		t.Fatalf("manifest models = %T, want a purpose-keyed map", got["models"])
+	}
+	if len(models) != 1 {
+		t.Fatalf("manifest models = %+v, want the one factory purpose", models)
+	}
+	wantPin := map[string]any{
+		"id":      canonical.ID,
+		"source":  canonical.Source,
+		"quant":   canonical.Quant,
+		"digest":  canonical.Digest,
+		"licence": canonical.Licence,
+	}
+	if !reflect.DeepEqual(models["worker"], wantPin) {
+		t.Errorf("models[worker] = %v, want exactly %v", models["worker"], wantPin)
+	}
+
+	// A box with an override resolves to the override, same five-key shape.
+	override := verifiedModel(t, s, "manifest-override", "override-digest", "worker")
+	overrideBox := testBox(t, s, "manifest-override-box")
+	if _, err := s.SetBoxModelOverride(overrideBox.ID, "worker", override.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.BuildBoxManifest(overrideBox.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	models = got["models"].(map[string]map[string]any)
+	if models["worker"]["id"] != override.ID {
+		t.Errorf("override box models = %+v, want the override %q", models, override.ID)
+	}
+}
+
+// A box on a store with no pins at all carries an empty models map, not a
+// null. Assignments are installation-wide, so this needs its own store: a
+// box beside a factory assignment can never be pin-free.
+func TestBuildBoxManifestModelsEmpty(t *testing.T) {
+	s := testStore(t)
+	bareBox := testBox(t, s, "manifest-bare-box")
+	got, err := s.BuildBoxManifest(bareBox.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	models, ok := got["models"].(map[string]map[string]any)
+	if !ok || len(models) != 0 {
+		t.Errorf("bare box models = %#v, want an empty map", got["models"])
+	}
+}

@@ -16,6 +16,7 @@ import AdminPage from './pages/AdminPage'
 import StaffPage from './pages/StaffPage'
 import SkillsPage from './pages/SkillsPage'
 import BoxesPage from './pages/BoxesPage'
+import ModelsPage from './pages/ModelsPage'
 import NarratorPage from './pages/NarratorPage'
 import TeamPage from './pages/TeamPage'
 import OrgStaffPage from './pages/OrgStaffPage'
@@ -144,6 +145,7 @@ export default function App() {
         {me.platformAdmin && <Route path="/admin" element={<AdminPage />} />}
         {me.platformAdmin && <Route path="/admin/staff/:id" element={<StaffPage />} />}
         {me.platformAdmin && <Route path="/skills" element={<SkillsPage />} />}
+        {me.platformAdmin && <Route path="/admin/models" element={<ModelsPage />} />}
         {me.platformAdmin && <Route path="/boxes" element={<BoxesPage />} />}
         {me.platformAdmin && (
           <Route path="/boxes/:id/narrator" element={<NarratorPage />} />

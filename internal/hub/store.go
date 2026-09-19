@@ -238,6 +238,24 @@ CREATE TABLE IF NOT EXISTS box_tokens (
 	revoked_at   INTEGER NOT NULL DEFAULT 0,
 	last_used_at INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS models (
+	id      TEXT PRIMARY KEY,
+	source  TEXT NOT NULL,
+	quant   TEXT NOT NULL,
+	digest  TEXT NOT NULL,
+	licence TEXT NOT NULL,
+	purpose TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS model_assignments (
+	purpose  TEXT PRIMARY KEY,
+	model_id TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS box_model_overrides (
+	box_id   TEXT NOT NULL,
+	purpose  TEXT NOT NULL,
+	model_id TEXT NOT NULL,
+	PRIMARY KEY (box_id, purpose)
+);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -453,6 +471,24 @@ CREATE TABLE IF NOT EXISTS box_tokens (
 	revoked_at   BIGINT NOT NULL DEFAULT 0,
 	last_used_at BIGINT NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS models (
+	id      TEXT PRIMARY KEY,
+	source  TEXT NOT NULL,
+	quant   TEXT NOT NULL,
+	digest  TEXT NOT NULL,
+	licence TEXT NOT NULL,
+	purpose TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS model_assignments (
+	purpose  TEXT PRIMARY KEY,
+	model_id TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS box_model_overrides (
+	box_id   TEXT NOT NULL,
+	purpose  TEXT NOT NULL,
+	model_id TEXT NOT NULL,
+	PRIMARY KEY (box_id, purpose)
+);
 `
 
 // OpenStore opens the hub store on a SQLite file (self-host / OSS path).
@@ -571,6 +607,22 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureBoxTokens(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring box tokens: %w", err)
+	}
+	if err := s.ensureModels(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring models: %w", err)
+	}
+	if err := s.EnsureSeedModels(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("seeding models: %w", err)
+	}
+	if err := s.ensureModelAssignments(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring model assignments: %w", err)
+	}
+	if err := s.ensureBoxModelOverrides(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring box model overrides: %w", err)
 	}
 	if err := s.ensureFleetConnectorScopes(); err != nil {
 		db.Close()
@@ -1343,6 +1395,61 @@ func (s *Store) ensureBoxTokens() error {
 		created_at   ` + createdAt + `,
 		revoked_at   ` + stamp + `,
 		last_used_at ` + stamp + `
+	)`)
+	return err
+}
+
+// ensureModels creates the models table on a store that predates it, the
+// same shape ensureBoxTokens follows: a fresh store already has the table
+// from the schema batch, and a store that opened before the models wave
+// gains it here. Every column is TEXT, so the manual CREATE matches both
+// dialects without the INTEGER/BIGINT split box_tokens needs.
+func (s *Store) ensureModels() error {
+	ok, err := s.hasTable("models")
+	if err != nil || ok {
+		return err
+	}
+	_, err = s.db.Exec(`CREATE TABLE models (
+		id      TEXT PRIMARY KEY,
+		source  TEXT NOT NULL,
+		quant   TEXT NOT NULL,
+		digest  TEXT NOT NULL,
+		licence TEXT NOT NULL,
+		purpose TEXT NOT NULL
+	)`)
+	return err
+}
+
+// ensureModelAssignments creates the model_assignments table on a store
+// that predates it, the same hasTable + manual CREATE shape ensureModels
+// follows. The assignment wave arrives after the models wave, so a store
+// that opened after models but before assignments gains the table here.
+func (s *Store) ensureModelAssignments() error {
+	ok, err := s.hasTable("model_assignments")
+	if err != nil || ok {
+		return err
+	}
+	_, err = s.db.Exec(`CREATE TABLE model_assignments (
+		purpose  TEXT PRIMARY KEY,
+		model_id TEXT NOT NULL
+	)`)
+	return err
+}
+
+// ensureBoxModelOverrides creates the box_model_overrides table on a store
+// that predates it, the same hasTable + manual CREATE shape ensureModels
+// follows. The override wave arrives after the assignment wave, so a store
+// that opened earlier gains the table here.
+func (s *Store) ensureBoxModelOverrides() error {
+	ok, err := s.hasTable("box_model_overrides")
+	if err != nil || ok {
+		return err
+	}
+	_, err = s.db.Exec(`CREATE TABLE box_model_overrides (
+		box_id   TEXT NOT NULL,
+		purpose  TEXT NOT NULL,
+		model_id TEXT NOT NULL,
+		PRIMARY KEY (box_id, purpose)
 	)`)
 	return err
 }

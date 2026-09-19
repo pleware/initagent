@@ -92,6 +92,12 @@ const (
 	// an installation token may carry it.
 	AdminSkill Capability = "admin:hub.skill"
 
+	// AdminModels administers the hub's model pin registry — the catalogue
+	// of models (source, quant, digest, licence) whose weights boxes pull.
+	// Installation-level like AdminSkill, and grantable so an installation
+	// token may carry it.
+	AdminModels Capability = "admin:hub.model"
+
 	// DeleteOrg is the owner's alone (25).
 	DeleteOrg Capability = "delete:hub.org"
 
@@ -196,6 +202,7 @@ var installation = map[Capability]bool{
 	AdminOrg:      true,
 	AdminStaff:    true,
 	AdminSkill:    true,
+	AdminModels:   true,
 	ReadOrg:       true,
 	ReadBox:       true,
 	AdminBox:      true,
@@ -274,12 +281,13 @@ func GrantableScopes() []Capability {
 // this whitelist in addition to the token's own scopes, never instead of
 // them.
 var installationGrantable = map[Capability]bool{
-	AdminOrg:   true,
-	AdminStaff: true,
-	AdminSkill: true,
-	ReadOrg:    true,
-	ReadBox:    true,
-	AdminBox:   true,
+	AdminOrg:    true,
+	AdminStaff:  true,
+	AdminSkill:  true,
+	AdminModels: true,
+	ReadOrg:     true,
+	ReadBox:     true,
+	AdminBox:    true,
 }
 
 // InstallationGrantableScopes lists what an installation token may carry,
@@ -306,6 +314,8 @@ func InstallationScopeDescription(c Capability) string {
 		return "Manage hub staff: create, edit and remove the hub's staff."
 	case AdminSkill:
 		return "Manage the skill store: create, edit, enable/disable and delete skill packages."
+	case AdminModels:
+		return "Manage the model registry: add, edit and remove model pins."
 	case ReadOrg:
 		return "Read organizations: list them and see plan, status and roster size."
 	case ReadBox:

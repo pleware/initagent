@@ -432,3 +432,32 @@ export interface Skill {
   createdAt: number
   updatedAt: number
 }
+
+// --- model registry ---
+
+// Purpose is the role a pinned model serves on a box. The hub owns the set;
+// an unknown value on the wire never reaches this union — the hub refuses it
+// with a 400 before it gets here.
+export type Purpose = 'persona' | 'worker' | 'embedding' | 'stt'
+
+// Model is one pinned model of the installation's registry
+// (`initagent.hub.model`): identity and provenance only — the hub holds no
+// weights. `quant` is empty for non-GGUF pins (embedding, stt); `digest` is
+// the admin-provided BLAKE3 of the pinned artifact, empty until verified.
+// Not to be confused with `Staff.model`, which stays the avatar GLB string.
+export interface Model {
+  id: string
+  source: string
+  quant: string
+  digest: string
+  licence: string
+  purpose: Purpose
+}
+
+// ModelAssignment is one factory pin: the model a purpose resolves to when a
+// box carries no override of its own. `modelId` rides the same camelCase the
+// box surfaces use.
+export interface ModelAssignment {
+  purpose: Purpose
+  modelId: string
+}

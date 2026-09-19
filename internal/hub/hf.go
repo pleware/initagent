@@ -21,8 +21,9 @@ import (
 // huggingface.co.
 type hfSearcher interface {
 	// Search answers one page of the HF model catalog for a query, sorted
-	// by downloads.
-	Search(ctx context.Context, query string, limit int) ([]hfModel, error)
+	// by downloads. pipelineTag narrows the page to one HF pipeline tag
+	// (empty = no filter).
+	Search(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error)
 	// RepoFiles answers the .gguf files of one repo, each with the
 	// canonical quant parsed from its filename.
 	RepoFiles(ctx context.Context, repo string) ([]hfFile, error)
@@ -161,10 +162,14 @@ type hfTreeHit struct {
 }
 
 // Search queries the HF catalog. Entries whose id carries no org/repo
-// split are malformed and skipped rather than surfaced half-parsed.
-func (h *httpHFSearcher) Search(ctx context.Context, query string, limit int) ([]hfModel, error) {
+// split are malformed and skipped rather than surfaced half-parsed. A
+// non-empty pipelineTag rides along as HF's pipeline_tag filter.
+func (h *httpHFSearcher) Search(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error) {
 	u := h.base + "/models?search=" + url.QueryEscape(query) +
 		"&limit=" + strconv.Itoa(limit) + "&sort=downloads&full=true"
+	if pipelineTag != "" {
+		u += "&pipeline_tag=" + url.QueryEscape(pipelineTag)
+	}
 	var hits []hfSearchHit
 	if err := h.get(ctx, u, &hits); err != nil {
 		return nil, fmt.Errorf("huggingface search: %w", err)
@@ -256,9 +261,10 @@ func (h *httpHFSearcher) get(ctx context.Context, u string, v any) error {
 }
 
 // handleHfSearch proxies a catalog search to Hugging Face for the admin
-// models page (results grouped by org in the UI). The limit is optional
-// (default 20, capped at 50); a missing q is a 400; an HF failure is a
-// 502 — the hub answered, but the upstream did not.
+// models page (results grouped by org in the UI). The optional pipelineTag
+// narrows the page to one HF pipeline tag — empty means no filter — and the
+// limit is optional (default 20, capped at 50); a missing q is a 400; an
+// HF failure is a 502 — the hub answered, but the upstream did not.
 func (s *Server) handleHfSearch(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	if !cred.Can(authz.AdminModels, "", "") {
 		forbid(w, authz.ErrForbidden)
@@ -278,7 +284,7 @@ func (s *Server) handleHfSearch(w http.ResponseWriter, r *http.Request, cred aut
 		}
 		limit = min(n, hfMaxLimit)
 	}
-	models, err := s.hf.Search(r.Context(), q, limit)
+	models, err := s.hf.Search(r.Context(), q, r.URL.Query().Get("pipelineTag"), limit)
 	if err != nil {
 		httpError(w, http.StatusBadGateway, err.Error())
 		return

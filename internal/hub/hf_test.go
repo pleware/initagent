@@ -14,12 +14,12 @@ import (
 // mockHFSearcher is an hfSearcher with scripted answers, so endpoint tests
 // never touch the network.
 type mockHFSearcher struct {
-	search    func(ctx context.Context, query string, limit int) ([]hfModel, error)
+	search    func(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error)
 	repoFiles func(ctx context.Context, repo string) ([]hfFile, error)
 }
 
-func (m mockHFSearcher) Search(ctx context.Context, query string, limit int) ([]hfModel, error) {
-	return m.search(ctx, query, limit)
+func (m mockHFSearcher) Search(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error) {
+	return m.search(ctx, query, pipelineTag, limit)
 }
 
 func (m mockHFSearcher) RepoFiles(ctx context.Context, repo string) ([]hfFile, error) {
@@ -107,10 +107,11 @@ func TestLicenseFromTags(t *testing.T) {
 func TestHfSearchEndpoint(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
 	gotQuery := ""
+	gotTag := ""
 	gotLimit := 0
 	f.srv.hf = mockHFSearcher{
-		search: func(ctx context.Context, query string, limit int) ([]hfModel, error) {
-			gotQuery, gotLimit = query, limit
+		search: func(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error) {
+			gotQuery, gotTag, gotLimit = query, pipelineTag, limit
 			return []hfModel{
 				{
 					ID:          "unsloth/Qwen3.5-4B-GGUF",
@@ -134,6 +135,9 @@ func TestHfSearchEndpoint(t *testing.T) {
 	}
 	if gotQuery != "llama" || gotLimit != 5 {
 		t.Errorf("searcher got (%q, %d), want (llama, 5)", gotQuery, gotLimit)
+	}
+	if gotTag != "" {
+		t.Errorf("searcher got tag %q, want empty (no filter)", gotTag)
 	}
 	var results []hfSearchResult
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
@@ -166,6 +170,15 @@ func TestHfSearchEndpoint(t *testing.T) {
 	if gotLimit != 50 {
 		t.Errorf("searcher got limit %d, want the capped 50", gotLimit)
 	}
+
+	// A pipelineTag filter rides through to the searcher as-is.
+	resp = f.do(t, http.MethodGet, "/api/admin/models/hf/search?q=llama&pipelineTag=text-generation", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("search with pipelineTag: %d, want 200", resp.StatusCode)
+	}
+	if gotTag != "text-generation" {
+		t.Errorf("searcher got tag %q, want text-generation", gotTag)
+	}
 }
 
 func TestHfSearchRefusals(t *testing.T) {
@@ -173,7 +186,7 @@ func TestHfSearchRefusals(t *testing.T) {
 
 	// An empty q is a 400 and never reaches the searcher.
 	f.srv.hf = mockHFSearcher{
-		search: func(ctx context.Context, query string, limit int) ([]hfModel, error) {
+		search: func(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error) {
 			t.Fatalf("searcher called for a malformed query %q", query)
 			return nil, nil
 		},
@@ -200,7 +213,7 @@ func TestHfSearchRefusals(t *testing.T) {
 
 	// An HF failure is a 502.
 	f.srv.hf = mockHFSearcher{
-		search: func(ctx context.Context, query string, limit int) ([]hfModel, error) {
+		search: func(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error) {
 			return nil, errors.New("hf down")
 		},
 		repoFiles: func(ctx context.Context, repo string) ([]hfFile, error) {
@@ -217,7 +230,7 @@ func TestHfRepoFilesEndpoint(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
 	gotRepo := ""
 	f.srv.hf = mockHFSearcher{
-		search: func(ctx context.Context, query string, limit int) ([]hfModel, error) {
+		search: func(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error) {
 			return nil, errors.New("unexpected search call")
 		},
 		repoFiles: func(ctx context.Context, repo string) ([]hfFile, error) {
@@ -252,7 +265,7 @@ func TestHfRepoFilesEndpoint(t *testing.T) {
 func TestHfRepoFilesFailure(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
 	f.srv.hf = mockHFSearcher{
-		search: func(ctx context.Context, query string, limit int) ([]hfModel, error) {
+		search: func(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error) {
 			return nil, errors.New("unexpected search call")
 		},
 		repoFiles: func(ctx context.Context, repo string) ([]hfFile, error) {
@@ -290,6 +303,7 @@ func TestHfRoutesRequireAuth(t *testing.T) {
 }
 
 func TestHTTPSearcherSearch(t *testing.T) {
+	gotTags := []string{}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/models" {
 			http.NotFound(w, r)
@@ -299,6 +313,7 @@ func TestHTTPSearcherSearch(t *testing.T) {
 			r.URL.Query().Get("sort") != "downloads" || r.URL.Query().Get("full") != "true" {
 			t.Errorf("bad search query: %s", r.URL.RawQuery)
 		}
+		gotTags = append(gotTags, r.URL.Query().Get("pipeline_tag"))
 		writeJSON(w, []hfSearchHit{
 			{
 				ID:          "meta-llama/Llama-3.1-8B-Instruct-GGUF",
@@ -318,7 +333,7 @@ func TestHTTPSearcherSearch(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	h := &httpHFSearcher{client: ts.Client(), base: ts.URL}
-	models, err := h.Search(context.Background(), "llama", 5)
+	models, err := h.Search(context.Background(), "llama", "", 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,6 +345,20 @@ func TestHTTPSearcherSearch(t *testing.T) {
 		m.Name != "Llama-3.1-8B-Instruct-GGUF" || m.PipelineTag != "text-generation" ||
 		m.LibraryName != "gguf" || m.Licence != "llama3.1" || m.Downloads != 100 || !m.Gated {
 		t.Errorf("parsed = %+v, want the submitted entry", m)
+	}
+
+	// A filter set: the URL carries pipeline_tag; empty: it does not.
+	if _, err := h.Search(context.Background(), "llama", "text-generation", 5); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"", "text-generation"}
+	if len(gotTags) != len(want) {
+		t.Fatalf("pipeline_tag query values = %v, want %v", gotTags, want)
+	}
+	for i, tag := range gotTags {
+		if tag != want[i] {
+			t.Errorf("pipeline_tag on call %d = %q, want %q", i, tag, want[i])
+		}
 	}
 }
 
@@ -370,7 +399,7 @@ func TestHTTPSearcherFailure(t *testing.T) {
 	t.Cleanup(ts.Close)
 
 	h := &httpHFSearcher{client: ts.Client(), base: ts.URL}
-	if _, err := h.Search(context.Background(), "llama", 5); err == nil {
+	if _, err := h.Search(context.Background(), "llama", "", 5); err == nil {
 		t.Error("Search on a 500 answered nil error, want an error")
 	}
 	if _, err := h.RepoFiles(context.Background(), "org/repo"); err == nil {

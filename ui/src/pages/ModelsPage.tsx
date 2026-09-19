@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError, hfRepoFiles, localizeError, searchHf } from '../api'
 import { usePoll } from '../hooks'
@@ -23,18 +30,9 @@ export default function ModelsPage() {
   const [error, setError] = useState('')
   const [editor, setEditor] = useState<Model | 'new' | null>(null)
   const [busy, setBusy] = useState<Purpose | null>(null)
-  // The Hugging Face browser: query + debounced search state, the picked
-  // repo whose quants are open, and the pre-fill the next "add" hands to the
-  // create form.
-  const [hfQuery, setHfQuery] = useState('')
-  const [hfResults, setHfResults] = useState<HfSearchResult[] | null>(null)
-  const [hfBusy, setHfBusy] = useState(false)
-  const [hfError, setHfError] = useState('')
-  const [quantsFor, setQuantsFor] = useState<HfSearchResult | null>(null)
-  const [quantFiles, setQuantFiles] = useState<HfRepoFile[] | null>(null)
-  const [quantError, setQuantError] = useState('')
+  // The pre-fill the Hugging Face browser hands to the create form; nothing
+  // saves until the admin confirms.
   const [prefill, setPrefill] = useState<Partial<Model> | null>(null)
-  const hfSeq = useRef(0)
 
   const load = useCallback(async () => {
     try {
@@ -53,57 +51,6 @@ export default function ModelsPage() {
   }, [t])
 
   usePoll(load, 30_000)
-
-  // Debounced HF search: only the last query in a typing burst fires, and a
-  // stale in-flight answer (hfSeq) never overwrites a newer one.
-  useEffect(() => {
-    const q = hfQuery.trim()
-    const seq = ++hfSeq.current
-    if (q === '') {
-      setHfResults(null)
-      setHfBusy(false)
-      setHfError('')
-      return
-    }
-    setHfBusy(true)
-    const timer = window.setTimeout(async () => {
-      try {
-        const results = await searchHf(q)
-        if (hfSeq.current !== seq) return
-        setHfResults(results)
-        setHfError('')
-      } catch (err) {
-        if (hfSeq.current !== seq) return
-        setHfError(localizeError(err, t))
-      } finally {
-        if (hfSeq.current === seq) setHfBusy(false)
-      }
-    }, 400)
-    return () => window.clearTimeout(timer)
-  }, [hfQuery, t])
-
-  const openQuants = async (item: HfSearchResult) => {
-    setQuantsFor(item)
-    setQuantFiles(null)
-    setQuantError('')
-    try {
-      setQuantFiles(await hfRepoFiles(item.org, item.name))
-    } catch (err) {
-      setQuantError(localizeError(err, t))
-    }
-  }
-
-  const addFromHf = (item: HfSearchResult, file: HfRepoFile) => {
-    setPrefill({
-      org: item.org,
-      source: item.id,
-      quant: file.quant,
-      licence: item.licence,
-      purpose: item.suggestedPurpose || 'persona',
-    })
-    setQuantsFor(null)
-    setEditor('new')
-  }
 
   const remove = async (model: Model) => {
     if (!window.confirm(t('models.confirmDelete', { id: model.id }))) return
@@ -138,8 +85,6 @@ export default function ModelsPage() {
       setBusy(null)
     }
   }
-
-  const hfGroups = hfResults === null ? [] : groupHf(hfResults)
 
   return (
     <div className="page-shell">
@@ -237,78 +182,6 @@ export default function ModelsPage() {
 
       <section className="mt-8">
         <h2 className="text-lg font-semibold tracking-[-0.02em] text-fg-strong">
-          {t('models.hfSearch')}
-        </h2>
-        <p className="mt-1 text-sm text-fg-muted">{t('models.hfSearchHint')}</p>
-        <input
-          type="search"
-          value={hfQuery}
-          onChange={(e) => setHfQuery(e.target.value)}
-          placeholder={t('models.hfSearchPlaceholder')}
-          aria-label={t('models.hfSearch')}
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          className="field-input mt-4 w-full max-w-md"
-        />
-        {hfBusy && <p className="mt-2 text-sm text-fg-subtle">{t('models.hfSearching')}</p>}
-        {hfError && (
-          <p className="mt-2 rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
-            {hfError}
-          </p>
-        )}
-        {hfResults !== null && hfResults.length === 0 && !hfBusy && (
-          <p className="mt-2 text-sm text-fg-subtle">{t('models.hfNoResults')}</p>
-        )}
-        {hfGroups.length > 0 && (
-          <div className="mt-4 rounded-2xl border border-line-2/60">
-            {hfGroups.map(([org, items]) => (
-              <div key={org} className="border-b border-line-2/60 last:border-b-0">
-                <div className="flex items-center gap-2 bg-sidebar px-4 py-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
-                    {t('models.org')}
-                  </span>
-                  <span className="font-mono text-sm text-fg">{org}</span>
-                </div>
-                <ul className="divide-y divide-line-2/60">
-                  {items.map((item) => (
-                    <li key={item.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
-                      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg">
-                        {item.id}
-                      </span>
-                      {item.pipelineTag !== '' && (
-                        <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
-                          {item.pipelineTag}
-                        </span>
-                      )}
-                      {item.suggestedPurpose !== '' && (
-                        <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
-                          {t('purpose.' + item.suggestedPurpose)}
-                        </span>
-                      )}
-                      {item.licence !== '' && (
-                        <span className="text-xs text-fg-subtle">{item.licence}</span>
-                      )}
-                      <span className="text-xs text-fg-subtle">
-                        {t('models.hfDownloads', { count: item.downloads.toLocaleString() })}
-                      </span>
-                      <button
-                        onClick={() => void openQuants(item)}
-                        className="text-xs text-fg-subtle hover:text-fg"
-                      >
-                        {t('models.browseQuants')}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold tracking-[-0.02em] text-fg-strong">
           {t('models.assignments')}
         </h2>
         <p className="mt-1 text-sm text-fg-muted">{t('models.assignmentsHint')}</p>
@@ -352,59 +225,9 @@ export default function ModelsPage() {
         </div>
       </section>
 
-      {quantsFor !== null && (
-        <Modal
-          wide
-          title={t('models.quantsTitle', { model: quantsFor.id })}
-          onClose={() => setQuantsFor(null)}
-        >
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-fg-muted">
-              {quantsFor.licence !== ''
-                ? `${t('models.licence')}: ${quantsFor.licence}`
-                : t('models.licence') + ': —'}
-            </p>
-            {quantsFor.suggestedPurpose !== '' && (
-              <p className="text-sm text-fg-muted">
-                {t('models.suggestedPurpose')}: {t('purpose.' + quantsFor.suggestedPurpose)}
-              </p>
-            )}
-            <p className="text-xs text-fg-subtle">{t('models.quantsHint')}</p>
-            {quantError && (
-              <p className="rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
-                {quantError}
-              </p>
-            )}
-            {quantFiles === null ? (
-              <p className="text-sm text-fg-subtle">{t('common.loading')}</p>
-            ) : quantFiles.length === 0 ? (
-              <p className="text-sm text-fg-subtle">{t('models.noQuants')}</p>
-            ) : (
-              <ul className="divide-y divide-line-2/60 rounded-2xl border border-line-2/60">
-                {quantFiles.map((file) => (
-                  <li key={file.filename} className="flex items-center gap-3 px-4 py-2.5">
-                    <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg">
-                      {file.filename}
-                    </span>
-                    <span className="rounded-full border border-line-2 px-2 py-0.5 font-mono text-[10px] text-fg-soft">
-                      {file.quant}
-                    </span>
-                    <button
-                      onClick={() => addFromHf(quantsFor, file)}
-                      className="text-xs text-fg-subtle hover:text-fg"
-                    >
-                      {t('models.addModel')}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </Modal>
-      )}
-
       {editor !== null && (
         <Modal
+          className={editor === 'new' ? 'sm:max-w-4xl' : undefined}
           title={
             editor === 'new'
               ? prefill
@@ -420,6 +243,7 @@ export default function ModelsPage() {
           <ModelForm
             model={editor === 'new' ? null : editor}
             prefill={editor === 'new' ? prefill : null}
+            browser={editor === 'new' ? <HfBrowser onAdd={setPrefill} /> : undefined}
             onClose={() => {
               setEditor(null)
               setPrefill(null)
@@ -448,6 +272,242 @@ function groupHf(results: HfSearchResult[]): [string, HfSearchResult[]][] {
   return [...byOrg.entries()]
 }
 
+// HF_TAGS is the curated pipeline-tag filter of the browser. `tag` is the
+// HF pipeline_tag the search endpoint filters on ('' = no filter); `key` is
+// the i18n label under models.*.
+const HF_TAGS = [
+  { tag: '', key: 'hfTagAll' },
+  { tag: 'text-generation', key: 'hfTagTextGeneration' },
+  { tag: 'image-text-to-text', key: 'hfTagImageTextToText' },
+  { tag: 'sentence-similarity', key: 'hfTagSentenceSimilarity' },
+  { tag: 'feature-extraction', key: 'hfTagFeatureExtraction' },
+  { tag: 'automatic-speech-recognition', key: 'hfTagSpeechRecognition' },
+] as const
+
+// HfBrowser is the right column of the create-model modal: a debounced
+// Hugging Face search with tag filters, results grouped by org, and an
+// inline quants panel per result. It never saves anything — "add" hands the
+// suggestion to the form through onAdd.
+function HfBrowser({ onAdd }: { onAdd: (prefill: Partial<Model>) => void }) {
+  const { t } = useTranslation()
+  const [query, setQuery] = useState('')
+  const [tag, setTag] = useState('')
+  const [results, setResults] = useState<HfSearchResult[] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [quantsOf, setQuantsOf] = useState<string | null>(null)
+  const [quantFiles, setQuantFiles] = useState<HfRepoFile[] | null>(null)
+  const [quantBusy, setQuantBusy] = useState(false)
+  const [quantError, setQuantError] = useState('')
+  const seq = useRef(0)
+  const quantSeq = useRef(0)
+
+  // Debounced search: only the last query/tag in a burst fires, and a stale
+  // in-flight answer (seq) never overwrites a newer one.
+  useEffect(() => {
+    const q = query.trim()
+    const s = ++seq.current
+    if (q === '') {
+      setResults(null)
+      setBusy(false)
+      setError('')
+      return
+    }
+    setBusy(true)
+    const timer = window.setTimeout(async () => {
+      try {
+        const hits = await searchHf(q, undefined, tag === '' ? undefined : tag)
+        if (seq.current !== s) return
+        setResults(hits)
+        setError('')
+      } catch (err) {
+        if (seq.current !== s) return
+        setError(localizeError(err, t))
+      } finally {
+        if (seq.current === s) setBusy(false)
+      }
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [query, tag, t])
+
+  // toggleQuants expands or collapses one result's quants panel. quantSeq
+  // invalidates an in-flight fetch when the admin collapses or switches rows.
+  const toggleQuants = async (item: HfSearchResult) => {
+    if (quantsOf === item.id) {
+      quantSeq.current++
+      setQuantsOf(null)
+      return
+    }
+    const s = ++quantSeq.current
+    setQuantsOf(item.id)
+    setQuantFiles(null)
+    setQuantError('')
+    setQuantBusy(true)
+    try {
+      const files = await hfRepoFiles(item.org, item.name)
+      if (quantSeq.current !== s) return
+      setQuantFiles(files)
+    } catch (err) {
+      if (quantSeq.current !== s) return
+      setQuantError(localizeError(err, t))
+    } finally {
+      if (quantSeq.current === s) setQuantBusy(false)
+    }
+  }
+
+  const add = (item: HfSearchResult, quant: string) => {
+    onAdd({
+      org: item.org,
+      source: item.id,
+      quant,
+      licence: item.licence,
+      purpose: item.suggestedPurpose || 'persona',
+    })
+  }
+
+  const groups = results === null ? [] : groupHf(results)
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <h3 className="text-sm font-semibold text-fg-strong">{t('models.hfSearch')}</h3>
+      <p className="text-xs text-fg-subtle">{t('models.hfSearchHint')}</p>
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={t('models.hfSearchPlaceholder')}
+        aria-label={t('models.hfSearch')}
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        className="field-input w-full"
+      />
+      <div className="flex flex-wrap gap-2">
+        {HF_TAGS.map(({ tag: value, key }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTag(value)}
+            aria-pressed={tag === value}
+            className={
+              tag === value
+                ? 'rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs text-accent'
+                : 'rounded-full border border-line-2 px-3 py-1 text-xs text-fg-soft hover:text-fg'
+            }
+          >
+            {t('models.' + key)}
+          </button>
+        ))}
+      </div>
+      {busy && <p className="text-sm text-fg-subtle">{t('models.hfSearching')}</p>}
+      {error && (
+        <p className="rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">{error}</p>
+      )}
+      {results !== null && results.length === 0 && !busy && (
+        <p className="text-sm text-fg-subtle">{t('models.hfNoResults')}</p>
+      )}
+      {groups.length > 0 && (
+        <div className="max-h-[40vh] overflow-y-auto rounded-2xl border border-line-2/60">
+          {groups.map(([org, items]) => (
+            <div key={org} className="border-b border-line-2/60 last:border-b-0">
+              <div className="flex items-center gap-2 bg-sidebar px-3 py-1.5">
+                <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
+                  {t('models.org')}
+                </span>
+                <span className="truncate font-mono text-sm text-fg">{org}</span>
+              </div>
+              <ul className="divide-y divide-line-2/60">
+                {items.map((item) => (
+                  <li key={item.id} className="px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg">
+                        {item.id}
+                      </span>
+                      {item.pipelineTag !== '' && (
+                        <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
+                          {item.pipelineTag}
+                        </span>
+                      )}
+                      {item.suggestedPurpose !== '' && (
+                        <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
+                          {t('purpose.' + item.suggestedPurpose)}
+                        </span>
+                      )}
+                      <span className="text-xs text-fg-subtle">
+                        {t('models.hfDownloads', { count: item.downloads.toLocaleString() })}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void toggleQuants(item)}
+                        className="text-xs text-fg-subtle hover:text-fg"
+                      >
+                        {quantsOf === item.id
+                          ? t('models.hideQuants')
+                          : t('models.browseQuants')}
+                      </button>
+                    </div>
+                    {quantsOf === item.id && (
+                      <div className="mt-2 flex flex-col gap-2">
+                        {item.licence !== '' && (
+                          <p className="text-xs text-fg-subtle">
+                            {t('models.licence')}: {item.licence}
+                          </p>
+                        )}
+                        {quantBusy && (
+                          <p className="text-xs text-fg-subtle">{t('common.loading')}</p>
+                        )}
+                        {quantError && (
+                          <p className="rounded-lg border border-fail/20 px-3 py-2 text-xs text-fail-fg">
+                            {quantError}
+                          </p>
+                        )}
+                        {quantFiles !== null && quantFiles.length === 0 && !quantBusy && (
+                          <div className="flex flex-col gap-1">
+                            <p className="text-xs text-fg-subtle">{t('models.noQuants')}</p>
+                            <p className="text-xs text-fg-subtle">{t('models.noQuantsHint')}</p>
+                            <button
+                              type="button"
+                              onClick={() => add(item, '')}
+                              className="self-start text-xs text-fg-subtle hover:text-fg"
+                            >
+                              {t('models.addModel')}
+                            </button>
+                          </div>
+                        )}
+                        {quantFiles !== null && quantFiles.length > 0 && (
+                          <ul className="divide-y divide-line-2/60 rounded-xl border border-line-2/60">
+                            {quantFiles.map((file) => (
+                              <li key={file.filename} className="flex items-center gap-2 px-3 py-1.5">
+                                <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-fg">
+                                  {file.filename}
+                                </span>
+                                <span className="rounded-full border border-line-2 px-2 py-0.5 font-mono text-[10px] text-fg-soft">
+                                  {file.quant}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => add(item, file.quant)}
+                                  className="text-xs text-fg-subtle hover:text-fg"
+                                >
+                                  {t('models.addModel')}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // DigestBadge shows the pin's verification state: the truncated BLAKE3 when
 // the admin filled it, the unverified marker when the pin still carries an
 // empty digest.
@@ -473,15 +533,19 @@ function DigestBadge({ model }: { model: Model }) {
 // ModelForm creates or edits one pin. The id is the pin's key and immutable
 // on edit; the hub takes it from the path there, so the body id is ignored.
 // `prefill` carries the values the Hugging Face browser suggests for a new
-// pin — the admin still fills id and digest before saving.
+// pin — the admin still fills id and digest before saving. `browser` is the
+// optional right column (create mode only): the form lays out in two columns
+// when it is present, and the cancel/save footer stays full-width below.
 function ModelForm({
   model,
   prefill,
+  browser,
   onClose,
   onSaved,
 }: {
   model: Model | null
   prefill?: Partial<Model> | null
+  browser?: ReactNode
   onClose: () => void
   onSaved: () => void
 }) {
@@ -497,6 +561,18 @@ function ModelForm({
   )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  // A later "add" click arrives as a new prefill while the form is already
+  // mounted, so sync the suggested fields here — id and digest stay as the
+  // admin typed them.
+  useEffect(() => {
+    if (!prefill) return
+    setOrg(prefill.org ?? '')
+    setSource(prefill.source ?? '')
+    setQuant(prefill.quant ?? '')
+    setLicence(prefill.licence ?? '')
+    setPurpose(prefill.purpose ?? 'persona')
+  }, [prefill])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -537,96 +613,101 @@ function ModelForm({
         </p>
       )}
 
-      <label className="block">
-        <span className="field-label">{t('models.org')}</span>
-        <input
-          type="text"
-          value={org}
-          onChange={(e) => setOrg(e.target.value)}
-          className="field-input mt-2 font-mono text-[12px]"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-        />
-        <span className="mt-1 block text-xs text-fg-subtle">{t('models.orgHint')}</span>
-      </label>
+      <div className={browser ? 'grid items-start gap-6 sm:grid-cols-2' : undefined}>
+        <div className="flex flex-col gap-4">
+          <label className="block">
+            <span className="field-label">{t('models.org')}</span>
+            <input
+              type="text"
+              value={org}
+              onChange={(e) => setOrg(e.target.value)}
+              className="field-input mt-2 font-mono text-[12px]"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <span className="mt-1 block text-xs text-fg-subtle">{t('models.orgHint')}</span>
+          </label>
 
-      <label className="block">
-        <span className="field-label">{t('models.id')}</span>
-        <input
-          type="text"
-          required
-          disabled={model !== null}
-          value={id}
-          onChange={(e) => setId(e.target.value)}
-          placeholder={t('models.idHint')}
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          className="field-input mt-2 font-mono text-[12px] disabled:opacity-50"
-        />
-        <span className="mt-1 block text-xs text-fg-subtle">{t('models.idHint')}</span>
-      </label>
+          <label className="block">
+            <span className="field-label">{t('models.id')}</span>
+            <input
+              type="text"
+              required
+              disabled={model !== null}
+              value={id}
+              onChange={(e) => setId(e.target.value)}
+              placeholder={t('models.idHint')}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className="field-input mt-2 font-mono text-[12px] disabled:opacity-50"
+            />
+            <span className="mt-1 block text-xs text-fg-subtle">{t('models.idHint')}</span>
+          </label>
 
-      <label className="block">
-        <span className="field-label">{t('models.purpose')}</span>
-        <SimpleSelect
-          className="mt-2 w-full"
-          value={purpose}
-          onValueChange={(value) => setPurpose(value as Purpose)}
-          aria-label={t('models.purpose')}
-          items={PURPOSES.map((p) => ({ value: p, label: t('purpose.' + p) }))}
-        />
-        {prefill?.purpose !== undefined && (
-          <span className="mt-1 block text-xs text-fg-subtle">
-            {t('models.suggestedPurposeHint')}
-          </span>
-        )}
-      </label>
+          <label className="block">
+            <span className="field-label">{t('models.purpose')}</span>
+            <SimpleSelect
+              className="mt-2 w-full"
+              value={purpose}
+              onValueChange={(value) => setPurpose(value as Purpose)}
+              aria-label={t('models.purpose')}
+              items={PURPOSES.map((p) => ({ value: p, label: t('purpose.' + p) }))}
+            />
+            {prefill?.purpose !== undefined && (
+              <span className="mt-1 block text-xs text-fg-subtle">
+                {t('models.suggestedPurposeHint')}
+              </span>
+            )}
+          </label>
 
-      <label className="block">
-        <span className="field-label">{t('models.source')}</span>
-        <input
-          type="text"
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-          className="field-input mt-2 font-mono text-[12px]"
-        />
-        <span className="mt-1 block text-xs text-fg-subtle">{t('models.sourceHint')}</span>
-      </label>
+          <label className="block">
+            <span className="field-label">{t('models.source')}</span>
+            <input
+              type="text"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              className="field-input mt-2 font-mono text-[12px]"
+            />
+            <span className="mt-1 block text-xs text-fg-subtle">{t('models.sourceHint')}</span>
+          </label>
 
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="field-label">{t('models.quant')}</span>
-          <input
-            type="text"
-            value={quant}
-            onChange={(e) => setQuant(e.target.value)}
-            className="field-input mt-2 font-mono text-[12px]"
-          />
-          <span className="mt-1 block text-xs text-fg-subtle">{t('models.quantHint')}</span>
-        </label>
-        <label className="block">
-          <span className="field-label">{t('models.licence')}</span>
-          <input
-            type="text"
-            value={licence}
-            onChange={(e) => setLicence(e.target.value)}
-            className="field-input mt-2"
-          />
-        </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="field-label">{t('models.quant')}</span>
+              <input
+                type="text"
+                value={quant}
+                onChange={(e) => setQuant(e.target.value)}
+                className="field-input mt-2 font-mono text-[12px]"
+              />
+              <span className="mt-1 block text-xs text-fg-subtle">{t('models.quantHint')}</span>
+            </label>
+            <label className="block">
+              <span className="field-label">{t('models.licence')}</span>
+              <input
+                type="text"
+                value={licence}
+                onChange={(e) => setLicence(e.target.value)}
+                className="field-input mt-2"
+              />
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="field-label">{t('models.digest')}</span>
+            <input
+              type="text"
+              value={digest}
+              onChange={(e) => setDigest(e.target.value)}
+              className="field-input mt-2 font-mono text-[12px]"
+            />
+            <span className="mt-1 block text-xs text-fg-subtle">{t('models.digestHint')}</span>
+          </label>
+        </div>
+        {browser}
       </div>
-
-      <label className="block">
-        <span className="field-label">{t('models.digest')}</span>
-        <input
-          type="text"
-          value={digest}
-          onChange={(e) => setDigest(e.target.value)}
-          className="field-input mt-2 font-mono text-[12px]"
-        />
-        <span className="mt-1 block text-xs text-fg-subtle">{t('models.digestHint')}</span>
-      </label>
 
       <div className="mt-2 flex items-center justify-end gap-3">
         <button type="button" onClick={onClose} className="btn-secondary">

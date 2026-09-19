@@ -197,10 +197,16 @@ export function deleteBox(id: string): Promise<{ ok: boolean }> {
 // --- models (Hugging Face browser) ---
 
 // searchHf queries the HF catalog through the hub proxy, sorted by
-// downloads. The hub answers 502 when Hugging Face is unreachable.
-export function searchHf(q: string, limit?: number): Promise<HfSearchResult[]> {
+// downloads, optionally narrowed to one pipeline tag ('' = no filter). The
+// hub answers 502 when Hugging Face is unreachable.
+export function searchHf(
+  q: string,
+  limit?: number,
+  pipelineTag?: string,
+): Promise<HfSearchResult[]> {
   const params = new URLSearchParams({ q })
   if (limit !== undefined) params.set('limit', String(limit))
+  if (pipelineTag) params.set('pipelineTag', pipelineTag)
   return api.get<HfSearchResult[]>(`/api/admin/models/hf/search?${params.toString()}`)
 }
 

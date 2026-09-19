@@ -11,12 +11,17 @@ export default function Modal({
   onClose,
   children,
   wide,
+  className,
 }: {
   title: string
   onClose: () => void
   children: ReactNode
   wide?: boolean
+  className?: string
 }) {
+  // An explicit className replaces the default width; `wide` is the shared
+  // short form when a caller only needs the medium size.
+  const width = className ?? (wide ? 'sm:max-w-2xl' : 'sm:max-w-lg')
   return (
     <Dialog
       open
@@ -24,10 +29,7 @@ export default function Modal({
         if (!next) onClose()
       }}
     >
-      <DialogContent
-        className={wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'}
-        aria-describedby={undefined}
-      >
+      <DialogContent className={width} aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

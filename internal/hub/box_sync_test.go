@@ -61,7 +61,7 @@ func TestBoxChangesPollSemantics(t *testing.T) {
 	if manifest["version"] != float64(1) {
 		t.Errorf("manifest version = %v, want 1 on a fresh box", manifest["version"])
 	}
-	for _, key := range []string{"box", "orgs", "staff", "narrator"} {
+	for _, key := range []string{"box", "orgs", "staff", "narrator", "models"} {
 		if _, ok := manifest[key]; !ok {
 			t.Errorf("manifest has no %q key: %v", key, manifest)
 		}

@@ -272,6 +272,16 @@ function groupHf(results: HfSearchResult[]): [string, HfSearchResult[]][] {
   return [...byOrg.entries()]
 }
 
+// slugify turns a name into a pin-id token: lowercase, every run of
+// non-[a-z0-9_] collapses to one dash, edges trimmed. Underscores survive
+// so canonical GGUF quants stay readable in the slug (Q4_K_M → q4_k_m).
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 // HF_TAGS is the curated pipeline-tag filter of the browser. `tag` is the
 // HF pipeline_tag the search endpoint filters on ('' = no filter); `key` is
 // the i18n label under models.*.
@@ -289,7 +299,7 @@ const HF_TAGS = [
 // inline quants panel per result. It never saves anything — "add" hands the
 // suggestion to the form through onAdd.
 function HfBrowser({ onAdd }: { onAdd: (prefill: Partial<Model>) => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [query, setQuery] = useState('')
   const [tag, setTag] = useState('')
   const [results, setResults] = useState<HfSearchResult[] | null>(null)
@@ -356,7 +366,9 @@ function HfBrowser({ onAdd }: { onAdd: (prefill: Partial<Model>) => void }) {
   }
 
   const add = (item: HfSearchResult, quant: string) => {
+    const slug = slugify(item.name) + (quant ? '-' + slugify(quant) : '')
     onAdd({
+      id: slug,
       org: item.org,
       source: item.id,
       quant,
@@ -419,22 +431,33 @@ function HfBrowser({ onAdd }: { onAdd: (prefill: Partial<Model>) => void }) {
               <ul className="divide-y divide-line-2/60">
                 {items.map((item) => (
                   <li key={item.id} className="px-3 py-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg">
-                        {item.id}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="min-w-0 truncate text-sm font-medium text-fg">
+                        {item.name}
                       </span>
-                      {item.pipelineTag !== '' && (
-                        <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
-                          {item.pipelineTag}
+                      <span className="flex flex-wrap items-center gap-2">
+                        {item.suggestedPurpose !== '' && (
+                          <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
+                            {t('purpose.' + item.suggestedPurpose)}
+                          </span>
+                        )}
+                        {item.licence !== '' && (
+                          <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
+                            {item.licence}
+                          </span>
+                        )}
+                        <span className="text-xs text-fg-subtle">
+                          {t('models.hfDownloads', {
+                            count: item.downloads.toLocaleString(
+                              i18n.resolvedLanguage === 'pl' ? 'pl-PL' : 'en-US',
+                            ),
+                          })}
                         </span>
-                      )}
-                      {item.suggestedPurpose !== '' && (
-                        <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
-                          {t('purpose.' + item.suggestedPurpose)}
-                        </span>
-                      )}
-                      <span className="text-xs text-fg-subtle">
-                        {t('models.hfDownloads', { count: item.downloads.toLocaleString() })}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                      <span className="min-w-0 truncate font-mono text-[11px] text-fg-subtle">
+                        {item.pipelineTag || '—'}
                       </span>
                       <button
                         type="button"
@@ -442,17 +465,12 @@ function HfBrowser({ onAdd }: { onAdd: (prefill: Partial<Model>) => void }) {
                         className="text-xs text-fg-subtle hover:text-fg"
                       >
                         {quantsOf === item.id
-                          ? t('models.hideQuants')
-                          : t('models.browseQuants')}
+                          ? t('models.hideDetails')
+                          : t('models.moreDetails')}
                       </button>
                     </div>
                     {quantsOf === item.id && (
                       <div className="mt-2 flex flex-col gap-2">
-                        {item.licence !== '' && (
-                          <p className="text-xs text-fg-subtle">
-                            {t('models.licence')}: {item.licence}
-                          </p>
-                        )}
                         {quantBusy && (
                           <p className="text-xs text-fg-subtle">{t('common.loading')}</p>
                         )}
@@ -563,10 +581,11 @@ function ModelForm({
   const [error, setError] = useState('')
 
   // A later "add" click arrives as a new prefill while the form is already
-  // mounted, so sync the suggested fields here — id and digest stay as the
-  // admin typed them.
+  // mounted, so sync the suggested fields here. id is the slug the browser
+  // derived — still editable; only digest stays untouched.
   useEffect(() => {
     if (!prefill) return
+    setId(prefill.id ?? '')
     setOrg(prefill.org ?? '')
     setSource(prefill.source ?? '')
     setQuant(prefill.quant ?? '')

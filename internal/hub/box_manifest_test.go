@@ -90,8 +90,8 @@ func TestBuildBoxManifestShape(t *testing.T) {
 	if !ok {
 		t.Fatalf("manifest narrator = %T, want the box's seeded narrator", got["narrator"])
 	}
-	if narrator.Slug != "st_b_dt" || narrator.BoxID != box.ID {
-		t.Errorf("narrator = %+v, want the box's st_b_dt row", narrator)
+	if narrator.Slug != "st_b_pi" || narrator.BoxID != box.ID {
+		t.Errorf("narrator = %+v, want the box's st_b_pi row", narrator)
 	}
 }
 

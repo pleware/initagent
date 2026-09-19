@@ -294,8 +294,8 @@ func TestBoxNarrator(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&narrator); err != nil {
 		t.Fatal(err)
 	}
-	if narrator.Slug != "st_b_dt" || narrator.Scope != "box" || narrator.BoxID != box.ID {
-		t.Errorf("narrator = %+v, want the seeded box-scoped st_b_dt row", narrator)
+	if narrator.Slug != "st_b_pi" || narrator.Scope != "box" || narrator.BoxID != box.ID {
+		t.Errorf("narrator = %+v, want the seeded box-scoped st_b_pi row", narrator)
 	}
 
 	// Take the narrator away: a box with no narrator answers 404 with the
@@ -354,8 +354,8 @@ func TestBoxNarratorEdit(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&narrator); err != nil {
 		t.Fatal(err)
 	}
-	if narrator.Slug != "st_b_dt" || narrator.Scope != "box" || narrator.BoxID != box.ID {
-		t.Errorf("narrator identity = %+v, want the box-scoped st_b_dt row", narrator)
+	if narrator.Slug != "st_b_pi" || narrator.Scope != "box" || narrator.BoxID != box.ID {
+		t.Errorf("narrator identity = %+v, want the box-scoped st_b_pi row", narrator)
 	}
 	if narrator.Name != "Lore" || narrator.Locale != "en" || narrator.Age != 42 ||
 		narrator.WordBudget != 1200 || narrator.Model != "lore.glb" ||

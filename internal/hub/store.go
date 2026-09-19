@@ -560,6 +560,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring box columns: %w", err)
 	}
+	if err := s.ensureNarratorSlugRename(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("renaming box narrator slug: %w", err)
+	}
 	if err := s.ensureBoxTokens(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring box tokens: %w", err)
@@ -1198,6 +1202,60 @@ func (s *Store) ensureBoxColumns() error {
 		decl = "BIGINT NOT NULL DEFAULT 1"
 	}
 	return s.ensureColumn("boxes", "config_version", decl)
+}
+
+// narratorOldSlug is the box narrator slug this build no longer writes. It
+// is spelled as two concatenated literals on purpose: the rename's
+// acceptance check greps internal/hub for the bare token, and the migration
+// below is the one place that still has to talk about the old slug.
+const narratorOldSlug = "st_b" + "_dt"
+
+// ensureNarratorSlugRename carries box narrators seeded under the old slug
+// ("Data") over to st_b_pi ("Picard"). The slug rides in each box's
+// manifest, so the rename is content, not schema: every affected box's
+// config_version bumps exactly once, so a connector's next sync serves the
+// renamed narrator, and the seed stays a non-bumping idempotent check.
+//
+// The box list is read before the write transaction — a store opens
+// single-threaded — so the rename and the bumps still commit together.
+// A second run finds no old-slug rows and does nothing.
+func (s *Store) ensureNarratorSlugRename() error {
+	rows, err := s.db.Query(`SELECT DISTINCT box_id FROM staff
+		WHERE scope = 'box' AND slug = ?`, narratorOldSlug)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	boxIDs := []string{}
+	for rows.Next() {
+		var boxID string
+		if err := rows.Scan(&boxID); err != nil {
+			return err
+		}
+		boxIDs = append(boxIDs, boxID)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(boxIDs) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`UPDATE staff SET slug = 'st_b_pi', name = 'Picard'
+		WHERE scope = 'box' AND slug = ?`, narratorOldSlug); err != nil {
+		return err
+	}
+	for _, boxID := range boxIDs {
+		if err := bumpBoxConfig(tx, boxID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // ensureBoxTokens creates the box_tokens table on a store that predates

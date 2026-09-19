@@ -26,7 +26,7 @@ import (
 	"github.com/pleware/initagent/internal/updater"
 )
 
-var version = "0.1.0-dev" // overridden at release time via -ldflags
+var version = "0.2.0-dev" // overridden at release time via -ldflags
 
 func usageText() string {
 	b, n, cfg := brand.Binary, brand.Name, brand.ConfigDir

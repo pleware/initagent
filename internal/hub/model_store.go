@@ -296,29 +296,31 @@ func (s *Store) modelInUse(id string) (bool, error) {
 	return false, nil
 }
 
-// seedModel is one factory model pin. Digest stays empty on purpose: the
-// hub hosts no weights, so it cannot compute the BLAKE3 itself. The pin
-// names the artifact and its provenance; an admin fills the digest after
-// verifying the pinned file, and until then a later wave refuses to assign
-// the model.
+// seedModel is one factory model pin. Digest is the BLAKE3 of the pinned
+// artifact, computed once at pin time and hardcoded here — these are our own
+// predefined models, so the factory can vouch for them without hosting the
+// weights.
 type seedModel struct {
 	id      string
 	org     string
 	source  string
 	quant   string
+	digest  string
 	licence string
 	purpose string
 }
 
-// EnsureSeedModels plants the four factory model pins when they are missing
-// and leaves them alone otherwise, so an admin's later edit survives a
-// restart. Idempotent.
+// EnsureSeedModels keeps the factory model pins at their factory definition.
+// A missing pin is inserted; a pin whose org/source/quant/digest/licence/
+// purpose drifted from the factory definition is updated back to it; a pin
+// already at the definition is left alone. The factory pins are factory-owned
+// — an admin customizes through the assignment and override layers, not by
+// editing the factory pin itself.
 //
-// When the seed actually inserts rows on a store that already carries
-// boxes, every box's config_version bumps in the same transaction: a new
-// pin changes the catalogue a box manifest resolves against, so the fleet
-// has to re-sync. A second run inserts nothing and bumps nothing, the
-// ensureNarratorSlugRename "read then write then bump" shape.
+// The writes and the fleet bump commit together, and only when something
+// actually changed: a second run over an in-sync store inserts nothing,
+// updates nothing and bumps nothing (the ensureNarratorSlugRename "read then
+// write then bump" shape).
 func (s *Store) EnsureSeedModels() error {
 	seeds := []seedModel{
 		{
@@ -326,9 +328,9 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "bartowski",
 			source:  "bartowski/Qwen_Qwen3.5-4B-GGUF@4168f45a16a1290d65a4ec0fa312ae917a4c15d6",
 			quant:   "Q4_K_M",
+			digest:  "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980",
 			licence: "Apache-2.0",
 			purpose: "persona",
-			// TODO(developer): compute BLAKE3 from the pinned HF artifact and fill
 		},
 		{
 			id:      "qwen2.5-coder-7b-q4_k_m",
@@ -362,26 +364,10 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "istupakov",
 			source:  "istupakov/silero-vad-onnx@b3e3ee3cce4c11ceb63b1a0b229d916069c1ddf6",
 			quant:   "",
+			digest:  "bd861b19a51c83ee067b54d7d8b7f40bc11bafcc526506edc00b163e1c53bb8e",
 			licence: "MIT",
 			purpose: "vad",
-			// TODO(developer): compute BLAKE3 from the pinned HF artifact and fill
 		},
-	}
-
-	missing := []seedModel{}
-	for _, sm := range seeds {
-		var existing string
-		err := s.db.QueryRow(`SELECT id FROM models WHERE id = ?`, sm.id).Scan(&existing)
-		if err == nil {
-			continue
-		}
-		if !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
-		missing = append(missing, sm)
-	}
-	if len(missing) == 0 {
-		return nil
 	}
 
 	tx, err := s.db.Begin()
@@ -389,14 +375,34 @@ func (s *Store) EnsureSeedModels() error {
 		return err
 	}
 	defer tx.Rollback()
-	for _, sm := range missing {
-		if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, digest, licence, purpose)
-			VALUES (?, ?, ?, ?, '', ?, ?)`, sm.id, sm.org, sm.source, sm.quant, sm.licence, sm.purpose); err != nil {
+	changed := false
+	for _, sm := range seeds {
+		var m Model
+		err := tx.QueryRow(`SELECT id, org, source, quant, digest, licence, purpose
+			FROM models WHERE id = ?`, sm.id).
+			Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.Digest, &m.Licence, &m.Purpose)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, digest, licence, purpose)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`, sm.id, sm.org, sm.source, sm.quant, sm.digest, sm.licence, sm.purpose); err != nil {
+				return err
+			}
+			changed = true
+		case err != nil:
 			return err
+		case m.Org != sm.org || m.Source != sm.source || m.Quant != sm.quant ||
+			m.Digest != sm.digest || m.Licence != sm.licence || m.Purpose != sm.purpose:
+			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, digest = ?, licence = ?, purpose = ?
+				WHERE id = ?`, sm.org, sm.source, sm.quant, sm.digest, sm.licence, sm.purpose, sm.id); err != nil {
+				return err
+			}
+			changed = true
 		}
 	}
-	if err := bumpAllBoxes(tx); err != nil {
-		return err
+	if changed {
+		if err := bumpAllBoxes(tx); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

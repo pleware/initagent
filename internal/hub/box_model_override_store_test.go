@@ -106,10 +106,13 @@ func TestSetBoxModelOverrideCrossValidation(t *testing.T) {
 	}
 }
 
-func TestSetBoxModelOverrideRefusesSeededUnverifiedModels(t *testing.T) {
+func TestSetBoxModelOverrideRefusesUnverifiedModels(t *testing.T) {
 	s := testStore(t)
 	box := testBox(t, s, "seed-refusal-box")
-	_, err := s.SetBoxModelOverride(box.ID, "persona", "qwen3.5-4b-q4_k_m")
+	if _, err := s.CreateModel("unverified-pin", "org", "source", "", "", "MIT", "persona"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.SetBoxModelOverride(box.ID, "persona", "unverified-pin")
 	if !errors.Is(err, ErrModelUnverified) {
 		t.Fatalf("err = %v, want ErrModelUnverified", err)
 	}

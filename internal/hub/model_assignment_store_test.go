@@ -104,11 +104,14 @@ func TestSetAssignmentCrossValidation(t *testing.T) {
 	}
 }
 
-func TestSetAssignmentRefusesSeededUnverifiedModels(t *testing.T) {
+func TestSetAssignmentRefusesUnverifiedModels(t *testing.T) {
 	s := testStore(t)
-	// Every factory seed pin carries an empty digest, so a fresh hub cannot
-	// assign anything until an admin verifies an artifact and fills the pin.
-	_, err := s.SetAssignment("persona", "qwen3.5-4b-q4_k_m")
+	// A pin with an empty digest cannot be assigned until the artifact is
+	// verified and the digest filled.
+	if _, err := s.CreateModel("unverified-pin", "org", "source", "", "", "MIT", "persona"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.SetAssignment("persona", "unverified-pin")
 	if !errors.Is(err, ErrModelUnverified) {
 		t.Fatalf("err = %v, want ErrModelUnverified", err)
 	}
@@ -208,12 +211,15 @@ func TestAdminAssignmentEndpoints(t *testing.T) {
 		t.Errorf("fresh list body = %q, want an empty array", body)
 	}
 
-	// The seeded persona pin is unverified: 400.
+	// A pin with an empty digest is unverified: 400.
+	if _, err := f.srv.store.CreateModel("unverified-pin", "org", "source", "", "", "MIT", "persona"); err != nil {
+		t.Fatal(err)
+	}
 	resp = f.do(t, http.MethodPut, "/api/admin/models/assignments", map[string]string{
-		"purpose": "persona", "modelId": "qwen3.5-4b-q4_k_m",
+		"purpose": "persona", "modelId": "unverified-pin",
 	})
 	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("PUT unverified seed: %d, want 400", resp.StatusCode)
+		t.Errorf("PUT unverified pin: %d, want 400", resp.StatusCode)
 	}
 
 	// A verified pin assigns: 200 with the lowercase wire shape.

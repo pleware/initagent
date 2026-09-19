@@ -320,14 +320,15 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		org          string
 		sourcePrefix string
 		quant        string
+		digest       string
 		licence      string
 		purpose      string
 	}{
-		{"qwen3.5-4b-q4_k_m", "bartowski", "bartowski/Qwen_Qwen3.5-4B-GGUF@", "Q4_K_M", "Apache-2.0", "persona"},
-		{"qwen2.5-coder-7b-q4_k_m", "Qwen", "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@", "Q4_K_M", "Apache-2.0", "worker"},
-		{"bge-m3", "gpustack", "gpustack/bge-m3-GGUF@", "Q4_K_M", "MIT", "embedding"},
-		{"faster-whisper-medium", "Systran", "Systran/faster-whisper-medium@", "", "MIT", "stt"},
-		{"silero-vad", "istupakov", "istupakov/silero-vad-onnx@", "", "MIT", "vad"},
+		{"qwen3.5-4b-q4_k_m", "bartowski", "bartowski/Qwen_Qwen3.5-4B-GGUF@", "Q4_K_M", "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980", "Apache-2.0", "persona"},
+		{"qwen2.5-coder-7b-q4_k_m", "Qwen", "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@", "Q4_K_M", "", "Apache-2.0", "worker"},
+		{"bge-m3", "gpustack", "gpustack/bge-m3-GGUF@", "Q4_K_M", "", "MIT", "embedding"},
+		{"faster-whisper-medium", "Systran", "Systran/faster-whisper-medium@", "", "", "MIT", "stt"},
+		{"silero-vad", "istupakov", "istupakov/silero-vad-onnx@", "", "bd861b19a51c83ee067b54d7d8b7f40bc11bafcc526506edc00b163e1c53bb8e", "MIT", "vad"},
 	}
 	for _, tt := range tests {
 		m, ok := byID[tt.id]
@@ -342,15 +343,17 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		if !strings.HasPrefix(m.Source, tt.sourcePrefix) || !strings.Contains(m.Source, "@") {
 			t.Errorf("%s source = %q, want a pinned repo@rev", tt.id, m.Source)
 		}
-		if m.Digest != "" {
-			t.Errorf("%s digest = %q, want empty (no fake digest)", tt.id, m.Digest)
+		if m.Digest != tt.digest {
+			t.Errorf("%s digest = %q, want %q", tt.id, m.Digest, tt.digest)
 		}
 	}
 }
 
-func TestEnsureSeedModelsKeepsAdminEdits(t *testing.T) {
+func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	s := testStore(t)
-	// The admin verifies the persona artifact and fills its digest.
+	// The admin edits a factory pin; the seed restores it to the factory
+	// definition — factory pins are factory-owned, an admin customizes through
+	// assignments/overrides, not by editing the pin itself.
 	if _, err := s.UpdateModel("qwen3.5-4b-q4_k_m", "custom-org", "custom-source", "q4_k_m", "admin-computed-digest", "Custom", "persona"); err != nil {
 		t.Fatal(err)
 	}
@@ -359,17 +362,17 @@ func TestEnsureSeedModelsKeepsAdminEdits(t *testing.T) {
 	}
 	m, err := s.GetModel("qwen3.5-4b-q4_k_m")
 	if err != nil || m == nil {
-		t.Fatalf("GetModel after reseed = (%v, %v), want the admin's row", m, err)
+		t.Fatalf("GetModel after reseed = (%v, %v), want the factory row", m, err)
 	}
-	if m.Source != "custom-source" || m.Digest != "admin-computed-digest" || m.Licence != "Custom" {
-		t.Errorf("reseed overwrote the admin's edit: %+v", m)
+	if m.Org != "bartowski" || m.Source != "bartowski/Qwen_Qwen3.5-4B-GGUF@4168f45a16a1290d65a4ec0fa312ae917a4c15d6" || m.Digest != "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980" {
+		t.Errorf("reseed did not restore the factory definition: %+v", m)
 	}
 	list, err := s.ListModels()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(list) != 5 {
-		t.Errorf("ListModels after reseed has %d rows, want 5 (nothing inserted)", len(list))
+		t.Errorf("ListModels after reseed has %d rows, want 5", len(list))
 	}
 }
 

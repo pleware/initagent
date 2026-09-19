@@ -87,7 +87,7 @@ func TestOrgAdminSetsAndClearsStaffOverride(t *testing.T) {
 			"openness": 0.9, "conscientiousness": 0.7, "extraversion": 0.4,
 			"agreeableness": 0.6, "neuroticism": 0.2,
 		},
-		"brief": "short hello", "model": "custom.glb", "wordBudget": 700,
+		"brief": "short hello", "avatarModel3d": "custom.glb", "wordBudget": 700,
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("set override: %d, want 200", resp.StatusCode)
@@ -98,7 +98,7 @@ func TestOrgAdminSetsAndClearsStaffOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := staffBySlug(t, effective, target.Slug)
-	if got.Brief != "short hello" || got.Model != "custom.glb" || got.WordBudget != 700 ||
+	if got.Brief != "short hello" || got.AvatarModel3D != "custom.glb" || got.WordBudget != 700 ||
 		got.BigFive.Openness != 0.9 || got.BigFive.Neuroticism != 0.2 {
 		t.Errorf("effective row = %+v, want every overridden field", got)
 	}
@@ -113,7 +113,7 @@ func TestOrgAdminSetsAndClearsStaffOverride(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if otherGot := staffBySlug(t, otherEffective, target.Slug); otherGot.Brief != "" || otherGot.Model != target.Model {
+	if otherGot := staffBySlug(t, otherEffective, target.Slug); otherGot.Brief != "" || otherGot.AvatarModel3D != target.AvatarModel3D {
 		t.Errorf("other org's row = %+v, want the untouched canonical fields", otherGot)
 	}
 
@@ -127,7 +127,7 @@ func TestOrgAdminSetsAndClearsStaffOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cleared := staffBySlug(t, effective, target.Slug); cleared.Brief != "" || cleared.WordBudget != 0 ||
-		cleared.Model != target.Model || cleared.BigFive.Openness != target.BigFive.Openness ||
+		cleared.AvatarModel3D != target.AvatarModel3D || cleared.BigFive.Openness != target.BigFive.Openness ||
 		cleared.Name != target.Name || cleared.Age != target.Age ||
 		cleared.SoulCore != target.SoulCore || cleared.SoulOverride != "" || cleared.Voice != target.Voice {
 		t.Errorf("row after clear = %+v, want the canonical fields back", cleared)

@@ -341,7 +341,7 @@ func TestBoxNarratorEdit(t *testing.T) {
 	}
 	resp := f.do(t, http.MethodPatch, "/api/boxes/"+box.ID+"/narrator", map[string]any{
 		"name": "Lore", "locale": "en", "age": 42, "wordBudget": 1200,
-		"model": "lore.glb", "voice": "lore-v2", "brief": "warm and precise",
+		"avatarModel3d": "lore.glb", "voice": "lore-v2", "brief": "warm and precise",
 		"soulCore": "explain first", "bigFive": map[string]float64{
 			"openness": 0.9, "conscientiousness": 0.8, "extraversion": 0.7,
 			"agreeableness": 0.6, "neuroticism": 0.2,
@@ -358,7 +358,7 @@ func TestBoxNarratorEdit(t *testing.T) {
 		t.Errorf("narrator identity = %+v, want the box-scoped st_b_pi row", narrator)
 	}
 	if narrator.Name != "Lore" || narrator.Locale != "en" || narrator.Age != 42 ||
-		narrator.WordBudget != 1200 || narrator.Model != "lore.glb" ||
+		narrator.WordBudget != 1200 || narrator.AvatarModel3D != "lore.glb" ||
 		narrator.Voice != "lore-v2" || narrator.Brief != "warm and precise" ||
 		narrator.SoulCore != "explain first" || narrator.BigFive != want {
 		t.Errorf("narrator after the edit = %+v, want the submitted nine fields", narrator)

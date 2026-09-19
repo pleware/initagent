@@ -27,7 +27,7 @@ export default function OrgStaffForm({
   const [voice, setVoice] = useState(staff.voice)
   const [bigFive, setBigFive] = useState<Character>(staff.bigFive)
   const [brief, setBrief] = useState(staff.brief)
-  const [model, setModel] = useState(staff.model)
+  const [avatarModel3d, setAvatarModel3d] = useState(staff.avatarModel3d)
   const [wordBudget, setWordBudget] = useState(
     staff.wordBudget > 0 ? String(staff.wordBudget) : '',
   )
@@ -59,7 +59,7 @@ export default function OrgStaffForm({
       voice?: string
       bigFive?: Character
       brief?: string
-      model?: string
+      avatarModel3d?: string
       wordBudget?: number
     } = {}
     if (nextName !== staff.name) payload.name = nextName
@@ -71,8 +71,8 @@ export default function OrgStaffForm({
     if (!sameBigFive(bigFive, staff.bigFive)) payload.bigFive = bigFive
     const nextBrief = brief.trim()
     if (nextBrief !== staff.brief) payload.brief = nextBrief
-    const nextModel = model.trim()
-    if (nextModel !== staff.model) payload.model = nextModel
+    const nextAvatarModel3d = avatarModel3d.trim()
+    if (nextAvatarModel3d !== staff.avatarModel3d) payload.avatarModel3d = nextAvatarModel3d
     const nextWordBudget = Number(wordBudget) || 0
     if (nextWordBudget !== staff.wordBudget) payload.wordBudget = nextWordBudget
 
@@ -185,11 +185,11 @@ export default function OrgStaffForm({
           />
         </label>
         <label className="text-sm text-fg-soft">
-          {t('staff.model')}
+          {t('staff.avatarModel3d')}
           <input
             type="text"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
+            value={avatarModel3d}
+            onChange={(e) => setAvatarModel3d(e.target.value)}
             className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
           />
         </label>

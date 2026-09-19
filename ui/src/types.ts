@@ -344,12 +344,14 @@ export interface Character {
 // shape with that org's overrides already applied, so one interface serves
 // both the admin catalogue and the org staff endpoints. `soulCore` is always
 // the canonical hub value; `soulOverride` is the org's own text when set.
+// `avatarModel3d` is the 3D avatar GLB path (e.g. "arianna.glb"), not the
+// LLM registry.
 export interface Staff {
   id: string
   slug: string
   name: string
   locale: string
-  model: string
+  avatarModel3d: string
   bigFive: Character
   brief: string
   age: number
@@ -444,7 +446,8 @@ export type Purpose = 'persona' | 'worker' | 'embedding' | 'stt'
 // (`initagent.hub.model`): identity and provenance only — the hub holds no
 // weights. `quant` is empty for non-GGUF pins (embedding, stt); `digest` is
 // the admin-provided BLAKE3 of the pinned artifact, empty until verified.
-// Not to be confused with `Staff.model`, which stays the avatar GLB string.
+// Not to be confused with `Staff.avatarModel3d`, which is the avatar GLB
+// string.
 export interface Model {
   id: string
   source: string

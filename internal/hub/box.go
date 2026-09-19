@@ -287,15 +287,15 @@ func (s *Server) handleUpdateBoxNarrator(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	var req struct {
-		Name       string    `json:"name"`
-		Locale     string    `json:"locale"`
-		Age        int       `json:"age"`
-		WordBudget int       `json:"wordBudget"`
-		Model      string    `json:"model"`
-		Voice      string    `json:"voice"`
-		BigFive    Character `json:"bigFive"`
-		Brief      string    `json:"brief"`
-		SoulCore   string    `json:"soulCore"`
+		Name          string    `json:"name"`
+		Locale        string    `json:"locale"`
+		Age           int       `json:"age"`
+		WordBudget    int       `json:"wordBudget"`
+		AvatarModel3D string    `json:"avatarModel3d"`
+		Voice         string    `json:"voice"`
+		BigFive       Character `json:"bigFive"`
+		Brief         string    `json:"brief"`
+		SoulCore      string    `json:"soulCore"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		httpError(w, http.StatusBadRequest, "bad request")
@@ -314,7 +314,7 @@ func (s *Server) handleUpdateBoxNarrator(w http.ResponseWriter, r *http.Request,
 		httpError(w, http.StatusBadRequest, "word budget cannot be negative")
 		return
 	}
-	staff, err := s.store.UpdateBoxNarrator(box.ID, req.Name, req.Locale, req.Model, req.Brief, req.SoulCore, req.Voice, req.Age, req.WordBudget, req.BigFive)
+	staff, err := s.store.UpdateBoxNarrator(box.ID, req.Name, req.Locale, req.AvatarModel3D, req.Brief, req.SoulCore, req.Voice, req.Age, req.WordBudget, req.BigFive)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

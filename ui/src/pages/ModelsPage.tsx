@@ -13,7 +13,7 @@ import type { Model, ModelAssignment, Purpose } from '../types'
 // the rules — an empty digest comes back as a 400 on assign, a referenced
 // pin as a 409 on delete — this screen submits and shows what the hub
 // answered, the same posture as SkillsPage. Per-box overrides live on
-// BoxesPage; `Staff.model` (the avatar GLB) is a different thing and stays
+// BoxesPage; `Staff.avatarModel3d` (the avatar GLB) is a different thing and stays
 // untouched.
 export default function ModelsPage() {
   const { t } = useTranslation()

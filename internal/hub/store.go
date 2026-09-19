@@ -194,7 +194,7 @@ CREATE TABLE IF NOT EXISTS staff (
 	big_five    TEXT NOT NULL DEFAULT '{}',
 	brief       TEXT NOT NULL DEFAULT '',
 	word_budget INTEGER NOT NULL DEFAULT 0,
-	model       TEXT NOT NULL DEFAULT '',
+	avatar_model_3d TEXT NOT NULL DEFAULT '',
 	soul_core   TEXT NOT NULL DEFAULT '',
 	voice       TEXT NOT NULL DEFAULT '',
 	scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
@@ -203,16 +203,16 @@ CREATE TABLE IF NOT EXISTS staff (
 	updated_at  INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_staff_overrides (
-	org_id        TEXT NOT NULL,
-	staff_id      TEXT NOT NULL,
-	name          TEXT,
-	age           INTEGER,
-	soul_override TEXT,
-	voice         TEXT,
-	big_five      TEXT,
-	brief         TEXT,
-	word_budget   INTEGER,
-	model         TEXT,
+	org_id          TEXT NOT NULL,
+	staff_id        TEXT NOT NULL,
+	name            TEXT,
+	age             INTEGER,
+	soul_override   TEXT,
+	voice           TEXT,
+	big_five        TEXT,
+	brief           TEXT,
+	word_budget     INTEGER,
+	avatar_model_3d TEXT,
 	PRIMARY KEY (org_id, staff_id)
 );
 CREATE TABLE IF NOT EXISTS boxes (
@@ -427,7 +427,7 @@ CREATE TABLE IF NOT EXISTS staff (
 	big_five    TEXT NOT NULL DEFAULT '{}',
 	brief       TEXT NOT NULL DEFAULT '',
 	word_budget BIGINT NOT NULL DEFAULT 0,
-	model       TEXT NOT NULL DEFAULT '',
+	avatar_model_3d TEXT NOT NULL DEFAULT '',
 	soul_core   TEXT NOT NULL DEFAULT '',
 	voice       TEXT NOT NULL DEFAULT '',
 	scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
@@ -436,16 +436,16 @@ CREATE TABLE IF NOT EXISTS staff (
 	updated_at  BIGINT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_staff_overrides (
-	org_id        TEXT NOT NULL,
-	staff_id      TEXT NOT NULL,
-	name          TEXT,
-	age           BIGINT,
-	soul_override TEXT,
-	voice         TEXT,
-	big_five      TEXT,
-	brief         TEXT,
-	word_budget   BIGINT,
-	model         TEXT,
+	org_id          TEXT NOT NULL,
+	staff_id        TEXT NOT NULL,
+	name            TEXT,
+	age             BIGINT,
+	soul_override   TEXT,
+	voice           TEXT,
+	big_five        TEXT,
+	brief           TEXT,
+	word_budget     BIGINT,
+	avatar_model_3d TEXT,
 	PRIMARY KEY (org_id, staff_id)
 );
 CREATE TABLE IF NOT EXISTS boxes (
@@ -523,6 +523,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureStaffProfileColumns(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring staff profile columns: %w", err)
+	}
+	if err := s.ensureStaffAvatarModel3D(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("renaming staff avatar model column: %w", err)
 	}
 	if err := s.ensureStaffScopeColumns(); err != nil {
 		db.Close()
@@ -728,6 +732,39 @@ func (s *Store) ensureStaffScopeColumns() error {
 	return s.ensureColumn("staff", "box_id", "TEXT")
 }
 
+// ensureStaffAvatarModel3D renames the staff avatar GLB column from the
+// inherited short name `model` to `avatar_model_3d` on both tables that
+// carried it, clearing the way for the LLM pin registry to own the bare
+// word "model" (models, model_assignments). CREATE TABLE IF NOT EXISTS
+// cannot rename a column on a live table, so the swap is a guarded rename
+// in the shape of renameInheritedDeviceNames: run only when the old name
+// exists and the new one does not, which is what keeps it idempotent —
+// a store created from the current schema batch carries avatar_model_3d
+// already and skips. Both dialects support RENAME COLUMN; the column data
+// rides along untouched.
+func (s *Store) ensureStaffAvatarModel3D() error {
+	for _, c := range []struct{ table, from, to string }{
+		{"staff", "model", "avatar_model_3d"},
+		{"org_staff_overrides", "model", "avatar_model_3d"},
+	} {
+		old, err := s.hasColumn(c.table, c.from)
+		if err != nil {
+			return err
+		}
+		current, err := s.hasColumn(c.table, c.to)
+		if err != nil {
+			return err
+		}
+		if !old || current {
+			continue
+		}
+		if _, err := s.db.Exec(`ALTER TABLE ` + c.table + ` RENAME COLUMN ` + c.from + ` TO ` + c.to); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ensureStaffPerScopeSlugUniqueness relaxes the installation-wide UNIQUE on
 // staff.slug into per-scope uniqueness, which is what lets every box seed its
 // own st_b_pi narrator under the same slug (58). Two partial unique indexes
@@ -835,7 +872,7 @@ func (s *Store) rebuildStaffWithoutGlobalSlugUnique() error {
 		return err
 	}
 	cols := []string{"id", "slug", "name", "locale", "age", "big_five", "brief",
-		"word_budget", "model", "soul_core", "voice", "scope", "box_id", "created_at", "updated_at"}
+		"word_budget", "avatar_model_3d", "soul_core", "voice", "scope", "box_id", "created_at", "updated_at"}
 	for _, col := range cols {
 		ok, err := s.hasColumn("staff", col)
 		if err != nil {
@@ -862,7 +899,7 @@ func (s *Store) rebuildStaffWithoutGlobalSlugUnique() error {
 		big_five    TEXT NOT NULL DEFAULT '{}',
 		brief       TEXT NOT NULL DEFAULT '',
 		word_budget INTEGER NOT NULL DEFAULT 0,
-		model       TEXT NOT NULL DEFAULT '',
+		avatar_model_3d TEXT NOT NULL DEFAULT '',
 		soul_core   TEXT NOT NULL DEFAULT '',
 		voice       TEXT NOT NULL DEFAULT '',
 		scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),

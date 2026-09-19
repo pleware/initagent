@@ -13,7 +13,7 @@ export type StaffField =
   | 'locale'
   | 'age'
   | 'wordBudget'
-  | 'model'
+  | 'avatarModel3d'
   | 'voice'
   | 'bigFive'
   | 'brief'
@@ -29,7 +29,7 @@ export interface StaffFields {
   locale: string
   age: number
   wordBudget: number
-  model: string
+  avatarModel3d: string
   voice: string
   bigFive: Character
   brief: string
@@ -60,7 +60,7 @@ export default function StaffEditor({
   const [name, setName] = useState(staff?.name ?? '')
   const [locale, setLocale] = useState(staff?.locale ?? '')
   const [age, setAge] = useState(staff && staff.age > 0 ? String(staff.age) : '')
-  const [model, setModel] = useState(staff?.model ?? '')
+  const [avatarModel3d, setAvatarModel3d] = useState(staff?.avatarModel3d ?? '')
   const [brief, setBrief] = useState(staff?.brief ?? '')
   const [wordBudget, setWordBudget] = useState(
     staff && staff.wordBudget > 0 ? String(staff.wordBudget) : '',
@@ -86,7 +86,7 @@ export default function StaffEditor({
         locale: locale.trim(),
         age: Number(age) || 0,
         wordBudget: Number(wordBudget) || 0,
-        model: model.trim(),
+        avatarModel3d: avatarModel3d.trim(),
         voice: voice.trim(),
         bigFive,
         brief: brief.trim(),
@@ -164,13 +164,13 @@ export default function StaffEditor({
           />
         </label>
         <label className="text-sm text-fg-soft">
-          {t('staff.model')}
+          {t('staff.avatarModel3d')}
           <input
             type="text"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
+            value={avatarModel3d}
+            onChange={(e) => setAvatarModel3d(e.target.value)}
             className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 font-mono text-[12px] text-fg-strong"
-            {...lock('model')}
+            {...lock('avatarModel3d')}
           />
         </label>
         <label className="block">

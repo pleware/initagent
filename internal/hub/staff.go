@@ -27,36 +27,36 @@ type Character struct {
 // the two are separate fields, never merged; an org with no override has
 // SoulOverride empty.
 type Staff struct {
-	ID           string    `json:"id"`
-	Slug         string    `json:"slug"`
-	Name         string    `json:"name"`
-	Locale       string    `json:"locale"`
-	Model        string    `json:"model"`
-	BigFive      Character `json:"bigFive"`
-	Brief        string    `json:"brief"`
-	Age          int       `json:"age"`
-	WordBudget   int       `json:"wordBudget"`
-	SoulCore     string    `json:"soulCore"`
-	SoulOverride string    `json:"soulOverride,omitempty"`
-	Voice        string    `json:"voice"`
-	Scope        string    `json:"scope"`
-	BoxID        string    `json:"boxId,omitempty"`
-	CreatedAt    int64     `json:"createdAt"`
-	UpdatedAt    int64     `json:"updatedAt"`
+	ID            string    `json:"id"`
+	Slug          string    `json:"slug"`
+	Name          string    `json:"name"`
+	Locale        string    `json:"locale"`
+	AvatarModel3D string    `json:"avatarModel3d"`
+	BigFive       Character `json:"bigFive"`
+	Brief         string    `json:"brief"`
+	Age           int       `json:"age"`
+	WordBudget    int       `json:"wordBudget"`
+	SoulCore      string    `json:"soulCore"`
+	SoulOverride  string    `json:"soulOverride,omitempty"`
+	Voice         string    `json:"voice"`
+	Scope         string    `json:"scope"`
+	BoxID         string    `json:"boxId,omitempty"`
+	CreatedAt     int64     `json:"createdAt"`
+	UpdatedAt     int64     `json:"updatedAt"`
 }
 
 // OrgStaffOverride is one organization's tuning of a staff member. Every
 // field except the key pair is optional: NULL means "inherit the staff row",
-// so an override holding only a model keeps the base BigFive and brief.
+// so an override holding only an avatar model keeps the base BigFive and brief.
 type OrgStaffOverride struct {
-	OrgID        string     `json:"orgId"`
-	StaffID      string     `json:"staffId"`
-	Name         *string    `json:"name,omitempty"`
-	Age          *int       `json:"age,omitempty"`
-	SoulOverride *string    `json:"soulOverride,omitempty"`
-	Voice        *string    `json:"voice,omitempty"`
-	BigFive      *Character `json:"bigFive,omitempty"`
-	Brief        *string    `json:"brief,omitempty"`
-	WordBudget   *int       `json:"wordBudget,omitempty"`
-	Model        *string    `json:"model,omitempty"`
+	OrgID         string     `json:"orgId"`
+	StaffID       string     `json:"staffId"`
+	Name          *string    `json:"name,omitempty"`
+	Age           *int       `json:"age,omitempty"`
+	SoulOverride  *string    `json:"soulOverride,omitempty"`
+	Voice         *string    `json:"voice,omitempty"`
+	BigFive       *Character `json:"bigFive,omitempty"`
+	Brief         *string    `json:"brief,omitempty"`
+	WordBudget    *int       `json:"wordBudget,omitempty"`
+	AvatarModel3D *string    `json:"avatarModel3d,omitempty"`
 }

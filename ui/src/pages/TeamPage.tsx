@@ -406,8 +406,8 @@ export default function TeamPage({
                 ),
               },
               {
-                header: t('staff.model'),
-                cell: (s) => <span className="text-fg-muted">{s.model || '—'}</span>,
+                header: t('staff.avatarModel3d'),
+                cell: (s) => <span className="text-fg-muted">{s.avatarModel3d || '—'}</span>,
               },
               {
                 header: t('staff.wordBudget'),

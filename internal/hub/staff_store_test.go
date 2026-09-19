@@ -13,15 +13,15 @@ import (
 // testStaff is a fully-populated staff member used where a test needs a set one.
 func testStaff() Staff {
 	return Staff{
-		Slug:       "coder-zeta",
-		Name:       "Zeta",
-		Locale:     "pl",
-		Model:      "zeta.glb",
-		Brief:      "a sharp coder",
-		Age:        41,
-		WordBudget: 2500,
-		SoulCore:   "debug first, explain after",
-		Voice:      "zeta-v1",
+		Slug:          "coder-zeta",
+		Name:          "Zeta",
+		Locale:        "pl",
+		AvatarModel3D: "zeta.glb",
+		Brief:         "a sharp coder",
+		Age:           41,
+		WordBudget:    2500,
+		SoulCore:      "debug first, explain after",
+		Voice:         "zeta-v1",
 		BigFive: Character{
 			Openness:          0.9,
 			Conscientiousness: 0.8,
@@ -65,7 +65,7 @@ func findStaff(t *testing.T, list []Staff, slug string) *Staff {
 func newBaseStaff(t *testing.T, s *Store) Staff {
 	t.Helper()
 	st := testStaff()
-	created, err := s.UpsertStaff(st.Slug, st.Name, st.Locale, st.Model, st.Brief, st.SoulCore, st.Voice, "org", "", st.Age, st.WordBudget, st.BigFive)
+	created, err := s.UpsertStaff(st.Slug, st.Name, st.Locale, st.AvatarModel3D, st.Brief, st.SoulCore, st.Voice, "org", "", st.Age, st.WordBudget, st.BigFive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestUpdateBoxNarrator(t *testing.T) {
 		t.Errorf("narrator identity = %+v, want the box-scoped st_b_pi row", st)
 	}
 	if st.Name != "Lore" || st.Locale != "en" || st.Age != 42 || st.WordBudget != 1200 ||
-		st.Model != "lore.glb" || st.Voice != "lore-v2" || st.Brief != "warm and precise" ||
+		st.AvatarModel3D != "lore.glb" || st.Voice != "lore-v2" || st.Brief != "warm and precise" ||
 		st.SoulCore != "explain first" || st.BigFive != want {
 		t.Errorf("narrator after the edit = %+v, want the submitted nine fields", st)
 	}
@@ -219,7 +219,7 @@ func TestUpdateBoxNarrator(t *testing.T) {
 func TestUpsertStaffCreate(t *testing.T) {
 	tests := []struct {
 		name string
-		in   Staff // slug, name, locale, model, brief, age, wordBudget, bigFive
+		in   Staff // slug, name, locale, avatar model, brief, age, wordBudget, bigFive
 	}{
 		{
 			name: "minimal profile",
@@ -234,7 +234,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := testStore(t)
-			created, err := s.UpsertStaff(tt.in.Slug, tt.in.Name, tt.in.Locale, tt.in.Model, tt.in.Brief, tt.in.SoulCore, tt.in.Voice, "org", "", tt.in.Age, tt.in.WordBudget, tt.in.BigFive)
+			created, err := s.UpsertStaff(tt.in.Slug, tt.in.Name, tt.in.Locale, tt.in.AvatarModel3D, tt.in.Brief, tt.in.SoulCore, tt.in.Voice, "org", "", tt.in.Age, tt.in.WordBudget, tt.in.BigFive)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -250,7 +250,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 				t.Fatal("StaffById returned nil for a created staff member")
 			}
 			if got.Slug != tt.in.Slug || got.Name != tt.in.Name || got.Locale != tt.in.Locale ||
-				got.Model != tt.in.Model || got.Brief != tt.in.Brief || got.Age != tt.in.Age ||
+				got.AvatarModel3D != tt.in.AvatarModel3D || got.Brief != tt.in.Brief || got.Age != tt.in.Age ||
 				got.WordBudget != tt.in.WordBudget || got.SoulCore != tt.in.SoulCore || got.Voice != tt.in.Voice {
 				t.Errorf("round trip = %+v, want %+v", got, tt.in)
 			}
@@ -271,7 +271,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 func TestUpsertStaffUpdate(t *testing.T) {
 	s := testStore(t)
 	base := testStaff()
-	created, err := s.UpsertStaff(base.Slug, base.Name, base.Locale, base.Model, base.Brief, base.SoulCore, base.Voice, "org", "", base.Age, base.WordBudget, base.BigFive)
+	created, err := s.UpsertStaff(base.Slug, base.Name, base.Locale, base.AvatarModel3D, base.Brief, base.SoulCore, base.Voice, "org", "", base.Age, base.WordBudget, base.BigFive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -292,7 +292,7 @@ func TestUpsertStaffUpdate(t *testing.T) {
 	if got.ID != created.ID {
 		t.Errorf("ID = %q, want %q (update must not mint a new id)", got.ID, created.ID)
 	}
-	if got.Name != "Zeta Two" || got.Locale != "en" || got.Model != "zeta2.glb" ||
+	if got.Name != "Zeta Two" || got.Locale != "en" || got.AvatarModel3D != "zeta2.glb" ||
 		got.Brief != "sharper now" || got.Age != 42 || got.WordBudget != 3000 ||
 		got.SoulCore != "explain first" || got.Voice != "zeta-v2" {
 		t.Errorf("updated fields = %+v", got)
@@ -323,7 +323,7 @@ func TestUpsertStaffSlugUnique(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A direct second insert on the same slug is refused by the unique index.
-	_, err := s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, model, created_at, updated_at)
+	_, err := s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, created_at, updated_at)
 		VALUES ('staff-00000000-0000-0000-0000-000000000000', 'staff-taken', 'Two', 'en', 31, '{}', '', 0, '', 1, 1)`)
 	if err == nil {
 		t.Fatal("second insert with the same slug succeeded, want a unique constraint refusal")
@@ -348,7 +348,7 @@ func TestUpsertStaffSlugUniquePerScope(t *testing.T) {
 	if _, err := s.UpsertStaff("staff-org-only", "One", "en", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, model, created_at, updated_at)
+	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, created_at, updated_at)
 		VALUES ('staff-00000000-0000-0000-0000-000000000000', 'staff-org-only', 'Two', 'en', 31, '{}', '', 0, '', 1, 1)`)
 	if err == nil {
 		t.Fatal("second org-scoped insert with the same slug succeeded, want a unique constraint refusal")
@@ -375,7 +375,7 @@ func TestUpsertStaffSlugUniquePerScope(t *testing.T) {
 	}
 
 	// The same slug twice in one box is refused by the per-box partial index.
-	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, model, scope, box_id, created_at, updated_at)
+	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, scope, box_id, created_at, updated_at)
 		VALUES ('staff-00000000-0000-0000-0000-000000000001', 'st_b_pi', 'Twin', 'en', 0, '{}', '', 0, '', 'box', ?, 1, 1)`, boxA.ID)
 	if err == nil {
 		t.Fatal("second insert of the same slug in the same box succeeded, want a unique constraint refusal")
@@ -545,296 +545,296 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 	overrideSoul := "walk-up soul"
 	overrideVoice := "walk-up-v1"
 	overrideBrief := "override brief"
-	overrideModel := "override.glb"
+	overrideAvatarModel3D := "override.glb"
 	overrideBudget := 99
 	full := OrgStaffOverride{
-		OrgID:        orgA,
-		Name:         &overrideName,
-		Age:          &overrideAge,
-		SoulOverride: &overrideSoul,
-		Voice:        &overrideVoice,
-		BigFive:      &overrideBF,
-		Brief:        &overrideBrief,
-		Model:        &overrideModel,
-		WordBudget:   &overrideBudget,
+		OrgID:         orgA,
+		Name:          &overrideName,
+		Age:           &overrideAge,
+		SoulOverride:  &overrideSoul,
+		Voice:         &overrideVoice,
+		BigFive:       &overrideBF,
+		Brief:         &overrideBrief,
+		AvatarModel3D: &overrideAvatarModel3D,
+		WordBudget:    &overrideBudget,
 	}
 
 	tests := []struct {
-		name             string
-		override         *OrgStaffOverride // applied to org A; nil means none
-		clearAfter       bool
-		org              string
-		wantName         string
-		wantAge          int
-		wantSoulCore     string
-		wantSoulOverride string
-		wantVoice        string
-		wantBigFive      Character
-		wantBrief        string
-		wantModel        string
-		wantWordBudget   int
+		name              string
+		override          *OrgStaffOverride // applied to org A; nil means none
+		clearAfter        bool
+		org               string
+		wantName          string
+		wantAge           int
+		wantSoulCore      string
+		wantSoulOverride  string
+		wantVoice         string
+		wantBigFive       Character
+		wantBrief         string
+		wantAvatarModel3D string
+		wantWordBudget    int
 	}{
 		{
-			name:           "missing override returns base",
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "missing override returns base",
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:             "full override replaces every overridable field",
-			override:         &full,
-			org:              orgA,
-			wantName:         overrideName,
-			wantAge:          overrideAge,
-			wantSoulCore:     base.SoulCore,
-			wantSoulOverride: overrideSoul,
-			wantVoice:        overrideVoice,
-			wantBigFive:      overrideBF,
-			wantBrief:        overrideBrief,
-			wantModel:        overrideModel,
-			wantWordBudget:   overrideBudget,
+			name:              "full override replaces every overridable field",
+			override:          &full,
+			org:               orgA,
+			wantName:          overrideName,
+			wantAge:           overrideAge,
+			wantSoulCore:      base.SoulCore,
+			wantSoulOverride:  overrideSoul,
+			wantVoice:         overrideVoice,
+			wantBigFive:       overrideBF,
+			wantBrief:         overrideBrief,
+			wantAvatarModel3D: overrideAvatarModel3D,
+			wantWordBudget:    overrideBudget,
 		},
 		{
-			name:           "name override only",
-			override:       &OrgStaffOverride{OrgID: orgA, Name: &overrideName},
-			org:            orgA,
-			wantName:       overrideName,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "name override only",
+			override:          &OrgStaffOverride{OrgID: orgA, Name: &overrideName},
+			org:               orgA,
+			wantName:          overrideName,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "age override only",
-			override:       &OrgStaffOverride{OrgID: orgA, Age: &overrideAge},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        overrideAge,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "age override only",
+			override:          &OrgStaffOverride{OrgID: orgA, Age: &overrideAge},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           overrideAge,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:             "soul override only",
-			override:         &OrgStaffOverride{OrgID: orgA, SoulOverride: &overrideSoul},
-			org:              orgA,
-			wantName:         base.Name,
-			wantAge:          base.Age,
-			wantSoulCore:     base.SoulCore,
-			wantSoulOverride: overrideSoul,
-			wantVoice:        base.Voice,
-			wantBigFive:      base.BigFive,
-			wantBrief:        base.Brief,
-			wantModel:        base.Model,
-			wantWordBudget:   base.WordBudget,
+			name:              "soul override only",
+			override:          &OrgStaffOverride{OrgID: orgA, SoulOverride: &overrideSoul},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantSoulOverride:  overrideSoul,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "voice override only",
-			override:       &OrgStaffOverride{OrgID: orgA, Voice: &overrideVoice},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      overrideVoice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "voice override only",
+			override:          &OrgStaffOverride{OrgID: orgA, Voice: &overrideVoice},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         overrideVoice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "big five override only",
-			override:       &OrgStaffOverride{OrgID: orgA, BigFive: &overrideBF},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    overrideBF,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "big five override only",
+			override:          &OrgStaffOverride{OrgID: orgA, BigFive: &overrideBF},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       overrideBF,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "brief override only",
-			override:       &OrgStaffOverride{OrgID: orgA, Brief: &overrideBrief},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      overrideBrief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "brief override only",
+			override:          &OrgStaffOverride{OrgID: orgA, Brief: &overrideBrief},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         overrideBrief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "model override only",
-			override:       &OrgStaffOverride{OrgID: orgA, Model: &overrideModel},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      overrideModel,
-			wantWordBudget: base.WordBudget,
+			name:              "avatar model override only",
+			override:          &OrgStaffOverride{OrgID: orgA, AvatarModel3D: &overrideAvatarModel3D},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: overrideAvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "word budget override only",
-			override:       &OrgStaffOverride{OrgID: orgA, WordBudget: &overrideBudget},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: overrideBudget,
+			name:              "word budget override only",
+			override:          &OrgStaffOverride{OrgID: orgA, WordBudget: &overrideBudget},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    overrideBudget,
 		},
 		{
-			name:           "empty name override still wins over base",
-			override:       &OrgStaffOverride{OrgID: orgA, Name: strPtr("")},
-			org:            orgA,
-			wantName:       "",
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "empty name override still wins over base",
+			override:          &OrgStaffOverride{OrgID: orgA, Name: strPtr("")},
+			org:               orgA,
+			wantName:          "",
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "zero age override still wins over base",
-			override:       &OrgStaffOverride{OrgID: orgA, Age: intPtr(0)},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        0,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "zero age override still wins over base",
+			override:          &OrgStaffOverride{OrgID: orgA, Age: intPtr(0)},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           0,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "empty soul override still records the override",
-			override:       &OrgStaffOverride{OrgID: orgA, SoulOverride: strPtr("")},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "empty soul override still records the override",
+			override:          &OrgStaffOverride{OrgID: orgA, SoulOverride: strPtr("")},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "empty voice override still wins over base",
-			override:       &OrgStaffOverride{OrgID: orgA, Voice: strPtr("")},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      "",
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "empty voice override still wins over base",
+			override:          &OrgStaffOverride{OrgID: orgA, Voice: strPtr("")},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         "",
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "empty brief override still wins over base",
-			override:       &OrgStaffOverride{OrgID: orgA, Brief: strPtr("")},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      "",
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "empty brief override still wins over base",
+			override:          &OrgStaffOverride{OrgID: orgA, Brief: strPtr("")},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         "",
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "empty model override still wins over base",
-			override:       &OrgStaffOverride{OrgID: orgA, Model: strPtr("")},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      "",
-			wantWordBudget: base.WordBudget,
+			name:              "empty avatar model override still wins over base",
+			override:          &OrgStaffOverride{OrgID: orgA, AvatarModel3D: strPtr("")},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: "",
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "zero word budget override still wins over base",
-			override:       &OrgStaffOverride{OrgID: orgA, WordBudget: intPtr(0)},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: 0,
+			name:              "zero word budget override still wins over base",
+			override:          &OrgStaffOverride{OrgID: orgA, WordBudget: intPtr(0)},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    0,
 		},
 		{
-			name:           "zero big five override still wins over base",
-			override:       &OrgStaffOverride{OrgID: orgA, BigFive: &zeroBF},
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    zeroBF,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "zero big five override still wins over base",
+			override:          &OrgStaffOverride{OrgID: orgA, BigFive: &zeroBF},
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       zeroBF,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "org B does not inherit org A override",
-			override:       &full,
-			org:            orgB,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "org B does not inherit org A override",
+			override:          &full,
+			org:               orgB,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 		{
-			name:           "clear override returns to base",
-			override:       &full,
-			clearAfter:     true,
-			org:            orgA,
-			wantName:       base.Name,
-			wantAge:        base.Age,
-			wantSoulCore:   base.SoulCore,
-			wantVoice:      base.Voice,
-			wantBigFive:    base.BigFive,
-			wantBrief:      base.Brief,
-			wantModel:      base.Model,
-			wantWordBudget: base.WordBudget,
+			name:              "clear override returns to base",
+			override:          &full,
+			clearAfter:        true,
+			org:               orgA,
+			wantName:          base.Name,
+			wantAge:           base.Age,
+			wantSoulCore:      base.SoulCore,
+			wantVoice:         base.Voice,
+			wantBigFive:       base.BigFive,
+			wantBrief:         base.Brief,
+			wantAvatarModel3D: base.AvatarModel3D,
+			wantWordBudget:    base.WordBudget,
 		},
 	}
 
@@ -843,7 +843,7 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			s := testStore(t)
 			st := newBaseStaff(t, s)
 			if tt.override != nil {
-				if err := s.SetOrgStaffOverride(orgA, st.ID, tt.override.Name, tt.override.Age, tt.override.SoulOverride, tt.override.Voice, tt.override.BigFive, tt.override.Brief, tt.override.Model, tt.override.WordBudget); err != nil {
+				if err := s.SetOrgStaffOverride(orgA, st.ID, tt.override.Name, tt.override.Age, tt.override.SoulOverride, tt.override.Voice, tt.override.BigFive, tt.override.Brief, tt.override.AvatarModel3D, tt.override.WordBudget); err != nil {
 					t.Fatal(err)
 				}
 				if tt.clearAfter {
@@ -875,8 +875,8 @@ func TestStaffForOrgWalkUp(t *testing.T) {
 			if got.Brief != tt.wantBrief {
 				t.Errorf("Brief = %q, want %q", got.Brief, tt.wantBrief)
 			}
-			if got.Model != tt.wantModel {
-				t.Errorf("Model = %q, want %q", got.Model, tt.wantModel)
+			if got.AvatarModel3D != tt.wantAvatarModel3D {
+				t.Errorf("AvatarModel3D = %q, want %q", got.AvatarModel3D, tt.wantAvatarModel3D)
 			}
 			if got.WordBudget != tt.wantWordBudget {
 				t.Errorf("WordBudget = %d, want %d", got.WordBudget, tt.wantWordBudget)
@@ -898,8 +898,8 @@ func TestSetOrgStaffOverrideUpsert(t *testing.T) {
 	if err := s.SetOrgStaffOverride(org, st.ID, nil, nil, nil, nil, nil, strPtr("first brief"), strPtr("first.glb"), nil); err != nil {
 		t.Fatal(err)
 	}
-	// The second write replaces the row in place: a new brief, the model
-	// cleared back to NULL so the base row wins again.
+	// The second write replaces the row in place: a new brief, the avatar
+	// model cleared back to NULL so the base row wins again.
 	if err := s.SetOrgStaffOverride(org, st.ID, nil, nil, nil, nil, nil, strPtr("second brief"), nil, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -915,8 +915,8 @@ func TestSetOrgStaffOverrideUpsert(t *testing.T) {
 	if got.Brief != "second brief" {
 		t.Errorf("Brief = %q, want second brief", got.Brief)
 	}
-	if got.Model != st.Model {
-		t.Errorf("Model = %q, want base %q after the second write cleared it", got.Model, st.Model)
+	if got.AvatarModel3D != st.AvatarModel3D {
+		t.Errorf("AvatarModel3D = %q, want base %q after the second write cleared it", got.AvatarModel3D, st.AvatarModel3D)
 	}
 }
 
@@ -933,7 +933,7 @@ func TestClearOrgStaffOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := findStaff(t, mustStaffForOrg(t, s, org), st.Slug)
-	if !reflect.DeepEqual(got.BigFive, st.BigFive) || got.Brief != st.Brief || got.Model != st.Model || got.WordBudget != st.WordBudget {
+	if !reflect.DeepEqual(got.BigFive, st.BigFive) || got.Brief != st.Brief || got.AvatarModel3D != st.AvatarModel3D || got.WordBudget != st.WordBudget {
 		t.Errorf("after clear = %+v, want base %+v", got, st)
 	}
 	// Clearing a missing override is not an error, for either org.
@@ -949,15 +949,15 @@ func TestEnsureSeedStaffIdempotent(t *testing.T) {
 	s := testStore(t)
 
 	tests := []struct {
-		name      string
-		slug      string
-		wantName  string
-		wantAge   int
-		wantModel string
-		wantVoice string
+		name              string
+		slug              string
+		wantName          string
+		wantAge           int
+		wantAvatarModel3D string
+		wantVoice         string
 	}{
 		{name: "male seed", slug: "staff-male-00", wantName: "Adam", wantAge: 35, wantVoice: "pl_PL-mc_speech-medium"},
-		{name: "female seed", slug: "staff-female-00", wantName: "Ewa", wantAge: 32, wantModel: "arianna.glb", wantVoice: "pl_PL-gosia-medium"},
+		{name: "female seed", slug: "staff-female-00", wantName: "Ewa", wantAge: 32, wantAvatarModel3D: "arianna.glb", wantVoice: "pl_PL-gosia-medium"},
 	}
 	assertSeeds := func(t *testing.T) {
 		t.Helper()
@@ -976,8 +976,8 @@ func TestEnsureSeedStaffIdempotent(t *testing.T) {
 			if got.Age != tt.wantAge {
 				t.Errorf("%s age = %d, want %d", tt.slug, got.Age, tt.wantAge)
 			}
-			if got.Model != tt.wantModel {
-				t.Errorf("%s model = %q, want %q", tt.slug, got.Model, tt.wantModel)
+			if got.AvatarModel3D != tt.wantAvatarModel3D {
+				t.Errorf("%s avatar_model_3d = %q, want %q", tt.slug, got.AvatarModel3D, tt.wantAvatarModel3D)
 			}
 			if got.Voice != tt.wantVoice {
 				t.Errorf("%s voice = %q, want %q", tt.slug, got.Voice, tt.wantVoice)
@@ -1154,6 +1154,105 @@ func TestOpenStoreMigratesLegacyStaffColumns(t *testing.T) {
 	}
 	if got.Brief != "kept brief" {
 		t.Errorf("migrated override row brief = %q, want the surviving override value", got.Brief)
+	}
+}
+
+// A store whose staff and org_staff_overrides tables still carry the avatar
+// GLB under the inherited short column name `model` gains avatar_model_3d on
+// reopen. The rename is a guarded column swap, not a data migration: values
+// ride along untouched, the old name is gone, and a second reopen on the
+// already-renamed store skips the swap — idempotent, so an interrupted or
+// repeated open never loses the column or its data.
+func TestOpenStoreMigratesAvatarModelColumn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "staff-avatar-model-migration.db")
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Make the override table live with a row whose avatar model must
+	// survive the rename; the female seed carries the staff-side value.
+	list, err := s.ListStaff()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := findStaff(t, list, "staff-female-00")
+	org := "org-avatar-model-migration"
+	avatarModel3D := "custom.glb"
+	if err := s.SetOrgStaffOverride(org, base.ID, nil, nil, nil, nil, nil, nil, &avatarModel3D, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Rewind both tables to the pre-rename shape: the short `model` column.
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rewind := range []string{
+		`ALTER TABLE staff RENAME COLUMN avatar_model_3d TO model`,
+		`ALTER TABLE org_staff_overrides RENAME COLUMN avatar_model_3d TO model`,
+	} {
+		if _, err := db.Exec(rewind); err != nil {
+			_ = db.Close()
+			t.Fatalf("%s: %v", rewind, err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopen on a pre-rename avatar model column: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+
+	for _, table := range []string{"staff", "org_staff_overrides"} {
+		ok, err := again.hasColumn(table, "avatar_model_3d")
+		if err != nil || !ok {
+			t.Fatalf("%s.avatar_model_3d after reopen: ok=%v err=%v", table, ok, err)
+		}
+		ok, err = again.hasColumn(table, "model")
+		if err != nil || ok {
+			t.Fatalf("%s.model after reopen: ok=%v err=%v, want the column renamed away", table, ok, err)
+		}
+	}
+
+	// The staff-side value survived the rename: the female seed still reads
+	// arianna.glb, and the org override still applies its own value.
+	after, err := again.ListStaff()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := findStaff(t, after, "staff-female-00"); got.AvatarModel3D != "arianna.glb" {
+		t.Errorf("seed avatar_model_3d after migration = %q, want arianna.glb", got.AvatarModel3D)
+	}
+	roster, err := again.StaffForOrg(org)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := findStaff(t, roster, "staff-female-00"); got.AvatarModel3D != "custom.glb" {
+		t.Errorf("override avatar_model_3d after migration = %q, want custom.glb", got.AvatarModel3D)
+	}
+
+	// Idempotent: a second reopen finds the new name already in place and
+	// changes nothing.
+	if err := again.Close(); err != nil {
+		t.Fatal(err)
+	}
+	third, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("second reopen: %v", err)
+	}
+	t.Cleanup(func() { third.Close() })
+	thirdRoster, err := third.StaffForOrg(org)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := findStaff(t, thirdRoster, "staff-female-00"); got.AvatarModel3D != "custom.glb" {
+		t.Errorf("override avatar_model_3d after the second reopen = %q, want custom.glb", got.AvatarModel3D)
 	}
 }
 

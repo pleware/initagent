@@ -40,7 +40,7 @@ func TestStartServesHealth(t *testing.T) {
 func TestCreateEnrollTokenHTTPUsesRequestHost(t *testing.T) {
 	g := openTest(t, "")
 	req := httptest.NewRequest(http.MethodPost, "/api/enroll-tokens", nil)
-	req.Host = "gateway.example:4201"
+	req.Host = "gateway.example:21001"
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -53,10 +53,10 @@ func TestCreateEnrollTokenHTTPUsesRequestHost(t *testing.T) {
 	if offer.Token == "" || offer.ProjectID != g.Project().ID {
 		t.Fatalf("offer = %+v", offer)
 	}
-	if !strings.Contains(offer.Command, "http://gateway.example:4201/install/"+offer.Token+".sh") {
+	if !strings.Contains(offer.Command, "http://gateway.example:21001/install/"+offer.Token+".sh") {
 		t.Fatalf("command still not gateway: %q", offer.Command)
 	}
-	if strings.Contains(offer.Command, ":4200") {
+	if strings.Contains(offer.Command, ":21000") {
 		t.Fatalf("command leaked a hub port: %q", offer.Command)
 	}
 }
@@ -189,14 +189,14 @@ func TestEnrollRejectsBadJSON(t *testing.T) {
 func TestInstallScriptEmbedsGateway(t *testing.T) {
 	g := openTest(t, "")
 	req := httptest.NewRequest(http.MethodGet, "/install/abc123.sh", nil)
-	req.Host = "gw.example:4201"
+	req.Host = "gw.example:21001"
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "HUB=\"http://gw.example:4201\"") {
+	if !strings.Contains(body, "HUB=\"http://gw.example:21001\"") {
 		t.Fatalf("script = %s", body)
 	}
 	if !strings.Contains(body, "agent enroll --hub") {
@@ -218,26 +218,26 @@ func TestInstallScriptRejectsMetacharacters(t *testing.T) {
 func TestWindowsInstallScript(t *testing.T) {
 	g := openTest(t, "")
 	req := httptest.NewRequest(http.MethodGet, "/install/abc123.ps1", nil)
-	req.Host = "gw.example:4201"
+	req.Host = "gw.example:21001"
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, `$Hub = "http://gw.example:4201"`) {
+	if !strings.Contains(body, `$Hub = "http://gw.example:21001"`) {
 		t.Fatalf("script = %s", body)
 	}
 }
 
 func TestPublicURLOverridesHost(t *testing.T) {
-	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201", PublicURL: "https://join.example"})
+	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:21001", PublicURL: "https://join.example"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = g.Close() })
 	req := httptest.NewRequest(http.MethodPost, "/api/enroll-tokens", nil)
-	req.Host = "127.0.0.1:4201"
+	req.Host = "127.0.0.1:21001"
 	rec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(rec, req)
 	var offer EnrollOffer

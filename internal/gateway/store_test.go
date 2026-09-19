@@ -82,7 +82,7 @@ func openTest(t *testing.T, projectID string) *Gateway {
 	t.Helper()
 	g, err := Open(Options{
 		DataDir:   t.TempDir(),
-		Addr:      "127.0.0.1:4201",
+		Addr:      "127.0.0.1:21001",
 		ProjectID: projectID,
 	})
 	if err != nil {
@@ -97,17 +97,17 @@ func TestOpenMintsSharedProjectID(t *testing.T) {
 	if !id.Is(id.Project, g.Project().ID) {
 		t.Fatalf("bound id %q is not a project-", g.Project().ID)
 	}
-	if g.Project().Address != "127.0.0.1:4201" {
+	if g.Project().Address != "127.0.0.1:21001" {
 		t.Fatalf("address = %q", g.Project().Address)
 	}
-	if g.Addr() != "127.0.0.1:4201" {
+	if g.Addr() != "127.0.0.1:21001" {
 		t.Fatalf("Addr = %q", g.Addr())
 	}
 }
 
 func TestOpenRebindsAddress(t *testing.T) {
 	dir := t.TempDir()
-	first, err := Open(Options{DataDir: dir, Addr: ":4201"})
+	first, err := Open(Options{DataDir: dir, Addr: ":21001"})
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestOpenDefaultListenAddr(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 	t.Cleanup(func() { _ = g.Close() })
-	if g.Addr() != ":4201" {
+	if g.Addr() != ":21001" {
 		t.Fatalf("Addr = %q", g.Addr())
 	}
 }
@@ -329,7 +329,7 @@ func TestServeHealthAndCancel(t *testing.T) {
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		addr := g.Addr()
-		if addr != "127.0.0.1:4201" && addr != "" {
+		if addr != "127.0.0.1:21001" && addr != "" {
 			resp, err := http.Get("http://" + addr + "/health")
 			if err == nil {
 				resp.Body.Close()

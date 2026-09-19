@@ -10,7 +10,7 @@ separate install subdomain. Pages: home (`/#how`), **Plans** `/plans`,
 **For Developers** `/developers`, **Hardware** `/hardware`. The bar leads
 with **Open app** → `https://app.initagent.dev` and **Self-host** →
 `/developers` (single-user, $0). We never host workers. Local `npm run dev`
-sends Open app to the cockpit Vite on `http://127.0.0.1:5174` (override
+sends Open app to the cockpit Vite on `http://127.0.0.1:21004` (override
 with `VITE_HUB`). nginx `try_files`
 sends unknown paths to `index.html` so those routes work.
 
@@ -34,7 +34,7 @@ through Fontsource, so the page makes no third-party requests at runtime.
 
 ```sh
 npm install
-npm run dev      # http://localhost:5173  (cockpit Vite is :5174)
+npm run dev      # http://localhost:21003  (cockpit Vite is :21004)
 npm run build    # -> dist/
 ```
 

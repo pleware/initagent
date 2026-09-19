@@ -31,7 +31,7 @@ import (
 
 // Options configures a hub server.
 type Options struct {
-	Addr       string // listen address, e.g. ":4200" (ignored when TLSDomain is set)
+	Addr       string // listen address, e.g. ":21000" (ignored when TLSDomain is set)
 	DataDir    string // where the hub SQLite file and binaries/ live
 	Version    string
 	GithubRepo string // "owner/name" used to fetch agent binaries for other platforms

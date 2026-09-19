@@ -13,7 +13,7 @@ import (
 )
 
 func TestOutdatedConnectorTakesNoNewTask(t *testing.T) {
-	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201", Version: "v0.3.9"})
+	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:21001", Version: "v0.3.9"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestOutdatedConnectorTakesNoNewTask(t *testing.T) {
 }
 
 func TestMatchingVersionIsClaimable(t *testing.T) {
-	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201", Version: "v0.3.9"})
+	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:21001", Version: "v0.3.9"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestMatchingVersionIsClaimable(t *testing.T) {
 }
 
 func TestFirstOnlineSkipsDrainingConnector(t *testing.T) {
-	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201", Version: "v0.3.9"})
+	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:21001", Version: "v0.3.9"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestFirstOnlineSkipsDrainingConnector(t *testing.T) {
 }
 
 func TestMatchingHelloClearsDrain(t *testing.T) {
-	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201", Version: "v0.3.9"})
+	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:21001", Version: "v0.3.9"})
 	if err != nil {
 		t.Fatal(err)
 	}

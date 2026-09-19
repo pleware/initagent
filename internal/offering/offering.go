@@ -66,7 +66,7 @@ func RequireStart(kind Kind, databaseURL string) error {
 // CompanionListen is the loopback address self-host `serve` binds when
 // `--gateway-url` is empty. Enroll, tasks, and the first-box worker need a
 // gateway; hosted never starts one here (ops runs `initagent gateway`).
-const CompanionListen = "127.0.0.1:4201"
+const CompanionListen = "127.0.0.1:" + brand.GatewayPort
 
 // CompanionGateway is how self-host `serve` gets a placement URL without a
 // flag. A set flag always wins. Hosted with an empty flag starts nothing:

@@ -186,7 +186,7 @@ func Open(opts Options) (*Gateway, error) {
 
 	addr := opts.Addr
 	if addr == "" {
-		addr = ":4201"
+		addr = brand.GatewayAddr
 	}
 
 	projectID := opts.ProjectID

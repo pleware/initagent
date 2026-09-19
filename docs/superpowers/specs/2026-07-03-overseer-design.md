@@ -47,7 +47,7 @@ Single WebSocket. Text frames = JSON control messages `{type, id?, channel?, ...
 
 ## Join flow
 
-1. UI **Add connector** → POST creates single-use enrollment token (15 min expiry) → shows `curl -fsSL http://HUB:4200/install/<token>.sh | sh`.
+1. UI **Add connector** → POST creates single-use enrollment token (15 min expiry) → shows `curl -fsSL http://HUB:21000/install/<token>.sh | sh`.
 2. Script detects OS/arch, downloads the agent binary **from the hub itself** (`/api/agent-binary?os=&arch=`: serves the hub's own executable when platform matches, else from `<data-dir>/binaries/overseer_<os>_<arch>`, else instructs cross-compile/GitHub release), runs `overseer agent enroll --hub URL --token T` (exchanges enrollment token for a permanent per-device secret, writes `~/.overseer/agent.json`), installs a systemd (Linux) or launchd (macOS) service, starts it.
 3. Device appears on the dashboard; the Add-device modal live-updates when it joins.
 4. Deleting a device revokes its token and disconnects it.
@@ -65,7 +65,7 @@ MCP tools (stdio server proxying the hub REST API with an API token): `list_devi
 - First-run setup page sets admin password (argon2id). HttpOnly SameSite session cookies; login rate-limited.
 - Per-device random 32-byte tokens, stored hashed. Enrollment tokens single-use, 15-min expiry, hashed.
 - API tokens for CLI/MCP, hashed, revocable in UI.
-- Default bind `0.0.0.0:4200`, plain HTTP with a prominent warning; docs push Tailscale (recommended) or a TLS reverse proxy for internet exposure. Single port keeps that trivial.
+- Default bind `0.0.0.0:21000`, plain HTTP with a prominent warning; docs push Tailscale (recommended) or a TLS reverse proxy for internet exposure. Single port keeps that trivial.
 
 ## Storage
 

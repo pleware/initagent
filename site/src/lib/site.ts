@@ -9,7 +9,7 @@ export const DOCS = `${REPO}#readme`;
 export const SITE = PROD_SITE;
 
 /** Control-plane hub. Production is app.initagent.dev; on localhost
- *  this is the cockpit Vite (`:5174`). Override with VITE_HUB. */
+ *  this is the cockpit Vite (`:21004`). Override with VITE_HUB. */
 export const HUB = hubOrigin(import.meta.env.VITE_HUB as string | undefined);
 
 /**

@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { themeBootPlugin } from "../web/theme/boot-plugin.mjs";
 import { prepareBrand } from "../web/scripts/prepare-brand.mjs";
+import { DEV_SITE_PORT, DEV_SITE_PREVIEW_PORT } from "../web/ports.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -67,13 +68,13 @@ export default defineConfig({
     include: ["i18next", "react-i18next", "i18next-browser-languagedetector"],
   },
   server: {
-    port: 5173,
+    port: DEV_SITE_PORT,
     strictPort: true,
     // index.css imports theme tokens from ../internal/brand/themes.
     fs: { allow: [".."] },
   },
   preview: {
-    port: 4173,
+    port: DEV_SITE_PREVIEW_PORT,
     strictPort: true,
   },
 });

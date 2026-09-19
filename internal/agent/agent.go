@@ -28,7 +28,7 @@ import (
 
 // Config is what an enrolled agent needs to reach its hub.
 type Config struct {
-	HubURL      string `json:"hubUrl"` // e.g. http://192.168.1.10:4200
+	HubURL      string `json:"hubUrl"` // e.g. http://192.168.1.10:21000
 	ConnectorId string `json:"connectorId"`
 	Token       string `json:"token"`
 }

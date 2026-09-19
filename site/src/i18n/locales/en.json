@@ -54,7 +54,7 @@
     "beats": {
       "install": {
         "title": "Install the hub",
-        "body": "One machine runs the hub. It serves the web UI, the API, and the join script on port 4200."
+        "body": "One machine runs the hub. It serves the web UI, the API, and the join script on port 21000."
       },
       "join": {
         "title": "Join a device",

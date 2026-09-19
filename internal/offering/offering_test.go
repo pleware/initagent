@@ -20,7 +20,7 @@ func TestCompanionGateway(t *testing.T) {
 		start  bool
 	}{
 		{name: "selfhost empty flag starts companion", kind: Selfhost, listen: CompanionListen, url: "http://" + CompanionListen, start: true},
-		{name: "selfhost flag wins", kind: Selfhost, flag: " http://gw:4201 ", url: "http://gw:4201"},
+		{name: "selfhost flag wins", kind: Selfhost, flag: " http://gw:21001 ", url: "http://gw:21001"},
 		{name: "hosted empty flag starts nothing", kind: Hosted},
 		{name: "hosted flag still used", kind: Hosted, flag: "https://gw.example", url: "https://gw.example"},
 	}

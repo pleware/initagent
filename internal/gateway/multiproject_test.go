@@ -121,7 +121,7 @@ func TestEnsureProjectIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	prj := mustProject(t)
 
-	first, err := g.Store().EnsureProject(ctx, prj, "127.0.0.1:4201")
+	first, err := g.Store().EnsureProject(ctx, prj, "127.0.0.1:21001")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestConnectorListIsScopedToItsProject(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
 	other := mustProject(t)
-	if _, err := g.Store().EnsureProject(ctx, other, "127.0.0.1:4201"); err != nil {
+	if _, err := g.Store().EnsureProject(ctx, other, "127.0.0.1:21001"); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := g.Store().CreateConnector(ctx, g.Project().ID, "mine", "", "", ""); err != nil {
@@ -197,7 +197,7 @@ func TestAnotherProjectsWorkerIsNotPicked(t *testing.T) {
 	connectAs(t, g, ts, g.Project().ID)
 
 	empty := mustProject(t)
-	if _, err := g.Store().EnsureProject(context.Background(), empty, "127.0.0.1:4201"); err != nil {
+	if _, err := g.Store().EnsureProject(context.Background(), empty, "127.0.0.1:21001"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -216,7 +216,7 @@ func TestNamedForeignConnectorIsRefused(t *testing.T) {
 	mine := connectAs(t, g, ts, g.Project().ID)
 
 	other := mustProject(t)
-	if _, err := g.Store().EnsureProject(context.Background(), other, "127.0.0.1:4201"); err != nil {
+	if _, err := g.Store().EnsureProject(context.Background(), other, "127.0.0.1:21001"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -234,7 +234,7 @@ func TestClaimDoesNotCrossProjects(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
 	other := mustProject(t)
-	if _, err := g.Store().EnsureProject(ctx, other, "127.0.0.1:4201"); err != nil {
+	if _, err := g.Store().EnsureProject(ctx, other, "127.0.0.1:21001"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: other, Command: "true"}); err != nil {
@@ -260,7 +260,7 @@ func TestForeignTaskIsNotFound(t *testing.T) {
 	g := openTest(t, "")
 	ctx := context.Background()
 	other := mustProject(t)
-	if _, err := g.Store().EnsureProject(ctx, other, "127.0.0.1:4201"); err != nil {
+	if _, err := g.Store().EnsureProject(ctx, other, "127.0.0.1:21001"); err != nil {
 		t.Fatal(err)
 	}
 	task, err := g.Store().Enqueue(ctx, scheduler.Task{ProjectID: other, Command: "true"})
@@ -287,7 +287,7 @@ func TestTaskRunsOnItsOwnProject(t *testing.T) {
 	ts := httptest.NewServer(g.Handler())
 	t.Cleanup(ts.Close)
 	second := mustProject(t)
-	if _, err := g.Store().EnsureProject(context.Background(), second, "127.0.0.1:4201"); err != nil {
+	if _, err := g.Store().EnsureProject(context.Background(), second, "127.0.0.1:21001"); err != nil {
 		t.Fatal(err)
 	}
 	worker := connectAs(t, g, ts, second)
@@ -329,7 +329,7 @@ func TestProjectResolutionFailsAfterClose(t *testing.T) {
 
 func openSecured(t *testing.T, secret string) *Gateway {
 	t.Helper()
-	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201", HubSecret: secret})
+	g, err := Open(Options{DataDir: t.TempDir(), Addr: "127.0.0.1:21001", HubSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +402,7 @@ func TestWorkerRoutesStayOpenUnderTheSecret(t *testing.T) {
 	}
 
 	script := httptest.NewRequest(http.MethodGet, "/install/abc123.sh", nil)
-	script.Host = "gw.example:4201"
+	script.Host = "gw.example:21001"
 	scriptRec := httptest.NewRecorder()
 	g.Handler().ServeHTTP(scriptRec, script)
 	if scriptRec.Code != http.StatusOK {

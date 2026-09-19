@@ -51,7 +51,7 @@ func TestAgentBinaryUsesHubVersionAndRepo(t *testing.T) {
 func TestInstallScriptEmbedsHubHost(t *testing.T) {
 	srv := newTestServer(t, "v0.1.0")
 	req := httptest.NewRequest("GET", "/install/abc123.sh", nil)
-	req.Host = "hub.example:4200"
+	req.Host = "hub.example:21000"
 	w := httptest.NewRecorder()
 	srv.mux.ServeHTTP(w, req)
 
@@ -59,7 +59,7 @@ func TestInstallScriptEmbedsHubHost(t *testing.T) {
 		t.Fatalf("status = %d", w.Code)
 	}
 	body := w.Body.String()
-	if !strings.Contains(body, `HUB="http://hub.example:4200"`) {
+	if !strings.Contains(body, `HUB="http://hub.example:21000"`) {
 		t.Errorf("script should embed the hub URL:\n%s", body)
 	}
 	if !strings.Contains(body, `TOKEN="abc123"`) {
@@ -99,7 +99,7 @@ func TestListConnectorsAsksGateway(t *testing.T) {
 func TestCreateEnrollTokenRequiresGatewayURL(t *testing.T) {
 	srv := newTestServer(t, "v0.1.0")
 	req := httptest.NewRequest("POST", "/api/enroll-tokens", nil)
-	req.Host = "hub.example:4200"
+	req.Host = "hub.example:21000"
 	w := httptest.NewRecorder()
 	srv.handleCreateEnrollToken(w, req, operatorCred)
 	if w.Code != http.StatusServiceUnavailable {
@@ -108,7 +108,7 @@ func TestCreateEnrollTokenRequiresGatewayURL(t *testing.T) {
 }
 
 func TestCreateEnrollTokenAsksGateway(t *testing.T) {
-	gw, err := gateway.Open(gateway.Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201"})
+	gw, err := gateway.Open(gateway.Options{DataDir: t.TempDir(), Addr: "127.0.0.1:21001"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestCreateEnrollTokenAsksGateway(t *testing.T) {
 	srv := newTestServer(t, "v0.1.0")
 	srv.opts.GatewayURL = ts.URL
 	req := httptest.NewRequest("POST", "/api/enroll-tokens", nil)
-	req.Host = "hub.example:4200"
+	req.Host = "hub.example:21000"
 	w := httptest.NewRecorder()
 	srv.handleCreateEnrollToken(w, req, operatorCred)
 	if w.Code != http.StatusOK {

@@ -73,11 +73,11 @@ func TestTerminalBridge(t *testing.T) {
 }
 
 func TestTermGatewayURL(t *testing.T) {
-	got, err := termGatewayURL("http://127.0.0.1:4201/", "connector-1", "term-2", 80, 24)
+	got, err := termGatewayURL("http://127.0.0.1:21001/", "connector-1", "term-2", 80, 24)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(got, "ws://127.0.0.1:4201/api/ws/term?") {
+	if !strings.HasPrefix(got, "ws://127.0.0.1:21001/api/ws/term?") {
 		t.Fatalf("url = %q", got)
 	}
 	if !strings.Contains(got, "connector=connector-1") || !strings.Contains(got, "session=term-2") {

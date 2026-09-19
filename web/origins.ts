@@ -1,14 +1,10 @@
+import { DEV_SITE_PORT, DEV_HUB_PORT } from './ports.ts'
+
 /** Production marketing origin. */
 export const PROD_SITE = 'https://initagent.dev'
 
 /** Hosted control-plane hub. */
 export const PROD_HUB = 'https://app.initagent.dev'
-
-/** Marketing Vite (`site/`) while developing both apps. Binder LOCAL-PORTS.md. */
-export const DEV_SITE_PORT = 5173
-
-/** Cockpit Vite (`ui/`) while developing both apps. Binder LOCAL-PORTS.md. */
-export const DEV_HUB_PORT = 5174
 
 export function isLocalHost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'

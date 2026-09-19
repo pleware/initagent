@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Reveal } from "../lib/reveal";
+import { HUB_HTTP_PORT } from "../../../web/ports.ts";
 
 type ToolGroup = {
   id: string;
@@ -52,7 +53,7 @@ export function FleetAgents() {
               <div className="overflow-x-auto p-5 font-mono text-[12.5px] leading-[1.9] whitespace-pre text-fg-muted">
                 <div>
                   <span className="mr-2 text-accent select-none">$</span>
-                  initagent fleet login --hub http://YOUR-HUB:4200 --token TOKEN
+                  initagent fleet login --hub http://YOUR-HUB:{HUB_HTTP_PORT} --token TOKEN
                 </div>
                 <div>
                   <span className="mr-2 text-accent select-none">$</span>

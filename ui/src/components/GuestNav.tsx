@@ -8,7 +8,7 @@ import LanguageSwitcher from './LanguageSwitcher'
 
 /** Public marketing origin. The unauthenticated hub chrome points back
  *  here so a guest can leave the login card the same way they arrived.
- *  On localhost this is the local site (`:5173`), not initagent.dev. */
+ *  On localhost this is the local site (`:21003`), not initagent.dev. */
 const SITE = siteOrigin(import.meta.env.VITE_SITE as string | undefined)
 const REPO = 'https://github.com/pleware/initagent'
 

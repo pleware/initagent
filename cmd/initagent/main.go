@@ -30,17 +30,20 @@ var version = "0.2.0-dev" // overridden at release time via -ldflags
 
 func usageText() string {
 	b, n, cfg := brand.Binary, brand.Name, brand.ConfigDir
+	hubAddr, gwAddr := brand.HubAddr, brand.GatewayAddr
 	return strings.NewReplacer(
 		"{{bin}}", b,
 		"{{name}}", n,
 		"{{cfg}}", cfg,
+		"{{hub-addr}}", hubAddr,
+		"{{gateway-addr}}", gwAddr,
 	).Replace(`{{name}} — control all your machines from one place.
 
 Usage:
-  {{bin}} serve [--addr :4200] [--data-dir ~/{{cfg}}] [--gateway-url URL] [--offering selfhost|hosted]
+  {{bin}} serve [--addr {{hub-addr}}] [--data-dir ~/{{cfg}}] [--gateway-url URL] [--offering selfhost|hosted]
               [--trusted-proxies CIDR,...]                  Run the hub (web UI + API)
   {{bin}} serve --tls-domain d.com --tls-email you@d.com   Run the hub with automatic HTTPS (Let's Encrypt)
-  {{bin}} gateway [--addr :4201] [--data-dir ~/{{cfg}}] [--project project-…] [--public-url URL]
+  {{bin}} gateway [--addr {{gateway-addr}}] [--data-dir ~/{{cfg}}] [--project project-…] [--public-url URL]
                                                              Run the project gateway (enroll + tasks)
   {{bin}} agent enroll --hub URL --token TOKEN            Enroll this connector with a hub
   {{bin}} agent run                                       Run the connector agent (foreground)
@@ -142,9 +145,9 @@ func signalContext() context.Context {
 
 func cmdServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
-	addr := fs.String("addr", ":4200", "listen address (ignored when --tls-domain is set)")
+	addr := fs.String("addr", brand.HubAddr, "listen address (ignored when --tls-domain is set)")
 	dataDir := fs.String("data-dir", "", "data directory (default ~/"+brand.ConfigDir+")")
-	gatewayURL := fs.String("gateway-url", "", "project gateway URL for enroll (self-host serve starts a companion on 127.0.0.1:4201 when empty)")
+	gatewayURL := fs.String("gateway-url", "", "project gateway URL for enroll (self-host serve starts a companion on 127.0.0.1:"+brand.GatewayPort+" when empty)")
 	databaseURL := fs.String("database-url", os.Getenv(brand.EnvDatabaseURL), "Postgres connection string; empty = SQLite under --data-dir")
 	offeringFlag := fs.String("offering", "", "hub offering: selfhost or hosted (default: "+brand.OfferingFile+" in --data-dir, else selfhost)")
 	tlsDomain := fs.String("tls-domain", "", "enable automatic HTTPS (Let's Encrypt) for this domain; serves :443 + :80")
@@ -232,7 +235,7 @@ func cmdAgent(args []string) error {
 	switch args[0] {
 	case "enroll":
 		fs := flag.NewFlagSet("enroll", flag.ExitOnError)
-		hubURL := fs.String("hub", "", "hub URL, e.g. http://192.168.1.10:4200")
+		hubURL := fs.String("hub", "", "hub URL, e.g. http://192.168.1.10:"+brand.HubPort)
 		token := fs.String("token", "", "enrollment token from the hub UI")
 		fs.Parse(args[1:])
 		if *hubURL == "" || *token == "" {

@@ -4,8 +4,8 @@
     {
       "name": "initagent-hub",
       "runtimeExecutable": "./initagent",
-      "runtimeArgs": ["serve", "--addr", ":4200", "--data-dir", "/tmp/initagent-dev-data"],
-      "port": 4200
+      "runtimeArgs": ["serve", "--addr", ":21000", "--data-dir", "/tmp/initagent-dev-data"],
+      "port": 21000
     },
     {
       "name": "site",

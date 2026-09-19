@@ -54,7 +54,7 @@
     "beats": {
       "install": {
         "title": "Zainstaluj huba",
-        "body": "Jedna maszyna uruchamia huba. Udostępnia interfejs webowy, API i skrypt dołączania na porcie 4200."
+        "body": "Jedna maszyna uruchamia huba. Udostępnia interfejs webowy, API i skrypt dołączania na porcie 21000."
       },
       "join": {
         "title": "Dołącz urządzenie",

@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"sync"
+
+	"github.com/pleware/initagent/internal/brand"
 )
 
 // SetupTool is the cockpit view of one setup tool. The catalogue is fixed
@@ -73,8 +75,8 @@ var setupSpecs = []toolSpec{
 		description:    "Private encrypted access to initagent without opening a public port.",
 		installUnix:    `if [ "$(uname -s)" = "Darwin" ]; then command -v brew >/dev/null 2>&1 || { echo "Install Homebrew first: https://brew.sh"; exit 1; }; brew install --cask tailscale; open -a Tailscale; else curl -fsSL https://tailscale.com/install.sh | sh; sudo tailscale up; fi`,
 		installWindows: `winget install --id Tailscale.Tailscale --exact --accept-package-agreements --accept-source-agreements`,
-		authUnix:       `if [ "$(uname -s)" = "Darwin" ]; then open -a Tailscale; TS=/Applications/Tailscale.app/Contents/MacOS/Tailscale; "$TS" up && "$TS" serve --bg 4200; else sudo tailscale up && sudo tailscale serve --bg 4200; fi`,
-		authWindows:    `$ts = "$env:ProgramFiles\Tailscale\tailscale.exe"; & $ts up; if ($LASTEXITCODE -eq 0) { & $ts serve --bg 4200 }`,
+		authUnix:       `if [ "$(uname -s)" = "Darwin" ]; then open -a Tailscale; TS=/Applications/Tailscale.app/Contents/MacOS/Tailscale; "$TS" up && "$TS" serve --bg ` + brand.HubPort + `; else sudo tailscale up && sudo tailscale serve --bg ` + brand.HubPort + `; fi`,
+		authWindows:    `$ts = "$env:ProgramFiles\Tailscale	ailscale.exe"; & $ts up; if ($LASTEXITCODE -eq 0) { & $ts serve --bg ` + brand.HubPort + ` }`,
 		note:           "Creates a private HTTPS address inside your tailnet. No router or firewall changes required.", docsURL: "https://tailscale.com/docs/features/tailscale-serve",
 	},
 }

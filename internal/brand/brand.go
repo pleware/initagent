@@ -179,6 +179,23 @@ const TmuxKindOpt = "@initagent_coder_kind"
 // it through this constant, so a layout move stays one edit in this file.
 const CommandDir = "cmd/initagent"
 
+// Default listen ports. Single source for the hub and gateway bind addresses;
+// call sites import these instead of carrying literals (binder
+// docs/LOCAL-PORTS.md — initagent block 21000–21999).
+const (
+	// HubPort is the hub's default listen port (plain HTTP, any interface).
+	HubPort = "21000"
+
+	// GatewayPort is the gateway's default listen port.
+	GatewayPort = "21001"
+
+	// HubAddr is the hub's default listen address.
+	HubAddr = ":" + HubPort
+
+	// GatewayAddr is the gateway's default listen address.
+	GatewayAddr = ":" + GatewayPort
+)
+
 // ReleaseSource is where the hub fetches connector binaries for platforms it
 // is not running on. A var, not a const, because it is overridable at build
 // time — continuing what upstream already anticipated for forks:

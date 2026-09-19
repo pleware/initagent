@@ -84,7 +84,7 @@ paths.
 
 That installs `tmux` when missing, installs the `initagent` binary, creates an
 `initagent` service user, starts the hub as `initagent-hub.service`, and listens
-on `:4200`.
+on `:21000`.
 
 To uninstall the service and binary while keeping hub data:
 
@@ -119,7 +119,7 @@ make            # builds the UI + the ./initagent binary (needs Go 1.25 + Node 2
 ./initagent serve
 ```
 
-Self-host `serve` also starts a companion gateway on `127.0.0.1:4201`
+Self-host `serve` also starts a companion gateway on `127.0.0.1:21001`
 when `--gateway-url` is empty, so the first project can enroll this
 machine. Pass `--gateway-url` to point at a gateway you already run
 with `initagent gateway`.
@@ -134,7 +134,7 @@ A hub with no owner prints a one-time bootstrap token when it starts, and
 writes the same value to `bootstrap-token` in its data directory. The
 Linux, macOS, and Windows installers wait for that file after starting the
 service and print the token so you do not have to dig in the service log.
-Open `http://localhost:4200` and claim the hub with your email, a password,
+Open `http://localhost:21000` and claim the hub with your email, a password,
 and that token. A claimed hub skips the line. The token is what stops a
 hub that is reachable from anywhere being claimed by whoever finds the
 address first; it stops working the moment the hub is claimed, and a
@@ -183,11 +183,11 @@ Click **Add connector** in the UI, choose the target platform, and paste the
 command it gives you on any other Linux, macOS, or Windows machine:
 
 ```sh
-curl -fsSL http://YOUR-HUB:4200/install/TOKEN.sh | sh
+curl -fsSL http://YOUR-HUB:21000/install/TOKEN.sh | sh
 ```
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "irm http://YOUR-HUB:4200/install/TOKEN.ps1 | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm http://YOUR-HUB:21000/install/TOKEN.ps1 | iex"
 ```
 
 It downloads the agent, enrolls the connector, installs a background service, and
@@ -241,7 +241,7 @@ Create an API token in **Settings**, then on any machine with the `initagent`
 binary:
 
 ```sh
-initagent fleet login --hub http://YOUR-HUB:4200 --token YOUR_API_TOKEN
+initagent fleet login --hub http://YOUR-HUB:21000 --token YOUR_API_TOKEN
 claude mcp add initagent -- initagent mcp     # for Claude Code
 ```
 
@@ -311,7 +311,7 @@ new release exists without silently changing themselves.
 
 ## Accessing it from anywhere
 
-initagent binds to `0.0.0.0:4200` over plain HTTP — perfect on a trusted LAN.
+initagent binds to `0.0.0.0:21000` over plain HTTP — perfect on a trusted LAN.
 To reach it from the internet, **do not expose plain HTTP directly.** Three
 options:
 
@@ -366,7 +366,7 @@ over each connector's single outbound WebSocket. Design details live in
 # Terminal 1: hub API (Go)
 go run ./cmd/initagent serve
 
-# Terminal 2: UI with hot reload (proxies /api to :4200)
+# Terminal 2: UI with hot reload (proxies /api to :21000)
 cd ui && npm install && npm run dev
 
 make test        # go vet + unit + integration tests (some need tmux)

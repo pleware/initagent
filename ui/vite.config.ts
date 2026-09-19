@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { authSourceDir, prepareAuthBg } from './scripts/prepare-auth-bg.mjs'
 import { prepareBrand } from '../web/scripts/prepare-brand.mjs'
 import { themeBootPlugin } from '../web/theme/boot-plugin.mjs'
+import { DEV_HUB_PORT, DEV_HUB_PREVIEW_PORT, HUB_HTTP_PORT } from '../web/ports.ts'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -35,7 +36,7 @@ function brandPlugin(): Plugin {
   }
 }
 
-// In dev, the Go hub runs on :4200 and Vite proxies API traffic to it.
+// In dev, the Go hub runs on :21000 and Vite proxies API traffic to it.
 export default defineConfig({
   plugins: [themeBootPlugin(), authBgPlugin(), brandPlugin(), react(), tailwindcss()],
   resolve: {
@@ -52,7 +53,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5174,
+    port: DEV_HUB_PORT,
     strictPort: true,
     // index.css imports the theme tokens from ../internal/brand/themes, which
     // is outside this project root. Dev needs it readable to serve and watch.
@@ -62,15 +63,15 @@ export default defineConfig({
         // 127.0.0.1, not localhost: on Windows the Vite process may resolve
         // localhost to ::1 while the hub is only on IPv4, and the proxy
         // then fails the page's /api calls.
-        target: 'http://127.0.0.1:4200',
+        target: `http://127.0.0.1:${HUB_HTTP_PORT}`,
         ws: true,
       },
-      '/r': 'http://127.0.0.1:4200',
-      '/install': 'http://127.0.0.1:4200',
+      '/r': `http://127.0.0.1:${HUB_HTTP_PORT}`,
+      '/install': `http://127.0.0.1:${HUB_HTTP_PORT}`,
     },
   },
   preview: {
-    port: 4174,
+    port: DEV_HUB_PREVIEW_PORT,
     strictPort: true,
   },
 })

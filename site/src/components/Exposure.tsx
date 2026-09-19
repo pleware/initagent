@@ -1,6 +1,7 @@
 import { Warning } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
 import { Reveal } from "../lib/reveal";
+import { HUB_HTTP_PORT } from "../../../web/ports.ts";
 
 export function Exposure() {
   const { t } = useTranslation();
@@ -40,7 +41,7 @@ export function Exposure() {
                 </h2>
                 <p className="mt-4 max-w-[70ch] text-[15.5px] leading-relaxed text-fg-muted">
                   {t("exposure.warningBeforeCode")}{" "}
-                  <code className="font-mono text-fg">0.0.0.0:4200</code>{" "}
+                  <code className="font-mono text-fg">0.0.0.0:{HUB_HTTP_PORT}</code>{" "}
                   {t("exposure.warningAfterCode")}
                 </p>
               </div>

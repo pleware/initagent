@@ -35,11 +35,11 @@ func TestSafeToken(t *testing.T) {
 }
 
 func TestCommandsPointAtBaseURL(t *testing.T) {
-	unix, windows := Commands("http://gw.example:4201/", "abc")
-	if want := "curl -fsSL http://gw.example:4201/install/abc.sh | sh"; unix != want {
+	unix, windows := Commands("http://gw.example:21001/", "abc")
+	if want := "curl -fsSL http://gw.example:21001/install/abc.sh | sh"; unix != want {
 		t.Errorf("unix = %q, want %q", unix, want)
 	}
-	if !strings.Contains(windows, "irm http://gw.example:4201/install/abc.ps1 | iex") {
+	if !strings.Contains(windows, "irm http://gw.example:21001/install/abc.ps1 | iex") {
 		t.Errorf("windows = %q", windows)
 	}
 }
@@ -51,14 +51,14 @@ func TestBaseURL(t *testing.T) {
 		tls       bool
 		want      string
 	}{
-		{"from request host", "", false, "http://gw.example:4201"},
-		{"https when the request is TLS", "", true, "https://gw.example:4201"},
+		{"from request host", "", false, "http://gw.example:21001"},
+		{"https when the request is TLS", "", true, "https://gw.example:21001"},
 		{"public URL wins over host", "https://join.example/", false, "https://join.example"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/install/abc.sh", nil)
-			req.Host = "gw.example:4201"
+			req.Host = "gw.example:21001"
 			if tc.tls {
 				req.TLS = &tls.ConnectionState{}
 			}
@@ -74,7 +74,7 @@ func serveScript(t *testing.T, i Installer, path string) *httptest.ResponseRecor
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, "/install/placeholder.sh", nil)
 	req.URL.Path = path
-	req.Host = "gw.example:4201"
+	req.Host = "gw.example:21001"
 	rec := httptest.NewRecorder()
 	i.ServeScript(rec, req)
 	return rec
@@ -87,7 +87,7 @@ func TestServeScriptUnixEmbedsBaseURLAndToken(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
-		`HUB="http://gw.example:4201"`,
+		`HUB="http://gw.example:21001"`,
 		`TOKEN="abc123"`,
 		"curl -fSL", // the binary download follows redirects to the release
 		"agent enroll --hub",
@@ -109,7 +109,7 @@ func TestServeScriptWindowsEmbedsBaseURLAndToken(t *testing.T) {
 	}
 	body := rec.Body.String()
 	for _, want := range []string{
-		`$Hub = "http://gw.example:4201"`,
+		`$Hub = "http://gw.example:21001"`,
 		`$Token = "abc123"`,
 		"Invoke-WebRequest",
 		"os=windows&arch=$Arch",

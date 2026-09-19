@@ -44,7 +44,7 @@ func TestShouldBindSelfhostWorker(t *testing.T) {
 }
 
 func TestSelfhostFirstProjectEnrollsThisBox(t *testing.T) {
-	gw, err := gateway.Open(gateway.Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201"})
+	gw, err := gateway.Open(gateway.Options{DataDir: t.TempDir(), Addr: "127.0.0.1:21001"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestSelfhostFirstProjectEnrollsThisBox(t *testing.T) {
 }
 
 func TestHostedFirstProjectDoesNotEnrollTheHubBox(t *testing.T) {
-	gw, err := gateway.Open(gateway.Options{DataDir: t.TempDir(), Addr: "127.0.0.1:4201"})
+	gw, err := gateway.Open(gateway.Options{DataDir: t.TempDir(), Addr: "127.0.0.1:21001"})
 	if err != nil {
 		t.Fatal(err)
 	}

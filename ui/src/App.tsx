@@ -18,6 +18,7 @@ import SkillsPage from './pages/SkillsPage'
 import BoxesPage from './pages/BoxesPage'
 import NarratorPage from './pages/NarratorPage'
 import TeamPage from './pages/TeamPage'
+import OrgStaffPage from './pages/OrgStaffPage'
 import PlansPage from './pages/PlansPage'
 import AcceptInvite from './pages/AcceptInvite'
 import type { Me } from './types'
@@ -135,6 +136,7 @@ export default function App() {
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/settings" element={<SettingsPage me={me} />} />
         <Route path="/team" element={<TeamPage me={me} onChanged={refresh} />} />
+        <Route path="/team/staff/:staffId" element={<OrgStaffPage me={me} />} />
         {me.offering === 'hosted' && <Route path="/plans" element={<PlansPage me={me} />} />}
         {/* The administration surface exists for the operator of this hub.
             The route is absent for everyone else rather than rendering a

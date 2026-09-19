@@ -684,6 +684,9 @@
     "ageInvalid": "Wiek nie może być ujemny",
     "updated": "Zmieniono",
     "voice": "Głos",
+    "voiceNone": "(brak)",
+    "voiceInherit": "(dziedzicz)",
+    "voiceClear": "(wyczyść)",
     "inherited": "Dziedziczone z huba",
     "loadFailed": "Nie udało się wczytać zespołu",
     "saveFailed": "Nie udało się zapisać tej osoby",
@@ -692,6 +695,13 @@
     "notFound": "Ta osoba nie istnieje.",
     "createTitle": "Nowa osoba w zespole",
     "createHint": "Na początek wystarczy imię — resztę dostroisz na kolejnej stronie."
+  },
+  "voices": {
+    "lang": {
+      "pl_PL": "Polski",
+      "en_US": "Angielski (US)",
+      "en_GB": "Angielski (GB)"
+    }
   },
   "narrator": {
     "pageTitle": "Narrator boksu",

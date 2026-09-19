@@ -676,6 +676,9 @@
     "ageInvalid": "Age cannot be negative",
     "updated": "Updated",
     "voice": "Voice",
+    "voiceNone": "(none)",
+    "voiceInherit": "(inherit)",
+    "voiceClear": "(clear)",
     "inherited": "Inherited from the hub",
     "loadFailed": "Could not load staff",
     "saveFailed": "Could not save this staff member",
@@ -684,6 +687,13 @@
     "notFound": "This staff member does not exist.",
     "createTitle": "New staff member",
     "createHint": "A name is enough to start — tune everything else on the next page."
+  },
+  "voices": {
+    "lang": {
+      "pl_PL": "Polish",
+      "en_US": "English (US)",
+      "en_GB": "English (GB)"
+    }
   },
   "narrator": {
     "pageTitle": "Box narrator",

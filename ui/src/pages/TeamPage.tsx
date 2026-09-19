@@ -6,6 +6,7 @@ import { useCurrentOrg } from '../current-org'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 import BigFiveFields from '../components/BigFiveFields'
+import VoiceSelect, { inheritVoice } from '../components/VoiceSelect'
 import { HubError } from '../components/PlanWall'
 import type { Character, Me, OrgInvite, OrgMember, Staff } from '../types'
 
@@ -532,7 +533,7 @@ function OrgStaffForm({
     const nextSoulOverride = soulOverride.trim()
     if (nextSoulOverride !== (staff.soulOverride ?? '')) payload.soulOverride = nextSoulOverride
     const nextVoice = voice.trim()
-    if (nextVoice !== staff.voice) payload.voice = nextVoice
+    if (nextVoice !== inheritVoice && nextVoice !== staff.voice) payload.voice = nextVoice
     if (!sameBigFive(bigFive, staff.bigFive)) payload.bigFive = bigFive
     const nextBrief = brief.trim()
     if (nextBrief !== staff.brief) payload.brief = nextBrief
@@ -617,12 +618,7 @@ function OrgStaffForm({
 
       <label className="block">
         <span className="field-label">{t('staff.voice')}</span>
-        <input
-          type="text"
-          value={voice}
-          onChange={(e) => setVoice(e.target.value)}
-          className="field-input mt-2"
-        />
+        <VoiceSelect value={voice} onChange={setVoice} override />
       </label>
 
       <section className="rounded-lg border border-line-2 p-4">

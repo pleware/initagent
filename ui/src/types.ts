@@ -361,6 +361,18 @@ export interface Staff {
   updatedAt: number
 }
 
+// --- voices ---
+
+// Voice is one Piper voice of the TTS catalog the hub serves
+// (`internal/voices`, GET /api/voices). Name is the full Piper voice name
+// (e.g. "en_US-lessac-medium"), language the xx_YY prefix before the first
+// "-", and quality the suffix after the last "-" ("low", "medium", "high").
+export interface Voice {
+  name: string
+  language: string
+  quality: string
+}
+
 // --- boxes ---
 
 // BoxEdition is one PWare OS flavour a box may be configured as. The hub is

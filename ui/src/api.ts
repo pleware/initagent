@@ -2,7 +2,7 @@
 // the session cookie; 401s bounce the user to the login screen via the
 // listener App.tsx registers here.
 
-import type { BoxToken } from './types'
+import type { BoxToken, Voice } from './types'
 import i18n from './i18n/config'
 
 let onUnauthorized: (() => void) | null = null
@@ -156,8 +156,15 @@ export function timeAgo(unixSec: number): string {
   return i18n.t('time.daysAgo', { count: Math.floor(s / 86400) })
 }
 
-// --- boxes ---
+// --- voices ---
 
+// listVoices returns the TTS voice catalog of this installation, in the
+// hub's display order (pl_PL first, then en_US, then en_GB).
+export function listVoices(): Promise<Voice[]> {
+  return api.get<Voice[]>('/api/voices')
+}
+
+// --- boxes ---
 // mintBoxToken mints one credential for a box's own surfaces. The secret is
 // returned exactly once here; every later listing carries rows, not secrets.
 export async function mintBoxToken(

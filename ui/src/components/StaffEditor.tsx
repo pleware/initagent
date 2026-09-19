@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import BigFiveFields from './BigFiveFields'
+import VoiceSelect from './VoiceSelect'
 import type { Character, Staff } from '../types'
 
 // The nine fields of a canonical staff member. A name in `readonlyFields`
@@ -174,12 +175,12 @@ export default function StaffEditor({
         </label>
         <label className="block">
           <span className="field-label">{t('staff.voice')}</span>
-          <input
-            type="text"
+          <VoiceSelect
             value={voice}
-            onChange={(e) => setVoice(e.target.value)}
-            className="field-input mt-2"
-            {...lock('voice')}
+            onChange={setVoice}
+            disabled={
+              readonlyFields.includes('voice') || disabledFields.includes('voice')
+            }
           />
         </label>
       </div>

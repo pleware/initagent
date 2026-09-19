@@ -114,6 +114,10 @@ type Server struct {
 	mailWake      chan struct{}
 	billing       *billing.Service
 
+	// hf is the Hugging Face catalog client (search + repo files), the
+	// seam the admin model browser rides. Tests swap in a mock.
+	hf hfSearcher
+
 	// internalURL is a loopback-only plain-HTTP address serving the same mux.
 	// The embedded agent and the MCP endpoint use it so they work identically
 	// whether the public listener is HTTP or HTTPS.
@@ -176,6 +180,7 @@ func NewServer(opts Options) (*Server, error) {
 		mux:        http.NewServeMux(),
 		mail:       sender,
 		mailWake:   make(chan struct{}, 1),
+		hf:         newHFSearcher(),
 		billing: billing.New(billing.Config{
 			Offering:          opts.Offering,
 			StripeSecret:      opts.StripeSecretKey,
@@ -550,6 +555,8 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/admin/models/assignments", s.requireCredential(s.handleListAssignments))
 	m.HandleFunc("PUT /api/admin/models/assignments", s.requireCredential(s.handleSetAssignment))
 	m.HandleFunc("DELETE /api/admin/models/assignments/{purpose}", s.requireCredential(s.handleClearAssignment))
+	m.HandleFunc("GET /api/admin/models/hf/search", s.requireCredential(s.handleHfSearch))
+	m.HandleFunc("GET /api/admin/models/hf/repo/{org}/{repo}", s.requireCredential(s.handleHfRepoFiles))
 	m.HandleFunc("PATCH /api/orgs/{id}", s.requireCredential(s.handleRenameOrg))
 	m.HandleFunc("GET /api/orgs/{id}/members", s.requireCredential(s.handleListOrgMembers))
 	m.HandleFunc("PATCH /api/orgs/{id}/members/{accountId}", s.requireCredential(s.handleSetOrgMemberRole))

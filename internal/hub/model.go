@@ -22,6 +22,7 @@ import (
 // body is ignored there.
 type modelInput struct {
 	ID      string `json:"id"`
+	Org     string `json:"org"`
 	Source  string `json:"source"`
 	Quant   string `json:"quant"`
 	Digest  string `json:"digest"`
@@ -68,7 +69,12 @@ func (s *Server) handleCreateModel(w http.ResponseWriter, r *http.Request, cred 
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	m, err := s.store.CreateModel(in.ID, strings.TrimSpace(in.Source), strings.TrimSpace(in.Quant),
+	quant, err := ParseQuant(strings.TrimSpace(in.Quant))
+	if err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	m, err := s.store.CreateModel(in.ID, strings.TrimSpace(in.Org), strings.TrimSpace(in.Source), quant,
 		strings.TrimSpace(in.Digest), strings.TrimSpace(in.Licence), purpose)
 	if errors.Is(err, ErrModelIDTaken) {
 		httpError(w, http.StatusConflict, err.Error())
@@ -99,7 +105,12 @@ func (s *Server) handleUpdateModel(w http.ResponseWriter, r *http.Request, cred 
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	m, err := s.store.UpdateModel(r.PathValue("id"), strings.TrimSpace(in.Source), strings.TrimSpace(in.Quant),
+	quant, err := ParseQuant(strings.TrimSpace(in.Quant))
+	if err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	m, err := s.store.UpdateModel(r.PathValue("id"), strings.TrimSpace(in.Org), strings.TrimSpace(in.Source), quant,
 		strings.TrimSpace(in.Digest), strings.TrimSpace(in.Licence), purpose)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())

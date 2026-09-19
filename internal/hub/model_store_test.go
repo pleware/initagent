@@ -48,14 +48,100 @@ func TestParsePurpose(t *testing.T) {
 	}
 }
 
-func TestModelCRUDRoundTrip(t *testing.T) {
+func TestParseQuant(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+		err  bool
+	}{
+		// canonical passthrough: floats, legacy, K-quants, I-quants.
+		{"float f32", "F32", "F32", false},
+		{"float f16", "F16", "F16", false},
+		{"float bf16", "BF16", "BF16", false},
+		{"legacy q8_0", "Q8_0", "Q8_0", false},
+		{"legacy q8_1", "Q8_1", "Q8_1", false},
+		{"k-quant q6_k", "Q6_K", "Q6_K", false},
+		{"k-quant q3_k_l", "Q3_K_L", "Q3_K_L", false},
+		{"i-quant iq2_xxs", "IQ2_XXS", "IQ2_XXS", false},
+		{"i-quant iq4_nl", "IQ4_NL", "IQ4_NL", false},
+		// case-insensitive normalization to uppercase canonical.
+		{"normalize lowercase", "q4_k_m", "Q4_K_M", false},
+		{"normalize mixed", "Iq3_S", "IQ3_S", false},
+		{"normalize with whitespace", "  q5_0  ", "Q5_0", false},
+		// empty is allowed: non-GGUF pins (embedding, stt) carry no quant.
+		{"empty", "", "", false},
+		{"whitespace only", "   ", "", false},
+		// outside the dictionary: refused, never defaulted.
+		{"unknown", "bogus", "", true},
+		{"near-miss k-quant", "Q4_K", "", true},
+		{"near-miss i-quant", "IQ2_X", "", true},
+		{"lowercase unknown", "q4_k_m_x", "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseQuant(tt.in)
+			if tt.err {
+				if err == nil {
+					t.Fatalf("ParseQuant(%q) = %q, want an error", tt.in, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseQuant(%q) error = %v, want nil", tt.in, err)
+			}
+			if got != tt.want {
+				t.Errorf("ParseQuant(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCreateModelRejectsUnknownQuant(t *testing.T) {
 	s := testStore(t)
-	created, err := s.CreateModel("test-model-7b-q4_0", "SomeOrg/test-model-7B-GGUF@rev", "q4_0", "", "Apache-2.0", "persona")
+	before, err := s.ListModels()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.ID != "test-model-7b-q4_0" || created.Purpose != "persona" || created.Digest != "" {
-		t.Errorf("created = %+v, want id, canonical persona purpose and empty digest", created)
+	if _, err := s.CreateModel("bad-quant", "SomeOrg", "s", "bogus", "", "MIT", "persona"); err == nil {
+		t.Fatal("CreateModel accepted a non-canonical quant")
+	}
+	after, err := s.ListModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after) != len(before) {
+		t.Errorf("ListModels after refused create has %d rows, want %d", len(after), len(before))
+	}
+}
+
+func TestUpdateModelRejectsUnknownQuant(t *testing.T) {
+	s := testStore(t)
+	created, err := s.CreateModel("quant-guard", "SomeOrg", "s", "Q4_0", "", "MIT", "persona")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpdateModel(created.ID, "SomeOrg", "s2", "bogus", "", "MIT", "persona"); err == nil {
+		t.Fatal("UpdateModel accepted a non-canonical quant")
+	}
+	got, err := s.GetModel(created.ID)
+	if err != nil || got == nil {
+		t.Fatalf("GetModel after refused update = (%v, %v), want the untouched pin", got, err)
+	}
+	if got.Quant != "Q4_0" || got.Source != "s" {
+		t.Errorf("refused update left %+v, want the original row", got)
+	}
+}
+
+func TestModelCRUDRoundTrip(t *testing.T) {
+	s := testStore(t)
+	created, err := s.CreateModel("test-model-7b-q4_0", "SomeOrg", "SomeOrg/test-model-7B-GGUF@rev", "q4_0", "", "Apache-2.0", "persona")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.ID != "test-model-7b-q4_0" || created.Org != "SomeOrg" || created.Quant != "Q4_0" ||
+		created.Purpose != "persona" || created.Digest != "" {
+		t.Errorf("created = %+v, want id, org, canonical q4_0 quant, persona purpose and empty digest", created)
 	}
 
 	got, err := s.GetModel(created.ID)
@@ -65,18 +151,18 @@ func TestModelCRUDRoundTrip(t *testing.T) {
 	if got == nil {
 		t.Fatal("GetModel returned nil for a created pin")
 	}
-	if got.Source != "SomeOrg/test-model-7B-GGUF@rev" || got.Quant != "q4_0" || got.Licence != "Apache-2.0" {
+	if got.Org != "SomeOrg" || got.Source != "SomeOrg/test-model-7B-GGUF@rev" || got.Quant != "Q4_0" || got.Licence != "Apache-2.0" {
 		t.Errorf("read-back = %+v, want the created fields", got)
 	}
 
-	updated, err := s.UpdateModel(created.ID, "other-source", "q5_k_m", "blake3-of-the-artifact", "MIT", "Worker")
+	updated, err := s.UpdateModel(created.ID, "RenamedOrg", "other-source", "q5_k_m", "blake3-of-the-artifact", "MIT", "Worker")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if updated == nil {
 		t.Fatal("UpdateModel returned nil for an existing pin")
 	}
-	if updated.ID != created.ID || updated.Source != "other-source" || updated.Quant != "q5_k_m" ||
+	if updated.ID != created.ID || updated.Org != "RenamedOrg" || updated.Source != "other-source" || updated.Quant != "Q5_K_M" ||
 		updated.Digest != "blake3-of-the-artifact" || updated.Licence != "MIT" || updated.Purpose != "worker" {
 		t.Errorf("updated = %+v, want the replaced fields with the canonical worker purpose", updated)
 	}
@@ -109,7 +195,7 @@ func TestGetModelMissing(t *testing.T) {
 
 func TestUpdateModelMissing(t *testing.T) {
 	s := testStore(t)
-	got, err := s.UpdateModel("no-such-model", "s", "", "", "MIT", "persona")
+	got, err := s.UpdateModel("no-such-model", "o", "s", "", "", "MIT", "persona")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,10 +206,10 @@ func TestUpdateModelMissing(t *testing.T) {
 
 func TestCreateModelDuplicateID(t *testing.T) {
 	s := testStore(t)
-	if _, err := s.CreateModel("dup-model", "s", "", "", "MIT", "persona"); err != nil {
+	if _, err := s.CreateModel("dup-model", "o", "s", "", "", "MIT", "persona"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := s.CreateModel("dup-model", "second", "", "", "MIT", "worker")
+	_, err := s.CreateModel("dup-model", "o2", "second", "", "", "MIT", "worker")
 	if !errors.Is(err, ErrModelIDTaken) {
 		t.Fatalf("err = %v, want ErrModelIDTaken", err)
 	}
@@ -135,7 +221,7 @@ func TestCreateModelRejectsUnknownPurpose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateModel("bad-purpose", "s", "", "", "MIT", "chat"); err == nil {
+	if _, err := s.CreateModel("bad-purpose", "o", "s", "", "", "MIT", "chat"); err == nil {
 		t.Fatal("CreateModel accepted an unknown purpose")
 	}
 	after, err := s.ListModels()
@@ -149,7 +235,7 @@ func TestCreateModelRejectsUnknownPurpose(t *testing.T) {
 
 func TestDeleteModel(t *testing.T) {
 	s := testStore(t)
-	created, err := s.CreateModel("doomed-model", "s", "", "", "MIT", "stt")
+	created, err := s.CreateModel("doomed-model", "o", "s", "", "", "MIT", "stt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +261,7 @@ func TestDeleteModelInUse(t *testing.T) {
 	s := testStore(t)
 	// SetAssignment and SetBoxModelOverride both refuse an empty digest, so
 	// the pin carries one.
-	created, err := s.CreateModel("pinned-model", "s", "", "pinned-digest", "MIT", "persona")
+	created, err := s.CreateModel("pinned-model", "o", "s", "", "pinned-digest", "MIT", "persona")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,15 +316,16 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	}
 	tests := []struct {
 		id           string
+		org          string
 		sourcePrefix string
 		quant        string
 		licence      string
 		purpose      string
 	}{
-		{"qwen3.5-4b-q4_k_m", "unsloth/Qwen3.5-4B-GGUF@", "q4_k_m", "Apache-2.0", "persona"},
-		{"qwen2.5-coder-7b-q4_k_m", "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@", "q4_k_m", "Apache-2.0", "worker"},
-		{"bge-m3", "BAAI/bge-m3@", "", "MIT", "embedding"},
-		{"whisper-large-v3", "openai/whisper-large-v3@", "", "MIT", "stt"},
+		{"qwen3.5-4b-q4_k_m", "unsloth", "unsloth/Qwen3.5-4B-GGUF@", "Q4_K_M", "Apache-2.0", "persona"},
+		{"qwen2.5-coder-7b-q4_k_m", "Qwen", "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@", "Q4_K_M", "Apache-2.0", "worker"},
+		{"bge-m3", "BAAI", "BAAI/bge-m3@", "", "MIT", "embedding"},
+		{"whisper-large-v3", "openai", "openai/whisper-large-v3@", "", "MIT", "stt"},
 	}
 	for _, tt := range tests {
 		m, ok := byID[tt.id]
@@ -246,9 +333,9 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 			t.Errorf("seed missing pin %s", tt.id)
 			continue
 		}
-		if m.Quant != tt.quant || m.Licence != tt.licence || m.Purpose != tt.purpose {
-			t.Errorf("%s = quant %q licence %q purpose %q, want %q/%q/%q",
-				tt.id, m.Quant, m.Licence, m.Purpose, tt.quant, tt.licence, tt.purpose)
+		if m.Org != tt.org || m.Quant != tt.quant || m.Licence != tt.licence || m.Purpose != tt.purpose {
+			t.Errorf("%s = org %q quant %q licence %q purpose %q, want %q/%q/%q/%q",
+				tt.id, m.Org, m.Quant, m.Licence, m.Purpose, tt.org, tt.quant, tt.licence, tt.purpose)
 		}
 		if !strings.HasPrefix(m.Source, tt.sourcePrefix) || !strings.Contains(m.Source, "@") {
 			t.Errorf("%s source = %q, want a pinned repo@rev", tt.id, m.Source)
@@ -262,7 +349,7 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 func TestEnsureSeedModelsKeepsAdminEdits(t *testing.T) {
 	s := testStore(t)
 	// The admin verifies the persona artifact and fills its digest.
-	if _, err := s.UpdateModel("qwen3.5-4b-q4_k_m", "custom-source", "q4_k_m", "admin-computed-digest", "Custom", "persona"); err != nil {
+	if _, err := s.UpdateModel("qwen3.5-4b-q4_k_m", "custom-org", "custom-source", "q4_k_m", "admin-computed-digest", "Custom", "persona"); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.EnsureSeedModels(); err != nil {
@@ -384,7 +471,7 @@ func TestListModelsPublic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, banned := range []string{`"Id"`, `"Source"`, `"Quant"`, `"Licence"`} {
+	for _, banned := range []string{`"Id"`, `"Org"`, `"Source"`, `"Quant"`, `"Licence"`} {
 		if strings.Contains(string(body), banned) {
 			t.Errorf("public payload leaks a Go field name: %s", banned)
 		}
@@ -397,7 +484,7 @@ func TestListModelsPublic(t *testing.T) {
 		t.Fatalf("public catalog has %d pins, want the four seeds", len(got))
 	}
 	for _, m := range got {
-		if m.ID == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
+		if m.ID == "" || m.Org == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
 			t.Errorf("public pin with empty fields: %+v", m)
 		}
 	}
@@ -408,7 +495,7 @@ func TestAdminModelEndpoints(t *testing.T) {
 
 	// Create.
 	resp := f.do(t, http.MethodPost, "/api/admin/models", map[string]string{
-		"id": "admin-model", "source": "Org/repo@rev", "quant": "q4_0",
+		"id": "admin-model", "org": "AdminOrg", "source": "Org/repo@rev", "quant": "q4_0",
 		"digest": "", "licence": "MIT", "purpose": "worker",
 	})
 	if resp.StatusCode != http.StatusCreated {
@@ -418,8 +505,8 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
 		t.Fatal(err)
 	}
-	if created.ID != "admin-model" || created.Purpose != "worker" {
-		t.Errorf("created = %+v, want the submitted pin", created)
+	if created.ID != "admin-model" || created.Org != "AdminOrg" || created.Quant != "Q4_0" || created.Purpose != "worker" {
+		t.Errorf("created = %+v, want the submitted pin with canonical q4_0 quant", created)
 	}
 
 	// Duplicate id.
@@ -434,9 +521,15 @@ func TestAdminModelEndpoints(t *testing.T) {
 		t.Errorf("bad purpose: %d, want 400", resp.StatusCode)
 	}
 
+	// Bad quant: outside the canonical GGUF dictionary.
+	resp = f.do(t, http.MethodPost, "/api/admin/models", map[string]string{"id": "bad-quant", "quant": "bogus", "purpose": "worker"})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("bad quant: %d, want 400", resp.StatusCode)
+	}
+
 	// Update.
 	resp = f.do(t, http.MethodPatch, "/api/admin/models/admin-model", map[string]string{
-		"source": "new-source", "quant": "", "digest": "verified-digest", "licence": "MIT", "purpose": "stt",
+		"org": "RenamedOrg", "source": "new-source", "quant": "", "digest": "verified-digest", "licence": "MIT", "purpose": "stt",
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("update: %d, want 200", resp.StatusCode)
@@ -445,7 +538,7 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&updated); err != nil {
 		t.Fatal(err)
 	}
-	if updated.Source != "new-source" || updated.Digest != "verified-digest" || updated.Purpose != "stt" {
+	if updated.Org != "RenamedOrg" || updated.Source != "new-source" || updated.Digest != "verified-digest" || updated.Purpose != "stt" {
 		t.Errorf("updated = %+v, want the replaced fields", updated)
 	}
 

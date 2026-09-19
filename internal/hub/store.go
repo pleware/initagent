@@ -240,6 +240,7 @@ CREATE TABLE IF NOT EXISTS box_tokens (
 );
 CREATE TABLE IF NOT EXISTS models (
 	id      TEXT PRIMARY KEY,
+	org     TEXT NOT NULL,
 	source  TEXT NOT NULL,
 	quant   TEXT NOT NULL,
 	digest  TEXT NOT NULL,
@@ -473,6 +474,7 @@ CREATE TABLE IF NOT EXISTS box_tokens (
 );
 CREATE TABLE IF NOT EXISTS models (
 	id      TEXT PRIMARY KEY,
+	org     TEXT NOT NULL,
 	source  TEXT NOT NULL,
 	quant   TEXT NOT NULL,
 	digest  TEXT NOT NULL,
@@ -1448,6 +1450,7 @@ func (s *Store) ensureModels() error {
 	}
 	_, err = s.db.Exec(`CREATE TABLE models (
 		id      TEXT PRIMARY KEY,
+		org     TEXT NOT NULL,
 		source  TEXT NOT NULL,
 		quant   TEXT NOT NULL,
 		digest  TEXT NOT NULL,

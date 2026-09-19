@@ -192,6 +192,9 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 	if !reflect.DeepEqual(models["worker"], wantPin) {
 		t.Errorf("models[worker] = %v, want exactly %v", models["worker"], wantPin)
 	}
+	if _, hasOrg := models["worker"]["org"]; hasOrg {
+		t.Errorf("manifest pin leaks the registry org key: %v", models["worker"])
+	}
 
 	// A box with an override resolves to the override, same five-key shape.
 	override := verifiedModel(t, s, "manifest-override", "override-digest", "worker")

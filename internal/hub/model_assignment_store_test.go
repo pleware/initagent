@@ -16,7 +16,7 @@ import (
 // point at it. The purpose and digest are test-controlled.
 func verifiedModel(t *testing.T, s *Store, id, digest, purpose string) *Model {
 	t.Helper()
-	m, err := s.CreateModel(id, "Org/"+id+"@rev", "", digest, "MIT", purpose)
+	m, err := s.CreateModel(id, "Org", "Org/"+id+"@rev", "", digest, "MIT", purpose)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,12 +1,12 @@
-import { useCallback, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, ApiError } from '../api'
+import { api, ApiError, hfRepoFiles, localizeError, searchHf } from '../api'
 import { usePoll } from '../hooks'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
 import { PURPOSES, modelLabel } from '../models'
-import type { Model, ModelAssignment, Purpose } from '../types'
+import type { HfRepoFile, HfSearchResult, Model, ModelAssignment, Purpose } from '../types'
 
 // The platform operator's model layer surface: the registry of pinned
 // models and the factory assignments each purpose resolves to. The hub owns
@@ -23,6 +23,18 @@ export default function ModelsPage() {
   const [error, setError] = useState('')
   const [editor, setEditor] = useState<Model | 'new' | null>(null)
   const [busy, setBusy] = useState<Purpose | null>(null)
+  // The Hugging Face browser: query + debounced search state, the picked
+  // repo whose quants are open, and the pre-fill the next "add" hands to the
+  // create form.
+  const [hfQuery, setHfQuery] = useState('')
+  const [hfResults, setHfResults] = useState<HfSearchResult[] | null>(null)
+  const [hfBusy, setHfBusy] = useState(false)
+  const [hfError, setHfError] = useState('')
+  const [quantsFor, setQuantsFor] = useState<HfSearchResult | null>(null)
+  const [quantFiles, setQuantFiles] = useState<HfRepoFile[] | null>(null)
+  const [quantError, setQuantError] = useState('')
+  const [prefill, setPrefill] = useState<Partial<Model> | null>(null)
+  const hfSeq = useRef(0)
 
   const load = useCallback(async () => {
     try {
@@ -41,6 +53,57 @@ export default function ModelsPage() {
   }, [t])
 
   usePoll(load, 30_000)
+
+  // Debounced HF search: only the last query in a typing burst fires, and a
+  // stale in-flight answer (hfSeq) never overwrites a newer one.
+  useEffect(() => {
+    const q = hfQuery.trim()
+    const seq = ++hfSeq.current
+    if (q === '') {
+      setHfResults(null)
+      setHfBusy(false)
+      setHfError('')
+      return
+    }
+    setHfBusy(true)
+    const timer = window.setTimeout(async () => {
+      try {
+        const results = await searchHf(q)
+        if (hfSeq.current !== seq) return
+        setHfResults(results)
+        setHfError('')
+      } catch (err) {
+        if (hfSeq.current !== seq) return
+        setHfError(localizeError(err, t))
+      } finally {
+        if (hfSeq.current === seq) setHfBusy(false)
+      }
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [hfQuery, t])
+
+  const openQuants = async (item: HfSearchResult) => {
+    setQuantsFor(item)
+    setQuantFiles(null)
+    setQuantError('')
+    try {
+      setQuantFiles(await hfRepoFiles(item.org, item.name))
+    } catch (err) {
+      setQuantError(localizeError(err, t))
+    }
+  }
+
+  const addFromHf = (item: HfSearchResult, file: HfRepoFile) => {
+    setPrefill({
+      org: item.org,
+      source: item.id,
+      quant: file.quant,
+      licence: item.licence,
+      purpose: item.suggestedPurpose || 'persona',
+    })
+    setQuantsFor(null)
+    setEditor('new')
+  }
 
   const remove = async (model: Model) => {
     if (!window.confirm(t('models.confirmDelete', { id: model.id }))) return
@@ -76,6 +139,8 @@ export default function ModelsPage() {
     }
   }
 
+  const hfGroups = hfResults === null ? [] : groupHf(hfResults)
+
   return (
     <div className="page-shell">
       <div className="mb-6 flex items-end justify-between">
@@ -86,7 +151,13 @@ export default function ModelsPage() {
           </h1>
           <p className="mt-1 text-sm text-fg-muted">{t('models.subtitle')}</p>
         </div>
-        <button onClick={() => setEditor('new')} className="btn-primary">
+        <button
+          onClick={() => {
+            setPrefill(null)
+            setEditor('new')
+          }}
+          className="btn-primary"
+        >
           {t('models.newModel')}
         </button>
       </div>
@@ -111,6 +182,10 @@ export default function ModelsPage() {
               {
                 header: t('models.id'),
                 cell: (m) => <span className="font-mono text-[12px] text-fg">{m.id}</span>,
+              },
+              {
+                header: t('models.org'),
+                cell: (m) => <span className="text-fg-subtle">{m.org || '—'}</span>,
               },
               {
                 header: t('models.purpose'),
@@ -162,6 +237,78 @@ export default function ModelsPage() {
 
       <section className="mt-8">
         <h2 className="text-lg font-semibold tracking-[-0.02em] text-fg-strong">
+          {t('models.hfSearch')}
+        </h2>
+        <p className="mt-1 text-sm text-fg-muted">{t('models.hfSearchHint')}</p>
+        <input
+          type="search"
+          value={hfQuery}
+          onChange={(e) => setHfQuery(e.target.value)}
+          placeholder={t('models.hfSearchPlaceholder')}
+          aria-label={t('models.hfSearch')}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="field-input mt-4 w-full max-w-md"
+        />
+        {hfBusy && <p className="mt-2 text-sm text-fg-subtle">{t('models.hfSearching')}</p>}
+        {hfError && (
+          <p className="mt-2 rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
+            {hfError}
+          </p>
+        )}
+        {hfResults !== null && hfResults.length === 0 && !hfBusy && (
+          <p className="mt-2 text-sm text-fg-subtle">{t('models.hfNoResults')}</p>
+        )}
+        {hfGroups.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-line-2/60">
+            {hfGroups.map(([org, items]) => (
+              <div key={org} className="border-b border-line-2/60 last:border-b-0">
+                <div className="flex items-center gap-2 bg-sidebar px-4 py-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
+                    {t('models.org')}
+                  </span>
+                  <span className="font-mono text-sm text-fg">{org}</span>
+                </div>
+                <ul className="divide-y divide-line-2/60">
+                  {items.map((item) => (
+                    <li key={item.id} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg">
+                        {item.id}
+                      </span>
+                      {item.pipelineTag !== '' && (
+                        <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
+                          {item.pipelineTag}
+                        </span>
+                      )}
+                      {item.suggestedPurpose !== '' && (
+                        <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
+                          {t('purpose.' + item.suggestedPurpose)}
+                        </span>
+                      )}
+                      {item.licence !== '' && (
+                        <span className="text-xs text-fg-subtle">{item.licence}</span>
+                      )}
+                      <span className="text-xs text-fg-subtle">
+                        {t('models.hfDownloads', { count: item.downloads.toLocaleString() })}
+                      </span>
+                      <button
+                        onClick={() => void openQuants(item)}
+                        className="text-xs text-fg-subtle hover:text-fg"
+                      >
+                        {t('models.browseQuants')}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-fg-strong">
           {t('models.assignments')}
         </h2>
         <p className="mt-1 text-sm text-fg-muted">{t('models.assignmentsHint')}</p>
@@ -205,20 +352,81 @@ export default function ModelsPage() {
         </div>
       </section>
 
+      {quantsFor !== null && (
+        <Modal
+          wide
+          title={t('models.quantsTitle', { model: quantsFor.id })}
+          onClose={() => setQuantsFor(null)}
+        >
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-fg-muted">
+              {quantsFor.licence !== ''
+                ? `${t('models.licence')}: ${quantsFor.licence}`
+                : t('models.licence') + ': —'}
+            </p>
+            {quantsFor.suggestedPurpose !== '' && (
+              <p className="text-sm text-fg-muted">
+                {t('models.suggestedPurpose')}: {t('purpose.' + quantsFor.suggestedPurpose)}
+              </p>
+            )}
+            <p className="text-xs text-fg-subtle">{t('models.quantsHint')}</p>
+            {quantError && (
+              <p className="rounded-lg border border-fail/20 px-3 py-2 text-sm text-fail-fg">
+                {quantError}
+              </p>
+            )}
+            {quantFiles === null ? (
+              <p className="text-sm text-fg-subtle">{t('common.loading')}</p>
+            ) : quantFiles.length === 0 ? (
+              <p className="text-sm text-fg-subtle">{t('models.noQuants')}</p>
+            ) : (
+              <ul className="divide-y divide-line-2/60 rounded-2xl border border-line-2/60">
+                {quantFiles.map((file) => (
+                  <li key={file.filename} className="flex items-center gap-3 px-4 py-2.5">
+                    <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg">
+                      {file.filename}
+                    </span>
+                    <span className="rounded-full border border-line-2 px-2 py-0.5 font-mono text-[10px] text-fg-soft">
+                      {file.quant}
+                    </span>
+                    <button
+                      onClick={() => addFromHf(quantsFor, file)}
+                      className="text-xs text-fg-subtle hover:text-fg"
+                    >
+                      {t('models.addModel')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Modal>
+      )}
+
       {editor !== null && (
         <Modal
           title={
             editor === 'new'
-              ? t('models.newTitle')
+              ? prefill
+                ? t('models.addModelTitle', { name: prefill.source ?? '' })
+                : t('models.newTitle')
               : t('models.editTitle', { id: editor.id })
           }
-          onClose={() => setEditor(null)}
+          onClose={() => {
+            setEditor(null)
+            setPrefill(null)
+          }}
         >
           <ModelForm
             model={editor === 'new' ? null : editor}
-            onClose={() => setEditor(null)}
+            prefill={editor === 'new' ? prefill : null}
+            onClose={() => {
+              setEditor(null)
+              setPrefill(null)
+            }}
             onSaved={() => {
               setEditor(null)
+              setPrefill(null)
               void load()
             }}
           />
@@ -226,6 +434,18 @@ export default function ModelsPage() {
       )}
     </div>
   )
+}
+
+// groupHf buckets search hits by org, keeping the hub's download order
+// within each bucket.
+function groupHf(results: HfSearchResult[]): [string, HfSearchResult[]][] {
+  const byOrg = new Map<string, HfSearchResult[]>()
+  for (const r of results) {
+    const list = byOrg.get(r.org)
+    if (list) list.push(r)
+    else byOrg.set(r.org, [r])
+  }
+  return [...byOrg.entries()]
 }
 
 // DigestBadge shows the pin's verification state: the truncated BLAKE3 when
@@ -252,22 +472,29 @@ function DigestBadge({ model }: { model: Model }) {
 
 // ModelForm creates or edits one pin. The id is the pin's key and immutable
 // on edit; the hub takes it from the path there, so the body id is ignored.
+// `prefill` carries the values the Hugging Face browser suggests for a new
+// pin — the admin still fills id and digest before saving.
 function ModelForm({
   model,
+  prefill,
   onClose,
   onSaved,
 }: {
   model: Model | null
+  prefill?: Partial<Model> | null
   onClose: () => void
   onSaved: () => void
 }) {
   const { t } = useTranslation()
-  const [id, setId] = useState(model?.id ?? '')
-  const [source, setSource] = useState(model?.source ?? '')
-  const [quant, setQuant] = useState(model?.quant ?? '')
-  const [digest, setDigest] = useState(model?.digest ?? '')
-  const [licence, setLicence] = useState(model?.licence ?? '')
-  const [purpose, setPurpose] = useState<Purpose>(model?.purpose ?? 'persona')
+  const [org, setOrg] = useState(model?.org ?? prefill?.org ?? '')
+  const [id, setId] = useState(model?.id ?? prefill?.id ?? '')
+  const [source, setSource] = useState(model?.source ?? prefill?.source ?? '')
+  const [quant, setQuant] = useState(model?.quant ?? prefill?.quant ?? '')
+  const [digest, setDigest] = useState(model?.digest ?? prefill?.digest ?? '')
+  const [licence, setLicence] = useState(model?.licence ?? prefill?.licence ?? '')
+  const [purpose, setPurpose] = useState<Purpose>(
+    model?.purpose ?? prefill?.purpose ?? 'persona',
+  )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -277,6 +504,7 @@ function ModelForm({
     setError('')
     const payload = {
       id: id.trim(),
+      org: org.trim(),
       source: source.trim(),
       quant: quant.trim(),
       digest: digest.trim(),
@@ -310,6 +538,20 @@ function ModelForm({
       )}
 
       <label className="block">
+        <span className="field-label">{t('models.org')}</span>
+        <input
+          type="text"
+          value={org}
+          onChange={(e) => setOrg(e.target.value)}
+          className="field-input mt-2 font-mono text-[12px]"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+        <span className="mt-1 block text-xs text-fg-subtle">{t('models.orgHint')}</span>
+      </label>
+
+      <label className="block">
         <span className="field-label">{t('models.id')}</span>
         <input
           type="text"
@@ -335,6 +577,11 @@ function ModelForm({
           aria-label={t('models.purpose')}
           items={PURPOSES.map((p) => ({ value: p, label: t('purpose.' + p) }))}
         />
+        {prefill?.purpose !== undefined && (
+          <span className="mt-1 block text-xs text-fg-subtle">
+            {t('models.suggestedPurposeHint')}
+          </span>
+        )}
       </label>
 
       <label className="block">

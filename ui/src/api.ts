@@ -2,7 +2,7 @@
 // the session cookie; 401s bounce the user to the login screen via the
 // listener App.tsx registers here.
 
-import type { BoxToken, Voice } from './types'
+import type { BoxToken, HfRepoFile, HfSearchResult, Voice } from './types'
 import i18n from './i18n/config'
 
 let onUnauthorized: (() => void) | null = null
@@ -192,4 +192,21 @@ export function revokeBoxToken(boxId: string, tokenId: string): Promise<{ ok: bo
 // answers 404.
 export function deleteBox(id: string): Promise<{ ok: boolean }> {
   return api.del<{ ok: boolean }>(`/api/boxes/${encodeURIComponent(id)}`)
+}
+
+// --- models (Hugging Face browser) ---
+
+// searchHf queries the HF catalog through the hub proxy, sorted by
+// downloads. The hub answers 502 when Hugging Face is unreachable.
+export function searchHf(q: string, limit?: number): Promise<HfSearchResult[]> {
+  const params = new URLSearchParams({ q })
+  if (limit !== undefined) params.set('limit', String(limit))
+  return api.get<HfSearchResult[]>(`/api/admin/models/hf/search?${params.toString()}`)
+}
+
+// hfRepoFiles lists one repo's canonical .gguf files, each with the quant
+// parsed from its filename.
+export function hfRepoFiles(org: string, repo: string): Promise<HfRepoFile[]> {
+  const path = `/api/admin/models/hf/repo/${encodeURIComponent(org)}/${encodeURIComponent(repo)}`
+  return api.get<HfRepoFile[]>(path)
 }

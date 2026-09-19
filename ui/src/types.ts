@@ -444,17 +444,43 @@ export type Purpose = 'persona' | 'worker' | 'embedding' | 'stt'
 
 // Model is one pinned model of the installation's registry
 // (`initagent.hub.model`): identity and provenance only — the hub holds no
-// weights. `quant` is empty for non-GGUF pins (embedding, stt); `digest` is
-// the admin-provided BLAKE3 of the pinned artifact, empty until verified.
+// weights. `org` is the Hugging Face namespace (the `source` half before the
+// slash), so the registry can group pins into org → model → quant. `quant`
+// is empty for non-GGUF pins (embedding, stt); `digest` is the
+// admin-provided BLAKE3 of the pinned artifact, empty until verified.
 // Not to be confused with `Staff.avatarModel3d`, which is the avatar GLB
 // string.
 export interface Model {
   id: string
+  org: string
   source: string
   quant: string
   digest: string
   licence: string
   purpose: Purpose
+}
+
+// HfSearchResult is one hit of GET /api/admin/models/hf/search: a Hugging
+// Face catalog entry reduced to what the admin browser needs. `id` is the
+// HF id (org/name); `suggestedPurpose` is the hub's task→purpose mapping —
+// a suggestion the admin can override, and "" when nothing maps.
+export interface HfSearchResult {
+  org: string
+  name: string
+  id: string
+  pipelineTag: string
+  libraryName: string
+  licence: string
+  downloads: number
+  suggestedPurpose: Purpose | ''
+}
+
+// HfRepoFile is one entry of GET /api/admin/models/hf/repo/{org}/{repo}: a
+// .gguf file with the canonical quant parsed from its filename. Only files
+// whose quant the registry would accept appear.
+export interface HfRepoFile {
+  filename: string
+  quant: string
 }
 
 // ModelAssignment is one factory pin: the model a purpose resolves to when a

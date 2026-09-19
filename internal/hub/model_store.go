@@ -19,11 +19,15 @@ var ErrModelIDTaken = errors.New("a model with this id already exists")
 var ErrModelInUse = errors.New("this model is still in use by an assignment or override")
 
 // Model is one pin in the hub's model registry: identity and provenance
-// only, no weights. Digest is the BLAKE3 of the pinned artifact,
-// admin-provided after verification; empty means unverified. Quant is empty
-// for non-GGUF models (embedding, stt).
+// only, no weights. Org is the Hugging Face namespace the pin's source
+// lives under (the part of source before the first "/"), so the catalog
+// groups org → model → quant. Digest is the BLAKE3 of the pinned artifact,
+// admin-provided after verification; empty means unverified. Quant is the
+// canonical GGUF quantization (see ParseQuant) and empty for non-GGUF
+// models (embedding, stt).
 type Model struct {
 	ID      string `json:"id"`
+	Org     string `json:"org"`
 	Source  string `json:"source"`
 	Quant   string `json:"quant"`
 	Digest  string `json:"digest"`
@@ -59,6 +63,41 @@ func ParsePurpose(s string) (string, error) {
 	return p, nil
 }
 
+// canonicalQuants is the canonical GGUF quantization dictionary documented
+// at huggingface.co/docs/hub/gguf: floats, legacy quants, K-quants and
+// I-quants, in their exact uppercase spelling. The registry stores only
+// these spellings, so a typo'd quant is refused at write time instead of
+// failing at pull time.
+var canonicalQuants = map[string]bool{
+	"F32": true, "F16": true, "BF16": true,
+	"Q4_0": true, "Q4_1": true, "Q5_0": true, "Q5_1": true, "Q8_0": true, "Q8_1": true,
+	"Q2_K": true, "Q3_K_S": true, "Q3_K_M": true, "Q3_K_L": true,
+	"Q4_K_S": true, "Q4_K_M": true, "Q4_K_L": true,
+	"Q5_K_S": true, "Q5_K_M": true, "Q5_K_L": true, "Q6_K": true,
+	"IQ1_S": true, "IQ1_M": true,
+	"IQ2_XXS": true, "IQ2_XS": true, "IQ2_S": true, "IQ2_M": true,
+	"IQ3_XXS": true, "IQ3_XS": true, "IQ3_S": true, "IQ3_M": true,
+	"IQ4_XS": true, "IQ4_NL": true,
+}
+
+// ParseQuant validates a quantization name against the canonical GGUF set
+// and answers its canonical uppercase spelling. Matching is
+// case-insensitive, so "q4_k_m" becomes "Q4_K_M"; an empty string is
+// allowed and passes through unchanged — non-GGUF models (embedding, stt)
+// carry no quant. A name outside the dictionary is an error, never a
+// default: silently storing a made-up quant would break the puller that
+// later resolves the .gguf file by its filename quant.
+func ParseQuant(s string) (string, error) {
+	q := strings.ToUpper(strings.TrimSpace(s))
+	if q == "" {
+		return "", nil
+	}
+	if !canonicalQuants[q] {
+		return "", fmt.Errorf("quant %q: not a canonical GGUF quantization (huggingface.co/docs/hub/gguf)", s)
+	}
+	return q, nil
+}
+
 // modelScanner is the shared shape of sql.Row and sql.Rows Scan methods,
 // the same role skillScanner plays for the skills table.
 type modelScanner interface {
@@ -66,10 +105,11 @@ type modelScanner interface {
 }
 
 // scanModel reads one models row selected in schema order:
-// id, source, quant, digest, licence, purpose. A missing row is (nil, nil).
+// id, org, source, quant, digest, licence, purpose. A missing row is
+// (nil, nil).
 func scanModel(row modelScanner) (*Model, error) {
 	var m Model
-	if err := row.Scan(&m.ID, &m.Source, &m.Quant, &m.Digest, &m.Licence, &m.Purpose); err != nil {
+	if err := row.Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.Digest, &m.Licence, &m.Purpose); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -80,27 +120,33 @@ func scanModel(row modelScanner) (*Model, error) {
 
 // CreateModel registers a model pin. The id is the pin slug the admin
 // chooses (e.g. "qwen3.5-4b-q4_k_m"): it names one model+quant, so it is
-// not minted. The purpose runs through ParsePurpose; digest may be empty —
-// an unverified pin — and an admin fills it after checking the artifact. A
-// collision on id returns ErrModelIDTaken.
+// not minted. Org is the Hugging Face namespace the source lives under.
+// The purpose runs through ParsePurpose and the quant through ParseQuant
+// (empty allowed for non-GGUF pins); digest may be empty — an unverified
+// pin — and an admin fills it after checking the artifact. A collision on
+// id returns ErrModelIDTaken.
 //
 // The insert and the fleet bump commit together: a new pin changes the
 // catalogue every box's resolved roster draws from, so every box's
 // config_version advances — boxes carrying an override included, which is
 // an acceptable over-bump.
-func (s *Store) CreateModel(id, source, quant, digest, licence, purpose string) (*Model, error) {
+func (s *Store) CreateModel(id, org, source, quant, digest, licence, purpose string) (*Model, error) {
 	purpose, err := ParsePurpose(purpose)
 	if err != nil {
 		return nil, err
 	}
-	m := &Model{ID: id, Source: source, Quant: quant, Digest: digest, Licence: licence, Purpose: purpose}
+	quant, err = ParseQuant(quant)
+	if err != nil {
+		return nil, err
+	}
+	m := &Model{ID: id, Org: org, Source: source, Quant: quant, Digest: digest, Licence: licence, Purpose: purpose}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	_, err = tx.Exec(`INSERT INTO models (id, source, quant, digest, licence, purpose)
-		VALUES (?, ?, ?, ?, ?, ?)`, m.ID, m.Source, m.Quant, m.Digest, m.Licence, m.Purpose)
+	_, err = tx.Exec(`INSERT INTO models (id, org, source, quant, digest, licence, purpose)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`, m.ID, m.Org, m.Source, m.Quant, m.Digest, m.Licence, m.Purpose)
 	if uniqueConstraint(err) {
 		return nil, ErrModelIDTaken
 	}
@@ -118,13 +164,13 @@ func (s *Store) CreateModel(id, source, quant, digest, licence, purpose string) 
 
 // GetModel returns one model pin by id. A missing pin is (nil, nil).
 func (s *Store) GetModel(id string) (*Model, error) {
-	return scanModel(s.db.QueryRow(`SELECT id, source, quant, digest, licence, purpose
+	return scanModel(s.db.QueryRow(`SELECT id, org, source, quant, digest, licence, purpose
 		FROM models WHERE id = ?`, id))
 }
 
 // ListModels returns every pinned model on this installation, ordered by id.
 func (s *Store) ListModels() ([]Model, error) {
-	rows, err := s.db.Query(`SELECT id, source, quant, digest, licence, purpose
+	rows, err := s.db.Query(`SELECT id, org, source, quant, digest, licence, purpose
 		FROM models ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -148,8 +194,12 @@ func (s *Store) ListModels() ([]Model, error) {
 // catalogue every box's resolved roster draws from. An update that matched
 // no row (a missing pin) bumps nothing — a no-op must not re-sync the
 // fleet.
-func (s *Store) UpdateModel(id, source, quant, digest, licence, purpose string) (*Model, error) {
+func (s *Store) UpdateModel(id, org, source, quant, digest, licence, purpose string) (*Model, error) {
 	purpose, err := ParsePurpose(purpose)
+	if err != nil {
+		return nil, err
+	}
+	quant, err = ParseQuant(quant)
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +208,8 @@ func (s *Store) UpdateModel(id, source, quant, digest, licence, purpose string) 
 		return nil, err
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec(`UPDATE models SET source = ?, quant = ?, digest = ?, licence = ?, purpose = ?
-		WHERE id = ?`, source, quant, digest, licence, purpose, id)
+	res, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, digest = ?, licence = ?, purpose = ?
+		WHERE id = ?`, org, source, quant, digest, licence, purpose, id)
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +302,7 @@ func (s *Store) modelInUse(id string) (bool, error) {
 // the model.
 type seedModel struct {
 	id      string
+	org     string
 	source  string
 	quant   string
 	licence string
@@ -271,22 +322,25 @@ func (s *Store) EnsureSeedModels() error {
 	seeds := []seedModel{
 		{
 			id:      "qwen3.5-4b-q4_k_m",
+			org:     "unsloth",
 			source:  "unsloth/Qwen3.5-4B-GGUF@e87f176479d0855a907a41277aca2f8ee7a09523",
-			quant:   "q4_k_m",
+			quant:   "Q4_K_M",
 			licence: "Apache-2.0",
 			purpose: "persona",
 			// TODO(developer): compute BLAKE3 from the pinned HF artifact and fill
 		},
 		{
 			id:      "qwen2.5-coder-7b-q4_k_m",
+			org:     "Qwen",
 			source:  "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@13fb94bfda8c8cf22497dc57b78f391a9acb426a",
-			quant:   "q4_k_m",
+			quant:   "Q4_K_M",
 			licence: "Apache-2.0",
 			purpose: "worker",
 			// TODO(developer): compute BLAKE3 from the pinned HF artifact and fill
 		},
 		{
 			id:      "bge-m3",
+			org:     "BAAI",
 			source:  "BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181",
 			quant:   "",
 			licence: "MIT",
@@ -295,6 +349,7 @@ func (s *Store) EnsureSeedModels() error {
 		},
 		{
 			id:      "whisper-large-v3",
+			org:     "openai",
 			source:  "openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1",
 			quant:   "",
 			licence: "MIT",
@@ -325,8 +380,8 @@ func (s *Store) EnsureSeedModels() error {
 	}
 	defer tx.Rollback()
 	for _, sm := range missing {
-		if _, err := tx.Exec(`INSERT INTO models (id, source, quant, digest, licence, purpose)
-			VALUES (?, ?, ?, '', ?, ?)`, sm.id, sm.source, sm.quant, sm.licence, sm.purpose); err != nil {
+		if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, digest, licence, purpose)
+			VALUES (?, ?, ?, ?, '', ?, ?)`, sm.id, sm.org, sm.source, sm.quant, sm.licence, sm.purpose); err != nil {
 			return err
 		}
 	}

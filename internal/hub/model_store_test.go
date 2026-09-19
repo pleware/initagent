@@ -323,10 +323,11 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		licence      string
 		purpose      string
 	}{
-		{"qwen3.5-4b-q4_k_m", "unsloth", "unsloth/Qwen3.5-4B-GGUF@", "Q4_K_M", "Apache-2.0", "persona"},
+		{"qwen3.5-4b-q4_k_m", "bartowski", "bartowski/Qwen_Qwen3.5-4B-GGUF@", "Q4_K_M", "Apache-2.0", "persona"},
 		{"qwen2.5-coder-7b-q4_k_m", "Qwen", "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@", "Q4_K_M", "Apache-2.0", "worker"},
-		{"bge-m3", "BAAI", "BAAI/bge-m3@", "", "MIT", "embedding"},
-		{"whisper-large-v3", "openai", "openai/whisper-large-v3@", "", "MIT", "stt"},
+		{"bge-m3", "gpustack", "gpustack/bge-m3-GGUF@", "Q4_K_M", "MIT", "embedding"},
+		{"faster-whisper-medium", "Systran", "Systran/faster-whisper-medium@", "", "MIT", "stt"},
+		{"silero-vad", "istupakov", "istupakov/silero-vad-onnx@", "", "MIT", "vad"},
 	}
 	for _, tt := range tests {
 		m, ok := byID[tt.id]

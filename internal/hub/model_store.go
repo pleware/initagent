@@ -323,8 +323,8 @@ func (s *Store) EnsureSeedModels() error {
 	seeds := []seedModel{
 		{
 			id:      "qwen3.5-4b-q4_k_m",
-			org:     "unsloth",
-			source:  "unsloth/Qwen3.5-4B-GGUF@e87f176479d0855a907a41277aca2f8ee7a09523",
+			org:     "bartowski",
+			source:  "bartowski/Qwen_Qwen3.5-4B-GGUF@4168f45a16a1290d65a4ec0fa312ae917a4c15d6",
 			quant:   "Q4_K_M",
 			licence: "Apache-2.0",
 			purpose: "persona",
@@ -341,17 +341,17 @@ func (s *Store) EnsureSeedModels() error {
 		},
 		{
 			id:      "bge-m3",
-			org:     "BAAI",
-			source:  "BAAI/bge-m3@5617a9f61b028005a4858fdac845db406aefb181",
-			quant:   "",
+			org:     "gpustack",
+			source:  "gpustack/bge-m3-GGUF@2d48f1737679ad900d5c26c5aad5410e9c70fdca",
+			quant:   "Q4_K_M",
 			licence: "MIT",
 			purpose: "embedding",
 			// TODO(developer): compute BLAKE3 from the pinned HF artifact and fill
 		},
 		{
-			id:      "whisper-large-v3",
-			org:     "openai",
-			source:  "openai/whisper-large-v3@06f233fe06e710322aca913c1bc4249a0d71fce1",
+			id:      "faster-whisper-medium",
+			org:     "Systran",
+			source:  "Systran/faster-whisper-medium@08e178d48790749d25932bbc082711ddcfdfbc4f",
 			quant:   "",
 			licence: "MIT",
 			purpose: "stt",

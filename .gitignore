@@ -8,6 +8,7 @@
 /site/dist/
 /site/node_modules/
 /site/.env.local
+*.tsbuildinfo
 
 # Hub installers are owned by /scripts and staged into the site by its Vite
 # build (site/vite.config.ts). Never edit or commit the staged copies.

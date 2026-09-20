@@ -98,7 +98,7 @@ func countSlug(list []Staff, slug string) int {
 func TestListStaffOrderedBySlug(t *testing.T) {
 	s := testStore(t)
 	for _, slug := range []string{"zeta", "alpha", "mike"} {
-		if _, err := s.UpsertStaff(slug, slug, "en", "", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
+		if _, err := s.UpsertStaff(slug, slug, "en", "", "", "", "", "female", "org", "", 30, 0, Character{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -224,7 +224,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 	}{
 		{
 			name: "minimal profile",
-			in:   Staff{Slug: "staff-min", Name: "Min", Locale: "en"},
+			in:   Staff{Slug: "staff-min", Name: "Min", Locale: "en", BiologicalGender: "female"},
 		},
 		{
 			name: "full profile",
@@ -320,7 +320,7 @@ func TestUpsertStaffUpdate(t *testing.T) {
 
 func TestUpsertStaffSlugUnique(t *testing.T) {
 	s := testStore(t)
-	if _, err := s.UpsertStaff("staff-taken", "One", "en", "", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("staff-taken", "One", "en", "", "", "", "", "female", "org", "", 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
 	// A direct second insert on the same slug is refused by the unique index.
@@ -346,7 +346,7 @@ func TestUpsertStaffSlugUniquePerScope(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s.UpsertStaff("staff-org-only", "One", "en", "", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("staff-org-only", "One", "en", "", "", "", "", "female", "org", "", 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
 	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, created_at, updated_at)
@@ -402,7 +402,7 @@ func TestUpsertStaffScopeValidation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := s.UpsertStaff(tt.slug, tt.slug, "en", "", "", "", "", "", tt.scope, tt.boxID, 30, 0, Character{})
+			_, err := s.UpsertStaff(tt.slug, tt.slug, "en", "", "", "", "", "female", tt.scope, tt.boxID, 30, 0, Character{})
 			if tt.wantError != nil {
 				if !errors.Is(err, tt.wantError) {
 					t.Fatalf("UpsertStaff error = %v, want %v", err, tt.wantError)
@@ -434,7 +434,7 @@ func TestUpsertStaffScopeRoundTrip(t *testing.T) {
 		t.Errorf("box-scoped row = scope %q box_id %q, want box/%s", got.Scope, got.BoxID, box.ID)
 	}
 
-	orgStaff, err := s.UpsertStaff("staff-nova-00", "Nova", "en", "", "", "", "", "", "org", "", 30, 0, Character{})
+	orgStaff, err := s.UpsertStaff("staff-nova-00", "Nova", "en", "", "", "", "", "female", "org", "", 30, 0, Character{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -457,7 +457,7 @@ func TestStaffForBoxReturnsBoxScopedOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.UpsertStaff("staff-org-00", "Org Narr", "en", "", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("staff-org-00", "Org Narr", "en", "", "", "", "", "female", "org", "", 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "male", "box", boxA.ID, 30, 0, Character{}); err != nil {

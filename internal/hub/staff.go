@@ -41,8 +41,9 @@ type Staff struct {
 	Voice         string    `json:"voice"`
 	// BiologicalGender is the staff member's sex — "male" or "female", the
 	// two values a gender-grammatical language (Polish declensions) needs to
-	// self-inflect. The empty string is "not set" (a migrated or unseeded
-	// row); anything else is refused by validateBiologicalGender.
+	// self-inflect. Always set: validateBiologicalGender refuses anything else,
+	// including the empty string (a migrated row may read "" until its next
+	// edit, but no new write may leave it unset).
 	BiologicalGender string `json:"biologicalGender"`
 	Scope         string    `json:"scope"`
 	BoxID         string    `json:"boxId,omitempty"`

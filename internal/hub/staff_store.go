@@ -108,11 +108,11 @@ func validateStaffScope(slug, scope, boxID string) error {
 }
 
 // validateBiologicalGender admits only the two values a gender-grammatical
-// language (Polish declensions) can self-inflect on. The empty string is
-// "not set" — a migrated or not-yet-configured row — and is admitted; anything
-// else is refused so a typo cannot mint a third gender.
+// language (Polish declensions) can self-inflect on: "male" or "female". The
+// empty string is refused — a staff member's sex is always set (the seeds
+// assign one, and the handlers require one).
 func validateBiologicalGender(s string) error {
-	if s == "" || s == "male" || s == "female" {
+	if s == "male" || s == "female" {
 		return nil
 	}
 	return fmt.Errorf("biological_gender must be \"male\" or \"female\", got %q", s)
@@ -131,6 +131,9 @@ func validateBiologicalGender(s string) error {
 // because a fresh box already starts at version 1 (CreateBox seeds it).
 func (s *Store) UpsertStaff(slug, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender, scope, boxID string, age, wordBudget int, bigFive Character) (*Staff, error) {
 	if err := validateStaffScope(slug, scope, boxID); err != nil {
+		return nil, err
+	}
+	if err := validateBiologicalGender(biologicalGender); err != nil {
 		return nil, err
 	}
 	tx, err := s.db.Begin()
@@ -225,6 +228,9 @@ func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulC
 // changes only this box's manifest.
 func (s *Store) UpdateBoxNarrator(boxID, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender string, age, wordBudget int, bigFive Character) (*Staff, error) {
 	if err := validateStaffScope("st_b_pi", "box", boxID); err != nil {
+		return nil, err
+	}
+	if err := validateBiologicalGender(biologicalGender); err != nil {
 		return nil, err
 	}
 	tx, err := s.db.Begin()
@@ -483,6 +489,6 @@ func (s *Store) EnsureSeedBoxNarrator(boxID string) error {
 	if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	_, err = s.UpsertStaff("st_b_pi", "Joe", "pl", "", "", "", "pl_PL-mc_speech-medium", "male", "box", boxID, 0, 0, neutralCharacter())
+	_, err = s.UpsertStaff("st_b_pi", "Joe", "pl", "", "", "", "pl_PL-mc_speech-medium", "female", "box", boxID, 0, 0, neutralCharacter())
 	return err
 }

@@ -75,7 +75,7 @@ func TestAdminStaffCRUD(t *testing.T) {
 	resp = f.do(t, http.MethodPost, "/api/admin/staff", map[string]any{
 		"slug": "staff-nonbinary-00", "name": "Alex", "locale": "en", "age": 28,
 		"avatarModel3d": "alex.glb", "brief": "curious about everything", "wordBudget": 500,
-		"soulCore": "curious, warm, precise", "voice": "alex-v1",
+		"soulCore": "curious, warm, precise", "voice": "alex-v1", "biologicalGender": "female",
 		"bigFive": map[string]float64{"openness": 0.8},
 	})
 	if resp.StatusCode != http.StatusOK {
@@ -96,7 +96,7 @@ func TestAdminStaffCRUD(t *testing.T) {
 
 	// PATCH updates by slug and keeps the same row.
 	resp = f.do(t, http.MethodPatch, "/api/admin/staff/"+created.ID, map[string]any{
-		"slug": "staff-nonbinary-00", "name": "Aleks", "locale": "pl", "age": 29,
+		"slug": "staff-nonbinary-00", "name": "Aleks", "locale": "pl", "age": 29, "biologicalGender": "female",
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("PATCH /api/admin/staff/%s: %d, want 200", created.ID, resp.StatusCode)
@@ -193,7 +193,7 @@ func TestAdminStaffTakesInstallationToken(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodPost, "/api/admin/staff",
-		strings.NewReader(`{"slug":"staff-nova-00","name":"Nova","age":30}`))
+		strings.NewReader(`{"slug":"staff-nova-00","name":"Nova","age":30,"biologicalGender":"female"}`))
 	rec = httptest.NewRecorder()
 	f.srv.handleUpsertStaff(rec, req, cred)
 	if rec.Code != http.StatusOK {
@@ -208,7 +208,7 @@ func TestAdminStaffTakesInstallationToken(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodPatch, "/api/admin/staff/"+created.ID,
-		strings.NewReader(`{"slug":"staff-nova-00","name":"Nova Two"}`))
+		strings.NewReader(`{"slug":"staff-nova-00","name":"Nova Two","biologicalGender":"female"}`))
 	rec = httptest.NewRecorder()
 	f.srv.handleUpsertStaff(rec, req, cred)
 	if rec.Code != http.StatusOK {
@@ -284,7 +284,7 @@ func TestAdminStaffTakesInstallationTokenOverWire(t *testing.T) {
 	}
 
 	resp = f.withTokenBody(t, secret, http.MethodPost, "/api/admin/staff", map[string]any{
-		"slug": "staff-nova-00", "name": "Nova", "age": 30,
+		"slug": "staff-nova-00", "name": "Nova", "age": 30, "biologicalGender": "female",
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST /api/admin/staff with an installation token: %d, want 200", resp.StatusCode)
@@ -298,7 +298,7 @@ func TestAdminStaffTakesInstallationTokenOverWire(t *testing.T) {
 	}
 
 	resp = f.withTokenBody(t, secret, http.MethodPatch, "/api/admin/staff/"+created.ID, map[string]any{
-		"slug": "staff-nova-00", "name": "Nova Two",
+		"slug": "staff-nova-00", "name": "Nova Two", "biologicalGender": "female",
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("PATCH /api/admin/staff/%s with an installation token: %d, want 200", created.ID, resp.StatusCode)

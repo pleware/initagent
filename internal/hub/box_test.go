@@ -341,7 +341,7 @@ func TestBoxNarratorEdit(t *testing.T) {
 	}
 	resp := f.do(t, http.MethodPatch, "/api/boxes/"+box.ID+"/narrator", map[string]any{
 		"name": "Lore", "locale": "en", "age": 42, "wordBudget": 1200,
-		"avatarModel3d": "lore.glb", "voice": "lore-v2", "brief": "warm and precise",
+		"avatarModel3d": "lore.glb", "voice": "lore-v2", "biologicalGender": "female", "brief": "warm and precise",
 		"soulCore": "explain first", "bigFive": map[string]float64{
 			"openness": 0.9, "conscientiousness": 0.8, "extraversion": 0.7,
 			"agreeableness": 0.6, "neuroticism": 0.2,
@@ -359,8 +359,8 @@ func TestBoxNarratorEdit(t *testing.T) {
 	}
 	if narrator.Name != "Lore" || narrator.Locale != "en" || narrator.Age != 42 ||
 		narrator.WordBudget != 1200 || narrator.AvatarModel3D != "lore.glb" ||
-		narrator.Voice != "lore-v2" || narrator.Brief != "warm and precise" ||
-		narrator.SoulCore != "explain first" || narrator.BigFive != want {
+		narrator.Voice != "lore-v2" || narrator.BiologicalGender != "female" ||
+		narrator.Brief != "warm and precise" || narrator.SoulCore != "explain first" || narrator.BigFive != want {
 		t.Errorf("narrator after the edit = %+v, want the submitted nine fields", narrator)
 	}
 	if got, _ := f.srv.store.GetBox(box.ID); got.ConfigVersion != 2 {
@@ -382,7 +382,7 @@ func TestBoxNarratorEdit(t *testing.T) {
 
 	// A second edit bumps again, exactly once more.
 	resp = f.do(t, http.MethodPatch, "/api/boxes/"+box.ID+"/narrator", map[string]any{
-		"name": "Lore Two",
+		"name": "Lore Two", "biologicalGender": "female",
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("second PATCH narrator: %d, want 200", resp.StatusCode)
@@ -416,6 +416,7 @@ func TestBoxNarratorEditValidation(t *testing.T) {
 		{"blank name", map[string]any{"name": "   "}},
 		{"negative age", map[string]any{"name": "Lore", "age": -1}},
 		{"negative word budget", map[string]any{"name": "Lore", "wordBudget": -1}},
+		{"invalid biological gender", map[string]any{"name": "Lore", "biologicalGender": "x"}},
 	} {
 		resp := f.do(t, http.MethodPatch, "/api/boxes/"+box.ID+"/narrator", c.body)
 		if resp.StatusCode != http.StatusBadRequest {

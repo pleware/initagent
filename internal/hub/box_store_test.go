@@ -75,7 +75,7 @@ func TestCreateBoxSeedsNarrator(t *testing.T) {
 	}
 	got := roster[0]
 	if got.Slug != "st_b_pi" || got.Name != "Joe" || got.Locale != "pl" ||
-		got.Voice != "pl_PL-mc_speech-medium" || got.BiologicalGender != "male" || got.Scope != "box" || got.BoxID != box.ID {
+		got.Voice != "pl_PL-mc_speech-medium" || got.BiologicalGender != "female" || got.Scope != "box" || got.BoxID != box.ID {
 		t.Errorf("narrator = %+v, want the box-scoped st_b_pi seed for %s", got, box.ID)
 	}
 	if got.SoulCore != "" {

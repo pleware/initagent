@@ -27,14 +27,35 @@ var ErrModelInUse = errors.New("this model is still in use by an assignment or o
 // means unverified. Quant is the canonical GGUF quantization (see ParseQuant)
 // and empty for non-GGUF models (embedding, stt).
 type Model struct {
-	ID      string `json:"id"`
-	Org     string `json:"org"`
-	Source  string `json:"source"`
-	Quant   string `json:"quant"`
-	File    string `json:"file"`
-	Digest  string `json:"digest"`
-	Licence string `json:"licence"`
-	Purpose string `json:"purpose"`
+	ID            string `json:"id"`
+	Org           string `json:"org"`
+	Source        string `json:"source"`
+	Quant         string `json:"quant"`
+	File          string `json:"file"`
+	Digest        string `json:"digest"`
+	Licence       string `json:"licence"`
+	Purpose       string `json:"purpose"`
+	PipelineTag   string `json:"pipelineTag"`
+	LibraryName   string `json:"libraryName"`
+	BaseModel     string `json:"baseModel"`
+	Architecture  string `json:"architecture"`
+	ContextLength int64  `json:"contextLength"`
+	Downloads     int64  `json:"downloads"`
+	Gated         bool   `json:"gated"`
+}
+
+// ModelMeta is the derived metadata the hub learns about a pin from the
+// Hugging Face catalog and the GGUF header — the capability and context
+// signals that are not part of the pin's identity. It is learned, not
+// admin-authored: empty/zero means unknown, never fabricated.
+type ModelMeta struct {
+	PipelineTag   string `json:"pipelineTag"`
+	LibraryName   string `json:"libraryName"`
+	BaseModel     string `json:"baseModel"`
+	Architecture  string `json:"architecture"`
+	ContextLength int64  `json:"contextLength"`
+	Downloads     int64  `json:"downloads"`
+	Gated         bool   `json:"gated"`
 }
 
 // modelPurposes names the six purposes a pinned model can serve: the
@@ -109,16 +130,20 @@ type modelScanner interface {
 }
 
 // scanModel reads one models row selected in schema order:
-// id, org, source, quant, file, digest, licence, purpose. A missing row is
-// (nil, nil).
+// id, org, source, quant, file, digest, licence, purpose, pipeline_tag,
+// library_name, base_model, architecture, context_length, downloads, gated.
+// A missing row is (nil, nil).
 func scanModel(row modelScanner) (*Model, error) {
 	var m Model
-	if err := row.Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.File, &m.Digest, &m.Licence, &m.Purpose); err != nil {
+	var gated int
+	if err := row.Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.File, &m.Digest, &m.Licence, &m.Purpose,
+		&m.PipelineTag, &m.LibraryName, &m.BaseModel, &m.Architecture, &m.ContextLength, &m.Downloads, &gated); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
 	}
+	m.Gated = gated != 0
 	return &m, nil
 }
 
@@ -168,13 +193,15 @@ func (s *Store) CreateModel(id, org, source, quant, file, digest, licence, purpo
 
 // GetModel returns one model pin by id. A missing pin is (nil, nil).
 func (s *Store) GetModel(id string) (*Model, error) {
-	return scanModel(s.db.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose
+	return scanModel(s.db.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose,
+		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated
 		FROM models WHERE id = ?`, id))
 }
 
 // ListModels returns every pinned model on this installation, ordered by id.
 func (s *Store) ListModels() ([]Model, error) {
-	rows, err := s.db.Query(`SELECT id, org, source, quant, file, digest, licence, purpose
+	rows, err := s.db.Query(`SELECT id, org, source, quant, file, digest, licence, purpose,
+		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated
 		FROM models ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -228,6 +255,35 @@ func (s *Store) UpdateModel(id, org, source, quant, file, digest, licence, purpo
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
+	}
+	return s.GetModel(id)
+}
+
+// SetModelMeta writes the derived metadata the hub learned about a pin from
+// the Hugging Face catalog and the GGUF header. It is a separate write from
+// CreateModel/UpdateModel because the metadata is learned, not
+// admin-authored: the identity/provenance fields are the pin the admin owns,
+// and this is the enrichment the inspect endpoint fills. A missing pin is
+// (nil, nil).
+func (s *Store) SetModelMeta(id string, meta ModelMeta) (*Model, error) {
+	var gated int
+	if meta.Gated {
+		gated = 1
+	}
+	res, err := s.db.Exec(`UPDATE models SET pipeline_tag = ?, library_name = ?, base_model = ?,
+		architecture = ?, context_length = ?, downloads = ?, gated = ?
+		WHERE id = ?`,
+		meta.PipelineTag, meta.LibraryName, meta.BaseModel, meta.Architecture,
+		meta.ContextLength, meta.Downloads, gated, id)
+	if err != nil {
+		return nil, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, nil
 	}
 	return s.GetModel(id)
 }
@@ -304,14 +360,21 @@ func (s *Store) modelInUse(id string) (bool, error) {
 // predefined models, so the factory can vouch for them without hosting the
 // weights.
 type seedModel struct {
-	id      string
-	org     string
-	source  string
-	quant   string
-	file    string
-	digest  string
-	licence string
-	purpose string
+	id            string
+	org           string
+	source        string
+	quant         string
+	file          string
+	digest        string
+	licence       string
+	purpose       string
+	pipelineTag   string
+	libraryName   string
+	baseModel     string
+	architecture  string
+	contextLength int64
+	downloads     int64
+	gated         bool
 }
 
 // EnsureSeedModels keeps the factory model pins at their factory definition.
@@ -328,34 +391,50 @@ type seedModel struct {
 func (s *Store) EnsureSeedModels() error {
 	seeds := []seedModel{
 		{
-			id:      "qwen3.5-4b-q4_k_m",
-			org:     "bartowski",
-			source:  "bartowski/Qwen_Qwen3.5-4B-GGUF@4168f45a16a1290d65a4ec0fa312ae917a4c15d6",
-			quant:   "Q4_K_M",
-			file:    "Qwen_Qwen3.5-4B-Q4_K_M.gguf",
-			digest:  "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980",
-			licence: "Apache-2.0",
-			purpose: "persona",
+			id:            "qwen3.5-4b-q4_k_m",
+			org:           "bartowski",
+			source:        "bartowski/Qwen_Qwen3.5-4B-GGUF@4168f45a16a1290d65a4ec0fa312ae917a4c15d6",
+			quant:         "Q4_K_M",
+			file:          "Qwen_Qwen3.5-4B-Q4_K_M.gguf",
+			digest:        "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980",
+			licence:       "Apache-2.0",
+			purpose:       "persona",
+			pipelineTag:   "image-text-to-text",
+			baseModel:     "Qwen/Qwen3.5-4B",
+			architecture:  "qwen35",
+			contextLength: 262144,
+			downloads:     335270,
 		},
 		{
-			id:      "qwen2.5-coder-7b-q4_k_m",
-			org:     "Qwen",
-			source:  "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@13fb94bfda8c8cf22497dc57b78f391a9acb426a",
-			quant:   "Q4_K_M",
-			file:    "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
-			digest:  "e0abfc1f71fa8f1454f3bc443f7608a63263ed2d41664f2820c3d92c45f3bd52",
-			licence: "Apache-2.0",
-			purpose: "worker",
+			id:            "qwen2.5-coder-7b-q4_k_m",
+			org:           "Qwen",
+			source:        "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@13fb94bfda8c8cf22497dc57b78f391a9acb426a",
+			quant:         "Q4_K_M",
+			file:          "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
+			digest:        "e0abfc1f71fa8f1454f3bc443f7608a63263ed2d41664f2820c3d92c45f3bd52",
+			licence:       "Apache-2.0",
+			purpose:       "worker",
+			pipelineTag:   "text-generation",
+			libraryName:   "transformers",
+			baseModel:     "Qwen/Qwen2.5-Coder-7B-Instruct",
+			architecture:  "qwen2",
+			contextLength: 131072,
+			downloads:     271625,
 		},
 		{
-			id:      "bge-m3",
-			org:     "gpustack",
-			source:  "gpustack/bge-m3-GGUF@2d48f1737679ad900d5c26c5aad5410e9c70fdca",
-			quant:   "Q4_K_M",
-			file:    "bge-m3-Q4_K_M.gguf",
-			digest:  "f455475d60569f7ba086863c6ff4b79bb19201664259c5128b9f4f131408dd32",
-			licence: "MIT",
-			purpose: "embedding",
+			id:            "bge-m3",
+			org:           "gpustack",
+			source:        "gpustack/bge-m3-GGUF@2d48f1737679ad900d5c26c5aad5410e9c70fdca",
+			quant:         "Q4_K_M",
+			file:          "bge-m3-Q4_K_M.gguf",
+			digest:        "f455475d60569f7ba086863c6ff4b79bb19201664259c5128b9f4f131408dd32",
+			licence:       "MIT",
+			purpose:       "embedding",
+			pipelineTag:   "sentence-similarity",
+			libraryName:   "sentence-transformers",
+			architecture:  "bert",
+			contextLength: 8192,
+			downloads:     54756,
 		},
 		{
 			id:      "faster-whisper-medium",
@@ -446,23 +525,36 @@ func (s *Store) EnsureSeedModels() error {
 	defer tx.Rollback()
 	changed := false
 	for _, sm := range seeds {
-		var m Model
-		err := tx.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose
-			FROM models WHERE id = ?`, sm.id).
-			Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.File, &m.Digest, &m.Licence, &m.Purpose)
+		m, err := scanModel(tx.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose,
+			pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated
+			FROM models WHERE id = ?`, sm.id))
+		if err != nil {
+			return err
+		}
+		var gated int
+		if sm.gated {
+			gated = 1
+		}
 		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, sm.id, sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose); err != nil {
+		case m == nil:
+			if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose,
+				pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				sm.id, sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose,
+				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated); err != nil {
 				return err
 			}
 			changed = true
-		case err != nil:
-			return err
 		case m.Org != sm.org || m.Source != sm.source || m.Quant != sm.quant || m.File != sm.file ||
-			m.Digest != sm.digest || m.Licence != sm.licence || m.Purpose != sm.purpose:
-			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, digest = ?, licence = ?, purpose = ?
-				WHERE id = ?`, sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose, sm.id); err != nil {
+			m.Digest != sm.digest || m.Licence != sm.licence || m.Purpose != sm.purpose ||
+			m.PipelineTag != sm.pipelineTag || m.LibraryName != sm.libraryName || m.BaseModel != sm.baseModel ||
+			m.Architecture != sm.architecture || m.ContextLength != sm.contextLength || m.Downloads != sm.downloads ||
+			m.Gated != sm.gated:
+			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, digest = ?, licence = ?, purpose = ?,
+				pipeline_tag = ?, library_name = ?, base_model = ?, architecture = ?, context_length = ?, downloads = ?, gated = ?
+				WHERE id = ?`,
+				sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose,
+				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated, sm.id); err != nil {
 				return err
 			}
 			changed = true

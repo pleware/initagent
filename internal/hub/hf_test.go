@@ -1,7 +1,9 @@
 package hub
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -16,6 +18,7 @@ import (
 type mockHFSearcher struct {
 	search    func(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error)
 	repoFiles func(ctx context.Context, repo string) ([]hfFile, error)
+	inspect   func(ctx context.Context, repo, rev, file string, readGGUF bool) (ModelMeta, error)
 }
 
 func (m mockHFSearcher) Search(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error) {
@@ -24,6 +27,10 @@ func (m mockHFSearcher) Search(ctx context.Context, query, pipelineTag string, l
 
 func (m mockHFSearcher) RepoFiles(ctx context.Context, repo string) ([]hfFile, error) {
 	return m.repoFiles(ctx, repo)
+}
+
+func (m mockHFSearcher) Inspect(ctx context.Context, repo, rev, file string, readGGUF bool) (ModelMeta, error) {
+	return m.inspect(ctx, repo, rev, file, readGGUF)
 }
 
 func TestSuggestPurpose(t *testing.T) {
@@ -404,5 +411,146 @@ func TestHTTPSearcherFailure(t *testing.T) {
 	}
 	if _, err := h.RepoFiles(context.Background(), "org/repo"); err == nil {
 		t.Error("RepoFiles on a 500 answered nil error, want an error")
+	}
+}
+
+func TestBaseModelFromTags(t *testing.T) {
+	tests := []struct {
+		name string
+		tags []string
+		want string
+	}{
+		{"plain base wins", []string{"gguf", "base_model:Qwen/Qwen3.5-4B", "base_model:quantized:Qwen/Qwen3.5-4B"}, "Qwen/Qwen3.5-4B"},
+		{"quantized fallback", []string{"gguf", "base_model:quantized:Qwen/Qwen3.5-4B"}, "Qwen/Qwen3.5-4B"},
+		{"no base model", []string{"gguf", "text-generation"}, ""},
+		{"no tags", []string{}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := baseModelFromTags(tt.tags); got != tt.want {
+				t.Errorf("baseModelFromTags(%v) = %q, want %q", tt.tags, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSplitSource(t *testing.T) {
+	tests := []struct {
+		name     string
+		source   string
+		wantRepo string
+		wantRev  string
+		wantOK   bool
+	}{
+		{"pinned repo@rev", "bartowski/Qwen_Qwen3.5-4B-GGUF@4168f45a16a1290d65a4ec0fa312ae917a4c15d6", "bartowski/Qwen_Qwen3.5-4B-GGUF", "4168f45a16a1290d65a4ec0fa312ae917a4c15d6", true},
+		{"no revision", "org/repo", "org/repo", "", false},
+		{"no repo", "@rev", "", "rev", false},
+		{"empty", "", "", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, rev, ok := splitSource(tt.source)
+			if repo != tt.wantRepo || rev != tt.wantRev || ok != tt.wantOK {
+				t.Errorf("splitSource(%q) = (%q, %q, %v), want (%q, %q, %v)", tt.source, repo, rev, ok, tt.wantRepo, tt.wantRev, tt.wantOK)
+			}
+		})
+	}
+}
+
+func TestParseGGUFHeader(t *testing.T) {
+	var buf bytes.Buffer
+	buf.WriteString("GGUF")
+	w32 := func(v uint32) { binary.Write(&buf, binary.LittleEndian, v) }
+	w64 := func(v uint64) { binary.Write(&buf, binary.LittleEndian, v) }
+	wstr := func(s string) { w64(uint64(len(s))); buf.WriteString(s) }
+
+	w32(3) // version
+	w64(0) // tensor_count
+	w64(5) // metadata_kv_count
+
+	wstr("general.architecture")
+	w32(8)
+	wstr("qwen35") // string
+	wstr("qwen35.context_length")
+	w32(4)
+	w32(262144) // uint32
+	wstr("general.tags")
+	w32(9)
+	w32(8)
+	w64(1)
+	wstr("gguf") // array of string — skipped
+	wstr("general.name")
+	w32(8)
+	wstr("Qwen3.5 4B") // string
+	wstr("tokenizer.ggml.model")
+	w32(8)
+	wstr("gpt2") // the parser stops here
+
+	arch, ctx, err := parseGGUFHeader(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if arch != "qwen35" || ctx != 262144 {
+		t.Errorf("parseGGUFHeader = (%q, %d), want (qwen35, 262144)", arch, ctx)
+	}
+}
+
+func TestParseGGUFHeaderRejectsNonGGUF(t *testing.T) {
+	if _, _, err := parseGGUFHeader([]byte("not a gguf file at all")); err == nil {
+		t.Error("parseGGUFHeader on non-GGUF bytes answered nil error, want an error")
+	}
+	if _, _, err := parseGGUFHeader([]byte("GGUF")); err == nil {
+		t.Error("parseGGUFHeader on a truncated header answered nil error, want an error")
+	}
+}
+
+func TestInspectModelEndpoint(t *testing.T) {
+	f := claimedHub(t, offering.Hosted)
+	gotRepo, gotRev, gotFile := "", "", ""
+	gotGGUF := false
+	f.srv.hf = mockHFSearcher{
+		search: func(ctx context.Context, query, pipelineTag string, limit int) ([]hfModel, error) {
+			return nil, errors.New("unexpected search call")
+		},
+		repoFiles: func(ctx context.Context, repo string) ([]hfFile, error) {
+			return nil, errors.New("unexpected repo call")
+		},
+		inspect: func(ctx context.Context, repo, rev, file string, readGGUF bool) (ModelMeta, error) {
+			gotRepo, gotRev, gotFile, gotGGUF = repo, rev, file, readGGUF
+			return ModelMeta{PipelineTag: "text-generation", Architecture: "qwen2", ContextLength: 131072, Downloads: 42, Gated: true}, nil
+		},
+	}
+
+	// The persona seed is already pinned (GGUF, quant Q4_K_M), so inspect
+	// reads its source@rev and asks for the GGUF header.
+	resp := f.do(t, http.MethodPost, "/api/admin/models/qwen3.5-4b-q4_k_m/inspect", nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("inspect: %d, want 200", resp.StatusCode)
+	}
+	if gotRepo != "bartowski/Qwen_Qwen3.5-4B-GGUF" || gotRev != "4168f45a16a1290d65a4ec0fa312ae917a4c15d6" ||
+		gotFile != "Qwen_Qwen3.5-4B-Q4_K_M.gguf" || !gotGGUF {
+		t.Errorf("inspect got repo=%q rev=%q file=%q gguf=%v, want the persona pin's source with readGGUF", gotRepo, gotRev, gotFile, gotGGUF)
+	}
+	var updated Model
+	if err := json.NewDecoder(resp.Body).Decode(&updated); err != nil {
+		t.Fatal(err)
+	}
+	if updated.PipelineTag != "text-generation" || updated.Architecture != "qwen2" ||
+		updated.ContextLength != 131072 || updated.Downloads != 42 || !updated.Gated {
+		t.Errorf("updated = %+v, want the inspected metadata persisted", updated)
+	}
+
+	// A missing pin is a 404.
+	resp = f.do(t, http.MethodPost, "/api/admin/models/no-such/inspect", nil)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("inspect missing: %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestInspectModelRefusesNonAdmin(t *testing.T) {
+	f := hostedCustomer(t)
+	resp := f.do(t, http.MethodPost, "/api/admin/models/qwen3.5-4b-q4_k_m/inspect", nil)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("inspect as customer: %d, want 403", resp.StatusCode)
 	}
 }

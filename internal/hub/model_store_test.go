@@ -355,6 +355,53 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	}
 }
 
+func TestEnsureSeedModelsSeedsGGUFMetadata(t *testing.T) {
+	s := testStore(t)
+	tests := []struct {
+		id            string
+		pipelineTag   string
+		libraryName   string
+		baseModel     string
+		architecture  string
+		contextLength int64
+	}{
+		{"qwen3.5-4b-q4_k_m", "image-text-to-text", "", "Qwen/Qwen3.5-4B", "qwen35", 262144},
+		{"qwen2.5-coder-7b-q4_k_m", "text-generation", "transformers", "Qwen/Qwen2.5-Coder-7B-Instruct", "qwen2", 131072},
+		{"bge-m3", "sentence-similarity", "sentence-transformers", "", "bert", 8192},
+	}
+	for _, tt := range tests {
+		m, err := s.GetModel(tt.id)
+		if err != nil || m == nil {
+			t.Fatalf("GetModel(%s) = (%v, %v), want the seed", tt.id, m, err)
+		}
+		if m.PipelineTag != tt.pipelineTag || m.LibraryName != tt.libraryName || m.BaseModel != tt.baseModel ||
+			m.Architecture != tt.architecture || m.ContextLength != tt.contextLength {
+			t.Errorf("%s metadata = tag %q lib %q base %q arch %q ctx %d, want %q/%q/%q/%q/%d",
+				tt.id, m.PipelineTag, m.LibraryName, m.BaseModel, m.Architecture, m.ContextLength,
+				tt.pipelineTag, tt.libraryName, tt.baseModel, tt.architecture, tt.contextLength)
+		}
+	}
+}
+
+func TestSetModelMeta(t *testing.T) {
+	s := testStore(t)
+	m, err := s.SetModelMeta("qwen3.5-4b-q4_k_m", ModelMeta{
+		PipelineTag: "image-text-to-text", Architecture: "qwen35", ContextLength: 262144, Downloads: 7, Gated: true,
+	})
+	if err != nil || m == nil {
+		t.Fatalf("SetModelMeta = (%v, %v), want the updated pin", m, err)
+	}
+	if m.PipelineTag != "image-text-to-text" || m.Architecture != "qwen35" || m.ContextLength != 262144 || m.Downloads != 7 || !m.Gated {
+		t.Errorf("after SetModelMeta = %+v, want the written metadata", m)
+	}
+
+	// A missing pin is (nil, nil).
+	m, err = s.SetModelMeta("no-such", ModelMeta{})
+	if err != nil || m != nil {
+		t.Errorf("SetModelMeta on a missing pin = (%v, %v), want (nil, nil)", m, err)
+	}
+}
+
 func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	s := testStore(t)
 	// The admin edits a factory pin; the seed restores it to the factory

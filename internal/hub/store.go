@@ -636,6 +636,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model file column: %w", err)
 	}
+	if err := s.ensureModelMetadata(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring model metadata columns: %w", err)
+	}
 	if err := s.EnsureSeedModels(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("seeding models: %w", err)
@@ -1504,11 +1508,32 @@ func (s *Store) ensureModelOrg() error {
 }
 
 // ensureModelFile adds the file column to a live models table that predates
-// it. The column arrives as TEXT NOT NULL DEFAULT '' — existing pins gain the
+// it. The column arrives as TEXT NOT NULL DEFAULT ” — existing pins gain the
 // empty default, and the factory seeds backfill the real artifact name on the
-// next EnsureSeedModels pass (the drift check sees File == '' != sm.file).
+// next EnsureSeedModels pass (the drift check sees File == ” != sm.file).
 func (s *Store) ensureModelFile() error {
 	return s.ensureColumn("models", "file", "TEXT NOT NULL DEFAULT ''")
+}
+
+// ensureModelMetadata adds the derived metadata columns to a live models
+// table that predates them: the HF pipeline tag (the modality signal), the
+// library name, the base model, the GGUF architecture and context length,
+// and the HF popularity/gate flags. They arrive with empty defaults — a pin
+// is never fabricated — and the factory seeds backfill the GGUF pins on the
+// next EnsureSeedModels pass (the drift check sees the empty default). The
+// integer columns stay INTEGER: context length and downloads fit int4.
+func (s *Store) ensureModelMetadata() error {
+	for _, col := range []string{"pipeline_tag", "library_name", "base_model", "architecture"} {
+		if err := s.ensureColumn("models", col, "TEXT NOT NULL DEFAULT ''"); err != nil {
+			return err
+		}
+	}
+	for _, col := range []string{"context_length", "downloads", "gated"} {
+		if err := s.ensureColumn("models", col, "INTEGER NOT NULL DEFAULT 0"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ensureModelQuant normalizes the quant column to canonical uppercase on a

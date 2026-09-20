@@ -158,3 +158,47 @@ func (s *Server) handleListModelsPublic(w http.ResponseWriter, r *http.Request) 
 	}
 	writeJSON(w, models)
 }
+
+// handleInspectModel enriches a pin's derived metadata from Hugging Face
+// and the GGUF header: the HF catalog entry (pipeline tag, library, base
+// model, downloads, gate) and, for a GGUF pin, the architecture and context
+// length read from the file header over a ranged GET — never the weights.
+// A missing pin is a 404; an HF failure is a 502.
+func (s *Server) handleInspectModel(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	if !cred.Can(authz.AdminModels, "", "") {
+		forbid(w, authz.ErrForbidden)
+		return
+	}
+	m, err := s.store.GetModel(r.PathValue("id"))
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if m == nil {
+		httpError(w, http.StatusNotFound, "no such model")
+		return
+	}
+	repo, rev, ok := splitSource(m.Source)
+	if !ok {
+		httpError(w, http.StatusBadRequest, "source is not a pinned org/repo@rev")
+		return
+	}
+	meta, err := s.hf.Inspect(r.Context(), repo, rev, m.File, m.Quant != "")
+	if err != nil {
+		httpError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	updated, err := s.store.SetModelMeta(m.ID, meta)
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, updated)
+}
+
+// splitSource splits a pin's source (org/repo@rev) into the repo id and the
+// revision. A source without a non-empty repo and revision is (_, _, false).
+func splitSource(source string) (repo, rev string, ok bool) {
+	repo, rev, ok = strings.Cut(source, "@")
+	return repo, rev, ok && repo != "" && rev != ""
+}

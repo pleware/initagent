@@ -553,6 +553,7 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/admin/models", s.requireCredential(s.handleCreateModel))
 	m.HandleFunc("PATCH /api/admin/models/{id}", s.requireCredential(s.handleUpdateModel))
 	m.HandleFunc("DELETE /api/admin/models/{id}", s.requireCredential(s.handleDeleteModel))
+	m.HandleFunc("POST /api/admin/models/{id}/inspect", s.requireCredential(s.handleInspectModel))
 	m.HandleFunc("GET /api/admin/models/assignments", s.requireCredential(s.handleListAssignments))
 	m.HandleFunc("PUT /api/admin/models/assignments", s.requireCredential(s.handleSetAssignment))
 	m.HandleFunc("DELETE /api/admin/models/assignments/{purpose}", s.requireCredential(s.handleClearAssignment))

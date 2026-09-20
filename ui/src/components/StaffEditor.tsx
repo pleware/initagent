@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import BigFiveFields from './BigFiveFields'
 import VoiceSelect from './VoiceSelect'
+import LocaleSelect from './LocaleSelect'
 import type { Character, Staff } from '../types'
 
 // The nine fields of a canonical staff member. A name in `readonlyFields`
@@ -15,6 +16,7 @@ export type StaffField =
   | 'wordBudget'
   | 'avatarModel3d'
   | 'voice'
+  | 'biologicalGender'
   | 'bigFive'
   | 'brief'
   | 'soulCore'
@@ -31,6 +33,7 @@ export interface StaffFields {
   wordBudget: number
   avatarModel3d: string
   voice: string
+  biologicalGender: string
   bigFive: Character
   brief: string
   soulCore: string
@@ -67,6 +70,7 @@ export default function StaffEditor({
   )
   const [soulCore, setSoulCore] = useState(staff?.soulCore ?? '')
   const [voice, setVoice] = useState(staff?.voice ?? '')
+  const [biologicalGender, setBiologicalGender] = useState(staff?.biologicalGender ?? '')
   const [bigFive, setBigFive] = useState<Character>(staff?.bigFive ?? neutralCharacter())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -88,6 +92,7 @@ export default function StaffEditor({
         wordBudget: Number(wordBudget) || 0,
         avatarModel3d: avatarModel3d.trim(),
         voice: voice.trim(),
+        biologicalGender: biologicalGender.trim(),
         bigFive,
         brief: brief.trim(),
         soulCore: soulCore.trim(),
@@ -132,14 +137,29 @@ export default function StaffEditor({
         </label>
         <label className="text-sm text-fg-soft">
           {t('staff.locale')}
-          <input
-            type="text"
+          <LocaleSelect
             value={locale}
-            onChange={(e) => setLocale(e.target.value)}
-            placeholder={t('staff.localePlaceholder')}
-            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
-            {...lock('locale')}
+            onChange={setLocale}
+            disabled={
+              readonlyFields.includes('locale') || disabledFields.includes('locale')
+            }
           />
+        </label>
+        <label className="text-sm text-fg-soft">
+          {t('staff.biologicalGender')}
+          <select
+            value={biologicalGender}
+            onChange={(e) => setBiologicalGender(e.target.value)}
+            disabled={
+              readonlyFields.includes('biologicalGender') ||
+              disabledFields.includes('biologicalGender')
+            }
+            className="mt-1 w-full rounded-lg border border-line-2 bg-fill-2 px-3 py-2 text-fg-strong"
+          >
+            <option value="" />
+            <option value="male">{t('staff.genderMale')}</option>
+            <option value="female">{t('staff.genderFemale')}</option>
+          </select>
         </label>
         <label className="text-sm text-fg-soft">
           {t('staff.age')}

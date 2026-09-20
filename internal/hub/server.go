@@ -421,6 +421,10 @@ func (s *Server) routes() {
 	// Public voice catalog: the TTS voices this installation can serve.
 	m.HandleFunc("GET /api/voices", s.handleListVoices)
 
+	// Public language catalog: the languages the staff picker offers, each
+	// with its display name (CLDR).
+	m.HandleFunc("GET /api/locales", s.handleListLocales)
+
 	m.HandleFunc("POST /api/billing/webhook", s.handleBillingWebhook)
 	m.HandleFunc("GET /api/orgs/{id}/billing", s.requireCredential(s.handleGetBilling))
 	m.HandleFunc("PATCH /api/orgs/{id}/billing", s.requireCredential(s.handlePatchBilling))

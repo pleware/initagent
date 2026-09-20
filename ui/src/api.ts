@@ -2,7 +2,7 @@
 // the session cookie; 401s bounce the user to the login screen via the
 // listener App.tsx registers here.
 
-import type { BoxToken, HfRepoFile, HfSearchResult, Model, Voice } from './types'
+import type { BoxToken, HfRepoFile, HfSearchResult, Locale, Model, Voice } from './types'
 import i18n from './i18n/config'
 
 let onUnauthorized: (() => void) | null = null
@@ -162,6 +162,14 @@ export function timeAgo(unixSec: number): string {
 // hub's display order (pl_PL first, then en_US, then en_GB).
 export function listVoices(): Promise<Voice[]> {
   return api.get<Voice[]>('/api/voices')
+}
+
+// --- locales ---
+
+// listLocales returns the staff language picker's catalog: each BCP 47 code
+// with its display name in its own language, "pl" first.
+export function listLocales(): Promise<Locale[]> {
+  return api.get<Locale[]>('/api/locales')
 }
 
 // --- boxes ---

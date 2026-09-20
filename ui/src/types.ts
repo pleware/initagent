@@ -359,6 +359,7 @@ export interface Staff {
   soulCore: string
   soulOverride?: string
   voice: string
+  biologicalGender: string
   createdAt: number
   updatedAt: number
 }
@@ -369,6 +370,13 @@ export interface Staff {
 // (`internal/voices`, GET /api/voices). Name is the full Piper voice name
 // (e.g. "en_US-lessac-medium"), language the xx_YY prefix before the first
 // "-", and quality the suffix after the last "-" ("low", "medium", "high").
+// Locale is one entry of the staff language picker (GET /api/locales): the
+// BCP 47 code and its display name in its own language (CLDR).
+export interface Locale {
+  code: string
+  name: string
+}
+
 export interface Voice {
   name: string
   language: string

@@ -41,7 +41,7 @@ func TestModelWriteBumpsAllBoxes(t *testing.T) {
 
 	// Create: every box bumps.
 	before := boxVersions(t, s, boxes...)
-	m, err := s.CreateModel("bump-worker", "o", "s", "", "bump-digest", "MIT", "worker")
+	m, err := s.CreateModel("bump-worker", "o", "s", "", "", "bump-digest", "MIT", "worker")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,14 +49,14 @@ func TestModelWriteBumpsAllBoxes(t *testing.T) {
 
 	// Update of an existing pin: every box bumps.
 	before = boxVersions(t, s, boxes...)
-	if _, err := s.UpdateModel(m.ID, "o", "s2", "q4_0", "bump-digest", "MIT", "worker"); err != nil {
+	if _, err := s.UpdateModel(m.ID, "o", "s2", "q4_0", "", "bump-digest", "MIT", "worker"); err != nil {
 		t.Fatal(err)
 	}
 	assertBumpDelta(t, before, boxVersions(t, s, boxes...), both)
 
 	// Update of a missing pin is a no-op: no bump.
 	before = boxVersions(t, s, boxes...)
-	if _, err := s.UpdateModel("no-such-model", "o", "s2", "", "", "MIT", "worker"); err != nil {
+	if _, err := s.UpdateModel("no-such-model", "o", "s2", "", "", "", "MIT", "worker"); err != nil {
 		t.Fatal(err)
 	}
 	assertBumpDelta(t, before, boxVersions(t, s, boxes...), map[string]int64{boxA.ID: 0, boxB.ID: 0})

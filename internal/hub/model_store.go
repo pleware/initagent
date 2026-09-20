@@ -21,15 +21,17 @@ var ErrModelInUse = errors.New("this model is still in use by an assignment or o
 // Model is one pin in the hub's model registry: identity and provenance
 // only, no weights. Org is the Hugging Face namespace the pin's source
 // lives under (the part of source before the first "/"), so the catalog
-// groups org → model → quant. Digest is the BLAKE3 of the pinned artifact,
-// admin-provided after verification; empty means unverified. Quant is the
-// canonical GGUF quantization (see ParseQuant) and empty for non-GGUF
-// models (embedding, stt).
+// groups org → model → quant. File is the artifact name within the source
+// repo (the exact .gguf/.bin/.onnx the pin resolves to). Digest is the
+// BLAKE3 of the pinned artifact, admin-provided after verification; empty
+// means unverified. Quant is the canonical GGUF quantization (see ParseQuant)
+// and empty for non-GGUF models (embedding, stt).
 type Model struct {
 	ID      string `json:"id"`
 	Org     string `json:"org"`
 	Source  string `json:"source"`
 	Quant   string `json:"quant"`
+	File    string `json:"file"`
 	Digest  string `json:"digest"`
 	Licence string `json:"licence"`
 	Purpose string `json:"purpose"`
@@ -107,11 +109,11 @@ type modelScanner interface {
 }
 
 // scanModel reads one models row selected in schema order:
-// id, org, source, quant, digest, licence, purpose. A missing row is
+// id, org, source, quant, file, digest, licence, purpose. A missing row is
 // (nil, nil).
 func scanModel(row modelScanner) (*Model, error) {
 	var m Model
-	if err := row.Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.Digest, &m.Licence, &m.Purpose); err != nil {
+	if err := row.Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.File, &m.Digest, &m.Licence, &m.Purpose); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -132,7 +134,7 @@ func scanModel(row modelScanner) (*Model, error) {
 // catalogue every box's resolved roster draws from, so every box's
 // config_version advances — boxes carrying an override included, which is
 // an acceptable over-bump.
-func (s *Store) CreateModel(id, org, source, quant, digest, licence, purpose string) (*Model, error) {
+func (s *Store) CreateModel(id, org, source, quant, file, digest, licence, purpose string) (*Model, error) {
 	purpose, err := ParsePurpose(purpose)
 	if err != nil {
 		return nil, err
@@ -141,14 +143,14 @@ func (s *Store) CreateModel(id, org, source, quant, digest, licence, purpose str
 	if err != nil {
 		return nil, err
 	}
-	m := &Model{ID: id, Org: org, Source: source, Quant: quant, Digest: digest, Licence: licence, Purpose: purpose}
+	m := &Model{ID: id, Org: org, Source: source, Quant: quant, File: file, Digest: digest, Licence: licence, Purpose: purpose}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	_, err = tx.Exec(`INSERT INTO models (id, org, source, quant, digest, licence, purpose)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, m.ID, m.Org, m.Source, m.Quant, m.Digest, m.Licence, m.Purpose)
+	_, err = tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, m.ID, m.Org, m.Source, m.Quant, m.File, m.Digest, m.Licence, m.Purpose)
 	if uniqueConstraint(err) {
 		return nil, ErrModelIDTaken
 	}
@@ -166,13 +168,13 @@ func (s *Store) CreateModel(id, org, source, quant, digest, licence, purpose str
 
 // GetModel returns one model pin by id. A missing pin is (nil, nil).
 func (s *Store) GetModel(id string) (*Model, error) {
-	return scanModel(s.db.QueryRow(`SELECT id, org, source, quant, digest, licence, purpose
+	return scanModel(s.db.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose
 		FROM models WHERE id = ?`, id))
 }
 
 // ListModels returns every pinned model on this installation, ordered by id.
 func (s *Store) ListModels() ([]Model, error) {
-	rows, err := s.db.Query(`SELECT id, org, source, quant, digest, licence, purpose
+	rows, err := s.db.Query(`SELECT id, org, source, quant, file, digest, licence, purpose
 		FROM models ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -196,7 +198,7 @@ func (s *Store) ListModels() ([]Model, error) {
 // catalogue every box's resolved roster draws from. An update that matched
 // no row (a missing pin) bumps nothing — a no-op must not re-sync the
 // fleet.
-func (s *Store) UpdateModel(id, org, source, quant, digest, licence, purpose string) (*Model, error) {
+func (s *Store) UpdateModel(id, org, source, quant, file, digest, licence, purpose string) (*Model, error) {
 	purpose, err := ParsePurpose(purpose)
 	if err != nil {
 		return nil, err
@@ -210,8 +212,8 @@ func (s *Store) UpdateModel(id, org, source, quant, digest, licence, purpose str
 		return nil, err
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, digest = ?, licence = ?, purpose = ?
-		WHERE id = ?`, org, source, quant, digest, licence, purpose, id)
+	res, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, digest = ?, licence = ?, purpose = ?
+		WHERE id = ?`, org, source, quant, file, digest, licence, purpose, id)
 	if err != nil {
 		return nil, err
 	}
@@ -306,6 +308,7 @@ type seedModel struct {
 	org     string
 	source  string
 	quant   string
+	file    string
 	digest  string
 	licence string
 	purpose string
@@ -329,6 +332,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "bartowski",
 			source:  "bartowski/Qwen_Qwen3.5-4B-GGUF@4168f45a16a1290d65a4ec0fa312ae917a4c15d6",
 			quant:   "Q4_K_M",
+			file:    "Qwen_Qwen3.5-4B-Q4_K_M.gguf",
 			digest:  "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980",
 			licence: "Apache-2.0",
 			purpose: "persona",
@@ -338,6 +342,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "Qwen",
 			source:  "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@13fb94bfda8c8cf22497dc57b78f391a9acb426a",
 			quant:   "Q4_K_M",
+			file:    "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
 			digest:  "e0abfc1f71fa8f1454f3bc443f7608a63263ed2d41664f2820c3d92c45f3bd52",
 			licence: "Apache-2.0",
 			purpose: "worker",
@@ -347,6 +352,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "gpustack",
 			source:  "gpustack/bge-m3-GGUF@2d48f1737679ad900d5c26c5aad5410e9c70fdca",
 			quant:   "Q4_K_M",
+			file:    "bge-m3-Q4_K_M.gguf",
 			digest:  "f455475d60569f7ba086863c6ff4b79bb19201664259c5128b9f4f131408dd32",
 			licence: "MIT",
 			purpose: "embedding",
@@ -356,6 +362,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "Systran",
 			source:  "Systran/faster-whisper-medium@08e178d48790749d25932bbc082711ddcfdfbc4f",
 			quant:   "",
+			file:    "model.bin",
 			digest:  "7b1053dea7640cc96b5b65b7168487db81010bfce317115d17ca358db970673d",
 			licence: "MIT",
 			purpose: "stt",
@@ -365,6 +372,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "Systran",
 			source:  "Systran/faster-whisper-large-v3@edaa852ec7e145841d8ffdb056a99866b5f0a478",
 			quant:   "",
+			file:    "model.bin",
 			digest:  "64b4dc2dfe6589860e4e39e0ba4f50ea0f6026e509447d8873368e1a73a3bd0a",
 			licence: "MIT",
 			purpose: "stt",
@@ -374,6 +382,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "istupakov",
 			source:  "istupakov/silero-vad-onnx@b3e3ee3cce4c11ceb63b1a0b229d916069c1ddf6",
 			quant:   "",
+			file:    "silero_vad.onnx",
 			digest:  "bd861b19a51c83ee067b54d7d8b7f40bc11bafcc526506edc00b163e1c53bb8e",
 			licence: "MIT",
 			purpose: "vad",
@@ -383,6 +392,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "rhasspy",
 			source:  "rhasspy/piper-voices@c10ece1aade47bb51c153c893d14e5bf8e5b7117",
 			quant:   "",
+			file:    "pl/pl_PL/bass/high/pl_PL-bass-high.onnx",
 			digest:  "d122a10b565681d97ae302b0a4cc617ca59e0cd87b5196ec667ff9c125357b9f",
 			licence: "MIT",
 			purpose: "tts",
@@ -392,6 +402,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "rhasspy",
 			source:  "rhasspy/piper-voices@c10ece1aade47bb51c153c893d14e5bf8e5b7117",
 			quant:   "",
+			file:    "pl/pl_PL/darkman/medium/pl_PL-darkman-medium.onnx",
 			digest:  "7554030dd8b3cd40529098054600dc7194f4d146e29fc24f89b89a94c7a43df4",
 			licence: "MIT",
 			purpose: "tts",
@@ -401,6 +412,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "rhasspy",
 			source:  "rhasspy/piper-voices@c10ece1aade47bb51c153c893d14e5bf8e5b7117",
 			quant:   "",
+			file:    "pl/pl_PL/gosia/medium/pl_PL-gosia-medium.onnx",
 			digest:  "cec3f38aa9c14d2dfbe43465e818253ee0ed05854288cde7bfda7131acc4fa1b",
 			licence: "MIT",
 			purpose: "tts",
@@ -410,6 +422,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "rhasspy",
 			source:  "rhasspy/piper-voices@c10ece1aade47bb51c153c893d14e5bf8e5b7117",
 			quant:   "",
+			file:    "pl/pl_PL/mc_speech/medium/pl_PL-mc_speech-medium.onnx",
 			digest:  "9ee4676f29dc7125a591f7eb1bdd7a26808040183b3629a7cef56e158fc9132d",
 			licence: "MIT",
 			purpose: "tts",
@@ -419,6 +432,7 @@ func (s *Store) EnsureSeedModels() error {
 			org:     "rhasspy",
 			source:  "rhasspy/piper-voices@c10ece1aade47bb51c153c893d14e5bf8e5b7117",
 			quant:   "",
+			file:    "pl/pl_PL/mls_6892/low/pl_PL-mls_6892-low.onnx",
 			digest:  "e9e2971ac7132984c6f6958c21501dec46638332b9e1bcc113a417aead270cde",
 			licence: "MIT",
 			purpose: "tts",
@@ -433,22 +447,22 @@ func (s *Store) EnsureSeedModels() error {
 	changed := false
 	for _, sm := range seeds {
 		var m Model
-		err := tx.QueryRow(`SELECT id, org, source, quant, digest, licence, purpose
+		err := tx.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose
 			FROM models WHERE id = ?`, sm.id).
-			Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.Digest, &m.Licence, &m.Purpose)
+			Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.File, &m.Digest, &m.Licence, &m.Purpose)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, digest, licence, purpose)
-				VALUES (?, ?, ?, ?, ?, ?, ?)`, sm.id, sm.org, sm.source, sm.quant, sm.digest, sm.licence, sm.purpose); err != nil {
+			if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, sm.id, sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose); err != nil {
 				return err
 			}
 			changed = true
 		case err != nil:
 			return err
-		case m.Org != sm.org || m.Source != sm.source || m.Quant != sm.quant ||
+		case m.Org != sm.org || m.Source != sm.source || m.Quant != sm.quant || m.File != sm.file ||
 			m.Digest != sm.digest || m.Licence != sm.licence || m.Purpose != sm.purpose:
-			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, digest = ?, licence = ?, purpose = ?
-				WHERE id = ?`, sm.org, sm.source, sm.quant, sm.digest, sm.licence, sm.purpose, sm.id); err != nil {
+			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, digest = ?, licence = ?, purpose = ?
+				WHERE id = ?`, sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose, sm.id); err != nil {
 				return err
 			}
 			changed = true

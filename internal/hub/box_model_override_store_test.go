@@ -109,7 +109,7 @@ func TestSetBoxModelOverrideCrossValidation(t *testing.T) {
 func TestSetBoxModelOverrideRefusesUnverifiedModels(t *testing.T) {
 	s := testStore(t)
 	box := testBox(t, s, "seed-refusal-box")
-	if _, err := s.CreateModel("unverified-pin", "org", "source", "", "", "MIT", "persona"); err != nil {
+	if _, err := s.CreateModel("unverified-pin", "org", "source", "", "", "", "MIT", "persona"); err != nil {
 		t.Fatal(err)
 	}
 	_, err := s.SetBoxModelOverride(box.ID, "persona", "unverified-pin")

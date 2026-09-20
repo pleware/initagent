@@ -456,6 +456,7 @@ export interface Model {
   org: string
   source: string
   quant: string
+  file: string
   digest: string
   licence: string
   purpose: Purpose

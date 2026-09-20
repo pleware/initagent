@@ -104,7 +104,7 @@ func TestCreateModelRejectsUnknownQuant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateModel("bad-quant", "SomeOrg", "s", "bogus", "", "MIT", "persona"); err == nil {
+	if _, err := s.CreateModel("bad-quant", "SomeOrg", "s", "bogus", "", "", "MIT", "persona"); err == nil {
 		t.Fatal("CreateModel accepted a non-canonical quant")
 	}
 	after, err := s.ListModels()
@@ -118,11 +118,11 @@ func TestCreateModelRejectsUnknownQuant(t *testing.T) {
 
 func TestUpdateModelRejectsUnknownQuant(t *testing.T) {
 	s := testStore(t)
-	created, err := s.CreateModel("quant-guard", "SomeOrg", "s", "Q4_0", "", "MIT", "persona")
+	created, err := s.CreateModel("quant-guard", "SomeOrg", "s", "Q4_0", "", "", "MIT", "persona")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.UpdateModel(created.ID, "SomeOrg", "s2", "bogus", "", "MIT", "persona"); err == nil {
+	if _, err := s.UpdateModel(created.ID, "SomeOrg", "s2", "bogus", "", "", "MIT", "persona"); err == nil {
 		t.Fatal("UpdateModel accepted a non-canonical quant")
 	}
 	got, err := s.GetModel(created.ID)
@@ -136,7 +136,7 @@ func TestUpdateModelRejectsUnknownQuant(t *testing.T) {
 
 func TestModelCRUDRoundTrip(t *testing.T) {
 	s := testStore(t)
-	created, err := s.CreateModel("test-model-7b-q4_0", "SomeOrg", "SomeOrg/test-model-7B-GGUF@rev", "q4_0", "", "Apache-2.0", "persona")
+	created, err := s.CreateModel("test-model-7b-q4_0", "SomeOrg", "SomeOrg/test-model-7B-GGUF@rev", "q4_0", "", "", "Apache-2.0", "persona")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestModelCRUDRoundTrip(t *testing.T) {
 		t.Errorf("read-back = %+v, want the created fields", got)
 	}
 
-	updated, err := s.UpdateModel(created.ID, "RenamedOrg", "other-source", "q5_k_m", "blake3-of-the-artifact", "MIT", "Worker")
+	updated, err := s.UpdateModel(created.ID, "RenamedOrg", "other-source", "q5_k_m", "", "blake3-of-the-artifact", "MIT", "Worker")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +196,7 @@ func TestGetModelMissing(t *testing.T) {
 
 func TestUpdateModelMissing(t *testing.T) {
 	s := testStore(t)
-	got, err := s.UpdateModel("no-such-model", "o", "s", "", "", "MIT", "persona")
+	got, err := s.UpdateModel("no-such-model", "o", "s", "", "", "", "MIT", "persona")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,10 +207,10 @@ func TestUpdateModelMissing(t *testing.T) {
 
 func TestCreateModelDuplicateID(t *testing.T) {
 	s := testStore(t)
-	if _, err := s.CreateModel("dup-model", "o", "s", "", "", "MIT", "persona"); err != nil {
+	if _, err := s.CreateModel("dup-model", "o", "s", "", "", "", "MIT", "persona"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := s.CreateModel("dup-model", "o2", "second", "", "", "MIT", "worker")
+	_, err := s.CreateModel("dup-model", "o2", "second", "", "", "", "MIT", "worker")
 	if !errors.Is(err, ErrModelIDTaken) {
 		t.Fatalf("err = %v, want ErrModelIDTaken", err)
 	}
@@ -222,7 +222,7 @@ func TestCreateModelRejectsUnknownPurpose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateModel("bad-purpose", "o", "s", "", "", "MIT", "chat"); err == nil {
+	if _, err := s.CreateModel("bad-purpose", "o", "s", "", "", "", "MIT", "chat"); err == nil {
 		t.Fatal("CreateModel accepted an unknown purpose")
 	}
 	after, err := s.ListModels()
@@ -236,7 +236,7 @@ func TestCreateModelRejectsUnknownPurpose(t *testing.T) {
 
 func TestDeleteModel(t *testing.T) {
 	s := testStore(t)
-	created, err := s.CreateModel("doomed-model", "o", "s", "", "", "MIT", "stt")
+	created, err := s.CreateModel("doomed-model", "o", "s", "", "", "", "MIT", "stt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +262,7 @@ func TestDeleteModelInUse(t *testing.T) {
 	s := testStore(t)
 	// SetAssignment and SetBoxModelOverride both refuse an empty digest, so
 	// the pin carries one.
-	created, err := s.CreateModel("pinned-model", "o", "s", "", "pinned-digest", "MIT", "persona")
+	created, err := s.CreateModel("pinned-model", "o", "s", "", "", "pinned-digest", "MIT", "persona")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,7 +360,7 @@ func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	// The admin edits a factory pin; the seed restores it to the factory
 	// definition — factory pins are factory-owned, an admin customizes through
 	// assignments/overrides, not by editing the pin itself.
-	if _, err := s.UpdateModel("qwen3.5-4b-q4_k_m", "custom-org", "custom-source", "q4_k_m", "admin-computed-digest", "Custom", "persona"); err != nil {
+	if _, err := s.UpdateModel("qwen3.5-4b-q4_k_m", "custom-org", "custom-source", "q4_k_m", "", "admin-computed-digest", "Custom", "persona"); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.EnsureSeedModels(); err != nil {

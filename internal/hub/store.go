@@ -632,6 +632,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("normalizing model quant: %w", err)
 	}
+	if err := s.ensureModelFile(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring model file column: %w", err)
+	}
 	if err := s.EnsureSeedModels(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("seeding models: %w", err)
@@ -1468,6 +1472,7 @@ func (s *Store) ensureModels() error {
 		org     TEXT NOT NULL,
 		source  TEXT NOT NULL,
 		quant   TEXT NOT NULL,
+		file    TEXT NOT NULL,
 		digest  TEXT NOT NULL,
 		licence TEXT NOT NULL,
 		purpose TEXT NOT NULL
@@ -1496,6 +1501,14 @@ func (s *Store) ensureModelOrg() error {
 	}
 	_, err := s.db.Exec(update)
 	return err
+}
+
+// ensureModelFile adds the file column to a live models table that predates
+// it. The column arrives as TEXT NOT NULL DEFAULT '' — existing pins gain the
+// empty default, and the factory seeds backfill the real artifact name on the
+// next EnsureSeedModels pass (the drift check sees File == '' != sm.file).
+func (s *Store) ensureModelFile() error {
+	return s.ensureColumn("models", "file", "TEXT NOT NULL DEFAULT ''")
 }
 
 // ensureModelQuant normalizes the quant column to canonical uppercase on a

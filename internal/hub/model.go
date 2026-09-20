@@ -25,6 +25,7 @@ type modelInput struct {
 	Org     string `json:"org"`
 	Source  string `json:"source"`
 	Quant   string `json:"quant"`
+	File    string `json:"file"`
 	Digest  string `json:"digest"`
 	Licence string `json:"licence"`
 	Purpose string `json:"purpose"`
@@ -75,7 +76,7 @@ func (s *Server) handleCreateModel(w http.ResponseWriter, r *http.Request, cred 
 		return
 	}
 	m, err := s.store.CreateModel(in.ID, strings.TrimSpace(in.Org), strings.TrimSpace(in.Source), quant,
-		strings.TrimSpace(in.Digest), strings.TrimSpace(in.Licence), purpose)
+		strings.TrimSpace(in.File), strings.TrimSpace(in.Digest), strings.TrimSpace(in.Licence), purpose)
 	if errors.Is(err, ErrModelIDTaken) {
 		httpError(w, http.StatusConflict, err.Error())
 		return
@@ -111,7 +112,7 @@ func (s *Server) handleUpdateModel(w http.ResponseWriter, r *http.Request, cred 
 		return
 	}
 	m, err := s.store.UpdateModel(r.PathValue("id"), strings.TrimSpace(in.Org), strings.TrimSpace(in.Source), quant,
-		strings.TrimSpace(in.Digest), strings.TrimSpace(in.Licence), purpose)
+		strings.TrimSpace(in.File), strings.TrimSpace(in.Digest), strings.TrimSpace(in.Licence), purpose)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

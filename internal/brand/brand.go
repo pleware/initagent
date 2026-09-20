@@ -60,6 +60,10 @@ const (
 	// without being resolvable. The token value itself stays CSPRNG.
 	TokenPrefix = "iagt_"
 
+	// BoxTokenPrefix marks a box's sync credential so it reads as a box token
+	// in a log line, distinct from the account API token above.
+	BoxTokenPrefix = "bt_"
+
 	// SessionCookie names the hub's browser session cookie. Renaming it logs
 	// every open browser out once, which is why it moves with the rest.
 	SessionCookie = "initagent_auth"

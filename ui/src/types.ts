@@ -403,6 +403,7 @@ export interface Box {
 export interface BoxToken {
   id: string
   boxId: string
+  name: string
   createdAt: number
   lastUsedAt: number
 }

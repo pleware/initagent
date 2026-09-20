@@ -656,6 +656,12 @@
     "tokenCreated": "created {{ago}}",
     "tokenUsed": "used {{ago}}",
     "tokenNeverUsed": "never used",
+    "nameRequired": "Enter a token name",
+    "tokenNamePlaceholder": "Token name (e.g. box-prod)",
+    "mintReplacesConfirm": "A new token will invalidate this box's previous token. Continue?",
+    "rename": "Rename",
+    "renamePrompt": "New token name:",
+    "renameFailed": "Could not rename the token",
     "models": "Models",
     "modelsTitle": "Models of {{name}}"
   },

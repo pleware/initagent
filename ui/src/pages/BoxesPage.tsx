@@ -8,6 +8,7 @@ import {
   deleteBox,
   listBoxTokens,
   mintBoxToken,
+  renameBoxToken,
   revokeBoxToken,
 } from '../api'
 import { usePoll } from '../hooks'
@@ -612,6 +613,7 @@ function TokensPanel({ box }: { box: Box }) {
   const { t } = useTranslation()
   const [tokens, setTokens] = useState<BoxToken[] | null>(null)
   const [fresh, setFresh] = useState<{ id: string; token: string } | null>(null)
+  const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState('')
@@ -630,12 +632,22 @@ function TokensPanel({ box }: { box: Box }) {
   }, [load])
 
   const mint = async () => {
+    const trimmed = name.trim()
+    if (!trimmed) {
+      setError(t('boxes.nameRequired'))
+      return
+    }
+    // Minting revokes the box's current credential — confirm when one exists.
+    if (tokens !== null && tokens.length > 0 && !window.confirm(t('boxes.mintReplacesConfirm'))) {
+      return
+    }
     setBusy(true)
     setError('')
     try {
-      const res = await mintBoxToken(box.id)
+      const res = await mintBoxToken(box.id, trimmed)
       setFresh({ id: res.row.id, token: res.token })
       setCopied(false)
+      setName('')
       void load()
     } catch (err) {
       setError(err instanceof Error ? err.message : t('boxes.mintFailed'))
@@ -667,6 +679,20 @@ function TokensPanel({ box }: { box: Box }) {
     }
   }
 
+  const rename = async (token: BoxToken) => {
+    const next = window.prompt(t('boxes.renamePrompt'), token.name)
+    if (next === null) return
+    const trimmed = next.trim()
+    if (!trimmed) return
+    setError('')
+    try {
+      await renameBoxToken(box.id, token.id, trimmed)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('boxes.renameFailed'))
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {error && (
@@ -675,12 +701,18 @@ function TokensPanel({ box }: { box: Box }) {
         </p>
       )}
 
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs text-fg-subtle">{t('boxes.mintHint')}</span>
+      <div className="flex items-center gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('boxes.tokenNamePlaceholder')}
+          className="field-input min-w-0 flex-1"
+        />
         <button onClick={() => void mint()} disabled={busy} className="btn-primary">
           {busy ? t('common.loading') : t('boxes.mint')}
         </button>
       </div>
+      <p className="text-xs text-fg-subtle">{t('boxes.mintHint')}</p>
 
       {fresh && (
         <div className="rounded-lg border border-ok/30 bg-ok/10 p-3">
@@ -709,7 +741,8 @@ function TokensPanel({ box }: { box: Box }) {
           {tokens.map((token) => (
             <li key={token.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
               <div className="min-w-0">
-                <p className="font-mono text-[12px] text-fg">{token.id}</p>
+                <p className="text-sm text-fg">{token.name}</p>
+                <p className="font-mono text-[12px] text-fg-subtle">{token.id}</p>
                 <p className="mt-0.5 text-xs text-fg-subtle">
                   {t('boxes.tokenCreated', { ago: timeAgo(token.createdAt) })} ·{' '}
                   {token.lastUsedAt
@@ -717,12 +750,20 @@ function TokensPanel({ box }: { box: Box }) {
                     : t('boxes.tokenNeverUsed')}
                 </p>
               </div>
-              <button
-                onClick={() => void revoke(token)}
-                className="text-xs text-fg-subtle hover:text-fail-fg"
-              >
-                {t('boxes.revoke')}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => void rename(token)}
+                  className="text-xs text-fg-subtle hover:text-fg"
+                >
+                  {t('boxes.rename')}
+                </button>
+                <button
+                  onClick={() => void revoke(token)}
+                  className="text-xs text-fg-subtle hover:text-fail-fg"
+                >
+                  {t('boxes.revoke')}
+                </button>
+              </div>
             </li>
           ))}
         </ul>

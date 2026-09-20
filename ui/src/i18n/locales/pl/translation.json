@@ -664,6 +664,12 @@
     "tokenCreated": "utworzono {{ago}}",
     "tokenUsed": "użyto {{ago}}",
     "tokenNeverUsed": "nigdy nieużywany",
+    "nameRequired": "Podaj nazwę tokenu",
+    "tokenNamePlaceholder": "Nazwa tokenu (np. box-prod)",
+    "mintReplacesConfirm": "Nowy token unieważni poprzedni token tego boksu. Kontynuować?",
+    "rename": "Zmień nazwę",
+    "renamePrompt": "Nowa nazwa tokenu:",
+    "renameFailed": "Nie udało się zmienić nazwy tokenu",
     "models": "Modele",
     "modelsTitle": "Modele boksu {{name}}"
   },

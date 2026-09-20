@@ -169,9 +169,11 @@ export function listVoices(): Promise<Voice[]> {
 // returned exactly once here; every later listing carries rows, not secrets.
 export async function mintBoxToken(
   boxId: string,
+  name: string,
 ): Promise<{ token: string; row: BoxToken }> {
   return api.post<{ token: string; row: BoxToken }>(
     `/api/boxes/${encodeURIComponent(boxId)}/tokens`,
+    { name },
   )
 }
 
@@ -179,6 +181,18 @@ export async function mintBoxToken(
 // the token is used.
 export function listBoxTokens(boxId: string): Promise<BoxToken[]> {
   return api.get<BoxToken[]>(`/api/boxes/${encodeURIComponent(boxId)}/tokens`)
+}
+
+// renameBoxToken relabels one box credential without touching its secret.
+export function renameBoxToken(
+  boxId: string,
+  tokenId: string,
+  name: string,
+): Promise<{ ok: boolean }> {
+  return api.patch<{ ok: boolean }>(
+    `/api/boxes/${encodeURIComponent(boxId)}/tokens/${encodeURIComponent(tokenId)}`,
+    { name },
+  )
 }
 
 // revokeBoxToken invalidates one box credential.

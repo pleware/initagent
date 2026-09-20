@@ -15,7 +15,7 @@ import (
 // a 201.
 func mintBoxToken(t *testing.T, f *adminFixture, boxID string) (string, BoxToken) {
 	t.Helper()
-	resp := f.do(t, http.MethodPost, "/api/boxes/"+boxID+"/tokens", nil)
+	resp := f.do(t, http.MethodPost, "/api/boxes/"+boxID+"/tokens", map[string]string{"name": "primary"})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("POST /api/boxes/%s/tokens: %d, want 201", boxID, resp.StatusCode)
 	}
@@ -48,6 +48,9 @@ func TestBoxTokenMintAndAuthenticate(t *testing.T) {
 	}
 	if row.BoxId != box.ID {
 		t.Errorf("row box = %q, want %q", row.BoxId, box.ID)
+	}
+	if row.Name != "primary" {
+		t.Errorf("row name = %q, want primary", row.Name)
 	}
 	if row.CreatedAt == 0 {
 		t.Errorf("row createdAt not set: %+v", row)
@@ -82,11 +85,11 @@ func TestBoxTokenSecondMintRevokesFirst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	first, _, err := s.CreateBoxToken(box.ID)
+	first, _, err := s.CreateBoxToken(box.ID, "first")
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, row, err := s.CreateBoxToken(box.ID)
+	second, row, err := s.CreateBoxToken(box.ID, "second")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +116,7 @@ func TestBoxTokenAuthUnknownSecret(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.CreateBoxToken(box.ID); err != nil {
+	if _, _, err := s.CreateBoxToken(box.ID, "x"); err != nil {
 		t.Fatal(err)
 	}
 	got, ok, err := s.BoxTokenAuth("iagt_bogus")
@@ -135,7 +138,7 @@ func TestBoxTokenRevokeScoping(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	secret, row, err := s.CreateBoxToken(boxA.ID)
+	secret, row, err := s.CreateBoxToken(boxA.ID, "a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,6 +238,7 @@ func TestBoxTokenSurfaceRefusals(t *testing.T) {
 		{http.MethodGet, "/api/boxes/" + box.ID + "/tokens"},
 		{http.MethodPost, "/api/boxes/" + box.ID + "/tokens"},
 		{http.MethodDelete, "/api/boxes/" + box.ID + "/tokens/token-whatever"},
+		{http.MethodPatch, "/api/boxes/" + box.ID + "/tokens/token-whatever"},
 	} {
 		resp := f.withToken(t, wide, c.method, c.path)
 		if resp.StatusCode != http.StatusUnauthorized {
@@ -246,6 +250,7 @@ func TestBoxTokenSurfaceRefusals(t *testing.T) {
 		{http.MethodGet, "/api/boxes/" + box.ID + "/tokens"},
 		{http.MethodPost, "/api/boxes/" + box.ID + "/tokens"},
 		{http.MethodDelete, "/api/boxes/" + box.ID + "/tokens/token-whatever"},
+		{http.MethodPatch, "/api/boxes/" + box.ID + "/tokens/token-whatever"},
 	} {
 		resp := f.do(t, c.method, c.path, nil)
 		if resp.StatusCode != http.StatusForbidden {
@@ -268,6 +273,7 @@ func TestBoxTokenMissingBoxAndForeignToken(t *testing.T) {
 		{http.MethodPost, "/api/boxes/" + missing + "/tokens"},
 		{http.MethodGet, "/api/boxes/" + missing + "/tokens"},
 		{http.MethodDelete, "/api/boxes/" + missing + "/tokens/token-whatever"},
+		{http.MethodPatch, "/api/boxes/" + missing + "/tokens/token-whatever"},
 	} {
 		resp := f.do(t, c.method, c.path, nil)
 		if resp.StatusCode != http.StatusNotFound {
@@ -283,5 +289,47 @@ func TestBoxTokenMissingBoxAndForeignToken(t *testing.T) {
 	resp = f.do(t, http.MethodDelete, "/api/boxes/"+box.ID+"/tokens/token-whatever", nil)
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("deleting an unknown token id: %d, want 404", resp.StatusCode)
+	}
+}
+
+// A box token carries the name the operator gave it, and the name can be
+// relabelled without touching the secret.
+func TestBoxTokenNameAndRename(t *testing.T) {
+	s := testStore(t)
+	box, err := s.CreateBox("box-named", "Named", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret, row, err := s.CreateBoxToken(box.ID, "primary")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.Name != "primary" {
+		t.Errorf("minted name = %q, want primary", row.Name)
+	}
+
+	renamed, err := s.RenameBoxToken(row.Id, box.ID, "backup")
+	if err != nil || !renamed {
+		t.Fatalf("RenameBoxToken = (%v, %v), want (true, nil)", renamed, err)
+	}
+	// The secret still authenticates after a rename.
+	if got, ok, err := s.BoxTokenAuth(secret); err != nil || !ok || got != box.ID {
+		t.Errorf("secret after rename = (%q, %v, %v), want the box", got, ok, err)
+	}
+	listed, err := s.ListBoxTokens(box.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 1 || listed[0].Name != "backup" {
+		t.Errorf("listed after rename = %+v, want one token named backup", listed)
+	}
+
+	// A rename scoped to another box finds nothing.
+	other, err := s.CreateBox("box-named-other", "Other", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.RenameBoxToken(row.Id, other.ID, "stolen"); err != nil || got {
+		t.Errorf("cross-box rename = (%v, %v), want (false, nil)", got, err)
 	}
 }

@@ -516,6 +516,7 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/boxes/{id}/tokens", s.requireSession(s.handleCreateBoxToken))
 	m.HandleFunc("GET /api/boxes/{id}/tokens", s.requireSession(s.handleListBoxTokens))
 	m.HandleFunc("DELETE /api/boxes/{id}/tokens/{tokenId}", s.requireSession(s.handleRevokeBoxToken))
+	m.HandleFunc("PATCH /api/boxes/{id}/tokens/{tokenId}", s.requireSession(s.handleRenameBoxToken))
 
 	// The sync-down endpoint speaks the box token, not a session or an api
 	// token, so it is a plain handler with its own bearer gate (58).

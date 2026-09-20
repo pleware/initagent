@@ -233,6 +233,7 @@ CREATE TABLE IF NOT EXISTS box_orgs (
 CREATE TABLE IF NOT EXISTS box_tokens (
 	id           TEXT PRIMARY KEY,
 	box_id       TEXT NOT NULL,
+	name         TEXT NOT NULL DEFAULT '',
 	token_hash   TEXT NOT NULL UNIQUE,
 	created_at   INTEGER NOT NULL,
 	revoked_at   INTEGER NOT NULL DEFAULT 0,
@@ -467,6 +468,7 @@ CREATE TABLE IF NOT EXISTS box_orgs (
 CREATE TABLE IF NOT EXISTS box_tokens (
 	id           TEXT PRIMARY KEY,
 	box_id       TEXT NOT NULL,
+	name         TEXT NOT NULL DEFAULT '',
 	token_hash   TEXT NOT NULL UNIQUE,
 	created_at   BIGINT NOT NULL,
 	revoked_at   BIGINT NOT NULL DEFAULT 0,
@@ -613,6 +615,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureBoxTokens(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring box tokens: %w", err)
+	}
+	if err := s.ensureColumn("box_tokens", "name", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring box token name column: %w", err)
 	}
 	if err := s.ensureModels(); err != nil {
 		db.Close()
@@ -1438,6 +1444,7 @@ func (s *Store) ensureBoxTokens() error {
 	_, err = s.db.Exec(`CREATE TABLE box_tokens (
 		id           TEXT PRIMARY KEY,
 		box_id       TEXT NOT NULL,
+		name         TEXT NOT NULL DEFAULT '',
 		token_hash   TEXT NOT NULL UNIQUE,
 		created_at   ` + createdAt + `,
 		revoked_at   ` + stamp + `,

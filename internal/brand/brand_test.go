@@ -42,6 +42,7 @@ func TestExportedIdentity(t *testing.T) {
 		{"EnvFakturowniaDomain", brand.EnvFakturowniaDomain, "INITAGENT_FAKTUROWNIA_DOMAIN"},
 		{"EnvTrustedProxies", brand.EnvTrustedProxies, "INITAGENT_TRUSTED_PROXIES"},
 		{"TokenPrefix", brand.TokenPrefix, "iagt_"},
+		{"BoxTokenPrefix", brand.BoxTokenPrefix, "bt_"},
 		{"SessionCookie", brand.SessionCookie, "initagent_auth"},
 		{"EnvPrefix", brand.EnvPrefix, "INITAGENT_"},
 		{"ConnectorUnit", brand.ConnectorUnit, "initagent-connector"},

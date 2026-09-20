@@ -17,7 +17,7 @@ func boxWithToken(t *testing.T, s *Store, slug string) (*Box, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	secret, _, err := s.CreateBoxToken(box.ID)
+	secret, _, err := s.CreateBoxToken(box.ID, "sync")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestOrgScopedStaffBumpsAllBoxes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	secret, _, err := s.CreateBoxToken(boxA.ID)
+	secret, _, err := s.CreateBoxToken(boxA.ID, "a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestRenameOrgBumpsBoundBoxes(t *testing.T) {
 	if err := s.SetBoxOrgs(bound.ID, []string{org.Id}); err != nil {
 		t.Fatal(err)
 	}
-	secret, _, err := s.CreateBoxToken(bound.ID)
+	secret, _, err := s.CreateBoxToken(bound.ID, "sync")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -18,6 +18,7 @@ import (
 type BoxToken struct {
 	Id         string `json:"id"`
 	BoxId      string `json:"boxId"`
+	Name       string `json:"name"`
 	CreatedAt  int64  `json:"createdAt"`
 	LastUsedAt int64  `json:"lastUsedAt"`
 }
@@ -26,12 +27,12 @@ type BoxToken struct {
 // exactly once, alongside the row the cockpit will list. The old active
 // token for the box, if any, is revoked in the same transaction: a box
 // never carries two live secrets.
-func (s *Store) CreateBoxToken(boxID string) (string, BoxToken, error) {
+func (s *Store) CreateBoxToken(boxID, name string) (string, BoxToken, error) {
 	rowId, err := id.New(id.Token)
 	if err != nil {
 		return "", BoxToken{}, err
 	}
-	secret := brand.TokenPrefix + randomToken()
+	secret := brand.BoxTokenPrefix + randomToken()
 	now := time.Now().Unix()
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -42,20 +43,20 @@ func (s *Store) CreateBoxToken(boxID string) (string, BoxToken, error) {
 		WHERE box_id = ? AND revoked_at = 0`, now, boxID); err != nil {
 		return "", BoxToken{}, err
 	}
-	if _, err := tx.Exec(`INSERT INTO box_tokens (id, box_id, token_hash, created_at)
-		VALUES (?, ?, ?, ?)`, rowId, boxID, hashToken(secret), now); err != nil {
+	if _, err := tx.Exec(`INSERT INTO box_tokens (id, box_id, name, token_hash, created_at)
+		VALUES (?, ?, ?, ?, ?)`, rowId, boxID, name, hashToken(secret), now); err != nil {
 		return "", BoxToken{}, err
 	}
 	if err := tx.Commit(); err != nil {
 		return "", BoxToken{}, err
 	}
-	return secret, BoxToken{Id: rowId, BoxId: boxID, CreatedAt: now}, nil
+	return secret, BoxToken{Id: rowId, BoxId: boxID, Name: name, CreatedAt: now}, nil
 }
 
 // ListBoxTokens returns a box's active (non-revoked) tokens, oldest first.
 // A box with no live token yields an empty slice, not nil.
 func (s *Store) ListBoxTokens(boxID string) ([]BoxToken, error) {
-	rows, err := s.db.Query(`SELECT id, box_id, created_at, last_used_at
+	rows, err := s.db.Query(`SELECT id, box_id, name, created_at, last_used_at
 		FROM box_tokens WHERE box_id = ? AND revoked_at = 0 ORDER BY created_at, id`, boxID)
 	if err != nil {
 		return nil, err
@@ -64,7 +65,7 @@ func (s *Store) ListBoxTokens(boxID string) ([]BoxToken, error) {
 	out := []BoxToken{}
 	for rows.Next() {
 		var t BoxToken
-		if err := rows.Scan(&t.Id, &t.BoxId, &t.CreatedAt, &t.LastUsedAt); err != nil {
+		if err := rows.Scan(&t.Id, &t.BoxId, &t.Name, &t.CreatedAt, &t.LastUsedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -87,9 +88,21 @@ func (s *Store) RevokeBoxToken(tokenId, boxID string) (bool, error) {
 	return n > 0, err
 }
 
-// BoxTokenAuth resolves a presented secret into the box it belongs to.
-//
-// A revoked row is not found rather than returned-and-flagged: revocation
+// RenameBoxToken relabels a box token in place. The box_id in the predicate
+// keeps another box's token id out of reach, and a non-live token answers
+// false rather than claiming a success.
+func (s *Store) RenameBoxToken(tokenId, boxID, name string) (bool, error) {
+	res, err := s.db.Exec(`UPDATE box_tokens SET name = ?
+		WHERE id = ? AND box_id = ? AND revoked_at = 0`, name, tokenId, boxID)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
+// BoxTokenAuth resolves a presented secret into the box it belongs to. A
+// revoked row is not found rather than returned-and-flagged: revocation
 // has to be a hard stop here, not a field some later caller might forget
 // to test. Use stamps last_used_at at minute granularity.
 func (s *Store) BoxTokenAuth(secret string) (string, bool, error) {

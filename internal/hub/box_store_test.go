@@ -401,7 +401,7 @@ func TestDeleteBoxCascades(t *testing.T) {
 		t.Fatalf("StaffForBox before delete = (%v, %d), want one narrator", err, len(roster))
 	}
 	// A sync token, revoked so even a non-live row has to die with the box.
-	_, tokenRow, err := s.CreateBoxToken(box.ID)
+	_, tokenRow, err := s.CreateBoxToken(box.ID, "primary")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -66,6 +66,10 @@ func TestParseQuant(t *testing.T) {
 		{"k-quant q3_k_l", "Q3_K_L", "Q3_K_L", false},
 		{"i-quant iq2_xxs", "IQ2_XXS", "IQ2_XXS", false},
 		{"i-quant iq4_nl", "IQ4_NL", "IQ4_NL", false},
+		// Unsloth Dynamic tier: XL K-quants and UD- prefixed variants.
+		{"xl k-quant", "Q4_K_XL", "Q4_K_XL", false},
+		{"ud k-quant", "UD-Q4_K_XL", "UD-Q4_K_XL", false},
+		{"ud i-quant", "ud-iq3_m", "UD-IQ3_M", false},
 		// case-insensitive normalization to uppercase canonical.
 		{"normalize lowercase", "q4_k_m", "Q4_K_M", false},
 		{"normalize mixed", "Iq3_S", "IQ3_S", false},
@@ -308,8 +312,8 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 11 {
-		t.Fatalf("ListModels = %+v, want the eleven factory pins", list)
+	if len(list) != 16 {
+		t.Fatalf("ListModels = %+v, want the sixteen factory pins", list)
 	}
 	byID := map[string]Model{}
 	for _, m := range list {
@@ -335,6 +339,11 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		{"pl_PL-gosia-medium", "rhasspy", "rhasspy/piper-voices@", "", "cec3f38aa9c14d2dfbe43465e818253ee0ed05854288cde7bfda7131acc4fa1b", "MIT", "tts"},
 		{"pl_PL-mc_speech-medium", "rhasspy", "rhasspy/piper-voices@", "", "9ee4676f29dc7125a591f7eb1bdd7a26808040183b3629a7cef56e158fc9132d", "MIT", "tts"},
 		{"pl_PL-mls_6892-low", "rhasspy", "rhasspy/piper-voices@", "", "e9e2971ac7132984c6f6958c21501dec46638332b9e1bcc113a417aead270cde", "MIT", "tts"},
+		{"gemma-4-12b-qat", "unsloth", "unsloth/gemma-4-12B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "persona"},
+		{"gemma-4-e4b-qat", "unsloth", "unsloth/gemma-4-E4B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "persona"},
+		{"qwen3.5-9b-q4_k_m", "unsloth", "unsloth/Qwen3.5-9B-GGUF@", "Q4_K_M", "", "Apache-2.0", "persona"},
+		{"gemma-4-26b-a4b-qat", "unsloth", "unsloth/gemma-4-26B-A4B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "worker"},
+		{"muse-glimmer-30b", "unsloth", "unsloth/Muse-Glimmer-30B-GGUF@", "UD-IQ3_M", "", "Apache-2.0", "worker"},
 	}
 	for _, tt := range tests {
 		m, ok := byID[tt.id]
@@ -368,6 +377,11 @@ func TestEnsureSeedModelsSeedsGGUFMetadata(t *testing.T) {
 		{"qwen3.5-4b-q4_k_m", "image-text-to-text", "", "Qwen/Qwen3.5-4B", "qwen35", 262144},
 		{"qwen2.5-coder-7b-q4_k_m", "text-generation", "transformers", "Qwen/Qwen2.5-Coder-7B-Instruct", "qwen2", 131072},
 		{"bge-m3", "sentence-similarity", "sentence-transformers", "", "bert", 8192},
+		{"gemma-4-12b-qat", "any-to-any", "transformers", "google/gemma-4-12B-it-qat-q4_0-unquantized", "gemma4", 262144},
+		{"gemma-4-e4b-qat", "any-to-any", "transformers", "google/gemma-4-E4B-it-qat-q4_0-unquantized", "gemma4", 131072},
+		{"qwen3.5-9b-q4_k_m", "image-text-to-text", "transformers", "Qwen/Qwen3.5-9B", "qwen35", 262144},
+		{"gemma-4-26b-a4b-qat", "image-text-to-text", "transformers", "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized", "gemma4", 262144},
+		{"muse-glimmer-30b", "image-text-to-text", "transformers", "meta-models/Muse-Glimmer-30B", "muse-glimmer", 131072},
 	}
 	for _, tt := range tests {
 		m, err := s.GetModel(tt.id)
@@ -417,15 +431,18 @@ func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	if err != nil || m == nil {
 		t.Fatalf("GetModel after reseed = (%v, %v), want the factory row", m, err)
 	}
-	if m.Org != "bartowski" || m.Source != "bartowski/Qwen_Qwen3.5-4B-GGUF@4168f45a16a1290d65a4ec0fa312ae917a4c15d6" || m.Digest != "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980" {
+	if m.Org != "bartowski" || m.Source != "bartowski/Qwen_Qwen3.5-4B-GGUF@4168f45a16a1290d65a4ec0fa312ae917a4c15d6" {
 		t.Errorf("reseed did not restore the factory definition: %+v", m)
+	}
+	if m.Digest != "admin-computed-digest" {
+		t.Errorf("reseed reverted the admin digest: %+v, want it kept (digest is admin-provided)", m)
 	}
 	list, err := s.ListModels()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 11 {
-		t.Errorf("ListModels after reseed has %d rows, want 11", len(list))
+	if len(list) != 16 {
+		t.Errorf("ListModels after reseed has %d rows, want 16", len(list))
 	}
 }
 
@@ -467,8 +484,8 @@ func TestEnsureSeedModelsBumpsBoxesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 11 {
-		t.Errorf("ListModels after reseed has %d rows, want 11", len(list))
+	if len(list) != 16 {
+		t.Errorf("ListModels after reseed has %d rows, want 16", len(list))
 	}
 }
 
@@ -482,8 +499,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 11 {
-		t.Errorf("fresh open has %d pins, want the eleven seeds", len(list))
+	if len(list) != 16 {
+		t.Errorf("fresh open has %d pins, want the sixteen seeds", len(list))
 	}
 	box, err := s.CreateBox("reopen-box", "Reopen", "", "")
 	if err != nil {
@@ -511,8 +528,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 11 {
-		t.Errorf("reopen has %d pins, want 11", len(list))
+	if len(list) != 16 {
+		t.Errorf("reopen has %d pins, want 16", len(list))
 	}
 }
 
@@ -692,8 +709,8 @@ func TestListModelsPublic(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 11 {
-		t.Fatalf("public catalog has %d pins, want the eleven seeds", len(got))
+	if len(got) != 16 {
+		t.Fatalf("public catalog has %d pins, want the sixteen seeds", len(got))
 	}
 	for _, m := range got {
 		if m.ID == "" || m.Org == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
@@ -769,8 +786,8 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 12 {
-		t.Errorf("list has %d pins, want 12 (seeds + admin-model)", len(list))
+	if len(list) != 17 {
+		t.Errorf("list has %d pins, want 17 (seeds + admin-model)", len(list))
 	}
 
 	// Delete.

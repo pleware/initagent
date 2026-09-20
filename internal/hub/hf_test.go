@@ -41,6 +41,7 @@ func TestSuggestPurpose(t *testing.T) {
 	}{
 		{"text generation", "text-generation", "persona"},
 		{"image text to text", "image-text-to-text", "persona"},
+		{"any to any", "any-to-any", "persona"},
 		{"text2text", "text2text-generation", "persona"},
 		{"conversational", "conversational", "persona"},
 		{"sentence similarity", "sentence-similarity", "embedding"},

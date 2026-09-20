@@ -91,7 +91,7 @@ const (
 // nothing.
 func suggestPurpose(pipelineTag string) string {
 	switch pipelineTag {
-	case "text-generation", "image-text-to-text", "text2text-generation", "conversational":
+	case "text-generation", "image-text-to-text", "any-to-any", "text2text-generation", "conversational":
 		return "persona"
 	case "sentence-similarity", "feature-extraction":
 		return "embedding"

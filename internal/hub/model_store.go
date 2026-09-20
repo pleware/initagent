@@ -88,11 +88,12 @@ func ParsePurpose(s string) (string, error) {
 	return p, nil
 }
 
-// canonicalQuants is the canonical GGUF quantization dictionary documented
-// at huggingface.co/docs/hub/gguf: floats, legacy quants, K-quants and
-// I-quants, in their exact uppercase spelling. The registry stores only
-// these spellings, so a typo'd quant is refused at write time instead of
-// failing at pull time.
+// canonicalQuants is the GGUF quantization dictionary: the canonical set
+// documented at huggingface.co/docs/hub/gguf (floats, legacy quants,
+// K-quants, I-quants) plus the Unsloth Dynamic tier — the Q*_K_XL K-quants
+// and their UD- prefixed variants — that the QAT GGUF repos ship instead of
+// the plain K/I quants. All in their exact uppercase spelling, so a typo'd
+// quant is refused at write time instead of failing at pull time.
 var canonicalQuants = map[string]bool{
 	"F32": true, "F16": true, "BF16": true,
 	"Q4_0": true, "Q4_1": true, "Q5_0": true, "Q5_1": true, "Q8_0": true, "Q8_1": true,
@@ -103,6 +104,14 @@ var canonicalQuants = map[string]bool{
 	"IQ2_XXS": true, "IQ2_XS": true, "IQ2_S": true, "IQ2_M": true,
 	"IQ3_XXS": true, "IQ3_XS": true, "IQ3_S": true, "IQ3_M": true,
 	"IQ4_XS": true, "IQ4_NL": true,
+	// Unsloth Dynamic (UD-*): XL K-quants and dynamic I-quants.
+	"Q2_K_XL": true, "Q3_K_XL": true, "Q4_K_XL": true, "Q5_K_XL": true, "Q6_K_XL": true,
+	"UD-Q2_K_XL": true, "UD-Q3_K_XL": true, "UD-Q4_K_XL": true, "UD-Q5_K_XL": true, "UD-Q6_K_XL": true,
+	"UD-Q4_0": true, "UD-Q8_0": true,
+	"UD-IQ1_S": true, "UD-IQ1_M": true,
+	"UD-IQ2_XXS": true, "UD-IQ2_XS": true, "UD-IQ2_S": true, "UD-IQ2_M": true,
+	"UD-IQ3_XXS": true, "UD-IQ3_XS": true, "UD-IQ3_S": true, "UD-IQ3_M": true,
+	"UD-IQ4_XS": true, "UD-IQ4_NL": true,
 }
 
 // ParseQuant validates a quantization name against the canonical GGUF set
@@ -378,11 +387,13 @@ type seedModel struct {
 }
 
 // EnsureSeedModels keeps the factory model pins at their factory definition.
-// A missing pin is inserted; a pin whose org/source/quant/digest/licence/
-// purpose drifted from the factory definition is updated back to it; a pin
-// already at the definition is left alone. The factory pins are factory-owned
-// — an admin customizes through the assignment and override layers, not by
-// editing the factory pin itself.
+// A missing pin is inserted; a pin whose org/source/quant/file/licence/
+// purpose/metadata drifted from the factory definition is updated back to it;
+// a pin already at the definition is left alone. The factory pins are
+// factory-owned — an admin customizes through the assignment and override
+// layers, not by editing the factory pin itself — with one exception: the
+// digest is admin-provided (computed once from the pinned artifact), so the
+// seed writes it on a fresh store but never reverts a later change.
 //
 // The writes and the fleet bump commit together, and only when something
 // actually changed: a second run over an in-sync store inserts nothing,
@@ -435,6 +446,86 @@ func (s *Store) EnsureSeedModels() error {
 			architecture:  "bert",
 			contextLength: 8192,
 			downloads:     54756,
+		},
+		{
+			id:            "gemma-4-12b-qat",
+			org:           "unsloth",
+			source:        "unsloth/gemma-4-12B-it-qat-GGUF@980b060c40a8539ac159e0501a3e0f66a6365af3",
+			quant:         "UD-Q4_K_XL",
+			file:          "gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
+			digest:        "",
+			licence:       "Apache-2.0",
+			purpose:       "persona",
+			pipelineTag:   "any-to-any",
+			libraryName:   "transformers",
+			baseModel:     "google/gemma-4-12B-it-qat-q4_0-unquantized",
+			architecture:  "gemma4",
+			contextLength: 262144,
+			downloads:     956012,
+		},
+		{
+			id:            "gemma-4-e4b-qat",
+			org:           "unsloth",
+			source:        "unsloth/gemma-4-E4B-it-qat-GGUF@8c5a9e4fd5482e2be20fe0bf013b4c262a8f4265",
+			quant:         "UD-Q4_K_XL",
+			file:          "gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf",
+			digest:        "",
+			licence:       "Apache-2.0",
+			purpose:       "persona",
+			pipelineTag:   "any-to-any",
+			libraryName:   "transformers",
+			baseModel:     "google/gemma-4-E4B-it-qat-q4_0-unquantized",
+			architecture:  "gemma4",
+			contextLength: 131072,
+			downloads:     631021,
+		},
+		{
+			id:            "qwen3.5-9b-q4_k_m",
+			org:           "unsloth",
+			source:        "unsloth/Qwen3.5-9B-GGUF@3885219b6810b007914f3a7950a8d1b469d598a5",
+			quant:         "Q4_K_M",
+			file:          "Qwen3.5-9B-Q4_K_M.gguf",
+			digest:        "",
+			licence:       "Apache-2.0",
+			purpose:       "persona",
+			pipelineTag:   "image-text-to-text",
+			libraryName:   "transformers",
+			baseModel:     "Qwen/Qwen3.5-9B",
+			architecture:  "qwen35",
+			contextLength: 262144,
+			downloads:     1516287,
+		},
+		{
+			id:            "gemma-4-26b-a4b-qat",
+			org:           "unsloth",
+			source:        "unsloth/gemma-4-26B-A4B-it-qat-GGUF@7b92b5b28818151e8669af2e45e88d6086f490dd",
+			quant:         "UD-Q4_K_XL",
+			file:          "gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
+			digest:        "",
+			licence:       "Apache-2.0",
+			purpose:       "worker",
+			pipelineTag:   "image-text-to-text",
+			libraryName:   "transformers",
+			baseModel:     "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized",
+			architecture:  "gemma4",
+			contextLength: 262144,
+			downloads:     632331,
+		},
+		{
+			id:            "muse-glimmer-30b",
+			org:           "unsloth",
+			source:        "unsloth/Muse-Glimmer-30B-GGUF@faa5b025c584459c13febfa5c59883516710ae39",
+			quant:         "UD-IQ3_M",
+			file:          "Muse-Glimmer-30B-UD-IQ3_M.gguf",
+			digest:        "",
+			licence:       "Apache-2.0",
+			purpose:       "worker",
+			pipelineTag:   "image-text-to-text",
+			libraryName:   "transformers",
+			baseModel:     "meta-models/Muse-Glimmer-30B",
+			architecture:  "muse-glimmer",
+			contextLength: 131072,
+			downloads:     317157,
 		},
 		{
 			id:      "faster-whisper-medium",
@@ -546,14 +637,14 @@ func (s *Store) EnsureSeedModels() error {
 			}
 			changed = true
 		case m.Org != sm.org || m.Source != sm.source || m.Quant != sm.quant || m.File != sm.file ||
-			m.Digest != sm.digest || m.Licence != sm.licence || m.Purpose != sm.purpose ||
+			m.Licence != sm.licence || m.Purpose != sm.purpose ||
 			m.PipelineTag != sm.pipelineTag || m.LibraryName != sm.libraryName || m.BaseModel != sm.baseModel ||
 			m.Architecture != sm.architecture || m.ContextLength != sm.contextLength || m.Downloads != sm.downloads ||
 			m.Gated != sm.gated:
-			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, digest = ?, licence = ?, purpose = ?,
+			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, licence = ?, purpose = ?,
 				pipeline_tag = ?, library_name = ?, base_model = ?, architecture = ?, context_length = ?, downloads = ?, gated = ?
 				WHERE id = ?`,
-				sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose,
+				sm.org, sm.source, sm.quant, sm.file, sm.licence, sm.purpose,
 				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated, sm.id); err != nil {
 				return err
 			}

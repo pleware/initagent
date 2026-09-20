@@ -74,8 +74,8 @@ func TestCreateBoxSeedsNarrator(t *testing.T) {
 		t.Fatalf("StaffForBox = %d rows, want exactly the narrator", len(roster))
 	}
 	got := roster[0]
-	if got.Slug != "st_b_pi" || got.Name != "Joe" || got.Locale != "pl" ||
-		got.Voice != "pl_PL-mc_speech-medium" || got.BiologicalGender != "female" || got.Scope != "box" || got.BoxID != box.ID {
+	if got.Slug != "st_b_pi" || got.Name != "Ania" || got.Locale != "pl" ||
+		got.Voice != "pl_PL-gosia-medium" || got.BiologicalGender != "female" || got.Scope != "box" || got.BoxID != box.ID {
 		t.Errorf("narrator = %+v, want the box-scoped st_b_pi seed for %s", got, box.ID)
 	}
 	if got.SoulCore != "" {
@@ -510,7 +510,7 @@ func TestOpenStoreMigratesBoxColumns(t *testing.T) {
 }
 
 // A store whose box narrator row still carries the pre-rename slug has that
-// row carried over to st_b_pi/"Joe" on reopen, and only the affected
+// row carried over to st_b_pi/"Ania" on reopen, and only the affected
 // box's config_version bumps — the rename is manifest content, so a
 // connector's next sync must serve it. The migration is idempotent: a
 // second reopen finds no old-slug rows and bumps nothing.
@@ -548,8 +548,8 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(roster) != 1 || roster[0].Slug != "st_b_pi" || roster[0].Name != "Joe" {
-		t.Errorf("migrated narrator = %+v, want st_b_pi/Joe", roster)
+	if len(roster) != 1 || roster[0].Slug != "st_b_pi" || roster[0].Name != "Ania" {
+		t.Errorf("migrated narrator = %+v, want st_b_pi/Ania", roster)
 	}
 	if got, _ := again.GetBox(legacy.ID); got.ConfigVersion != 2 {
 		t.Errorf("legacy box config_version = %d, want 2 (one rename bump)", got.ConfigVersion)
@@ -574,7 +574,7 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 }
 
 // A store whose box narrator row already rides st_b_pi but still carries the
-// pre-rename name has that name carried over to "Joe" on reopen, and the
+// pre-rename name has that name carried over to "Ania" on reopen, and the
 // affected box's config_version bumps exactly once — the name is manifest
 // content, so a connector's next sync must serve it. The migration is
 // idempotent: a second reopen finds no old-name rows and bumps nothing.
@@ -608,8 +608,8 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(roster) != 1 || roster[0].Slug != "st_b_pi" || roster[0].Name != "Joe" {
-		t.Errorf("migrated narrator = %+v, want st_b_pi/Joe", roster)
+	if len(roster) != 1 || roster[0].Slug != "st_b_pi" || roster[0].Name != "Ania" {
+		t.Errorf("migrated narrator = %+v, want st_b_pi/Ania", roster)
 	}
 	if got, _ := again.GetBox(box.ID); got.ConfigVersion != 2 {
 		t.Errorf("box config_version = %d, want 2 (one name-rename bump)", got.ConfigVersion)

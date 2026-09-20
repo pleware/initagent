@@ -364,7 +364,7 @@ func TestUpsertStaffSlugUniquePerScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rosterA) != 1 || rosterA[0].Name != "Joe" {
+	if len(rosterA) != 1 || rosterA[0].Name != "Ania" {
 		t.Errorf("box A narrator = %+v, want the untouched seed", rosterA)
 	}
 	rosterB, err := s.StaffForBox(boxB.ID)

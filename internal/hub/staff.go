@@ -39,6 +39,11 @@ type Staff struct {
 	SoulCore      string    `json:"soulCore"`
 	SoulOverride  string    `json:"soulOverride,omitempty"`
 	Voice         string    `json:"voice"`
+	// BiologicalGender is the staff member's sex — "male" or "female", the
+	// two values a gender-grammatical language (Polish declensions) needs to
+	// self-inflect. The empty string is "not set" (a migrated or unseeded
+	// row); anything else is refused by validateBiologicalGender.
+	BiologicalGender string `json:"biologicalGender"`
 	Scope         string    `json:"scope"`
 	BoxID         string    `json:"boxId,omitempty"`
 	CreatedAt     int64     `json:"createdAt"`

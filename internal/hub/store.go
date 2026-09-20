@@ -197,6 +197,7 @@ CREATE TABLE IF NOT EXISTS staff (
 	avatar_model_3d TEXT NOT NULL DEFAULT '',
 	soul_core   TEXT NOT NULL DEFAULT '',
 	voice       TEXT NOT NULL DEFAULT '',
+	biological_gender TEXT NOT NULL DEFAULT '',
 	scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
 	box_id      TEXT,
 	created_at  INTEGER NOT NULL,
@@ -432,6 +433,7 @@ CREATE TABLE IF NOT EXISTS staff (
 	avatar_model_3d TEXT NOT NULL DEFAULT '',
 	soul_core   TEXT NOT NULL DEFAULT '',
 	voice       TEXT NOT NULL DEFAULT '',
+	biological_gender TEXT NOT NULL DEFAULT '',
 	scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
 	box_id      TEXT,
 	created_at  BIGINT NOT NULL,
@@ -535,6 +537,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureStaffScopeColumns(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring staff scope columns: %w", err)
+	}
+	if err := s.ensureStaffBiologicalGender(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring staff biological_gender column: %w", err)
 	}
 	if err := s.ensureStaffPerScopeSlugUniqueness(); err != nil {
 		db.Close()
@@ -756,6 +762,16 @@ func (s *Store) ensureStaffScopeColumns() error {
 	return s.ensureColumn("staff", "box_id", "TEXT")
 }
 
+// ensureStaffBiologicalGender adds the biological_gender column to a live
+// staff table. Like scope/box_id, CREATE TABLE IF NOT EXISTS cannot add a
+// column to an existing table, so a migrated table gains the column and its
+// default through ALTER TABLE ADD COLUMN. The male/female validation is in Go
+// (validateBiologicalGender), not a CHECK — ALTER TABLE ADD COLUMN cannot
+// carry one, the same reason scope's CHECK lives only in CREATE TABLE.
+func (s *Store) ensureStaffBiologicalGender() error {
+	return s.ensureColumn("staff", "biological_gender", "TEXT NOT NULL DEFAULT ''")
+}
+
 // ensureStaffAvatarModel3D renames the staff avatar GLB column from the
 // inherited short name `model` to `avatar_model_3d` on both tables that
 // carried it, clearing the way for the LLM pin registry to own the bare
@@ -896,7 +912,7 @@ func (s *Store) rebuildStaffWithoutGlobalSlugUnique() error {
 		return err
 	}
 	cols := []string{"id", "slug", "name", "locale", "age", "big_five", "brief",
-		"word_budget", "avatar_model_3d", "soul_core", "voice", "scope", "box_id", "created_at", "updated_at"}
+		"word_budget", "avatar_model_3d", "soul_core", "voice", "biological_gender", "scope", "box_id", "created_at", "updated_at"}
 	for _, col := range cols {
 		ok, err := s.hasColumn("staff", col)
 		if err != nil {
@@ -926,6 +942,7 @@ func (s *Store) rebuildStaffWithoutGlobalSlugUnique() error {
 		avatar_model_3d TEXT NOT NULL DEFAULT '',
 		soul_core   TEXT NOT NULL DEFAULT '',
 		voice       TEXT NOT NULL DEFAULT '',
+		biological_gender TEXT NOT NULL DEFAULT '',
 		scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
 		box_id      TEXT,
 		created_at  INTEGER NOT NULL,

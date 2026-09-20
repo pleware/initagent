@@ -75,7 +75,7 @@ func TestCreateBoxSeedsNarrator(t *testing.T) {
 	}
 	got := roster[0]
 	if got.Slug != "st_b_pi" || got.Name != "Joe" || got.Locale != "pl" ||
-		got.Voice != "pl_PL-mc_speech-medium" || got.Scope != "box" || got.BoxID != box.ID {
+		got.Voice != "pl_PL-mc_speech-medium" || got.BiologicalGender != "male" || got.Scope != "box" || got.BoxID != box.ID {
 		t.Errorf("narrator = %+v, want the box-scoped st_b_pi seed for %s", got, box.ID)
 	}
 	if got.SoulCore != "" {
@@ -103,7 +103,7 @@ func TestEnsureSeedBoxNarratorIdempotent(t *testing.T) {
 
 	// Content written over the seed survives a second run: the seed must
 	// not clobber a tuned narrator nor mint a second row.
-	if _, err := s.UpsertStaff("st_b_pi", "Lore", "en", "", "", "", "custom-voice", "box", box.ID, 0, 0, neutralBigFive()); err != nil {
+	if _, err := s.UpsertStaff("st_b_pi", "Lore", "en", "", "", "", "custom-voice", "female", "box", box.ID, 0, 0, neutralBigFive()); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.EnsureSeedBoxNarrator(box.ID); err != nil {
@@ -159,7 +159,7 @@ func TestEnsureSeedBoxNarratorPerBox(t *testing.T) {
 
 	// A re-seed still keys on the box: box A's tuned narrator is left alone,
 	// and box B keeps the row it owns.
-	if _, err := s.UpsertStaff("st_b_pi", "Lore", "en", "", "", "", "custom-voice", "box", boxA.ID, 0, 0, neutralBigFive()); err != nil {
+	if _, err := s.UpsertStaff("st_b_pi", "Lore", "en", "", "", "", "custom-voice", "female", "box", boxA.ID, 0, 0, neutralBigFive()); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.EnsureSeedBoxNarrator(boxB.ID); err != nil {

@@ -293,6 +293,7 @@ func (s *Server) handleUpdateBoxNarrator(w http.ResponseWriter, r *http.Request,
 		WordBudget    int       `json:"wordBudget"`
 		AvatarModel3D string    `json:"avatarModel3d"`
 		Voice         string    `json:"voice"`
+		BiologicalGender string `json:"biologicalGender"`
 		BigFive       Character `json:"bigFive"`
 		Brief         string    `json:"brief"`
 		SoulCore      string    `json:"soulCore"`
@@ -314,7 +315,11 @@ func (s *Server) handleUpdateBoxNarrator(w http.ResponseWriter, r *http.Request,
 		httpError(w, http.StatusBadRequest, "word budget cannot be negative")
 		return
 	}
-	staff, err := s.store.UpdateBoxNarrator(box.ID, req.Name, req.Locale, req.AvatarModel3D, req.Brief, req.SoulCore, req.Voice, req.Age, req.WordBudget, req.BigFive)
+	if err := validateBiologicalGender(req.BiologicalGender); err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	staff, err := s.store.UpdateBoxNarrator(box.ID, req.Name, req.Locale, req.AvatarModel3D, req.Brief, req.SoulCore, req.Voice, req.BiologicalGender, req.Age, req.WordBudget, req.BigFive)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

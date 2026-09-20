@@ -22,15 +22,16 @@ type staffScanner interface {
 
 // scanStaff reads one staff row selected in schema order:
 // id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d,
-// soul_core, voice, scope, box_id, created_at, updated_at. A missing row is
-// (nil, nil). big_five travels as JSON text, the same round-trip shape
-// skill.mcp uses for its optional config; box_id is NULL on org-scoped rows.
+// soul_core, voice, biological_gender, scope, box_id, created_at, updated_at.
+// A missing row is (nil, nil). big_five travels as JSON text, the same
+// round-trip shape skill.mcp uses for its optional config; box_id is NULL on
+// org-scoped rows.
 func scanStaff(row staffScanner) (*Staff, error) {
 	var st Staff
 	var bigFive string
 	var boxID sql.NullString
 	if err := row.Scan(&st.ID, &st.Slug, &st.Name, &st.Locale, &st.Age, &bigFive,
-		&st.Brief, &st.WordBudget, &st.AvatarModel3D, &st.SoulCore, &st.Voice, &st.Scope, &boxID, &st.CreatedAt, &st.UpdatedAt); err != nil {
+		&st.Brief, &st.WordBudget, &st.AvatarModel3D, &st.SoulCore, &st.Voice, &st.BiologicalGender, &st.Scope, &boxID, &st.CreatedAt, &st.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -59,7 +60,7 @@ func encodeBigFive(c Character) (string, error) {
 // slug. Box-scoped narrators are never part of it — they are a box's own
 // rows, listed by StaffForBox, not the installation's roster.
 func (s *Store) ListStaff() ([]Staff, error) {
-	rows, err := s.db.Query(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, scope, box_id, created_at, updated_at
+	rows, err := s.db.Query(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at
 		FROM staff WHERE scope = 'org' ORDER BY slug`)
 	if err != nil {
 		return nil, err
@@ -78,7 +79,7 @@ func (s *Store) ListStaff() ([]Staff, error) {
 
 // StaffById looks up one staff member. A missing one is (nil, nil).
 func (s *Store) StaffById(id string) (*Staff, error) {
-	return scanStaff(s.db.QueryRow(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, scope, box_id, created_at, updated_at
+	return scanStaff(s.db.QueryRow(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at
 		FROM staff WHERE id = ?`, id))
 }
 
@@ -106,6 +107,17 @@ func validateStaffScope(slug, scope, boxID string) error {
 	return nil
 }
 
+// validateBiologicalGender admits only the two values a gender-grammatical
+// language (Polish declensions) can self-inflect on. The empty string is
+// "not set" — a migrated or not-yet-configured row — and is admitted; anything
+// else is refused so a typo cannot mint a third gender.
+func validateBiologicalGender(s string) error {
+	if s == "" || s == "male" || s == "female" {
+		return nil
+	}
+	return fmt.Errorf("biological_gender must be \"male\" or \"female\", got %q", s)
+}
+
 // UpsertStaff writes a staff member keyed by scope-aware slug: an org-scoped
 // slug updates the row carrying that slug, a box-scoped slug updates the row
 // carrying that slug inside that box (58). An existing key updates the row
@@ -117,7 +129,7 @@ func validateStaffScope(slug, scope, boxID string) error {
 // an org-scoped write changes every box's manifest (bumpAllBoxes), while a
 // box-scoped write — the narrator — changes only that box and does not bump,
 // because a fresh box already starts at version 1 (CreateBox seeds it).
-func (s *Store) UpsertStaff(slug, name, locale, avatarModel3D, brief, soulCore, voice, scope, boxID string, age, wordBudget int, bigFive Character) (*Staff, error) {
+func (s *Store) UpsertStaff(slug, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender, scope, boxID string, age, wordBudget int, bigFive Character) (*Staff, error) {
 	if err := validateStaffScope(slug, scope, boxID); err != nil {
 		return nil, err
 	}
@@ -126,7 +138,7 @@ func (s *Store) UpsertStaff(slug, name, locale, avatarModel3D, brief, soulCore, 
 		return nil, err
 	}
 	defer tx.Rollback()
-	st, existingID, err := upsertStaffTx(tx, slug, name, locale, avatarModel3D, brief, soulCore, voice, scope, boxID, age, wordBudget, bigFive)
+	st, existingID, err := upsertStaffTx(tx, slug, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender, scope, boxID, age, wordBudget, bigFive)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +164,7 @@ func (s *Store) UpsertStaff(slug, name, locale, avatarModel3D, brief, soulCore, 
 // the freshly built row whose fields are exactly the submitted values. The
 // config_version bump the write causes is the caller's business, not the
 // core's.
-func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulCore, voice, scope, boxID string, age, wordBudget int, bigFive Character) (*Staff, string, error) {
+func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender, scope, boxID string, age, wordBudget int, bigFive Character) (*Staff, string, error) {
 	bigFiveJSON, err := encodeBigFive(bigFive)
 	if err != nil {
 		return nil, "", err
@@ -160,8 +172,8 @@ func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulC
 	var existing string
 	err = tx.QueryRow(`SELECT id FROM staff WHERE slug = ? AND COALESCE(box_id, '') = COALESCE(?, '')`, slug, boxID).Scan(&existing)
 	if err == nil {
-		if _, err = tx.Exec(`UPDATE staff SET name = ?, locale = ?, avatar_model_3d = ?, brief = ?, age = ?, word_budget = ?, soul_core = ?, voice = ?, big_five = ?, scope = ?, box_id = ?, updated_at = ?
-			WHERE id = ?`, name, locale, avatarModel3D, brief, age, wordBudget, soulCore, voice, bigFiveJSON, scope, boxID, time.Now().Unix(), existing); err != nil {
+		if _, err = tx.Exec(`UPDATE staff SET name = ?, locale = ?, avatar_model_3d = ?, brief = ?, age = ?, word_budget = ?, soul_core = ?, voice = ?, biological_gender = ?, big_five = ?, scope = ?, box_id = ?, updated_at = ?
+			WHERE id = ?`, name, locale, avatarModel3D, brief, age, wordBudget, soulCore, voice, biologicalGender, bigFiveJSON, scope, boxID, time.Now().Unix(), existing); err != nil {
 			return nil, "", err
 		}
 		return nil, existing, nil
@@ -186,15 +198,16 @@ func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulC
 		WordBudget:    wordBudget,
 		SoulCore:      soulCore,
 		Voice:         voice,
+		BiologicalGender: biologicalGender,
 		Scope:         scope,
 		BoxID:         boxID,
 		BigFive:       bigFive,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
-	if _, err = tx.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, scope, box_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		st.ID, st.Slug, st.Name, st.Locale, st.Age, bigFiveJSON, st.Brief, st.WordBudget, st.AvatarModel3D, st.SoulCore, st.Voice, st.Scope, st.BoxID, st.CreatedAt, st.UpdatedAt); err != nil {
+	if _, err = tx.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		st.ID, st.Slug, st.Name, st.Locale, st.Age, bigFiveJSON, st.Brief, st.WordBudget, st.AvatarModel3D, st.SoulCore, st.Voice, st.BiologicalGender, st.Scope, st.BoxID, st.CreatedAt, st.UpdatedAt); err != nil {
 		if uniqueConstraint(err) {
 			return nil, "", fmt.Errorf("staff slug %q already exists: %w", slug, err)
 		}
@@ -210,7 +223,7 @@ func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulC
 // core also creates the row when it is missing. The bump is single-box
 // (bumpBoxConfig), unlike UpsertStaff's org-scoped bumpAllBoxes: an edit
 // changes only this box's manifest.
-func (s *Store) UpdateBoxNarrator(boxID, name, locale, avatarModel3D, brief, soulCore, voice string, age, wordBudget int, bigFive Character) (*Staff, error) {
+func (s *Store) UpdateBoxNarrator(boxID, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender string, age, wordBudget int, bigFive Character) (*Staff, error) {
 	if err := validateStaffScope("st_b_pi", "box", boxID); err != nil {
 		return nil, err
 	}
@@ -219,7 +232,7 @@ func (s *Store) UpdateBoxNarrator(boxID, name, locale, avatarModel3D, brief, sou
 		return nil, err
 	}
 	defer tx.Rollback()
-	st, existingID, err := upsertStaffTx(tx, "st_b_pi", name, locale, avatarModel3D, brief, soulCore, voice, "box", boxID, age, wordBudget, bigFive)
+	st, existingID, err := upsertStaffTx(tx, "st_b_pi", name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender, "box", boxID, age, wordBudget, bigFive)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +253,7 @@ func (s *Store) UpdateBoxNarrator(boxID, name, locale, avatarModel3D, brief, sou
 // the shared base row otherwise (override ?? base). Box-scoped narrators are
 // never part of an org roster.
 func (s *Store) StaffForOrg(orgID string) ([]Staff, error) {
-	rows, err := s.db.Query(`SELECT st.id, st.slug, st.name, st.locale, st.age, st.big_five, st.brief, st.word_budget, st.avatar_model_3d, st.soul_core, st.voice, st.scope, st.created_at, st.updated_at,
+	rows, err := s.db.Query(`SELECT st.id, st.slug, st.name, st.locale, st.age, st.big_five, st.brief, st.word_budget, st.avatar_model_3d, st.soul_core, st.voice, st.biological_gender, st.scope, st.created_at, st.updated_at,
 		ov.name, ov.age, ov.soul_override, ov.voice, ov.big_five, ov.brief, ov.word_budget, ov.avatar_model_3d
 		FROM staff st
 		LEFT JOIN org_staff_overrides ov ON ov.org_id = ? AND ov.staff_id = st.id
@@ -266,7 +279,7 @@ func (s *Store) StaffForOrg(orgID string) ([]Staff, error) {
 // override, so this is a plain select with no join; org-scoped members are
 // never listed for a box.
 func (s *Store) StaffForBox(boxID string) ([]Staff, error) {
-	rows, err := s.db.Query(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, scope, box_id, created_at, updated_at
+	rows, err := s.db.Query(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at
 		FROM staff WHERE scope = 'box' AND box_id = ? ORDER BY slug`, boxID)
 	if err != nil {
 		return nil, err
@@ -294,7 +307,7 @@ func scanStaffForOrg(row staffScanner) (*Staff, error) {
 	var ovName, ovSoul, ovVoice, ovBigFive, ovBrief, ovAvatarModel3D sql.NullString
 	var ovAge, ovWordBudget sql.NullInt64
 	if err := row.Scan(&st.ID, &st.Slug, &st.Name, &st.Locale, &st.Age, &baseBigFive,
-		&st.Brief, &st.WordBudget, &st.AvatarModel3D, &st.SoulCore, &st.Voice, &st.Scope, &st.CreatedAt, &st.UpdatedAt,
+		&st.Brief, &st.WordBudget, &st.AvatarModel3D, &st.SoulCore, &st.Voice, &st.BiologicalGender, &st.Scope, &st.CreatedAt, &st.UpdatedAt,
 		&ovName, &ovAge, &ovSoul, &ovVoice, &ovBigFive, &ovBrief, &ovWordBudget, &ovAvatarModel3D); err != nil {
 		return nil, err
 	}
@@ -409,12 +422,13 @@ func nullableInt(p *int) any {
 // replace them later; the seed only guarantees the two baseline members
 // exist.
 type seedStaff struct {
-	slug          string
-	name          string
-	locale        string
-	age           int
-	avatarModel3D string
-	voice         string
+	slug             string
+	name             string
+	locale           string
+	age              int
+	avatarModel3D    string
+	voice            string
+	biologicalGender string
 }
 
 // neutralCharacter is the baseline Big Five profile a seeded staff member
@@ -434,8 +448,8 @@ func neutralCharacter() Character {
 // the seeds survives a restart. Idempotent.
 func (s *Store) EnsureSeedStaff() error {
 	for _, sd := range []seedStaff{
-		{slug: "staff-male-00", name: "Adam", locale: "pl", age: 35, voice: "pl_PL-mc_speech-medium"},
-		{slug: "staff-female-00", name: "Ewa", locale: "pl", age: 32, avatarModel3D: "arianna.glb", voice: "pl_PL-gosia-medium"},
+		{slug: "staff-male-00", name: "Adam", locale: "pl", age: 35, voice: "pl_PL-mc_speech-medium", biologicalGender: "male"},
+		{slug: "staff-female-00", name: "Ewa", locale: "pl", age: 32, avatarModel3D: "arianna.glb", voice: "pl_PL-gosia-medium", biologicalGender: "female"},
 	} {
 		var existing string
 		err := s.db.QueryRow(`SELECT id FROM staff WHERE slug = ?`, sd.slug).Scan(&existing)
@@ -445,7 +459,7 @@ func (s *Store) EnsureSeedStaff() error {
 		if !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
-		if _, err := s.UpsertStaff(sd.slug, sd.name, sd.locale, sd.avatarModel3D, "", "", sd.voice, "org", "", sd.age, 0, neutralCharacter()); err != nil {
+		if _, err := s.UpsertStaff(sd.slug, sd.name, sd.locale, sd.avatarModel3D, "", "", sd.voice, sd.biologicalGender, "org", "", sd.age, 0, neutralCharacter()); err != nil {
 			return err
 		}
 	}
@@ -469,6 +483,6 @@ func (s *Store) EnsureSeedBoxNarrator(boxID string) error {
 	if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	_, err = s.UpsertStaff("st_b_pi", "Joe", "pl", "", "", "", "pl_PL-mc_speech-medium", "box", boxID, 0, 0, neutralCharacter())
+	_, err = s.UpsertStaff("st_b_pi", "Joe", "pl", "", "", "", "pl_PL-mc_speech-medium", "male", "box", boxID, 0, 0, neutralCharacter())
 	return err
 }

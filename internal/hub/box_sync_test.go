@@ -178,7 +178,7 @@ func TestOrgScopedStaffBumpsAllBoxes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s.UpsertStaff("staff-custom-00", "Custom", "pl", "", "", "", "voice-x", "org", "", 30, 0, neutralBigFive()); err != nil {
+	if _, err := s.UpsertStaff("staff-custom-00", "Custom", "pl", "", "", "", "voice-x", "female", "org", "", 30, 0, neutralBigFive()); err != nil {
 		t.Fatal(err)
 	}
 	if a, _ := s.GetBox(boxA.ID); a.ConfigVersion != 2 {
@@ -208,7 +208,7 @@ func TestOrgScopedStaffBumpsAllBoxes(t *testing.T) {
 	if a, _ := s.GetBox(boxA.ID); a.ConfigVersion != 2 {
 		t.Errorf("box A after creating box C = %d, want 2 (narrator seed must not bump)", a.ConfigVersion)
 	}
-	if _, err := s.UpsertStaff("st_b_pi", "Lore", "en", "", "", "", "voice-y", "box", boxC.ID, 0, 0, neutralBigFive()); err != nil {
+	if _, err := s.UpsertStaff("st_b_pi", "Lore", "en", "", "", "", "voice-y", "female", "box", boxC.ID, 0, 0, neutralBigFive()); err != nil {
 		t.Fatal(err)
 	}
 	if c, _ := s.GetBox(boxC.ID); c.ConfigVersion != 1 {

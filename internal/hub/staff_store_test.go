@@ -22,6 +22,7 @@ func testStaff() Staff {
 		WordBudget:    2500,
 		SoulCore:      "debug first, explain after",
 		Voice:         "zeta-v1",
+		BiologicalGender: "male",
 		BigFive: Character{
 			Openness:          0.9,
 			Conscientiousness: 0.8,
@@ -65,7 +66,7 @@ func findStaff(t *testing.T, list []Staff, slug string) *Staff {
 func newBaseStaff(t *testing.T, s *Store) Staff {
 	t.Helper()
 	st := testStaff()
-	created, err := s.UpsertStaff(st.Slug, st.Name, st.Locale, st.AvatarModel3D, st.Brief, st.SoulCore, st.Voice, "org", "", st.Age, st.WordBudget, st.BigFive)
+	created, err := s.UpsertStaff(st.Slug, st.Name, st.Locale, st.AvatarModel3D, st.Brief, st.SoulCore, st.Voice, st.BiologicalGender, "org", "", st.Age, st.WordBudget, st.BigFive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +98,7 @@ func countSlug(list []Staff, slug string) int {
 func TestListStaffOrderedBySlug(t *testing.T) {
 	s := testStore(t)
 	for _, slug := range []string{"zeta", "alpha", "mike"} {
-		if _, err := s.UpsertStaff(slug, slug, "en", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
+		if _, err := s.UpsertStaff(slug, slug, "en", "", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -180,7 +181,7 @@ func TestUpdateBoxNarrator(t *testing.T) {
 		Openness: 0.9, Conscientiousness: 0.8, Extraversion: 0.7,
 		Agreeableness: 0.6, Neuroticism: 0.2,
 	}
-	st, err := s.UpdateBoxNarrator(boxA.ID, "Lore", "en", "lore.glb", "warm and precise", "explain first", "lore-v2", 42, 1200, want)
+	st, err := s.UpdateBoxNarrator(boxA.ID, "Lore", "en", "lore.glb", "warm and precise", "explain first", "lore-v2", "female", 42, 1200, want)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,8 +189,8 @@ func TestUpdateBoxNarrator(t *testing.T) {
 		t.Errorf("narrator identity = %+v, want the box-scoped st_b_pi row", st)
 	}
 	if st.Name != "Lore" || st.Locale != "en" || st.Age != 42 || st.WordBudget != 1200 ||
-		st.AvatarModel3D != "lore.glb" || st.Voice != "lore-v2" || st.Brief != "warm and precise" ||
-		st.SoulCore != "explain first" || st.BigFive != want {
+		st.AvatarModel3D != "lore.glb" || st.Voice != "lore-v2" || st.BiologicalGender != "female" ||
+		st.Brief != "warm and precise" || st.SoulCore != "explain first" || st.BigFive != want {
 		t.Errorf("narrator after the edit = %+v, want the submitted nine fields", st)
 	}
 	if got, _ := s.GetBox(boxA.ID); got.ConfigVersion != 2 {
@@ -204,7 +205,7 @@ func TestUpdateBoxNarrator(t *testing.T) {
 	if _, err := s.db.Exec(`DELETE FROM staff WHERE scope = 'box' AND box_id = ?`, boxB.ID); err != nil {
 		t.Fatal(err)
 	}
-	created, err := s.UpdateBoxNarrator(boxB.ID, "Data", "pl", "", "", "", "pl-v1", 0, 0, Character{})
+	created, err := s.UpdateBoxNarrator(boxB.ID, "Data", "pl", "", "", "", "pl-v1", "male", 0, 0, Character{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +235,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := testStore(t)
-			created, err := s.UpsertStaff(tt.in.Slug, tt.in.Name, tt.in.Locale, tt.in.AvatarModel3D, tt.in.Brief, tt.in.SoulCore, tt.in.Voice, "org", "", tt.in.Age, tt.in.WordBudget, tt.in.BigFive)
+			created, err := s.UpsertStaff(tt.in.Slug, tt.in.Name, tt.in.Locale, tt.in.AvatarModel3D, tt.in.Brief, tt.in.SoulCore, tt.in.Voice, tt.in.BiologicalGender, "org", "", tt.in.Age, tt.in.WordBudget, tt.in.BigFive)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -271,7 +272,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 func TestUpsertStaffUpdate(t *testing.T) {
 	s := testStore(t)
 	base := testStaff()
-	created, err := s.UpsertStaff(base.Slug, base.Name, base.Locale, base.AvatarModel3D, base.Brief, base.SoulCore, base.Voice, "org", "", base.Age, base.WordBudget, base.BigFive)
+	created, err := s.UpsertStaff(base.Slug, base.Name, base.Locale, base.AvatarModel3D, base.Brief, base.SoulCore, base.Voice, base.BiologicalGender, "org", "", base.Age, base.WordBudget, base.BigFive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,7 +282,7 @@ func TestUpsertStaffUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := s.UpsertStaff("coder-zeta", "Zeta Two", "en", "zeta2.glb", "sharper now", "explain first", "zeta-v2", "org", "", 42, 3000,
+	got, err := s.UpsertStaff("coder-zeta", "Zeta Two", "en", "zeta2.glb", "sharper now", "explain first", "zeta-v2", "male", "org", "", 42, 3000,
 		Character{Openness: 1, Conscientiousness: 1, Extraversion: 1, Agreeableness: 1, Neuroticism: 0})
 	if err != nil {
 		t.Fatal(err)
@@ -319,7 +320,7 @@ func TestUpsertStaffUpdate(t *testing.T) {
 
 func TestUpsertStaffSlugUnique(t *testing.T) {
 	s := testStore(t)
-	if _, err := s.UpsertStaff("staff-taken", "One", "en", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("staff-taken", "One", "en", "", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
 	// A direct second insert on the same slug is refused by the unique index.
@@ -345,7 +346,7 @@ func TestUpsertStaffSlugUniquePerScope(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s.UpsertStaff("staff-org-only", "One", "en", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("staff-org-only", "One", "en", "", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
 	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, created_at, updated_at)
@@ -356,7 +357,7 @@ func TestUpsertStaffSlugUniquePerScope(t *testing.T) {
 
 	// CreateBox already seeded st_b_pi for both boxes; the box-keyed update
 	// tunes only box B's row.
-	if _, err := s.UpsertStaff("st_b_pi", "Data B", "en", "", "", "", "", "box", boxB.ID, 0, 0, neutralBigFive()); err != nil {
+	if _, err := s.UpsertStaff("st_b_pi", "Data B", "en", "", "", "", "", "male", "box", boxB.ID, 0, 0, neutralBigFive()); err != nil {
 		t.Fatal(err)
 	}
 	rosterA, err := s.StaffForBox(boxA.ID)
@@ -401,7 +402,7 @@ func TestUpsertStaffScopeValidation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := s.UpsertStaff(tt.slug, tt.slug, "en", "", "", "", "", tt.scope, tt.boxID, 30, 0, Character{})
+			_, err := s.UpsertStaff(tt.slug, tt.slug, "en", "", "", "", "", "", tt.scope, tt.boxID, 30, 0, Character{})
 			if tt.wantError != nil {
 				if !errors.Is(err, tt.wantError) {
 					t.Fatalf("UpsertStaff error = %v, want %v", err, tt.wantError)
@@ -421,7 +422,7 @@ func TestUpsertStaffScopeRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	narrator, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "box", box.ID, 30, 0, Character{})
+	narrator, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "male", "box", box.ID, 30, 0, Character{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,7 +434,7 @@ func TestUpsertStaffScopeRoundTrip(t *testing.T) {
 		t.Errorf("box-scoped row = scope %q box_id %q, want box/%s", got.Scope, got.BoxID, box.ID)
 	}
 
-	orgStaff, err := s.UpsertStaff("staff-nova-00", "Nova", "en", "", "", "", "", "org", "", 30, 0, Character{})
+	orgStaff, err := s.UpsertStaff("staff-nova-00", "Nova", "en", "", "", "", "", "", "org", "", 30, 0, Character{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -456,13 +457,13 @@ func TestStaffForBoxReturnsBoxScopedOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.UpsertStaff("staff-org-00", "Org Narr", "en", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("staff-org-00", "Org Narr", "en", "", "", "", "", "", "org", "", 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "box", boxA.ID, 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "male", "box", boxA.ID, 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.UpsertStaff("st_b_jl", "Jean-Luc", "en", "", "", "", "", "box", boxB.ID, 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("st_b_jl", "Jean-Luc", "en", "", "", "", "", "male", "box", boxB.ID, 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -508,7 +509,7 @@ func TestStaffForOrgExcludesBoxScoped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "box", box.ID, 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "male", "box", box.ID, 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
 

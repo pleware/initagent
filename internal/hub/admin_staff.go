@@ -66,6 +66,7 @@ func (s *Server) handleUpsertStaff(w http.ResponseWriter, r *http.Request, cred 
 		WordBudget    int       `json:"wordBudget"`
 		SoulCore      string    `json:"soulCore"`
 		Voice         string    `json:"voice"`
+		BiologicalGender string `json:"biologicalGender"`
 		BigFive       Character `json:"bigFive"`
 	}
 	if err := readJSON(r, &req); err != nil {
@@ -78,7 +79,11 @@ func (s *Server) handleUpsertStaff(w http.ResponseWriter, r *http.Request, cred 
 		httpError(w, http.StatusBadRequest, "slug and name are required")
 		return
 	}
-	st, err := s.store.UpsertStaff(req.Slug, req.Name, req.Locale, req.AvatarModel3D, req.Brief, req.SoulCore, req.Voice, "org", "", req.Age, req.WordBudget, req.BigFive)
+	if err := validateBiologicalGender(req.BiologicalGender); err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	st, err := s.store.UpsertStaff(req.Slug, req.Name, req.Locale, req.AvatarModel3D, req.Brief, req.SoulCore, req.Voice, req.BiologicalGender, "org", "", req.Age, req.WordBudget, req.BigFive)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

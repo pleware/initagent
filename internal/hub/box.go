@@ -307,6 +307,11 @@ func (s *Server) handleUpdateBoxNarrator(w http.ResponseWriter, r *http.Request,
 		httpError(w, http.StatusBadRequest, "name is required")
 		return
 	}
+	// The narrator's language defaults to Polish until a language picker
+	// exists: a blank locale falls back to "pl".
+	if req.Locale == "" {
+		req.Locale = "pl"
+	}
 	if req.Age < 0 {
 		httpError(w, http.StatusBadRequest, "age cannot be negative")
 		return

@@ -390,6 +390,14 @@ func TestBoxNarratorEdit(t *testing.T) {
 	if got, _ := f.srv.store.GetBox(box.ID); got.ConfigVersion != 3 {
 		t.Errorf("config_version after the second edit = %d, want 3", got.ConfigVersion)
 	}
+	// The locale was omitted, so it falls back to the Polish default.
+	var after Staff
+	if err := json.NewDecoder(resp.Body).Decode(&after); err != nil {
+		t.Fatal(err)
+	}
+	if after.Locale != "pl" {
+		t.Errorf("narrator locale after an edit without locale = %q, want the pl default", after.Locale)
+	}
 
 	// A missing box is a 404 before anything is written.
 	resp = f.do(t, http.MethodPatch, "/api/boxes/box-00000000-0000-0000-0000-000000000000/narrator",

@@ -460,6 +460,13 @@ export interface Model {
   digest: string
   licence: string
   purpose: Purpose
+  pipelineTag: string
+  libraryName: string
+  baseModel: string
+  architecture: string
+  contextLength: number
+  downloads: number
+  gated: boolean
 }
 
 // HfSearchResult is one hit of GET /api/admin/models/hf/search: a Hugging

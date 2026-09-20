@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, ApiError, hfRepoFiles, localizeError, searchHf } from '../api'
+import { api, ApiError, hfRepoFiles, inspectModel, localizeError, searchHf } from '../api'
 import { usePoll } from '../hooks'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
@@ -86,6 +86,16 @@ export default function ModelsPage() {
     }
   }
 
+  const inspect = async (model: Model) => {
+    setError('')
+    try {
+      await inspectModel(model.id)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('models.inspectFailed'))
+    }
+  }
+
   return (
     <div className="page-shell">
       <div className="mb-6 flex items-end justify-between">
@@ -151,15 +161,25 @@ export default function ModelsPage() {
                 cell: (m) => <span className="text-fg-subtle">{m.licence || '—'}</span>,
               },
               {
+                header: t('models.metadata'),
+                cell: (m) => <ModelMetaCell model={m} />,
+              },
+              {
                 header: t('models.digest'),
                 cell: (m) => <DigestBadge model={m} />,
               },
               {
                 header: '',
                 srHeader: t('models.actions'),
-                width: 'w-28',
+                width: 'w-40',
                 cell: (m) => (
                   <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => void inspect(m)}
+                      className="text-xs text-fg-subtle hover:text-fg"
+                    >
+                      {t('models.inspect')}
+                    </button>
                     <button
                       onClick={() => setEditor(m)}
                       className="text-xs text-fg-subtle hover:text-fg"
@@ -546,6 +566,18 @@ function DigestBadge({ model }: { model: Model }) {
       {model.digest}
     </span>
   )
+}
+
+// ModelMetaCell shows a pin's derived metadata in one compact line: the HF
+// pipeline tag (the modality signal), the GGUF architecture and the context
+// length. All empty — a pin never inspected — renders an em dash.
+function ModelMetaCell({ model }: { model: Model }) {
+  const parts: string[] = []
+  if (model.pipelineTag) parts.push(model.pipelineTag)
+  if (model.architecture) parts.push(model.architecture)
+  if (model.contextLength > 0) parts.push(`${model.contextLength.toLocaleString()} ctx`)
+  if (parts.length === 0) return <span className="text-fg-subtle">—</span>
+  return <span className="font-mono text-[11px] text-fg-subtle">{parts.join(' · ')}</span>
 }
 
 // ModelForm creates or edits one pin. The id is the pin's key and immutable

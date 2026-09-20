@@ -2,7 +2,7 @@
 // the session cookie; 401s bounce the user to the login screen via the
 // listener App.tsx registers here.
 
-import type { BoxToken, HfRepoFile, HfSearchResult, Voice } from './types'
+import type { BoxToken, HfRepoFile, HfSearchResult, Model, Voice } from './types'
 import i18n from './i18n/config'
 
 let onUnauthorized: (() => void) | null = null
@@ -229,4 +229,12 @@ export function searchHf(
 export function hfRepoFiles(org: string, repo: string): Promise<HfRepoFile[]> {
   const path = `/api/admin/models/hf/repo/${encodeURIComponent(org)}/${encodeURIComponent(repo)}`
   return api.get<HfRepoFile[]>(path)
+}
+
+// inspectModel enriches a pin's derived metadata from Hugging Face and the
+// GGUF header: the pipeline tag, library, base model, downloads, gate and —
+// for a GGUF pin — the architecture and context length read from the file
+// header over a ranged GET (never the weights). Returns the updated pin.
+export function inspectModel(id: string): Promise<Model> {
+  return api.post<Model>(`/api/admin/models/${encodeURIComponent(id)}/inspect`)
 }

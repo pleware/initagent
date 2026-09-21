@@ -11,7 +11,7 @@ import "errors"
 //	{
 //	  "version": <box.config_version>,
 //	  "box":     {"id","slug","name","edition","hostId"},
-//	  "orgs":    [{"id","name"} for each bound org],
+//	  "orgs":    [{"id","name","level"} for each bound org],
 //	  "staff":   {"<orgId>": StaffForOrg(org) for each bound org},
 //	  "narrator": <first StaffForBox row, or null when unseeded>,
 //	  "models":  {"<purpose>": {"id","source","quant","file","digest","licence"}}
@@ -45,7 +45,7 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 			// to fail the sync: skip it in both lists.
 			continue
 		}
-		orgs = append(orgs, map[string]any{"id": org.Id, "name": org.Name})
+		orgs = append(orgs, map[string]any{"id": org.Id, "name": org.Name, "level": org.Level})
 		roster, err := s.StaffForOrg(orgID)
 		if err != nil {
 			return nil, err

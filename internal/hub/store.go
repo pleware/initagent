@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS orgs (
 	plan       TEXT NOT NULL DEFAULT 'free',
 	mode       TEXT NOT NULL DEFAULT '',
 	status     TEXT NOT NULL DEFAULT '',
+	level      TEXT NOT NULL DEFAULT '',
 	created_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_members (
@@ -336,6 +337,7 @@ CREATE TABLE IF NOT EXISTS orgs (
 	plan       TEXT NOT NULL DEFAULT 'free',
 	mode       TEXT NOT NULL DEFAULT '',
 	status     TEXT NOT NULL DEFAULT '',
+	level      TEXT NOT NULL DEFAULT '',
 	created_at BIGINT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS org_members (
@@ -565,6 +567,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureOrgStatusColumn(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring org status column: %w", err)
+	}
+	if err := s.ensureOrgLevelColumn(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring org level column: %w", err)
 	}
 	if err := s.ensureOrgBilling(); err != nil {
 		db.Close()
@@ -1196,6 +1202,13 @@ func (s *Store) dropColumn(table, column string) error {
 // until an operator suspends them.
 func (s *Store) ensureOrgStatusColumn() error {
 	return s.ensureColumn("orgs", "status", "TEXT NOT NULL DEFAULT ''")
+}
+
+// ensureOrgLevelColumn adds the ceiling-subtraction tier to a live orgs table.
+// CREATE TABLE IF NOT EXISTS will not add it, and existing orgs stay full —
+// the zero value — until their admin sets a level.
+func (s *Store) ensureOrgLevelColumn() error {
+	return s.ensureColumn("orgs", "level", "TEXT NOT NULL DEFAULT ''")
 }
 
 // ensureAccountLocale adds the UI language to a live accounts table.
@@ -1994,6 +2007,7 @@ type Org struct {
 	Plan      string    `json:"plan"`
 	Mode      OrgMode   `json:"mode,omitempty"`
 	Status    OrgStatus `json:"status"`
+	Level     OrgLevel  `json:"level"`
 	CreatedAt int64     `json:"createdAt"`
 	// Members is the roster size. The platform operator's list of orgs shows
 	// it, which is deliberately as far as that surface goes: enumerating
@@ -2038,9 +2052,9 @@ func (s *Store) CreateOrg(name string) (*Org, error) {
 
 // ListOrgs returns every organization with its roster size, oldest first.
 func (s *Store) ListOrgs() ([]Org, error) {
-	rows, err := s.db.Query(`SELECT o.id, o.name, o.plan, o.mode, o.status, o.created_at, COUNT(m.account_id)
+	rows, err := s.db.Query(`SELECT o.id, o.name, o.plan, o.mode, o.status, o.level, o.created_at, COUNT(m.account_id)
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
-		GROUP BY o.id, o.name, o.plan, o.mode, o.status, o.created_at
+		GROUP BY o.id, o.name, o.plan, o.mode, o.status, o.level, o.created_at
 		ORDER BY o.created_at, o.id`)
 	if err != nil {
 		return nil, err
@@ -2049,12 +2063,13 @@ func (s *Store) ListOrgs() ([]Org, error) {
 	out := []Org{}
 	for rows.Next() {
 		var o Org
-		var mode, status string
-		if err := rows.Scan(&o.Id, &o.Name, &o.Plan, &mode, &status, &o.CreatedAt, &o.Members); err != nil {
+		var mode, status, level string
+		if err := rows.Scan(&o.Id, &o.Name, &o.Plan, &mode, &status, &level, &o.CreatedAt, &o.Members); err != nil {
 			return nil, err
 		}
 		o.Mode = OrgMode(mode)
 		o.Status = OrgStatus(status)
+		o.Level = OrgLevel(level)
 		out = append(out, o)
 	}
 	return out, rows.Err()
@@ -2063,12 +2078,12 @@ func (s *Store) ListOrgs() ([]Org, error) {
 // OrgById returns one organization, or (nil, nil) when it does not exist.
 func (s *Store) OrgById(orgId string) (*Org, error) {
 	var o Org
-	var mode, status string
-	err := s.db.QueryRow(`SELECT o.id, o.name, o.plan, o.mode, o.status, o.created_at, COUNT(m.account_id)
+	var mode, status, level string
+	err := s.db.QueryRow(`SELECT o.id, o.name, o.plan, o.mode, o.status, o.level, o.created_at, COUNT(m.account_id)
 		FROM orgs o LEFT JOIN org_members m ON m.org_id = o.id
 		WHERE o.id = ?
-		GROUP BY o.id, o.name, o.plan, o.mode, o.status, o.created_at`, orgId).
-		Scan(&o.Id, &o.Name, &o.Plan, &mode, &status, &o.CreatedAt, &o.Members)
+		GROUP BY o.id, o.name, o.plan, o.mode, o.status, o.level, o.created_at`, orgId).
+		Scan(&o.Id, &o.Name, &o.Plan, &mode, &status, &level, &o.CreatedAt, &o.Members)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -2077,6 +2092,7 @@ func (s *Store) OrgById(orgId string) (*Org, error) {
 	}
 	o.Mode = OrgMode(mode)
 	o.Status = OrgStatus(status)
+	o.Level = OrgLevel(level)
 	return &o, nil
 }
 
@@ -2090,6 +2106,24 @@ func (s *Store) RenameOrg(orgId, name string) error {
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec(`UPDATE orgs SET name = ? WHERE id = ?`, name, orgId); err != nil {
+		return err
+	}
+	if err := bumpConfigForOrg(tx, orgId); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// SetOrgLevel writes the ceiling-subtraction tier. The level rides in the
+// manifest of every box bound to the org, so the write and the config_version
+// bump on those boxes commit together, like a rename.
+func (s *Store) SetOrgLevel(orgId string, level OrgLevel) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`UPDATE orgs SET level = ? WHERE id = ?`, string(level), orgId); err != nil {
 		return err
 	}
 	if err := bumpConfigForOrg(tx, orgId); err != nil {

@@ -427,6 +427,38 @@ func TestRenameOrg(t *testing.T) {
 	}
 }
 
+func TestSetOrgLevel(t *testing.T) {
+	f := claimedHub(t, offering.Selfhost)
+	resp := f.do(t, http.MethodPatch, "/api/orgs/"+f.orgId+"/level", map[string]string{"level": "child"})
+	if resp.StatusCode != 200 {
+		t.Fatalf("set level: %d, want 200", resp.StatusCode)
+	}
+	org, err := f.srv.store.OrgById(f.orgId)
+	if err != nil || org == nil {
+		t.Fatal(err)
+	}
+	if org.Level != OrgLevelChild {
+		t.Errorf("level = %q, want child", org.Level)
+	}
+
+	// Back to full — the empty string is the zero value.
+	resp = f.do(t, http.MethodPatch, "/api/orgs/"+f.orgId+"/level", map[string]string{"level": "full"})
+	if resp.StatusCode != 200 {
+		t.Fatalf("reset level: %d, want 200", resp.StatusCode)
+	}
+	if org, _ = f.srv.store.OrgById(f.orgId); org.Level != OrgLevelFull {
+		t.Errorf("level after reset = %q, want full", org.Level)
+	}
+}
+
+func TestSetOrgLevelRejectsUnknown(t *testing.T) {
+	f := claimedHub(t, offering.Selfhost)
+	resp := f.do(t, http.MethodPatch, "/api/orgs/"+f.orgId+"/level", map[string]string{"level": "teen"})
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("unknown level: %d, want 400", resp.StatusCode)
+	}
+}
+
 func TestOperatorSetsOrgMode(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
 	customer, err := f.srv.store.CreateOrg("Customer Ltd")

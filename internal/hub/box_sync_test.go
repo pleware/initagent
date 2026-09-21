@@ -282,6 +282,59 @@ func TestRenameOrgBumpsBoundBoxes(t *testing.T) {
 	}
 }
 
+// An org level reaches the bound boxes only: setting it bumps exactly the
+// boxes carrying the org, and the level rides in their manifest (08).
+func TestSetOrgLevelBumpsBoundBoxes(t *testing.T) {
+	f := claimedHub(t, offering.Selfhost)
+	s := f.srv.store
+	org, err := s.CreateOrg("Family org")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound, err := s.CreateBox("box-level", "Bound", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	unbound, err := s.CreateBox("box-level-free", "Free", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetBoxOrgs(bound.ID, []string{org.Id}); err != nil {
+		t.Fatal(err)
+	}
+	secret, _, err := s.CreateBoxToken(bound.ID, "sync")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := s.GetBox(bound.ID)
+	if err != nil || before == nil {
+		t.Fatalf("GetBox = (%v, %v)", before, err)
+	}
+
+	if err := s.SetOrgLevel(org.Id, OrgLevelChild); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.GetBox(bound.ID); got.ConfigVersion != before.ConfigVersion+1 {
+		t.Errorf("bound box after set level = %d, want %d", got.ConfigVersion, before.ConfigVersion+1)
+	}
+	if got, _ := s.GetBox(unbound.ID); got.ConfigVersion != 1 {
+		t.Errorf("unbound box after set level = %d, want 1 (level must not touch it)", got.ConfigVersion)
+	}
+
+	resp := boxChangesGET(t, f, bound.ID, secret, fmt.Sprintf("?since=%d", before.ConfigVersion))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("poll at the pre-level version: %d, want 200", resp.StatusCode)
+	}
+	var manifest map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&manifest); err != nil {
+		t.Fatal(err)
+	}
+	orgs := manifest["orgs"].([]any)
+	if len(orgs) != 1 || orgs[0].(map[string]any)["level"] != "child" {
+		t.Errorf("manifest orgs after set level = %v, want level child", orgs)
+	}
+}
+
 // An org staff override reaches the bound boxes only, in both directions:
 // setting and clearing it each bump exactly the boxes carrying the org.
 func TestOrgStaffOverrideBumpsBoundBoxes(t *testing.T) {

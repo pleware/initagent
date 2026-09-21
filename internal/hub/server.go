@@ -564,6 +564,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/admin/models/hf/search", s.requireCredential(s.handleHfSearch))
 	m.HandleFunc("GET /api/admin/models/hf/repo/{org}/{repo}", s.requireCredential(s.handleHfRepoFiles))
 	m.HandleFunc("PATCH /api/orgs/{id}", s.requireCredential(s.handleRenameOrg))
+	m.HandleFunc("PATCH /api/orgs/{id}/level", s.requireCredential(s.handleSetOrgLevel))
 	m.HandleFunc("GET /api/orgs/{id}/members", s.requireCredential(s.handleListOrgMembers))
 	m.HandleFunc("PATCH /api/orgs/{id}/members/{accountId}", s.requireCredential(s.handleSetOrgMemberRole))
 	m.HandleFunc("DELETE /api/orgs/{id}/members/{accountId}", s.requireCredential(s.handleRemoveOrgMember))

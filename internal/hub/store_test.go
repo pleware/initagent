@@ -1004,6 +1004,47 @@ func TestOpenStoreMigratesOrgStatus(t *testing.T) {
 	}
 }
 
+func TestOpenStoreMigratesOrgLevel(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy-level.db")
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE orgs (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		plan TEXT NOT NULL DEFAULT 'free',
+		mode TEXT NOT NULL DEFAULT '',
+		status TEXT NOT NULL DEFAULT '',
+		created_at INTEGER NOT NULL
+	)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO orgs (id, name, created_at) VALUES ('org-1', 'old org', 1)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("OpenStore on a pre-level orgs table: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+	ok, err := s.hasColumn("orgs", "level")
+	if err != nil || !ok {
+		t.Fatalf("orgs.level after open: ok=%v err=%v", ok, err)
+	}
+	got, err := s.OrgById("org-1")
+	if err != nil || got == nil {
+		t.Fatalf("OrgById on the migrated row: %v, %v", got, err)
+	}
+	if got.Level != OrgLevelFull {
+		t.Errorf("migrated org level = %q, want full", got.Level)
+	}
+}
+
 func TestOpenStoreMigratesOrgPlan(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "legacy-orgs.db")
 	db, err := store.OpenDB(store.SQLite, path)

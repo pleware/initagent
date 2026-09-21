@@ -107,6 +107,34 @@ func (s *Server) handleRenameOrg(w http.ResponseWriter, r *http.Request, cred au
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
+// handleSetOrgLevel sets how much of the box's ceiling an org's members may
+// use (08). It is the org's own admin action: in a family, the parent who
+// administers a child's org sets its level. An unknown org hides, like rename.
+func (s *Server) handleSetOrgLevel(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
+	orgId := r.PathValue("id")
+	if !cred.Can(authz.AdminOrg, orgId, "") {
+		hideOrRefuse(w, cred, authz.AdminOrg, "no such organization", bound{org: orgId})
+		return
+	}
+	var req struct {
+		Level *string `json:"level"`
+	}
+	if err := readJSON(r, &req); err != nil || req.Level == nil {
+		httpError(w, http.StatusBadRequest, "level is required")
+		return
+	}
+	level, err := ParseOrgLevel(*req.Level)
+	if err != nil {
+		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.store.SetOrgLevel(orgId, level); err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
 // handleSetOrgMode sets how an organization behaves: standard, test, or
 // develop. Test lifts plan limits; develop pays on Stripe test without KSeF.
 // Either way it is a platform-operator action — a customer must not be able

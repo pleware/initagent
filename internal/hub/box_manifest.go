@@ -14,7 +14,7 @@ import "errors"
 //	  "orgs":    [{"id","name"} for each bound org],
 //	  "staff":   {"<orgId>": StaffForOrg(org) for each bound org},
 //	  "narrator": <first StaffForBox row, or null when unseeded>,
-//	  "models":  {"<purpose>": {"id","source","quant","digest","licence"}}
+//	  "models":  {"<purpose>": {"id","source","quant","file","digest","licence"}}
 //	}
 //
 // The models section is the resolved roster: per purpose the box's
@@ -74,6 +74,7 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 			"id":      m.ID,
 			"source":  m.Source,
 			"quant":   m.Quant,
+			"file":    m.File,
 			"digest":  m.Digest,
 			"licence": m.Licence,
 		}

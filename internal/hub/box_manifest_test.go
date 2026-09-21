@@ -159,13 +159,18 @@ func TestBuildBoxManifestMissingBox(t *testing.T) {
 	}
 }
 
-// The manifest models section is the resolved roster: per purpose the five
+// The manifest models section is the resolved roster: per purpose the six
 // pin fields, the override winning over the assignment, and a purpose with
-// neither omitted. The value carries exactly id, source, quant, digest and
-// licence — the purpose rides in the key, never inside the value.
+// neither omitted. The value carries exactly id, source, quant, file, digest
+// and licence — the purpose rides in the key, never inside the value.
 func TestBuildBoxManifestModelsSection(t *testing.T) {
 	s := testStore(t)
-	canonical := verifiedModel(t, s, "manifest-worker", "canonical-digest", "worker")
+	// Create the pin directly (not via verifiedModel) so it carries a real
+	// file — the manifest must emit it, not just round-trip an empty value.
+	canonical, err := s.CreateModel("manifest-worker", "Org", "Org/manifest-worker@rev", "", "manifest-worker.gguf", "canonical-digest", "MIT", "worker")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := s.SetAssignment("worker", canonical.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -186,6 +191,7 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 		"id":      canonical.ID,
 		"source":  canonical.Source,
 		"quant":   canonical.Quant,
+		"file":    canonical.File,
 		"digest":  canonical.Digest,
 		"licence": canonical.Licence,
 	}
@@ -196,7 +202,7 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 		t.Errorf("manifest pin leaks the registry org key: %v", models["worker"])
 	}
 
-	// A box with an override resolves to the override, same five-key shape.
+	// A box with an override resolves to the override, same six-key shape.
 	override := verifiedModel(t, s, "manifest-override", "override-digest", "worker")
 	overrideBox := testBox(t, s, "manifest-override-box")
 	if _, err := s.SetBoxModelOverride(overrideBox.ID, "worker", override.ID); err != nil {

@@ -186,7 +186,7 @@ func TestClearBoxModelOverride(t *testing.T) {
 }
 
 func TestResolvedModelsOverrideWinsOverAssignment(t *testing.T) {
-	s := testStore(t)
+	s := testStoreNoAssignments(t)
 	box := testBox(t, s, "resolution-box")
 	canonical := verifiedModel(t, s, "canonical-worker", "canonical-digest", "worker")
 	override := verifiedModel(t, s, "override-worker", "override-digest", "worker")
@@ -220,7 +220,7 @@ func TestResolvedModelsOverrideWinsOverAssignment(t *testing.T) {
 }
 
 func TestResolvedModelsOmitsUnresolvedPurposes(t *testing.T) {
-	s := testStore(t)
+	s := testStoreNoAssignments(t)
 	box := testBox(t, s, "omission-box")
 	persona := verifiedModel(t, s, "omission-persona", "persona-digest", "persona")
 	if _, err := s.SetBoxModelOverride(box.ID, "persona", persona.ID); err != nil {

@@ -660,6 +660,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model assignments: %w", err)
 	}
+	if err := s.EnsureSeedAssignments(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("seeding assignments: %w", err)
+	}
 	if err := s.ensureBoxModelOverrides(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring box model overrides: %w", err)

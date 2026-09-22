@@ -164,7 +164,7 @@ func TestBuildBoxManifestMissingBox(t *testing.T) {
 // neither omitted. The value carries exactly id, source, quant, file, digest
 // and licence — the purpose rides in the key, never inside the value.
 func TestBuildBoxManifestModelsSection(t *testing.T) {
-	s := testStore(t)
+	s := testStoreNoAssignments(t)
 	// Create the pin directly (not via verifiedModel) so it carries a real
 	// file — the manifest must emit it, not just round-trip an empty value.
 	canonical, err := s.CreateModel("manifest-worker", "Org", "Org/manifest-worker@rev", "", "manifest-worker.gguf", "canonical-digest", "MIT", "worker")
@@ -222,7 +222,7 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 // null. Assignments are installation-wide, so this needs its own store: a
 // box beside a factory assignment can never be pin-free.
 func TestBuildBoxManifestModelsEmpty(t *testing.T) {
-	s := testStore(t)
+	s := testStoreNoAssignments(t)
 	bareBox := testBox(t, s, "manifest-bare-box")
 	got, err := s.BuildBoxManifest(bareBox.ID)
 	if err != nil {

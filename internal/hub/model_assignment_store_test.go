@@ -24,7 +24,7 @@ func verifiedModel(t *testing.T, s *Store, id, digest, purpose string) *Model {
 }
 
 func TestSetAssignmentRoundTrip(t *testing.T) {
-	s := testStore(t)
+	s := testStoreNoAssignments(t)
 	m := verifiedModel(t, s, "verified-worker", "worker-digest", "worker")
 
 	a, err := s.SetAssignment(" Worker ", m.ID)
@@ -67,7 +67,7 @@ func TestSetAssignmentRoundTrip(t *testing.T) {
 }
 
 func TestSetAssignmentCrossValidation(t *testing.T) {
-	s := testStore(t)
+	s := testStoreNoAssignments(t)
 	worker := verifiedModel(t, s, "mismatch-worker", "worker-digest", "worker")
 	unverified := verifiedModel(t, s, "unverified-persona", "", "persona")
 
@@ -105,7 +105,7 @@ func TestSetAssignmentCrossValidation(t *testing.T) {
 }
 
 func TestSetAssignmentRefusesUnverifiedModels(t *testing.T) {
-	s := testStore(t)
+	s := testStoreNoAssignments(t)
 	// A pin with an empty digest cannot be assigned until the artifact is
 	// verified and the digest filled.
 	if _, err := s.CreateModel("unverified-pin", "org", "source", "", "", "", "MIT", "persona"); err != nil {
@@ -125,7 +125,7 @@ func TestSetAssignmentRefusesUnverifiedModels(t *testing.T) {
 }
 
 func TestClearAssignment(t *testing.T) {
-	s := testStore(t)
+	s := testStoreNoAssignments(t)
 	m := verifiedModel(t, s, "clearable-stt", "stt-digest", "stt")
 	if _, err := s.SetAssignment("stt", m.ID); err != nil {
 		t.Fatal(err)
@@ -158,7 +158,7 @@ func TestClearAssignment(t *testing.T) {
 }
 
 func TestListAssignmentsEmpty(t *testing.T) {
-	s := testStore(t)
+	s := testStoreNoAssignments(t)
 	list, err := s.ListAssignments()
 	if err != nil {
 		t.Fatal(err)
@@ -198,7 +198,13 @@ func TestListAssignmentsOrderedByPurpose(t *testing.T) {
 func TestAdminAssignmentEndpoints(t *testing.T) {
 	f := claimedHub(t, offering.Hosted)
 
-	// A fresh hub has no assignments.
+	// A fresh hub carries the factory's persona. Clear it, so what these
+	// assertions see is the endpoints' own behaviour rather than the seed's.
+	if _, err := f.srv.store.db.Exec(`DELETE FROM model_assignments`); err != nil {
+		t.Fatal(err)
+	}
+
+	// A hub with its assignments cleared has none.
 	resp := f.do(t, http.MethodGet, "/api/admin/models/assignments", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET fresh: %d, want 200", resp.StatusCode)

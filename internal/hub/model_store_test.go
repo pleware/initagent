@@ -312,8 +312,8 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 16 {
-		t.Fatalf("ListModels = %+v, want the sixteen factory pins", list)
+	if len(list) != 18 {
+		t.Fatalf("ListModels = %+v, want the eighteen factory pins", list)
 	}
 	byID := map[string]Model{}
 	for _, m := range list {
@@ -344,6 +344,8 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		{"qwen3.5-9b-q4_k_m", "unsloth", "unsloth/Qwen3.5-9B-GGUF@", "Q4_K_M", "", "Apache-2.0", "persona"},
 		{"gemma-4-26b-a4b-qat", "unsloth", "unsloth/gemma-4-26B-A4B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "worker"},
 		{"muse-glimmer-30b", "unsloth", "unsloth/Muse-Glimmer-30B-GGUF@", "UD-IQ3_M", "", "Apache-2.0", "worker"},
+		{"qwen3.6-35b-a3b-q4_k_m", "ggml-org", "ggml-org/Qwen3.6-35B-A3B-GGUF@", "Q4_K_M", "", "Apache-2.0", "persona"},
+		{"kat-coder-v2.5-dev-q4_k_m", "bartowski", "bartowski/Kwaipilot_KAT-Coder-V2.5-Dev-GGUF@", "Q4_K_M", "", "Apache-2.0", "worker"},
 	}
 	for _, tt := range tests {
 		m, ok := byID[tt.id]
@@ -382,6 +384,8 @@ func TestEnsureSeedModelsSeedsGGUFMetadata(t *testing.T) {
 		{"qwen3.5-9b-q4_k_m", "image-text-to-text", "transformers", "Qwen/Qwen3.5-9B", "qwen35", 262144},
 		{"gemma-4-26b-a4b-qat", "image-text-to-text", "transformers", "google/gemma-4-26B-A4B-it-qat-q4_0-unquantized", "gemma4", 262144},
 		{"muse-glimmer-30b", "image-text-to-text", "transformers", "meta-models/Muse-Glimmer-30B", "muse-glimmer", 131072},
+		{"qwen3.6-35b-a3b-q4_k_m", "image-text-to-text", "", "Qwen/Qwen3.6-35B-A3B", "qwen35moe", 262144},
+		{"kat-coder-v2.5-dev-q4_k_m", "text-generation", "", "Kwaipilot/KAT-Coder-V2.5-Dev", "qwen35moe", 262144},
 	}
 	for _, tt := range tests {
 		m, err := s.GetModel(tt.id)
@@ -441,8 +445,8 @@ func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 16 {
-		t.Errorf("ListModels after reseed has %d rows, want 16", len(list))
+	if len(list) != 18 {
+		t.Errorf("ListModels after reseed has %d rows, want 18", len(list))
 	}
 }
 
@@ -484,8 +488,8 @@ func TestEnsureSeedModelsBumpsBoxesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 16 {
-		t.Errorf("ListModels after reseed has %d rows, want 16", len(list))
+	if len(list) != 18 {
+		t.Errorf("ListModels after reseed has %d rows, want 18", len(list))
 	}
 }
 
@@ -499,8 +503,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 16 {
-		t.Errorf("fresh open has %d pins, want the sixteen seeds", len(list))
+	if len(list) != 18 {
+		t.Errorf("fresh open has %d pins, want the eighteen seeds", len(list))
 	}
 	box, err := s.CreateBox("reopen-box", "Reopen", "", "")
 	if err != nil {
@@ -528,8 +532,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 16 {
-		t.Errorf("reopen has %d pins, want 16", len(list))
+	if len(list) != 18 {
+		t.Errorf("reopen has %d pins, want 18", len(list))
 	}
 }
 
@@ -709,8 +713,8 @@ func TestListModelsPublic(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 16 {
-		t.Fatalf("public catalog has %d pins, want the sixteen seeds", len(got))
+	if len(got) != 18 {
+		t.Fatalf("public catalog has %d pins, want the eighteen seeds", len(got))
 	}
 	for _, m := range got {
 		if m.ID == "" || m.Org == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
@@ -777,7 +781,7 @@ func TestAdminModelEndpoints(t *testing.T) {
 		t.Errorf("update missing: %d, want 404", resp.StatusCode)
 	}
 
-	// List includes the new pin (four seeds + one).
+	// List includes the new pin (eighteen seeds + one).
 	resp = f.do(t, http.MethodGet, "/api/admin/models", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list: %d, want 200", resp.StatusCode)
@@ -786,8 +790,8 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 17 {
-		t.Errorf("list has %d pins, want 17 (seeds + admin-model)", len(list))
+	if len(list) != 19 {
+		t.Errorf("list has %d pins, want 19 (seeds + admin-model)", len(list))
 	}
 
 	// Delete.

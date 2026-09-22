@@ -345,7 +345,7 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		{"gemma-4-26b-a4b-qat", "unsloth", "unsloth/gemma-4-26B-A4B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "worker"},
 		{"muse-glimmer-30b", "unsloth", "unsloth/Muse-Glimmer-30B-GGUF@", "UD-IQ3_M", "", "Apache-2.0", "worker"},
 		{"qwen3.6-35b-a3b-q4_k_m", "ggml-org", "ggml-org/Qwen3.6-35B-A3B-GGUF@", "Q4_K_M", "b8a1dddb19cdffdc8105f7cfac93e1f987b99128edba855ed800306251dfd477", "Apache-2.0", "persona"},
-		{"kat-coder-v2.5-dev-q4_k_m", "bartowski", "bartowski/Kwaipilot_KAT-Coder-V2.5-Dev-GGUF@", "Q4_K_M", "", "Apache-2.0", "worker"},
+		{"kat-coder-v2.5-dev-q4_k_m", "bartowski", "bartowski/Kwaipilot_KAT-Coder-V2.5-Dev-GGUF@", "Q4_K_M", "e8bd64e3e79f4d618422eefe4fa06c2903dab6f7cf4109bde9f087eae75da4ae", "Apache-2.0", "worker"},
 	}
 	for _, tt := range tests {
 		m, ok := byID[tt.id]

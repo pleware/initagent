@@ -548,7 +548,7 @@ func (s *Store) EnsureSeedModels() error {
 			source:        "bartowski/Kwaipilot_KAT-Coder-V2.5-Dev-GGUF@d8f684f08d2950ea9d2db6a35ef7dada0707858b",
 			quant:         "Q4_K_M",
 			file:          "Kwaipilot_KAT-Coder-V2.5-Dev-Q4_K_M.gguf",
-			digest:        "",
+			digest:        "e8bd64e3e79f4d618422eefe4fa06c2903dab6f7cf4109bde9f087eae75da4ae",
 			licence:       "Apache-2.0",
 			purpose:       "worker",
 			pipelineTag:   "text-generation",

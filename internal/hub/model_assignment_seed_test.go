@@ -18,9 +18,9 @@ func testStoreNoAssignments(t *testing.T) *Store {
 	return s
 }
 
-// The factory default is part of a fresh installation: a store opened for the
-// first time answers persona with Qwen3.6 while nobody has touched the admin.
-func TestOpenStoreSeedsFactoryPersona(t *testing.T) {
+// The factory defaults are part of a fresh installation: a store opened for the
+// first time resolves all six purposes while nobody has touched the admin.
+func TestOpenStoreSeedsFactoryAssignments(t *testing.T) {
 	s := testStore(t)
 
 	marker, err := s.Setting(seedAssignmentsMarker)
@@ -31,18 +31,66 @@ func TestOpenStoreSeedsFactoryPersona(t *testing.T) {
 		t.Errorf("a fresh store carries no %s marker", seedAssignmentsMarker)
 	}
 
+	// The expected pairs are written out rather than read back from
+	// factoryAssignments: changing the factory set is a decision about what
+	// every new box resolves, so it has to be taken here as well as there.
+	want := map[string]string{
+		"persona":   "qwen3.6-35b-a3b-q4_k_m",
+		"worker":    "kat-coder-v2.5-dev-q4_k_m",
+		"embedding": "bge-m3",
+		"stt":       "faster-whisper-large-v3",
+		"vad":       "silero-vad",
+		"tts":       "pl_PL-gosia-medium",
+	}
+
 	list, err := s.ListAssignments()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 1 || list[0].Purpose != "persona" || list[0].ModelID != "qwen3.6-35b-a3b-q4_k_m" {
-		t.Errorf("assignments = %+v, want persona -> qwen3.6-35b-a3b-q4_k_m alone", list)
+	if len(list) != len(want) {
+		t.Fatalf("assignments = %+v, want the %d factory defaults", list, len(want))
+	}
+	for _, a := range list {
+		if want[a.Purpose] != a.ModelID {
+			t.Errorf("%s -> %q, want %q", a.Purpose, a.ModelID, want[a.Purpose])
+		}
 	}
 }
 
-// The box's side of the same fact: a new box's resolved roster carries the
-// factory model, not merely an assignment row.
-func TestResolvedModelsAnswersTheFactoryPersona(t *testing.T) {
+// Every default the factory ships has to name a pin the store can actually
+// assign. A pin without a digest is skipped by the seed, so a typo in the
+// factory set would read as an unassigned purpose rather than as an error —
+// this is the test that turns that silence into a failure.
+func TestFactoryAssignmentsNameVerifiedPins(t *testing.T) {
+	s := testStore(t)
+
+	if len(factoryAssignments()) == 0 {
+		t.Fatal("the factory names no defaults at all")
+	}
+	for _, want := range factoryAssignments() {
+		purpose, err := ParsePurpose(want.purpose)
+		if err != nil {
+			t.Errorf("factory default %q: %v", want.purpose, err)
+			continue
+		}
+		m, err := s.GetModel(want.modelID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		switch {
+		case m == nil:
+			t.Errorf("factory default %s -> %q: no such seeded pin", purpose, want.modelID)
+		case m.Purpose != purpose:
+			t.Errorf("factory default %s -> %q: that pin's purpose is %s", purpose, want.modelID, m.Purpose)
+		case m.Digest == "":
+			t.Errorf("factory default %s -> %q: the pin carries no digest, so it is not assignable", purpose, want.modelID)
+		}
+	}
+}
+
+// The box's side of the same fact: a new box's resolved roster carries all six
+// factory models, not merely the assignment rows.
+func TestResolvedModelsAnswersTheFactoryDefaults(t *testing.T) {
 	s := testStore(t)
 	box, err := s.CreateBox("fresh-box", "Fresh", "", "")
 	if err != nil {
@@ -53,12 +101,26 @@ func TestResolvedModelsAnswersTheFactoryPersona(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, ok := got["persona"]
-	if !ok {
-		t.Fatalf("a fresh box resolves no persona: %+v", got)
+	want := map[string]string{
+		"persona":   "qwen3.6-35b-a3b-q4_k_m",
+		"worker":    "kat-coder-v2.5-dev-q4_k_m",
+		"embedding": "bge-m3",
+		"stt":       "faster-whisper-large-v3",
+		"vad":       "silero-vad",
+		"tts":       "pl_PL-gosia-medium",
 	}
-	if m.ID != "qwen3.6-35b-a3b-q4_k_m" {
-		t.Errorf("persona resolves to %q, want the factory pin", m.ID)
+	if len(got) != len(want) {
+		t.Errorf("a fresh box resolves %d purposes, want %d: %+v", len(got), len(want), got)
+	}
+	for purpose, wantID := range want {
+		m, ok := got[purpose]
+		if !ok {
+			t.Errorf("a fresh box resolves no %s", purpose)
+			continue
+		}
+		if m.ID != wantID {
+			t.Errorf("%s resolves to %q, want %q", purpose, m.ID, wantID)
+		}
 	}
 }
 

@@ -12,19 +12,30 @@ type factoryAssignment struct {
 // factoryAssignments is the factory's default set — what a box bound to a
 // brand-new installation resolves without anybody opening the admin.
 //
-// It is deliberately short and it names pins the factory vouches for: a pin
-// without a digest is not assignable, so it cannot appear here. Every purpose
-// not listed stays unresolved until an admin assigns one; adding a line is the
-// whole change, because EnsureSeedAssignments applies whatever this returns.
+// It names one pin per purpose, and every one of them must be a pin this file
+// can vouch for: a pin without a digest is not assignable, so the seed skips
+// what it cannot honour and a typo here would read as an unassigned purpose
+// rather than as an error. TestFactoryAssignmentsNameVerifiedPins holds that.
 //
-// persona is Qwen3.6-35B-A3B. It answers a role that reasons, codes and calls
-// tools rather than the small dense pin that used to be the only option, and
-// it is a MoE the box serves at 50.9 t/s on one 16 GB card with the tuning the
-// CLI generates for it (`-ngl 99 -ncmoe 20 -c 32768`) — 13.6 t/s without it,
-// which is why the tuning ships beside this default.
+// Five of the six mirror what the live installation resolves, so a new box
+// comes up with the shape of box we actually run: bge-m3 embeds, the piper
+// voice speaks, faster-whisper-large-v3 transcribes, silero-vad listens for
+// speech. The two that differ are deliberate. persona is Qwen3.6-35B-A3B: it
+// answers a role that reasons, codes and calls tools rather than the small
+// dense pin that used to be the only option, and it is a MoE the box serves at
+// 50.9 t/s on one 16 GB card with the tuning the CLI generates for it
+// (`-ngl 99 -ncmoe 20 -c 32768`) against 13.6 t/s without it — which is why the
+// tuning ships beside this default. worker is KAT-Coder-V2.5-Dev: the software
+// engineer of the set, repo → grep → test → commit, chosen over
+// qwen2.5-coder-7b-q4_k_m on 2026-09-23.
 func factoryAssignments() []factoryAssignment {
 	return []factoryAssignment{
 		{purpose: "persona", modelID: "qwen3.6-35b-a3b-q4_k_m"},
+		{purpose: "worker", modelID: "kat-coder-v2.5-dev-q4_k_m"},
+		{purpose: "embedding", modelID: "bge-m3"},
+		{purpose: "stt", modelID: "faster-whisper-large-v3"},
+		{purpose: "vad", modelID: "silero-vad"},
+		{purpose: "tts", modelID: "pl_PL-gosia-medium"},
 	}
 }
 

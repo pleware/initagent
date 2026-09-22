@@ -169,7 +169,7 @@ func TestListAssignmentsEmpty(t *testing.T) {
 }
 
 func TestListAssignmentsOrderedByPurpose(t *testing.T) {
-	s := testStore(t)
+	s := testStoreNoAssignments(t)
 	for _, p := range []struct{ purpose, id string }{
 		{"worker", "ordered-worker"},
 		{"stt", "ordered-stt"},

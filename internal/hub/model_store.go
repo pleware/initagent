@@ -533,7 +533,7 @@ func (s *Store) EnsureSeedModels() error {
 			source:        "ggml-org/Qwen3.6-35B-A3B-GGUF@baec3ebee244827cda0f4557eafa8b28f7545fa6",
 			quant:         "Q4_K_M",
 			file:          "Qwen3.6-35B-A3B-Q4_K_M.gguf",
-			digest:        "",
+			digest:        "b8a1dddb19cdffdc8105f7cfac93e1f987b99128edba855ed800306251dfd477",
 			licence:       "Apache-2.0",
 			purpose:       "persona",
 			pipelineTag:   "image-text-to-text",

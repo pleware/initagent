@@ -27,12 +27,17 @@ func TestListVoicesPublic(t *testing.T) {
 
 	// The catalog size is locked by internal/voices (the committed
 	// voices.json); this proves the endpoint serves all of it, unfiltered.
-	if len(got) != 43 {
-		t.Fatalf("catalog = %d voices, want 43", len(got))
+	if len(got) != 44 {
+		t.Fatalf("catalog = %d voices, want 44", len(got))
 	}
 	for i, v := range got {
-		if v.Name == "" || v.Language == "" || v.Quality == "" {
+		if v.Name == "" || v.Language == "" {
 			t.Errorf("voice %d incomplete: %+v", i, v)
+		}
+		// Quality is Piper vocabulary: a Piper entry carries all three fields,
+		// a non-Piper entry carries its engine instead and no quality at all.
+		if v.IsPiper() && v.Quality == "" {
+			t.Errorf("piper voice %d incomplete: %+v", i, v)
 		}
 	}
 
@@ -55,5 +60,10 @@ func TestListVoicesPublic(t *testing.T) {
 	}
 	if !slices.Contains(got, voices.Voice{Name: "en_US-lessac-high", Language: "en_US", Quality: "high"}) {
 		t.Errorf("catalog missing en_US-lessac-high: %+v", got)
+	}
+	// The catalog carries a second engine since 2026-09-23, and the endpoint
+	// must serve it the same way: the id a form saves, with its engine named.
+	if !slices.Contains(got, voices.Voice{Name: "voxcpm2", Language: "pl_PL", Engine: "voxcpm2"}) {
+		t.Errorf("catalog missing the voxcpm2 engine voice: %+v", got)
 	}
 }

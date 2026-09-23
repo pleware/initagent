@@ -366,10 +366,6 @@ export interface Staff {
 
 // --- voices ---
 
-// Voice is one Piper voice of the TTS catalog the hub serves
-// (`internal/voices`, GET /api/voices). Name is the full Piper voice name
-// (e.g. "en_US-lessac-medium"), language the xx_YY prefix before the first
-// "-", and quality the suffix after the last "-" ("low", "medium", "high").
 // Locale is one entry of the staff language picker (GET /api/locales): the
 // BCP 47 code and its display name in its own language (CLDR).
 export interface Locale {
@@ -377,10 +373,20 @@ export interface Locale {
   name: string
 }
 
+// Voice is one entry of the TTS catalog the hub serves (`internal/voices`,
+// GET /api/voices). A Piper voice — the historical shape, and every entry but
+// one — has no engine: its name is the full Piper voice name
+// (e.g. "en_US-lessac-medium"), language the xx_YY prefix before the first
+// "-", and quality the suffix after the last "-" ("low", "medium", "high").
+// An entry that carries an engine is that engine's voice instead: the name is
+// the engine's own voice id, quality is Piper vocabulary and stays empty, and
+// nothing about a Piper name shape applies — never take a name apart without
+// checking engine first.
 export interface Voice {
   name: string
   language: string
   quality: string
+  engine?: string
 }
 
 // --- boxes ---

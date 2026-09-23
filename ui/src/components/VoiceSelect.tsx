@@ -32,7 +32,10 @@ function groupVoices(voices: Voice[]): { language: string; voices: Voice[] }[] {
 }
 
 // VoiceSelect is the voice picker of the staff forms: a select grouped by
-// language (pl_PL first), fed once by GET /api/voices. A current value that
+// language (pl_PL first), fed once by GET /api/voices. The catalog carries one
+// non-Piper engine's voice as well, and that one is labelled through
+// voices.engine.<id> instead of its raw id — so the picker reads
+// "VoxCPM2 (48 kHz)" while the value it saves stays the id. A current value that
 // is not in the catalog stays visible as a disabled fallback option, so the
 // form still shows — and can save — what it holds.
 //
@@ -98,7 +101,9 @@ export default function VoiceSelect({
         >
           {group.voices.map((voice) => (
             <option key={voice.name} value={voice.name}>
-              {voice.name}
+              {voice.engine
+                ? t('voices.engine.' + voice.engine, { defaultValue: voice.name })
+                : voice.name}
             </option>
           ))}
         </optgroup>

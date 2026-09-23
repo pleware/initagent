@@ -4,6 +4,7 @@
   { "name": "pl_PL-gosia-medium", "language": "pl_PL", "quality": "medium" },
   { "name": "pl_PL-mc_speech-medium", "language": "pl_PL", "quality": "medium" },
   { "name": "pl_PL-mls_6892-low", "language": "pl_PL", "quality": "low" },
+  { "name": "voxcpm2", "language": "pl_PL", "engine": "voxcpm2" },
   { "name": "en_GB-alan-low", "language": "en_GB", "quality": "low" },
   { "name": "en_GB-alan-medium", "language": "en_GB", "quality": "medium" },
   { "name": "en_GB-alba-medium", "language": "en_GB", "quality": "medium" },

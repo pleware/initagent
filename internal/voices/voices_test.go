@@ -12,7 +12,7 @@ func TestListHoldsTheFullCatalog(t *testing.T) {
 	t.Parallel()
 	voices := List()
 
-	if got, want := len(voices), 43; got != want {
+	if got, want := len(voices), 44; got != want {
 		t.Fatalf("List() returned %d voices, want %d", got, want)
 	}
 
@@ -20,7 +20,7 @@ func TestListHoldsTheFullCatalog(t *testing.T) {
 	for _, v := range voices {
 		byLanguage[v.Language]++
 	}
-	wantCounts := map[string]int{"pl_PL": 5, "en_GB": 11, "en_US": 27}
+	wantCounts := map[string]int{"pl_PL": 6, "en_GB": 11, "en_US": 27}
 	if len(byLanguage) != len(wantCounts) {
 		t.Fatalf("languages = %v, want exactly %v", byLanguage, wantCounts)
 	}
@@ -71,6 +71,11 @@ func TestLanguagesReturnsDisplayOrder(t *testing.T) {
 func TestEveryVoiceDerivesLanguageAndQualityFromItsName(t *testing.T) {
 	t.Parallel()
 	for _, v := range List() {
+		if !v.IsPiper() {
+			// A non-Piper entry has no Piper name to take apart. What must
+			// hold for it instead is TestANonPiperVoiceNamesItsEngine.
+			continue
+		}
 		dash := strings.IndexByte(v.Name, '-')
 		if dash < 0 {
 			t.Errorf("%s: no language prefix", v.Name)
@@ -82,6 +87,32 @@ func TestEveryVoiceDerivesLanguageAndQualityFromItsName(t *testing.T) {
 		if qual := v.Name[strings.LastIndexByte(v.Name, '-')+1:]; qual != v.Quality {
 			t.Errorf("%s: quality %q, want %q", v.Name, v.Quality, qual)
 		}
+	}
+}
+
+// TestANonPiperVoiceNamesItsEngine holds the line the catalog crossed on
+// 2026-09-23: it may carry a second engine, but every entry must say which of
+// the two it is, and exactly one of them is not Piper. A Piper entry that
+// quietly grew an Engine, or a second engine arriving without its own test,
+// fails here rather than in a picker that reads a name it cannot parse.
+func TestANonPiperVoiceNamesItsEngine(t *testing.T) {
+	t.Parallel()
+	var engines []string
+	for _, v := range List() {
+		if v.IsPiper() {
+			continue
+		}
+		engines = append(engines, v.Engine)
+		if v.Name != v.Engine {
+			t.Errorf("%s: engine %q, want the engine id repeated as the name of its default voice",
+				v.Name, v.Engine)
+		}
+		if v.Quality != "" {
+			t.Errorf("%s: quality %q, want empty — quality is Piper vocabulary", v.Name, v.Quality)
+		}
+	}
+	if want := []string{"voxcpm2"}; !slices.Equal(engines, want) {
+		t.Errorf("non-Piper engines = %v, want %v", engines, want)
 	}
 }
 

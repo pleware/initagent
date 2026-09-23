@@ -1,7 +1,14 @@
-// Package voices holds the Piper voice catalog: every text-to-speech voice
-// the fleet serves, with its language and quality. The source of truth is the
-// embedded voices.json, which consumers in other repositories (pware) fetch by
-// path — this package only reads it.
+// Package voices holds the text-to-speech catalog: every voice this fleet
+// serves, with its language and — since 2026-09-23 — the engine that speaks it.
+//
+// It began as the Piper voices alone and one non-Piper engine joined it without
+// pretending to be a Piper voice. A Piper entry carries no Engine and its
+// Language and Quality are derivable from its name (`xx_YY-name-quality`); an
+// entry such as voxcpm2 carries Engine and claims no name shape at all. The two
+// are told apart with IsPiper, and callers that parse a name must ask first.
+//
+// The source of truth is the embedded voices.json, which consumers in other
+// repositories (pware) fetch by path — this package only reads it.
 package voices
 
 import (
@@ -21,7 +28,19 @@ type Voice struct {
 	Name     string `json:"name"`
 	Language string `json:"language"`
 	Quality  string `json:"quality"`
+	// Engine names the engine that speaks this voice. Empty means Piper, which
+	// is what every historical entry is — hence omitempty: the 43 Piper voices
+	// carry no engine key and their shape is exactly what it was. A non-empty
+	// value means the entry is that engine's voice, name and quality are that
+	// engine's own vocabulary, and nothing about a Piper name shape applies.
+	Engine string `json:"engine,omitempty"`
 }
+
+// IsPiper reports whether this is a Piper voice — the historical shape, where
+// Engine is empty. Anything that parses a voice name as
+// `xx_YY-name-quality` must ask this first: a non-Piper entry has no such
+// shape to parse.
+func (v Voice) IsPiper() bool { return v.Engine == "" }
 
 // languageOrder is the display order of the catalog's languages: Polish
 // first (the product's home market), then US English (the largest group),

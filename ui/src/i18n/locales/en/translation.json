@@ -780,6 +780,9 @@
     "createHint": "A name is enough to start — tune everything else on the next page."
   },
   "voices": {
+    "engine": {
+      "voxcpm2": "VoxCPM2 (48 kHz)"
+    },
     "lang": {
       "pl_PL": "Polish",
       "en_US": "English (US)",

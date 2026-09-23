@@ -788,6 +788,9 @@
     "createHint": "Na początek wystarczy imię — resztę dostroisz na kolejnej stronie."
   },
   "voices": {
+    "engine": {
+      "voxcpm2": "VoxCPM2 (48 kHz)"
+    },
     "lang": {
       "pl_PL": "Polski",
       "en_US": "Angielski (US)",

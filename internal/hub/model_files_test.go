@@ -189,3 +189,36 @@ func TestSTTSeedListsTheFilesEachModelHas(t *testing.T) {
 		}
 	}
 }
+
+// A pin whose files carry digests is the shape a box can actually pull: zest is
+// handed only one digest per file, so an empty one is not "pulled unverified" —
+// zest downloads the whole artifact and then fails it as a DigestMismatch, which
+// is how three files of medium's snapshot were thrown away before their sums were
+// known (99). medium is the pin we have verified end to end; large-v3's list is
+// still names-only, and the same rule applies to it the moment it is assigned.
+func TestVerifiedSTTFilesCarryTheirDigest(t *testing.T) {
+	s := testStore(t)
+	if err := s.EnsureSeedModels(); err != nil {
+		t.Fatal(err)
+	}
+	m, err := s.GetModel("faster-whisper-medium")
+	if err != nil || m == nil {
+		t.Fatalf("GetModel(faster-whisper-medium) = (%v, %v)", m, err)
+	}
+	if len(m.Files) == 0 {
+		t.Fatal("the pin names no files")
+	}
+	for _, f := range m.Files {
+		if f.Digest == "" {
+			t.Errorf("%q carries no digest — a pull of it downloads the file and then fails it", f.File)
+		}
+	}
+	if m.Files[0].File != m.File {
+		t.Errorf("anchor is %q, want the pin's own %q listed first", m.Files[0].File, m.File)
+	}
+	for _, f := range m.Files {
+		if f.File == m.File && f.Digest != m.Digest {
+			t.Errorf("the anchor entry's digest %q is not the pin's own %q", f.Digest, m.Digest)
+		}
+	}
+}

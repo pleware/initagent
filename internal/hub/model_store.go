@@ -745,11 +745,19 @@ func (s *Store) EnsureSeedModels() error {
 			// vocabulary.txt where large-v3 ships vocabulary.json, and has
 			// no preprocessor_config.json at all — which is exactly why the
 			// pin has to name them rather than assume a shape.
+			//
+			// Every entry carries its digest. A file the pin leaves bare is
+			// not a file pulled unverified: zest is sent an empty digest,
+			// downloads the whole artifact, and then fails it as a
+			// DigestMismatch — three of these four were thrown away that way
+			// before the sums were known. These four were computed from the
+			// pinned revision and confirmed by zest's own verification of the
+			// pull (pull-5/6/7, 2026-09-23).
 			files: []ModelFile{
-				{File: "model.bin"},
-				{File: "config.json"},
-				{File: "tokenizer.json"},
-				{File: "vocabulary.txt"},
+				{File: "model.bin", Digest: "7b1053dea7640cc96b5b65b7168487db81010bfce317115d17ca358db970673d"},
+				{File: "config.json", Digest: "bec2cf9a5185532a55ffa18bf3880ac5b003f492321a90fa03996e9fb73f5d1d"},
+				{File: "tokenizer.json", Digest: "08e31ef36c475d42c5327c06acc218fc51e0e91284dc20cbdd62772baad5a119"},
+				{File: "vocabulary.txt", Digest: "1ebf5419ef1b33ce95393150786292f88a685685c599ab692ef4237f4bcff97b"},
 			},
 		},
 		{

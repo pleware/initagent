@@ -25,11 +25,19 @@ func TestTheSeedNamesTheEngineOfEveryNonLlamaPin(t *testing.T) {
 	if vox.Engine != "audio.cpp" {
 		t.Errorf("voxcpm2-q8_0 engine = %q, want audio.cpp", vox.Engine)
 	}
-	// Every other pin stays on the default: empty is llama.cpp, and a Piper
-	// voice or a recogniser is served by its own program, never by the roster.
-	for _, id := range []string{"pl_PL-gosia-medium", "faster-whisper-medium", "qwen3.5-4b-q4_k_m"} {
-		if m, ok := byID[id]; ok && m.Engine != "" && m.Engine != "llama.cpp" {
-			t.Errorf("%s engine = %q, want empty (llama.cpp) or an engine its own program serves", id, m.Engine)
+	// The mouth's other engine is stated too: a Piper voice is opened by
+	// Piper's container, and saying so is what lets a box skip the pin by name
+	// instead of by an empty quantization.
+	for _, id := range []string{"pl_PL-gosia-medium", "pl_PL-bass-high"} {
+		if m, ok := byID[id]; ok && m.Engine != "piper" {
+			t.Errorf("%s engine = %q, want piper", id, m.Engine)
+		}
+	}
+	// llama.cpp pins keep the default: empty, so no historical pin changed
+	// shape when the field arrived.
+	for _, id := range []string{"qwen3.5-4b-q4_k_m", "bge-m3"} {
+		if m, ok := byID[id]; ok && m.Engine != "" {
+			t.Errorf("%s engine = %q, want empty (llama.cpp is the default)", id, m.Engine)
 		}
 	}
 }

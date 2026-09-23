@@ -826,6 +826,11 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "d122a10b565681d97ae302b0a4cc617ca59e0cd87b5196ec667ff9c125357b9f",
 			licence: "MIT",
 			purpose: "tts",
+			// Piper's own container server opens these, never the roster. The
+			// engine is stated rather than left empty so a box skips the pin
+			// by name — empty means llama.cpp, which cannot open an ONNX voice
+			// at all.
+			engine: "piper",
 		},
 		{
 			id:      "pl_PL-darkman-medium",
@@ -836,6 +841,11 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "7554030dd8b3cd40529098054600dc7194f4d146e29fc24f89b89a94c7a43df4",
 			licence: "MIT",
 			purpose: "tts",
+			// Piper's own container server opens these, never the roster. The
+			// engine is stated rather than left empty so a box skips the pin
+			// by name — empty means llama.cpp, which cannot open an ONNX voice
+			// at all.
+			engine: "piper",
 		},
 		{
 			id:      "pl_PL-gosia-medium",
@@ -846,6 +856,11 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "cec3f38aa9c14d2dfbe43465e818253ee0ed05854288cde7bfda7131acc4fa1b",
 			licence: "MIT",
 			purpose: "tts",
+			// Piper's own container server opens these, never the roster. The
+			// engine is stated rather than left empty so a box skips the pin
+			// by name — empty means llama.cpp, which cannot open an ONNX voice
+			// at all.
+			engine: "piper",
 		},
 		{
 			id:      "pl_PL-mc_speech-medium",
@@ -856,6 +871,11 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "9ee4676f29dc7125a591f7eb1bdd7a26808040183b3629a7cef56e158fc9132d",
 			licence: "MIT",
 			purpose: "tts",
+			// Piper's own container server opens these, never the roster. The
+			// engine is stated rather than left empty so a box skips the pin
+			// by name — empty means llama.cpp, which cannot open an ONNX voice
+			// at all.
+			engine: "piper",
 		},
 		{
 			id:      "pl_PL-mls_6892-low",
@@ -866,6 +886,11 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "e9e2971ac7132984c6f6958c21501dec46638332b9e1bcc113a417aead270cde",
 			licence: "MIT",
 			purpose: "tts",
+			// Piper's own container server opens these, never the roster. The
+			// engine is stated rather than left empty so a box skips the pin
+			// by name — empty means llama.cpp, which cannot open an ONNX voice
+			// at all.
+			engine: "piper",
 		},
 		{
 			id:      "voxcpm2-q8_0",

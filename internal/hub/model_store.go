@@ -76,20 +76,22 @@ func marshalFiles(files []ModelFile) (string, error) {
 	return string(raw), nil
 }
 
-// sameFileNames reports whether two file lists name the same artifacts, in
-// any order. Digests are deliberately not compared: the factory seed says
-// which files a model is made of, and a verified digest is filled in later
-// by an adoption — a seed pass must not fight that.
-func sameFileNames(a, b []ModelFile) bool {
+// sameFileList reports whether two file lists carry the same artifacts with the
+// same digests, in any order. Names alone are not enough: a seed that learns a
+// digest for a file it already names changes what the store should hold, and a
+// name-only comparison leaves the new digest out of the row for ever — which is
+// how the live hub kept medium's four files bare after the seed learned them.
+func sameFileList(a, b []ModelFile) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	seen := make(map[string]bool, len(a))
+	type entry struct{ file, digest string }
+	seen := make(map[entry]bool, len(a))
 	for _, f := range a {
-		seen[f.File] = true
+		seen[entry{f.File, f.Digest}] = true
 	}
 	for _, f := range b {
-		if !seen[f.File] {
+		if !seen[entry{f.File, f.Digest}] {
 			return false
 		}
 	}
@@ -100,6 +102,11 @@ func sameFileNames(a, b []ModelFile) bool {
 // store already holds — the factory owns *which* artifacts a model is made
 // of, an admin (or a zest adoption) owns *what their bytes are*. A file the
 // seed has dropped is dropped along with its digest.
+//
+// A digest the store does NOT hold falls back to the seed's: the factory
+// learns sums too (medium's four, computed from the pinned revision and
+// confirmed by zest). Without that fallback a seed pass would read an empty
+// digest as knowledge and quietly discard the one it was handed.
 func mergeSeedFiles(stored, seeded []ModelFile) []ModelFile {
 	if len(seeded) == 0 {
 		return nil
@@ -110,7 +117,11 @@ func mergeSeedFiles(stored, seeded []ModelFile) []ModelFile {
 	}
 	merged := make([]ModelFile, 0, len(seeded))
 	for _, f := range seeded {
-		merged = append(merged, ModelFile{File: f.File, Digest: held[f.File]})
+		digest := held[f.File]
+		if digest == "" {
+			digest = f.Digest
+		}
+		merged = append(merged, ModelFile{File: f.File, Digest: digest})
 	}
 	return merged
 }
@@ -875,7 +886,7 @@ func (s *Store) EnsureSeedModels() error {
 			m.Licence != sm.licence || m.Purpose != sm.purpose ||
 			m.PipelineTag != sm.pipelineTag || m.LibraryName != sm.libraryName || m.BaseModel != sm.baseModel ||
 			m.Architecture != sm.architecture || m.ContextLength != sm.contextLength || m.Downloads != sm.downloads ||
-			m.Gated != sm.gated || !sameFileNames(m.Files, sm.files):
+			m.Gated != sm.gated || !sameFileList(m.Files, mergeSeedFiles(m.Files, sm.files)):
 			// The digest column is deliberately absent from this SET: the
 			// factory seed never overwrites a verified digest. The file
 			// list is written *merged* — the seed's names, the digests the

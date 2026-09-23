@@ -153,6 +153,50 @@ func TestSeedKeepsAdoptedFileDigests(t *testing.T) {
 	}
 }
 
+// The other half of the merge: a store whose files carry no digests yet takes
+// the seed's. That is the live hub's own state — the pin was created before the
+// sums were known — and it needs the CHANGE DETECTION to notice it, not only the
+// merge to be right: a name-only comparison writes nothing and the row stays
+// bare for ever, which is exactly what the first attempt at this shipped.
+func TestSeedFillsDigestsTheStoreDoesNotHave(t *testing.T) {
+	s := testStore(t)
+	if err := s.EnsureSeedModels(); err != nil {
+		t.Fatal(err)
+	}
+	seeded, err := s.GetModel("faster-whisper-medium")
+	if err != nil || seeded == nil {
+		t.Fatalf("GetModel(faster-whisper-medium) = (%v, %v)", seeded, err)
+	}
+	if len(seeded.Files) == 0 {
+		t.Fatal("the factory stt pin carries no file list")
+	}
+
+	// A store whose list predates the sums: the seeded names, no digests.
+	namesOnly := make([]ModelFile, 0, len(seeded.Files))
+	for _, f := range seeded.Files {
+		namesOnly = append(namesOnly, ModelFile{File: f.File})
+	}
+	if _, err := s.SetModelFiles(seeded.ID, namesOnly); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.GetModel(seeded.ID); err != nil || got.Files[0].Digest != "" {
+		t.Fatalf("the store was given no digests and holds %+v (%v)", got.Files, err)
+	}
+
+	if err := s.EnsureSeedModels(); err != nil {
+		t.Fatal(err)
+	}
+	after, err := s.GetModel(seeded.ID)
+	if err != nil || after == nil {
+		t.Fatalf("GetModel after the seed pass = (%v, %v)", after, err)
+	}
+	for _, f := range after.Files {
+		if f.Digest == "" {
+			t.Errorf("%q still carries no digest after a seed pass — the change went undetected", f.File)
+		}
+	}
+}
+
 // The factory's two stt pins describe the two different snapshots as they
 // actually are on disk: medium ships vocabulary.txt where large-v3 ships
 // vocabulary.json, and medium has no preprocessor_config.json. A pin that

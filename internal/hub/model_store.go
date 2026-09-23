@@ -780,12 +780,21 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "64b4dc2dfe6589860e4e39e0ba4f50ea0f6026e509447d8873368e1a73a3bd0a",
 			licence: "MIT",
 			purpose: "stt",
+			// The five files, every entry carrying its digest — the same rule as
+			// `medium` above, and learned the same way. A bare entry is not a file
+			// pulled unverified: zest is sent an empty digest, downloads the whole
+			// artifact and then fails it as a DigestMismatch, which is how this pin
+			// served *nothing at all* on 2026-09-23 (no file arrived, model.bin.part
+			// 0 B, bt_peers 0). The four side sums were computed from the pinned
+			// revision — blake3 of the files Hugging Face serves at `edaa852e…`,
+			// which is the check the `medium` sums already pass — and the pull
+			// confirms them the way zest verifies every artifact it accepts.
 			files: []ModelFile{
-				{File: "model.bin"},
-				{File: "config.json"},
-				{File: "tokenizer.json"},
-				{File: "vocabulary.json"},
-				{File: "preprocessor_config.json"},
+				{File: "model.bin", Digest: "64b4dc2dfe6589860e4e39e0ba4f50ea0f6026e509447d8873368e1a73a3bd0a"},
+				{File: "config.json", Digest: "cf10383cbfc26ea7219211d727ca94d245836b449dd108940ad79ca92a71329a"},
+				{File: "tokenizer.json", Digest: "64844f44c24de4be682518e9488bc8df9ca4bc52d6a64446db308825afbd2718"},
+				{File: "vocabulary.json", Digest: "0090ca007a335d393c7d16fe506bd62c17aed382d664c886495980d3cb268acd"},
+				{File: "preprocessor_config.json", Digest: "5e15a781ba862ae5f464755771d7277fa276ce539af13f5ea886170f328edcb0"},
 			},
 		},
 		{

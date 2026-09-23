@@ -81,7 +81,7 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 			"file":    m.File,
 			"digest":  m.Digest,
 			"licence": m.Licence,
-			"files":   manifestFiles(m.Files),
+			"files":   manifestFiles(m.Files, m.File, m.Digest),
 		}
 	}
 	return map[string]any{
@@ -101,11 +101,23 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 }
 
 // manifestFiles is the models-section spelling of a pin's file list: an
-// always-present array, so the box parses one shape whether the model is a
-// single artifact or a directory. A single-artifact pin answers [].
-func manifestFiles(files []ModelFile) []ModelFile {
+// always-present array, so a box's parser reads one shape whether the model is
+// a single artifact or a directory.
+//
+// The anchor's entry carries the pin's own digest when the list names none of
+// its own. The seed writes file NAMES only and `digest` stays the anchor's
+// verified digest, so without this the one file the hub has already verified
+// would be the one file the box pulls unverified.
+func manifestFiles(files []ModelFile, anchor, anchorDigest string) []ModelFile {
 	if files == nil {
 		return []ModelFile{}
 	}
-	return files
+	out := make([]ModelFile, len(files))
+	copy(out, files)
+	for i := range out {
+		if out[i].Digest == "" && out[i].File == anchor && anchorDigest != "" {
+			out[i].Digest = anchorDigest
+		}
+	}
+	return out
 }

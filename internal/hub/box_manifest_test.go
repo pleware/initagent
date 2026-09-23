@@ -228,7 +228,7 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 		t.Fatal(err)
 	}
 	earFiles := []ModelFile{
-		{File: "model.bin", Digest: "ear-digest"},
+		{File: "model.bin"},
 		{File: "config.json"},
 		{File: "tokenizer.json"},
 		{File: "vocabulary.txt"},
@@ -250,6 +250,15 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 	}
 	if len(listed) != len(earFiles) || listed[3].File != "vocabulary.txt" {
 		t.Errorf("manifest stt files = %+v, want %+v", listed, earFiles)
+	}
+	// The seed writes names only, so the anchor's entry arrives empty — the
+	// manifest fills it from the pin's own verified digest, or the one file the
+	// hub has verified would be the one file the box pulls unverified.
+	if listed[0].Digest != "ear-digest" {
+		t.Errorf("manifest anchor entry = %+v, want the pin's digest on the anchor", listed[0])
+	}
+	if listed[1].Digest != "" {
+		t.Errorf("manifest filled a digest the pin does not have: %+v", listed[1])
 	}
 }
 

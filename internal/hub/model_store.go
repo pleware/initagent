@@ -857,6 +857,32 @@ func (s *Store) EnsureSeedModels() error {
 			licence: "MIT",
 			purpose: "tts",
 		},
+		{
+			id:      "voxcpm2-q8_0",
+			org:     "audio-cpp",
+			source:  "audio-cpp/audio.cpp-gguf@406756ee8e3b16e902ce40112986c1010775f888",
+			quant:   "Q8_0",
+			file:    "VoxCPM2-GGUF/voxcpm2-q8_0.gguf",
+			digest:  "2c59cf47b411b560579dff54f076e5684c85d11fd8e2c0c9602a39cf6d5ca3e9",
+			licence: "Apache-2.0",
+			purpose: "tts",
+			// A second kind of mouth, and the reason `tts` no longer means only
+			// Piper. Piper answers a sentence in 65 ms on the CPU and hands back
+			// per-phoneme `alignments`, which is what the visemes need — but it
+			// is a voice, not a character. VoxCPM2 is 2B parameters, 48 kHz,
+			// streams, speaks Polish and is Apache-2.0 end to end; measured on
+			// the box 2026-09-23 it renders a sentence in 1.45 s on the card
+			// through audio.cpp's ggml port. That number is a *resident*
+			// process: the same engine invoked per utterance takes 9 s, which
+			// is why the port matters more here than the card does.
+			//
+			// The digest is BLAKE3 of the artifact Hugging Face serves at that
+			// revision, computed from the copy that ran on the box. It is
+			// registered, not assigned: factoryAssignments still resolves `tts`
+			// to the Piper voice, because the mouth the box runs today is
+			// Piper's container. Registering it is what lets an admin — or a
+			// per-box override — point a box's speech at it.
+		},
 	}
 
 	tx, err := s.db.Begin()

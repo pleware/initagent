@@ -312,8 +312,8 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 18 {
-		t.Fatalf("ListModels = %+v, want the eighteen factory pins", list)
+	if len(list) != 19 {
+		t.Fatalf("ListModels = %+v, want the nineteen factory pins", list)
 	}
 	byID := map[string]Model{}
 	for _, m := range list {
@@ -339,6 +339,7 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		{"pl_PL-gosia-medium", "rhasspy", "rhasspy/piper-voices@", "", "cec3f38aa9c14d2dfbe43465e818253ee0ed05854288cde7bfda7131acc4fa1b", "MIT", "tts"},
 		{"pl_PL-mc_speech-medium", "rhasspy", "rhasspy/piper-voices@", "", "9ee4676f29dc7125a591f7eb1bdd7a26808040183b3629a7cef56e158fc9132d", "MIT", "tts"},
 		{"pl_PL-mls_6892-low", "rhasspy", "rhasspy/piper-voices@", "", "e9e2971ac7132984c6f6958c21501dec46638332b9e1bcc113a417aead270cde", "MIT", "tts"},
+		{"voxcpm2-q8_0", "audio-cpp", "audio-cpp/audio.cpp-gguf@", "Q8_0", "2c59cf47b411b560579dff54f076e5684c85d11fd8e2c0c9602a39cf6d5ca3e9", "Apache-2.0", "tts"},
 		{"gemma-4-12b-qat", "unsloth", "unsloth/gemma-4-12B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "persona"},
 		{"gemma-4-e4b-qat", "unsloth", "unsloth/gemma-4-E4B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "persona"},
 		{"qwen3.5-9b-q4_k_m", "unsloth", "unsloth/Qwen3.5-9B-GGUF@", "Q4_K_M", "", "Apache-2.0", "persona"},
@@ -445,8 +446,8 @@ func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 18 {
-		t.Errorf("ListModels after reseed has %d rows, want 18", len(list))
+	if len(list) != 19 {
+		t.Errorf("ListModels after reseed has %d rows, want 19", len(list))
 	}
 }
 
@@ -488,8 +489,8 @@ func TestEnsureSeedModelsBumpsBoxesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 18 {
-		t.Errorf("ListModels after reseed has %d rows, want 18", len(list))
+	if len(list) != 19 {
+		t.Errorf("ListModels after reseed has %d rows, want 19", len(list))
 	}
 }
 
@@ -503,8 +504,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 18 {
-		t.Errorf("fresh open has %d pins, want the eighteen seeds", len(list))
+	if len(list) != 19 {
+		t.Errorf("fresh open has %d pins, want the nineteen seeds", len(list))
 	}
 	box, err := s.CreateBox("reopen-box", "Reopen", "", "")
 	if err != nil {
@@ -532,8 +533,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 18 {
-		t.Errorf("reopen has %d pins, want 18", len(list))
+	if len(list) != 19 {
+		t.Errorf("reopen has %d pins, want 19", len(list))
 	}
 }
 
@@ -713,8 +714,8 @@ func TestListModelsPublic(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 18 {
-		t.Fatalf("public catalog has %d pins, want the eighteen seeds", len(got))
+	if len(got) != 19 {
+		t.Fatalf("public catalog has %d pins, want the nineteen seeds", len(got))
 	}
 	for _, m := range got {
 		if m.ID == "" || m.Org == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
@@ -781,7 +782,7 @@ func TestAdminModelEndpoints(t *testing.T) {
 		t.Errorf("update missing: %d, want 404", resp.StatusCode)
 	}
 
-	// List includes the new pin (eighteen seeds + one).
+	// List includes the new pin (nineteen seeds + one).
 	resp = f.do(t, http.MethodGet, "/api/admin/models", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list: %d, want 200", resp.StatusCode)
@@ -790,8 +791,8 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 19 {
-		t.Errorf("list has %d pins, want 19 (seeds + admin-model)", len(list))
+	if len(list) != 20 {
+		t.Errorf("list has %d pins, want 20 (seeds + admin-model)", len(list))
 	}
 
 	// Delete.

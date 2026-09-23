@@ -190,6 +190,7 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 	wantPin := map[string]any{
 		"id":      canonical.ID,
 		"source":  canonical.Source,
+		"engine":  canonical.Engine,
 		"quant":   canonical.Quant,
 		"file":    canonical.File,
 		"digest":  canonical.Digest,

@@ -77,6 +77,7 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 		models[purpose] = map[string]any{
 			"id":      m.ID,
 			"source":  m.Source,
+			"engine":  m.Engine,
 			"quant":   m.Quant,
 			"file":    m.File,
 			"digest":  m.Digest,

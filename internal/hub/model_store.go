@@ -36,6 +36,15 @@ type Model struct {
 	Digest        string `json:"digest"`
 	Licence       string `json:"licence"`
 	Purpose       string `json:"purpose"`
+	// Engine is the runtime that serves the pinned artifact. Empty is
+	// llama.cpp — every pin written before this field existed means it, and
+	// it stays the default so no historical pin changes shape. `audio.cpp`
+	// is a voice the box's audio.cpp port renders (VoxCPM2); a pin naming an
+	// engine the roster does not serve — a Piper voice, an ONNX recogniser —
+	// is left to the program that owns it. This is what lets a box ask the
+	// pin WHICH program it belongs to, instead of inferring it from whether
+	// the quantization is set.
+	Engine        string `json:"engine,omitempty"`
 	PipelineTag   string `json:"pipelineTag"`
 	LibraryName   string `json:"libraryName"`
 	BaseModel     string `json:"baseModel"`
@@ -256,7 +265,7 @@ func scanModel(row modelScanner) (*Model, error) {
 	var files string
 	if err := row.Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.File, &m.Digest, &m.Licence, &m.Purpose,
 		&m.PipelineTag, &m.LibraryName, &m.BaseModel, &m.Architecture, &m.ContextLength, &m.Downloads, &gated,
-		&files); err != nil {
+		&files, &m.Engine); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -318,14 +327,14 @@ func (s *Store) CreateModel(id, org, source, quant, file, digest, licence, purpo
 // GetModel returns one model pin by id. A missing pin is (nil, nil).
 func (s *Store) GetModel(id string) (*Model, error) {
 	return scanModel(s.db.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose,
-		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files
+		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine
 		FROM models WHERE id = ?`, id))
 }
 
 // ListModels returns every pinned model on this installation, ordered by id.
 func (s *Store) ListModels() ([]Model, error) {
 	rows, err := s.db.Query(`SELECT id, org, source, quant, file, digest, licence, purpose,
-		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files
+		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine
 		FROM models ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -556,6 +565,7 @@ type seedModel struct {
 	digest        string
 	licence       string
 	purpose       string
+	engine        string
 	pipelineTag   string
 	libraryName   string
 	baseModel     string
@@ -866,6 +876,12 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "2c59cf47b411b560579dff54f076e5684c85d11fd8e2c0c9602a39cf6d5ca3e9",
 			licence: "Apache-2.0",
 			purpose: "tts",
+			// The runtime that serves these bytes, not the model family: a
+			// box's roster spawns `audiocpp_server` for this pin and
+			// `llama-server` for every pin that names no engine. VoxCPM2's
+			// bytes are a GGUF like the others, so nothing but this field
+			// says which server may open them.
+			engine: "audio.cpp",
 			// A second kind of mouth, and the reason `tts` no longer means only
 			// Piper. Piper answers a sentence in 65 ms on the CPU and hands back
 			// per-phoneme `alignments`, which is what the visemes need — but it
@@ -893,7 +909,7 @@ func (s *Store) EnsureSeedModels() error {
 	changed := false
 	for _, sm := range seeds {
 		m, err := scanModel(tx.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose,
-			pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files
+			pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine
 			FROM models WHERE id = ?`, sm.id))
 		if err != nil {
 			return err
@@ -909,11 +925,11 @@ func (s *Store) EnsureSeedModels() error {
 				return err
 			}
 			if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose,
-				pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				sm.id, sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose,
 				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated,
-				filesJSON); err != nil {
+				filesJSON, sm.engine); err != nil {
 				return err
 			}
 			changed = true
@@ -921,7 +937,7 @@ func (s *Store) EnsureSeedModels() error {
 			m.Licence != sm.licence || m.Purpose != sm.purpose ||
 			m.PipelineTag != sm.pipelineTag || m.LibraryName != sm.libraryName || m.BaseModel != sm.baseModel ||
 			m.Architecture != sm.architecture || m.ContextLength != sm.contextLength || m.Downloads != sm.downloads ||
-			m.Gated != sm.gated || !sameFileList(m.Files, mergeSeedFiles(m.Files, sm.files)):
+			m.Gated != sm.gated || m.Engine != sm.engine || !sameFileList(m.Files, mergeSeedFiles(m.Files, sm.files)):
 			// The digest column is deliberately absent from this SET: the
 			// factory seed never overwrites a verified digest. The file
 			// list is written *merged* — the seed's names, the digests the
@@ -932,11 +948,11 @@ func (s *Store) EnsureSeedModels() error {
 				return err
 			}
 			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, licence = ?, purpose = ?,
-				pipeline_tag = ?, library_name = ?, base_model = ?, architecture = ?, context_length = ?, downloads = ?, gated = ?, files = ?
+				pipeline_tag = ?, library_name = ?, base_model = ?, architecture = ?, context_length = ?, downloads = ?, gated = ?, files = ?, engine = ?
 				WHERE id = ?`,
 				sm.org, sm.source, sm.quant, sm.file, sm.licence, sm.purpose,
 				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated,
-				filesJSON, sm.id); err != nil {
+				filesJSON, sm.engine, sm.id); err != nil {
 				return err
 			}
 			changed = true

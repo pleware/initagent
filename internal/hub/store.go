@@ -648,6 +648,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model file column: %w", err)
 	}
+	if err := s.ensureModelEngine(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring model engine column: %w", err)
+	}
 	if err := s.ensureModelFiles(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model files column: %w", err)
@@ -1518,7 +1522,8 @@ func (s *Store) ensureModels() error {
 		digest  TEXT NOT NULL,
 		licence TEXT NOT NULL,
 		purpose TEXT NOT NULL,
-		files   TEXT NOT NULL DEFAULT ''
+		files   TEXT NOT NULL DEFAULT '',
+		engine  TEXT NOT NULL DEFAULT ''
 	)`)
 	return err
 }
@@ -1532,6 +1537,16 @@ func (s *Store) ensureModels() error {
 // merged, never overwritten).
 func (s *Store) ensureModelFiles() error {
 	return s.ensureColumn("models", "files", "TEXT NOT NULL DEFAULT ''")
+}
+
+// ensureModelEngine adds the engine column to a live models table that
+// predates it: the runtime that serves the pin (Model.Engine). It arrives as
+// TEXT NOT NULL DEFAULT '' — which means llama.cpp, the engine of every pin
+// that existed before the column did — so a store opened before this migration
+// answers the same roster it always did, and the factory seeds write the real
+// value on the next EnsureSeedModels pass (the drift check sees the change).
+func (s *Store) ensureModelEngine() error {
+	return s.ensureColumn("models", "engine", "TEXT NOT NULL DEFAULT ''")
 }
 
 // ensureModelOrg adds the org column to a live models table that predates

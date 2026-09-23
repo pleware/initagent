@@ -14,12 +14,16 @@ import "errors"
 //	  "orgs":    [{"id","name","level"} for each bound org],
 //	  "staff":   {"<orgId>": StaffForOrg(org) for each bound org},
 //	  "narrator": <first StaffForBox row, or null when unseeded>,
-//	  "models":  {"<purpose>": {"id","source","quant","file","digest","licence"}}
+//	  "models":  {"<purpose>": {"id","source","quant","file","digest","licence","files"}}
 //	}
 //
 // The models section is the resolved roster: per purpose the box's
 // override wins when present, the factory assignment answers when not, and
-// a purpose with neither is omitted. A missing box is an error; the sync
+// a purpose with neither is omitted. `file` is the anchor artifact a
+// file-consuming program is pointed at; `files` is every artifact the pin is
+// made of, which is what a directory-consuming program (the ear on a
+// faster-whisper pin) needs and what the box's puller fetches — always an
+// array, empty for a single-artifact pin. A missing box is an error; the sync
 // handler checks existence first and answers 404 itself.
 func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 	box, err := s.GetBox(boxID)
@@ -77,6 +81,7 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 			"file":    m.File,
 			"digest":  m.Digest,
 			"licence": m.Licence,
+			"files":   manifestFiles(m.Files),
 		}
 	}
 	return map[string]any{
@@ -93,4 +98,14 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 		"narrator": narrator,
 		"models":   models,
 	}, nil
+}
+
+// manifestFiles is the models-section spelling of a pin's file list: an
+// always-present array, so the box parses one shape whether the model is a
+// single artifact or a directory. A single-artifact pin answers [].
+func manifestFiles(files []ModelFile) []ModelFile {
+	if files == nil {
+		return []ModelFile{}
+	}
+	return files
 }

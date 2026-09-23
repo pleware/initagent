@@ -194,6 +194,7 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 		"file":    canonical.File,
 		"digest":  canonical.Digest,
 		"licence": canonical.Licence,
+		"files":   []ModelFile{},
 	}
 	if !reflect.DeepEqual(models["worker"], wantPin) {
 		t.Errorf("models[worker] = %v, want exactly %v", models["worker"], wantPin)
@@ -202,7 +203,7 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 		t.Errorf("manifest pin leaks the registry org key: %v", models["worker"])
 	}
 
-	// A box with an override resolves to the override, same six-key shape.
+	// A box with an override resolves to the override, same key shape.
 	override := verifiedModel(t, s, "manifest-override", "override-digest", "worker")
 	overrideBox := testBox(t, s, "manifest-override-box")
 	if _, err := s.SetBoxModelOverride(overrideBox.ID, "worker", override.ID); err != nil {
@@ -215,6 +216,40 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 	models = got["models"].(map[string]map[string]any)
 	if models["worker"]["id"] != override.ID {
 		t.Errorf("override box models = %+v, want the override %q", models, override.ID)
+	}
+
+	// A directory-shaped pin carries its whole file list into the manifest,
+	// not just the anchor: the box's puller fetches what the pin names, and
+	// the ear loads the directory. A single-artifact pin answers [] — one
+	// shape for the box's parser either way.
+	ear, err := s.CreateModel("manifest-ear", "Systran", "Systran/faster-whisper-medium@rev",
+		"", "model.bin", "ear-digest", "MIT", "stt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	earFiles := []ModelFile{
+		{File: "model.bin", Digest: "ear-digest"},
+		{File: "config.json"},
+		{File: "tokenizer.json"},
+		{File: "vocabulary.txt"},
+	}
+	if _, err := s.SetModelFiles(ear.ID, earFiles); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetAssignment("stt", ear.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.BuildBoxManifest(factoryBox.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	models = got["models"].(map[string]map[string]any)
+	listed, ok := models["stt"]["files"].([]ModelFile)
+	if !ok {
+		t.Fatalf("manifest stt files = %T, want a file list", models["stt"]["files"])
+	}
+	if len(listed) != len(earFiles) || listed[3].File != "vocabulary.txt" {
+		t.Errorf("manifest stt files = %+v, want %+v", listed, earFiles)
 	}
 }
 

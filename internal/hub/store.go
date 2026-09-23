@@ -648,6 +648,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model file column: %w", err)
 	}
+	if err := s.ensureModelFiles(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring model files column: %w", err)
+	}
 	if err := s.ensureModelMetadata(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model metadata columns: %w", err)
@@ -1513,9 +1517,21 @@ func (s *Store) ensureModels() error {
 		file    TEXT NOT NULL,
 		digest  TEXT NOT NULL,
 		licence TEXT NOT NULL,
-		purpose TEXT NOT NULL
+		purpose TEXT NOT NULL,
+		files   TEXT NOT NULL DEFAULT ''
 	)`)
 	return err
+}
+
+// ensureModelFiles adds the files column to a live models table that
+// predates it: the JSON list of artifacts a directory-shaped pin is made of
+// (Model.Files), empty for the single-artifact shape. It arrives as TEXT NOT
+// NULL DEFAULT ” — an existing pin keeps its one File and gains no list —
+// and the factory seeds write the real list on the next EnsureSeedModels
+// pass (the drift check compares names, and digests already adopted are
+// merged, never overwritten).
+func (s *Store) ensureModelFiles() error {
+	return s.ensureColumn("models", "files", "TEXT NOT NULL DEFAULT ''")
 }
 
 // ensureModelOrg adds the org column to a live models table that predates

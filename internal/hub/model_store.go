@@ -2,6 +2,7 @@ package hub
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -42,6 +43,102 @@ type Model struct {
 	ContextLength int64  `json:"contextLength"`
 	Downloads     int64  `json:"downloads"`
 	Gated         bool   `json:"gated"`
+
+	// Files is every artifact the pin is made of, when that is more than the
+	// one File names. Empty is the single-artifact shape (File + Digest). A
+	// pin whose consumer loads a *directory* — faster-whisper reads
+	// model.bin, config.json, tokenizer.json, vocabulary.json and
+	// preprocessor_config.json — lists every member here, each with the
+	// BLAKE3 the puller verifies when it has one. File stays the anchor: the
+	// member a file-consuming program is pointed at, and one of these.
+	Files []ModelFile `json:"files,omitempty"`
+}
+
+// ModelFile is one artifact inside a pinned model: the exact file name
+// within the source repo, and its BLAKE3 — empty until the artifact is
+// verified, the same rule the pin's own Digest follows.
+type ModelFile struct {
+	File   string `json:"file"`
+	Digest string `json:"digest"`
+}
+
+// marshalFiles renders a file list for storage: the empty string for an
+// empty list, so a single-artifact pin keeps the column default and the
+// scan can tell "no list" from "a list that failed to parse".
+func marshalFiles(files []ModelFile) (string, error) {
+	if len(files) == 0 {
+		return "", nil
+	}
+	raw, err := json.Marshal(files)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
+// sameFileNames reports whether two file lists name the same artifacts, in
+// any order. Digests are deliberately not compared: the factory seed says
+// which files a model is made of, and a verified digest is filled in later
+// by an adoption — a seed pass must not fight that.
+func sameFileNames(a, b []ModelFile) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	seen := make(map[string]bool, len(a))
+	for _, f := range a {
+		seen[f.File] = true
+	}
+	for _, f := range b {
+		if !seen[f.File] {
+			return false
+		}
+	}
+	return true
+}
+
+// mergeSeedFiles keeps the names the seed declares and the digests the
+// store already holds — the factory owns *which* artifacts a model is made
+// of, an admin (or a zest adoption) owns *what their bytes are*. A file the
+// seed has dropped is dropped along with its digest.
+func mergeSeedFiles(stored, seeded []ModelFile) []ModelFile {
+	if len(seeded) == 0 {
+		return nil
+	}
+	held := make(map[string]string, len(stored))
+	for _, f := range stored {
+		held[f.File] = f.Digest
+	}
+	merged := make([]ModelFile, 0, len(seeded))
+	for _, f := range seeded {
+		merged = append(merged, ModelFile{File: f.File, Digest: held[f.File]})
+	}
+	return merged
+}
+
+// ValidateModelFiles checks a file list against a pin's anchor: names must
+// be present and unique, and when the pin names an anchor File it must be
+// one of the listed artifacts — otherwise a file-consuming program would be
+// pointed at something the puller never fetches. An empty list is valid:
+// that is the single-artifact shape.
+func ValidateModelFiles(anchor string, files []ModelFile) error {
+	if len(files) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(files))
+	for _, f := range files {
+		name := strings.TrimSpace(f.File)
+		if name == "" {
+			return errors.New("a listed file has no name")
+		}
+		if seen[name] {
+			return fmt.Errorf("file %q is listed twice", name)
+		}
+		seen[name] = true
+	}
+	if anchor != "" && !seen[anchor] {
+		return fmt.Errorf("anchor file %q is not among the model's files", anchor)
+	}
+	return nil
 }
 
 // ModelMeta is the derived metadata the hub learns about a pin from the
@@ -140,19 +237,26 @@ type modelScanner interface {
 
 // scanModel reads one models row selected in schema order:
 // id, org, source, quant, file, digest, licence, purpose, pipeline_tag,
-// library_name, base_model, architecture, context_length, downloads, gated.
-// A missing row is (nil, nil).
+// library_name, base_model, architecture, context_length, downloads, gated,
+// files. A missing row is (nil, nil).
 func scanModel(row modelScanner) (*Model, error) {
 	var m Model
 	var gated int
+	var files string
 	if err := row.Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.File, &m.Digest, &m.Licence, &m.Purpose,
-		&m.PipelineTag, &m.LibraryName, &m.BaseModel, &m.Architecture, &m.ContextLength, &m.Downloads, &gated); err != nil {
+		&m.PipelineTag, &m.LibraryName, &m.BaseModel, &m.Architecture, &m.ContextLength, &m.Downloads, &gated,
+		&files); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
 	}
 	m.Gated = gated != 0
+	if files != "" {
+		if err := json.Unmarshal([]byte(files), &m.Files); err != nil {
+			return nil, fmt.Errorf("model %s: files column is not a file list: %w", m.ID, err)
+		}
+	}
 	return &m, nil
 }
 
@@ -203,14 +307,14 @@ func (s *Store) CreateModel(id, org, source, quant, file, digest, licence, purpo
 // GetModel returns one model pin by id. A missing pin is (nil, nil).
 func (s *Store) GetModel(id string) (*Model, error) {
 	return scanModel(s.db.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose,
-		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated
+		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files
 		FROM models WHERE id = ?`, id))
 }
 
 // ListModels returns every pinned model on this installation, ordered by id.
 func (s *Store) ListModels() ([]Model, error) {
 	rows, err := s.db.Query(`SELECT id, org, source, quant, file, digest, licence, purpose,
-		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated
+		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files
 		FROM models ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -241,6 +345,18 @@ func (s *Store) UpdateModel(id, org, source, quant, file, digest, licence, purpo
 	}
 	quant, err = ParseQuant(quant)
 	if err != nil {
+		return nil, err
+	}
+	// The anchor is editable, the file list is not touched here — so a
+	// changed anchor must still be one of the artifacts the pin pulls.
+	existing, err := s.GetModel(id)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, nil
+	}
+	if err := ValidateModelFiles(file, existing.Files); err != nil {
 		return nil, err
 	}
 	tx, err := s.db.Begin()
@@ -293,6 +409,58 @@ func (s *Store) SetModelMeta(id string, meta ModelMeta) (*Model, error) {
 	}
 	if n == 0 {
 		return nil, nil
+	}
+	return s.GetModel(id)
+}
+
+// SetModelFiles replaces the file list of a directory-shaped pin and answers
+// with the updated row. A missing pin is (nil, nil).
+//
+// It is a separate write from CreateModel/UpdateModel for the same reason
+// SetModelMeta is: the list is a property of the artifact, not of the pin's
+// identity, and an admin fills it from what the repo actually contains
+// rather than from the pin's own fields. The list is validated against the
+// pin's anchor (ValidateModelFiles) so a file-consuming program can never be
+// pointed at an artifact the puller does not fetch. An empty list is the
+// single-artifact shape and is allowed.
+//
+// The write and the fleet bump commit together: the list decides what every
+// box pulls, so a box that has not seen the change cannot serve the model.
+func (s *Store) SetModelFiles(id string, files []ModelFile) (*Model, error) {
+	m, err := s.GetModel(id)
+	if err != nil {
+		return nil, err
+	}
+	if m == nil {
+		return nil, nil
+	}
+	if err := ValidateModelFiles(m.File, files); err != nil {
+		return nil, err
+	}
+	raw, err := marshalFiles(files)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`UPDATE models SET files = ? WHERE id = ?`, raw, id)
+	if err != nil {
+		return nil, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if n > 0 {
+		if err := bumpAllBoxes(tx); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	return s.GetModel(id)
 }
@@ -384,6 +552,12 @@ type seedModel struct {
 	contextLength int64
 	downloads     int64
 	gated         bool
+
+	// files names every artifact a directory-shaped pin is made of (see
+	// Model.Files). Names only — the seed declares which files the model
+	// consists of, an adoption or an admin fills in their digests, and a
+	// seed pass merges rather than overwrites.
+	files []ModelFile
 }
 
 // EnsureSeedModels keeps the factory model pins at their factory definition.
@@ -566,6 +740,17 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "7b1053dea7640cc96b5b65b7168487db81010bfce317115d17ca358db970673d",
 			licence: "MIT",
 			purpose: "stt",
+			// The ear loads a directory, not a file. This list is the
+			// snapshot as it exists on the box (2026-09-23): medium ships
+			// vocabulary.txt where large-v3 ships vocabulary.json, and has
+			// no preprocessor_config.json at all — which is exactly why the
+			// pin has to name them rather than assume a shape.
+			files: []ModelFile{
+				{File: "model.bin"},
+				{File: "config.json"},
+				{File: "tokenizer.json"},
+				{File: "vocabulary.txt"},
+			},
 		},
 		{
 			id:      "faster-whisper-large-v3",
@@ -576,6 +761,13 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "64b4dc2dfe6589860e4e39e0ba4f50ea0f6026e509447d8873368e1a73a3bd0a",
 			licence: "MIT",
 			purpose: "stt",
+			files: []ModelFile{
+				{File: "model.bin"},
+				{File: "config.json"},
+				{File: "tokenizer.json"},
+				{File: "vocabulary.json"},
+				{File: "preprocessor_config.json"},
+			},
 		},
 		{
 			id:      "silero-vad",
@@ -647,7 +839,7 @@ func (s *Store) EnsureSeedModels() error {
 	changed := false
 	for _, sm := range seeds {
 		m, err := scanModel(tx.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose,
-			pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated
+			pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files
 			FROM models WHERE id = ?`, sm.id))
 		if err != nil {
 			return err
@@ -658,11 +850,16 @@ func (s *Store) EnsureSeedModels() error {
 		}
 		switch {
 		case m == nil:
+			filesJSON, err := marshalFiles(sm.files)
+			if err != nil {
+				return err
+			}
 			if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose,
-				pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				sm.id, sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose,
-				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated); err != nil {
+				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated,
+				filesJSON); err != nil {
 				return err
 			}
 			changed = true
@@ -670,12 +867,22 @@ func (s *Store) EnsureSeedModels() error {
 			m.Licence != sm.licence || m.Purpose != sm.purpose ||
 			m.PipelineTag != sm.pipelineTag || m.LibraryName != sm.libraryName || m.BaseModel != sm.baseModel ||
 			m.Architecture != sm.architecture || m.ContextLength != sm.contextLength || m.Downloads != sm.downloads ||
-			m.Gated != sm.gated:
+			m.Gated != sm.gated || !sameFileNames(m.Files, sm.files):
+			// The digest column is deliberately absent from this SET: the
+			// factory seed never overwrites a verified digest. The file
+			// list is written *merged* — the seed's names, the digests the
+			// store already holds — so a seed pass cannot wipe an adoption
+			// either, and it can still drop a file the seed has dropped.
+			filesJSON, err := marshalFiles(mergeSeedFiles(m.Files, sm.files))
+			if err != nil {
+				return err
+			}
 			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, licence = ?, purpose = ?,
-				pipeline_tag = ?, library_name = ?, base_model = ?, architecture = ?, context_length = ?, downloads = ?, gated = ?
+				pipeline_tag = ?, library_name = ?, base_model = ?, architecture = ?, context_length = ?, downloads = ?, gated = ?, files = ?
 				WHERE id = ?`,
 				sm.org, sm.source, sm.quant, sm.file, sm.licence, sm.purpose,
-				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated, sm.id); err != nil {
+				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated,
+				filesJSON, sm.id); err != nil {
 				return err
 			}
 			changed = true

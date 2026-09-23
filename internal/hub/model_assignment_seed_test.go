@@ -38,7 +38,7 @@ func TestOpenStoreSeedsFactoryAssignments(t *testing.T) {
 		"persona":   "qwen3.6-35b-a3b-q4_k_m",
 		"worker":    "kat-coder-v2.5-dev-q4_k_m",
 		"embedding": "bge-m3",
-		"stt":       "faster-whisper-large-v3",
+		"stt":       "faster-whisper-medium",
 		"vad":       "silero-vad",
 		"tts":       "pl_PL-gosia-medium",
 	}
@@ -105,7 +105,7 @@ func TestResolvedModelsAnswersTheFactoryDefaults(t *testing.T) {
 		"persona":   "qwen3.6-35b-a3b-q4_k_m",
 		"worker":    "kat-coder-v2.5-dev-q4_k_m",
 		"embedding": "bge-m3",
-		"stt":       "faster-whisper-large-v3",
+		"stt":       "faster-whisper-medium",
 		"vad":       "silero-vad",
 		"tts":       "pl_PL-gosia-medium",
 	}

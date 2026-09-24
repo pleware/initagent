@@ -113,7 +113,10 @@ func (s *Store) EnsureSeedNarrator(boxID string) error {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := upsertNarratorTx(tx, boxID, "Ania", "pl", "", "", "", "pl_PL-gosia-medium", "female", 0, 0, neutralCharacter()); err != nil {
+	// The seed's age is 30 — a grown, credible voice — and its word budget is
+	// 120, the box's shipped default for how many words a spoken answer may
+	// take.
+	if _, err := upsertNarratorTx(tx, boxID, "Ania", "pl", "", "", "", "pl_PL-gosia-medium", "female", 30, 120, neutralCharacter()); err != nil {
 		return err
 	}
 	return tx.Commit()

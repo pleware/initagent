@@ -398,7 +398,7 @@ func TestUpsertStaffScopeValidation(t *testing.T) {
 		{name: "box slug without a box", slug: "st_b_pi", scope: "box", wantError: ErrStaffScopeMismatch},
 		{name: "org slug with org scope", slug: "staff-mike-00", scope: "org"},
 		{name: "org slug with box scope", slug: "staff-mike-00", scope: "box", boxID: boxID, wantError: ErrStaffScopeMismatch},
-		{name: "org slug carrying a box", slug: "sto_da", scope: "org", boxID: boxID, wantError: ErrStaffScopeMismatch},
+		{name: "org slug carrying a box", slug: "st_o_da", scope: "org", boxID: boxID, wantError: ErrStaffScopeMismatch},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

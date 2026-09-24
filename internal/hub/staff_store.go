@@ -90,7 +90,7 @@ var ErrStaffScopeMismatch = errors.New("staff scope does not match its slug")
 
 // validateStaffScope enforces the slug↔scope agreement the store insists on,
 // not only the HTTP layer: the scope is part of the slug, so a st_b_* row
-// must be box-scoped and carry the box, while staff-*, sto_* and every other
+// must be box-scoped and carry the box, while staff-*, st_o_* and every other
 // slug must be org-scoped with no box.
 func validateStaffScope(slug, scope, boxID string) error {
 	if strings.HasPrefix(slug, "st_b_") {

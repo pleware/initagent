@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS skills (
 );
 CREATE TABLE IF NOT EXISTS staff (
 	id          TEXT PRIMARY KEY,
-	slug        TEXT NOT NULL,
+	slug        TEXT NOT NULL UNIQUE,
 	name        TEXT NOT NULL,
 	locale      TEXT NOT NULL DEFAULT 'en',
 	age         INTEGER NOT NULL,
@@ -199,8 +199,6 @@ CREATE TABLE IF NOT EXISTS staff (
 	soul_core   TEXT NOT NULL DEFAULT '',
 	voice       TEXT NOT NULL DEFAULT '',
 	biological_gender TEXT NOT NULL DEFAULT '',
-	scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
-	box_id      TEXT,
 	created_at  INTEGER NOT NULL,
 	updated_at  INTEGER NOT NULL
 );
@@ -440,7 +438,7 @@ CREATE TABLE IF NOT EXISTS skills (
 );
 CREATE TABLE IF NOT EXISTS staff (
 	id          TEXT PRIMARY KEY,
-	slug        TEXT NOT NULL,
+	slug        TEXT NOT NULL UNIQUE,
 	name        TEXT NOT NULL,
 	locale      TEXT NOT NULL DEFAULT 'en',
 	age         BIGINT NOT NULL,
@@ -451,8 +449,6 @@ CREATE TABLE IF NOT EXISTS staff (
 	soul_core   TEXT NOT NULL DEFAULT '',
 	voice       TEXT NOT NULL DEFAULT '',
 	biological_gender TEXT NOT NULL DEFAULT '',
-	scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
-	box_id      TEXT,
 	created_at  BIGINT NOT NULL,
 	updated_at  BIGINT NOT NULL
 );
@@ -566,17 +562,9 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("renaming staff avatar model column: %w", err)
 	}
-	if err := s.ensureStaffScopeColumns(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("ensuring staff scope columns: %w", err)
-	}
 	if err := s.ensureStaffBiologicalGender(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring staff biological_gender column: %w", err)
-	}
-	if err := s.ensureStaffPerScopeSlugUniqueness(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("ensuring staff per-scope slug uniqueness: %w", err)
 	}
 	if err := s.ensureProjectBoardingColumns(); err != nil {
 		db.Close()
@@ -657,6 +645,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureBoxNarrator(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("promoting box narrator to a box property: %w", err)
+	}
+	if err := s.dropStaffScopeColumns(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("dropping the staff scope columns: %w", err)
 	}
 	if err := s.ensureBoxTokens(); err != nil {
 		db.Close()
@@ -801,25 +793,12 @@ func (s *Store) ensureStaffProfileColumns() error {
 	return s.ensureColumn("org_staff_overrides", "age", ageDecl)
 }
 
-// ensureStaffScopeColumns adds the scope/box columns to a live staff table.
-// CREATE TABLE IF NOT EXISTS will not add columns to an existing table, and
-// existing rows are org-scoped — which is what they were before boxes
-// existed. The scope CHECK lives only in the CREATE TABLE text: neither
-// dialect's ALTER TABLE ADD COLUMN can carry a CHECK, so a migrated table
-// gains the column and its default but not the constraint.
-func (s *Store) ensureStaffScopeColumns() error {
-	if err := s.ensureColumn("staff", "scope", "TEXT NOT NULL DEFAULT 'org'"); err != nil {
-		return err
-	}
-	return s.ensureColumn("staff", "box_id", "TEXT")
-}
-
 // ensureStaffBiologicalGender adds the biological_gender column to a live
-// staff table. Like scope/box_id, CREATE TABLE IF NOT EXISTS cannot add a
-// column to an existing table, so a migrated table gains the column and its
-// default through ALTER TABLE ADD COLUMN. The male/female validation is in Go
+// staff table. CREATE TABLE IF NOT EXISTS cannot add a column to an existing
+// table, so a migrated table gains the column and its default through ALTER
+// TABLE ADD COLUMN. The male/female validation is in Go
 // (validateBiologicalGender), not a CHECK — ALTER TABLE ADD COLUMN cannot
-// carry one, the same reason scope's CHECK lives only in CREATE TABLE.
+// carry one.
 func (s *Store) ensureStaffBiologicalGender() error {
 	return s.ensureColumn("staff", "biological_gender", "TEXT NOT NULL DEFAULT ''")
 }
@@ -857,114 +836,35 @@ func (s *Store) ensureStaffAvatarModel3D() error {
 	return nil
 }
 
-// ensureStaffPerScopeSlugUniqueness relaxes the installation-wide UNIQUE on
-// staff.slug into per-scope uniqueness, which is what lets every box seed its
-// own st_b_pi narrator under the same slug (58). Two partial unique indexes
-// hold the contract after the migration:
-//
-//	staff(slug) WHERE scope = 'org'          — one slug per installation
-//	staff(box_id, slug) WHERE scope = 'box'  — one slug per box
-//
-// Detection and repair are dialect-specific because the old global unique is
-// stored differently. SQLite materializes a column UNIQUE as an auto-index
-// that ALTER TABLE cannot drop, so the table is rebuilt through a staff_new
-// copy; Postgres materializes it as a named constraint that can be dropped
-// directly. The partial indexes are then created idempotently, so a fresh
-// store — whose CREATE TABLE text already omits the global UNIQUE — takes the
-// same tail and lands on the same shape.
-func (s *Store) ensureStaffPerScopeSlugUniqueness() error {
+// dropStaffScopeColumns removes the scope/box_id columns the box-narrator
+// model left behind on a live staff table, and re-tightens slug uniqueness to
+// installation-wide (staff is org-scoped only, so one slug per installation
+// is the contract again). It runs after ensureBoxNarrator has moved any
+// box-scoped rows out, so nothing box-scoped is left to lose. A store whose
+// staff table already lacks scope — a fresh store, or one already migrated —
+// is a no-op.
+func (s *Store) dropStaffScopeColumns() error {
+	ok, err := s.hasColumn("staff", "scope")
+	if err != nil || !ok {
+		return err
+	}
 	switch s.db.Dialect() {
 	case store.Postgres:
-		if err := s.dropPostgresStaffSlugUnique(); err != nil {
-			return err
-		}
+		return s.dropPostgresStaffScopeColumns()
 	default:
-		if err := s.rebuildStaffWithoutGlobalSlugUnique(); err != nil {
-			return err
-		}
+		return s.rebuildStaffWithoutScopeColumns()
 	}
-	if _, err := s.db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS staff_slug_org_unique
-		ON staff(slug) WHERE scope = 'org'`); err != nil {
-		return err
-	}
-	_, err := s.db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS staff_slug_box_unique
-		ON staff(box_id, slug) WHERE scope = 'box'`)
-	return err
 }
 
-// staffSQLiteGlobalSlugUnique finds the auto-index SQLite built for the old
-// `slug TEXT NOT NULL UNIQUE` column declaration. A column UNIQUE is not part
-// of the stored column shape (pragma_table_info does not show it): it lives
-// as an index whose pragma_index_list origin is 'u' and whose single column
-// is slug. The PRIMARY KEY auto-index has origin 'pk' and never matches. An
-// empty name means the store already carries the per-scope shape.
-func (s *Store) staffSQLiteGlobalSlugUnique() (string, error) {
-	rows, err := s.db.Query(`SELECT name FROM pragma_index_list('staff') WHERE origin = 'u'`)
-	if err != nil {
-		return "", err
-	}
-	var names []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			rows.Close()
-			return "", err
-		}
-		names = append(names, name)
-	}
-	// Close before the per-index queries below: SQLite runs on a single
-	// pooled connection, and a query issued while these rows are open would
-	// wait forever for the connection the rows hold.
-	if err := rows.Close(); err != nil {
-		return "", err
-	}
-	for _, name := range names {
-		cols, err := s.sqliteIndexColumns(name)
-		if err != nil {
-			return "", err
-		}
-		if len(cols) == 1 && cols[0] == "slug" {
-			return name, nil
-		}
-	}
-	return "", nil
-}
-
-// sqliteIndexColumns lists the column names one SQLite index covers, in order.
-func (s *Store) sqliteIndexColumns(index string) ([]string, error) {
-	// pragma_index_info does not take a bound parameter; the name comes from
-	// pragma_index_list above, never from request input.
-	rows, err := s.db.Query(`SELECT name FROM pragma_index_info('` + index + `')`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []string{}
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, err
-		}
-		out = append(out, name)
-	}
-	return out, rows.Err()
-}
-
-// rebuildStaffWithoutGlobalSlugUnique rebuilds the staff table so the global
-// unique on slug is gone. The copy names every column explicitly and refuses
-// to run when one is missing from the live table rather than silently
+// rebuildStaffWithoutScopeColumns rebuilds the staff table without scope and
+// box_id and with a global unique on slug. The copy names every column
+// explicitly and refuses to run when one is missing rather than silently
 // dropping data. No foreign key references staff (org_staff_overrides and
-// box_orgs carry none), so dropping the old table is safe; the PRIMARY KEY
-// auto-index is recreated by the new table, and the partial slug indexes are
-// created by the caller after the rename. The staff_new sweep makes a
-// half-finished previous run recover instead of colliding.
-func (s *Store) rebuildStaffWithoutGlobalSlugUnique() error {
-	name, err := s.staffSQLiteGlobalSlugUnique()
-	if err != nil || name == "" {
-		return err
-	}
+// box_orgs carry none), so dropping the old table is safe; the partial slug
+// indexes die with the old table and are not recreated.
+func (s *Store) rebuildStaffWithoutScopeColumns() error {
 	cols := []string{"id", "slug", "name", "locale", "age", "big_five", "brief",
-		"word_budget", "avatar_model_3d", "soul_core", "voice", "biological_gender", "scope", "box_id", "created_at", "updated_at"}
+		"word_budget", "avatar_model_3d", "soul_core", "voice", "biological_gender", "created_at", "updated_at"}
 	for _, col := range cols {
 		ok, err := s.hasColumn("staff", col)
 		if err != nil {
@@ -984,7 +884,7 @@ func (s *Store) rebuildStaffWithoutGlobalSlugUnique() error {
 	}
 	if _, err := tx.Exec(`CREATE TABLE staff_new (
 		id          TEXT PRIMARY KEY,
-		slug        TEXT NOT NULL,
+		slug        TEXT NOT NULL UNIQUE,
 		name        TEXT NOT NULL,
 		locale      TEXT NOT NULL DEFAULT 'en',
 		age         INTEGER NOT NULL,
@@ -995,8 +895,6 @@ func (s *Store) rebuildStaffWithoutGlobalSlugUnique() error {
 		soul_core   TEXT NOT NULL DEFAULT '',
 		voice       TEXT NOT NULL DEFAULT '',
 		biological_gender TEXT NOT NULL DEFAULT '',
-		scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
-		box_id      TEXT,
 		created_at  INTEGER NOT NULL,
 		updated_at  INTEGER NOT NULL
 	)`); err != nil {
@@ -1015,42 +913,29 @@ func (s *Store) rebuildStaffWithoutGlobalSlugUnique() error {
 	return tx.Commit()
 }
 
-// dropPostgresStaffSlugUnique drops the constraint Postgres materialized from
-// the old `slug TEXT NOT NULL UNIQUE` column declaration (auto-named
-// staff_slug_key). The lookup targets any single-column unique constraint on
-// slug, so an operator-made equivalent is relaxed too; the two partial
-// indexes the caller creates keep the per-scope contract.
-func (s *Store) dropPostgresStaffSlugUnique() error {
-	rows, err := s.db.Query(`SELECT c.conname FROM pg_constraint c
-		JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
-		WHERE c.conrelid = 'staff'::regclass
-		AND c.contype = 'u'
-		AND cardinality(c.conkey) = 1
-		AND a.attname = 'slug'`)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	var names []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return err
-		}
-		names = append(names, name)
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-	for _, name := range names {
-		// The name came from pg_constraint, not from request input; still
-		// quote and escape it like any identifier.
-		quoted := `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
-		if _, err := s.db.Exec(`ALTER TABLE staff DROP CONSTRAINT ` + quoted); err != nil {
+// dropPostgresStaffScopeColumns drops the partial slug indexes and the
+// scope/box_id columns Postgres carries, then re-adds the installation-wide
+// unique on slug that the per-scope migration had relaxed away. The scope
+// CHECK (scope IN ('org','box')) blocks DROP COLUMN, so it goes first; a
+// table migrated via ALTER TABLE ADD COLUMN has no CHECK and the drop is a
+// no-op there.
+func (s *Store) dropPostgresStaffScopeColumns() error {
+	for _, index := range []string{"staff_slug_box_unique", "staff_slug_org_unique"} {
+		if _, err := s.db.Exec(`DROP INDEX IF EXISTS ` + index); err != nil {
 			return err
 		}
 	}
-	return nil
+	if _, err := s.db.Exec(`ALTER TABLE staff DROP CONSTRAINT IF EXISTS staff_scope_check`); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(`ALTER TABLE staff DROP COLUMN scope`); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(`ALTER TABLE staff DROP COLUMN box_id`); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`ALTER TABLE staff ADD CONSTRAINT staff_slug_key UNIQUE (slug)`)
+	return err
 }
 
 func (s *Store) ensureColumn(table, column, decl string) error {
@@ -1420,6 +1305,13 @@ const narratorOldName = "Pic" + "ard"
 // single-threaded — so the rename and the bumps still commit together.
 // A second run finds no old-slug rows and does nothing.
 func (s *Store) ensureNarratorSlugRename() error {
+	hasScope, err := s.hasColumn("staff", "scope")
+	if err != nil {
+		return err
+	}
+	if !hasScope {
+		return nil
+	}
 	rows, err := s.db.Query(`SELECT DISTINCT box_id FROM staff
 		WHERE scope = 'box' AND slug = ?`, narratorOldSlug)
 	if err != nil {
@@ -1472,6 +1364,13 @@ func (s *Store) ensureNarratorSlugRename() error {
 // single-threaded — so the rename and the bumps still commit together.
 // A second run finds no old-name rows and does nothing.
 func (s *Store) ensureNarratorNameAnia() error {
+	hasScope, err := s.hasColumn("staff", "scope")
+	if err != nil {
+		return err
+	}
+	if !hasScope {
+		return nil
+	}
 	rows, err := s.db.Query(`SELECT DISTINCT box_id FROM staff
 		WHERE scope = 'box' AND slug = 'st_b_pi' AND name = ?`, narratorOldName)
 	if err != nil {
@@ -1553,6 +1452,17 @@ func (s *Store) ensureBoxNarrator() error {
 		)`); err != nil {
 			return err
 		}
+	}
+
+	// A staff table without a scope column never carried box-scoped rows:
+	// there is nothing to move, and the box_narrator table is already in
+	// place.
+	hasScope, err := s.hasColumn("staff", "scope")
+	if err != nil {
+		return err
+	}
+	if !hasScope {
+		return nil
 	}
 
 	// Read the affected box ids before the write transaction.

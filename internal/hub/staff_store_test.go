@@ -952,18 +952,12 @@ func TestOpenStoreMigratesLegacyStaffColumns(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, drop := range []string{
-		// The per-scope slug indexes index box_id/scope, and SQLite refuses
-		// to drop an indexed column: the truly pre-scope shape has neither.
-		`DROP INDEX IF EXISTS staff_slug_org_unique`,
-		`DROP INDEX IF EXISTS staff_slug_box_unique`,
 		`ALTER TABLE staff DROP COLUMN soul_core`,
 		`ALTER TABLE staff DROP COLUMN voice`,
 		`ALTER TABLE org_staff_overrides DROP COLUMN name`,
 		`ALTER TABLE org_staff_overrides DROP COLUMN age`,
 		`ALTER TABLE org_staff_overrides DROP COLUMN soul_override`,
 		`ALTER TABLE org_staff_overrides DROP COLUMN voice`,
-		`ALTER TABLE staff DROP COLUMN scope`,
-		`ALTER TABLE staff DROP COLUMN box_id`,
 		`DROP TABLE boxes`,
 		`DROP TABLE box_orgs`,
 	} {
@@ -982,10 +976,10 @@ func TestOpenStoreMigratesLegacyStaffColumns(t *testing.T) {
 	}
 	t.Cleanup(func() { again.Close() })
 
-	// The migration path must have re-added every column. A regression that
-	// drops one from ensureStaffProfileColumns fails here, not in a later,
-	// unrelated query.
-	for _, col := range []string{"soul_core", "voice", "scope", "box_id"} {
+	// The migration path must have re-added every profile column. A
+	// regression that drops one from ensureStaffProfileColumns fails here,
+	// not in a later, unrelated query.
+	for _, col := range []string{"soul_core", "voice"} {
 		ok, err := again.hasColumn("staff", col)
 		if err != nil || !ok {
 			t.Fatalf("staff.%s after reopen: ok=%v err=%v", col, ok, err)
@@ -999,14 +993,6 @@ func TestOpenStoreMigratesLegacyStaffColumns(t *testing.T) {
 		if err != nil || !ok {
 			t.Fatalf("table %s after reopen: ok=%v err=%v", table, ok, err)
 		}
-	}
-	// Old staff rows read the org default, not a NULL.
-	var scope string
-	if err := again.db.QueryRow(`SELECT scope FROM staff LIMIT 1`).Scan(&scope); err != nil {
-		t.Fatal(err)
-	}
-	if scope != "org" {
-		t.Errorf("migrated staff scope = %q, want the org default", scope)
 	}
 	for _, col := range []string{"name", "age", "soul_override", "voice"} {
 		ok, err := again.hasColumn("org_staff_overrides", col)
@@ -1146,38 +1132,46 @@ func TestOpenStoreMigratesAvatarModelColumn(t *testing.T) {
 	}
 }
 
-// A store whose staff table predates per-scope slugs still carries the old
-// installation-wide UNIQUE on slug as an auto-index. The reopen must rebuild
-// the table without it, keep every row, and replace it with the two partial
-// indexes, so two boxes can each seed their own st_b_pi while an org-scoped
-// slug stays unique across the installation.
-func TestOpenStoreRelaxesGlobalStaffSlugUnique(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "staff-slug-migration.db")
+// A store whose staff table still carries the scope/box_id columns and the
+// two partial slug indexes the box-narrator model introduced gains the
+// re-tightened shape on reopen: the columns and indexes are dropped and slug
+// uniqueness returns to installation-wide, because staff is org-scoped only
+// again. The org-scoped rows survive the rebuild, and the drop is idempotent.
+func TestOpenStoreDropsStaffScopeColumns(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "staff-scope-drop-migration.db")
 	db, err := store.OpenDB(store.SQLite, path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The pre-migration shape: slug UNIQUE, no profile/scope columns yet.
+	// The pre-cleanup shape: scope/box_id columns and per-scope slug
+	// uniqueness (no installation-wide UNIQUE on slug).
 	for _, ddl := range []string{
 		`CREATE TABLE staff (
 			id          TEXT PRIMARY KEY,
-			slug        TEXT NOT NULL UNIQUE,
+			slug        TEXT NOT NULL,
 			name        TEXT NOT NULL,
 			locale      TEXT NOT NULL DEFAULT 'en',
 			age         INTEGER NOT NULL,
 			big_five    TEXT NOT NULL DEFAULT '{}',
 			brief       TEXT NOT NULL DEFAULT '',
 			word_budget INTEGER NOT NULL DEFAULT 0,
-			model       TEXT NOT NULL DEFAULT '',
+			avatar_model_3d TEXT NOT NULL DEFAULT '',
+			soul_core   TEXT NOT NULL DEFAULT '',
+			voice       TEXT NOT NULL DEFAULT '',
+			biological_gender TEXT NOT NULL DEFAULT '',
+			scope       TEXT NOT NULL DEFAULT 'org' CHECK (scope IN ('org','box')),
+			box_id      TEXT,
 			created_at  INTEGER NOT NULL,
 			updated_at  INTEGER NOT NULL
 		)`,
+		`CREATE UNIQUE INDEX staff_slug_org_unique ON staff(slug) WHERE scope = 'org'`,
+		`CREATE UNIQUE INDEX staff_slug_box_unique ON staff(box_id, slug) WHERE scope = 'box'`,
 		`INSERT INTO staff (id, slug, name, locale, age, big_five, created_at, updated_at)
 			VALUES ('staff-carried', 'staff-carried-00', 'Carried', 'en', 40, '{}', 1, 1)`,
 	} {
 		if _, err := db.Exec(ddl); err != nil {
 			_ = db.Close()
-			t.Fatalf("building the pre-migration schema: %v", err)
+			t.Fatalf("building the pre-cleanup schema: %v", err)
 		}
 	}
 	if err := db.Close(); err != nil {
@@ -1186,8 +1180,9 @@ func TestOpenStoreRelaxesGlobalStaffSlugUnique(t *testing.T) {
 
 	s, err := OpenStore(path)
 	if err != nil {
-		t.Fatalf("reopen on a globally-unique staff slug schema: %v", err)
+		t.Fatalf("reopen on a per-scope staff schema: %v", err)
 	}
+	t.Cleanup(func() { s.Close() })
 
 	// The carried row survives the rebuild with its values.
 	carried, err := s.StaffById("staff-carried")
@@ -1198,40 +1193,25 @@ func TestOpenStoreRelaxesGlobalStaffSlugUnique(t *testing.T) {
 		t.Errorf("migrated row = %+v, want the carried values", carried)
 	}
 
-	// The global unique is gone: two boxes each own their own narrator.
-	boxA, err := s.CreateBox("box-a", "A", "", "")
-	if err != nil {
-		t.Fatal(err)
+	// scope/box_id and the partial indexes are gone.
+	for _, col := range []string{"scope", "box_id"} {
+		ok, err := s.hasColumn("staff", col)
+		if err != nil || ok {
+			t.Fatalf("staff.%s after reopen: ok=%v err=%v, want the column dropped", col, ok, err)
+		}
 	}
-	boxB, err := s.CreateBox("box-b", "B", "", "")
-	if err != nil {
-		t.Fatalf("second box under the relaxed slug contract: %v", err)
-	}
-	narrA, err := s.GetBoxNarrator(boxA.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	narrB, err := s.GetBoxNarrator(boxB.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if narrA == nil || narrB == nil || narrA.Slug != "st_b_pi" || narrB.Slug != "st_b_pi" {
-		t.Errorf("narrators after migration = %+v / %+v, want one st_b_pi narrator per box", narrA, narrB)
-	}
-
-	// Both partial indexes exist…
 	for _, index := range []string{"staff_slug_org_unique", "staff_slug_box_unique"} {
 		ok, err := s.sqliteIndexExists("staff", index)
-		if err != nil || !ok {
-			t.Fatalf("index %s after reopen: ok=%v err=%v", index, ok, err)
+		if err != nil || ok {
+			t.Fatalf("index %s after reopen: ok=%v err=%v, want the index dropped", index, ok, err)
 		}
 	}
 
-	// …and the org contract still holds: the partial org index refuses a
-	// duplicate org-scoped slug.
+	// slug uniqueness is installation-wide again: a duplicate org-scoped
+	// slug is refused.
 	if _, err := s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, created_at, updated_at)
 		VALUES ('staff-00000000-0000-0000-0000-000000000000', 'staff-carried-00', 'Twin', 'en', 1, '{}', 1, 1)`); err == nil {
-		t.Error("duplicate org-scoped slug succeeded after migration, want a unique constraint refusal")
+		t.Error("duplicate slug succeeded after cleanup, want a unique constraint refusal")
 	}
 
 	// Idempotent: a second open changes nothing and loses no rows.
@@ -1243,20 +1223,10 @@ func TestOpenStoreRelaxesGlobalStaffSlugUnique(t *testing.T) {
 		t.Fatalf("second reopen: %v", err)
 	}
 	t.Cleanup(func() { again.Close() })
-	list, err := again.ListStaff()
-	if err != nil {
+	if list, err := again.ListStaff(); err != nil {
 		t.Fatal(err)
-	}
-	// The canonical list carries the org-scoped rows only: the carried row
-	// and the two seeds. The two narrators are box properties — visible
-	// through GetBoxNarrator, never through ListStaff.
-	if len(list) != 3 {
-		t.Errorf("ListStaff after the second open = %d rows, want the carried row and the two seeds", len(list))
-	}
-	for _, st := range list {
-		if st.Slug == "st_b_pi" {
-			t.Errorf("ListStaff carries the narrator %q", st.Slug)
-		}
+	} else if len(list) == 0 {
+		t.Errorf("ListStaff after the second open = 0 rows, want the carried row and the seeds")
 	}
 }
 

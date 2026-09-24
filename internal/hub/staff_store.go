@@ -200,14 +200,13 @@ func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulC
 
 // StaffForOrg returns the staff roster as one organization sees it: each
 // overridable field is the org override when the override column is not NULL,
-// the shared base row otherwise (override ?? base). Box-scoped narrators are
-// never part of an org roster.
+// the shared base row otherwise (override ?? base). A box's narrator is never
+// part of an org roster.
 func (s *Store) StaffForOrg(orgID string) ([]Staff, error) {
 	rows, err := s.db.Query(`SELECT st.id, st.slug, st.name, st.locale, st.age, st.big_five, st.brief, st.word_budget, st.avatar_model_3d, st.soul_core, st.voice, st.biological_gender, st.created_at, st.updated_at,
 		ov.name, ov.age, ov.soul_override, ov.voice, ov.big_five, ov.brief, ov.word_budget, ov.avatar_model_3d
 		FROM staff st
 		LEFT JOIN org_staff_overrides ov ON ov.org_id = ? AND ov.staff_id = st.id
-		WHERE st.scope = 'org'
 		ORDER BY st.slug`, orgID)
 	if err != nil {
 		return nil, err

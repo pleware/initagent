@@ -519,8 +519,16 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Rewind the legacy box's narrator to the pre-migration shape: a
-	// box-scoped staff row under the old slug and name.
+	// box-scoped staff row under the old slug and name. The scope/box_id
+	// columns are gone from the live schema, so re-add them to write the row
+	// the way the old build did.
 	if _, err := s.db.Exec(`DELETE FROM box_narrator WHERE box_id = ?`, legacy.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE staff ADD COLUMN scope TEXT NOT NULL DEFAULT 'org'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE staff ADD COLUMN box_id TEXT`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at)
@@ -582,8 +590,16 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Rewind the box's narrator to the pre-migration shape: a box-scoped
-	// staff row under st_b_pi but the old name.
+	// staff row under st_b_pi but the old name. The scope/box_id columns are
+	// gone from the live schema, so re-add them to write the row the way the
+	// old build did.
 	if _, err := s.db.Exec(`DELETE FROM box_narrator WHERE box_id = ?`, box.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE staff ADD COLUMN scope TEXT NOT NULL DEFAULT 'org'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`ALTER TABLE staff ADD COLUMN box_id TEXT`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at)

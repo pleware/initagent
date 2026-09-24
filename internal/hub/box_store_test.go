@@ -66,17 +66,16 @@ func TestCreateBoxSeedsNarrator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	roster, err := s.StaffForBox(box.ID)
+	got, err := s.GetBoxNarrator(box.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(roster) != 1 {
-		t.Fatalf("StaffForBox = %d rows, want exactly the narrator", len(roster))
+	if got == nil {
+		t.Fatal("GetBoxNarrator = nil, want the seeded narrator")
 	}
-	got := roster[0]
 	if got.Slug != "st_b_pi" || got.Name != "Ania" || got.Locale != "pl" ||
-		got.Voice != "pl_PL-gosia-medium" || got.BiologicalGender != "female" || got.Scope != "box" || got.BoxID != box.ID {
-		t.Errorf("narrator = %+v, want the box-scoped st_b_pi seed for %s", got, box.ID)
+		got.Voice != "pl_PL-gosia-medium" || got.BiologicalGender != "female" {
+		t.Errorf("narrator = %+v, want the st_b_pi seed for %s", got, box.ID)
 	}
 	if got.SoulCore != "" {
 		t.Errorf("narrator soul_core = %q, want empty (content later)", got.SoulCore)
@@ -86,49 +85,43 @@ func TestCreateBoxSeedsNarrator(t *testing.T) {
 	}
 }
 
-func TestEnsureSeedBoxNarratorIdempotent(t *testing.T) {
+func TestEnsureSeedNarratorIdempotent(t *testing.T) {
 	s := testStore(t)
 	box, err := s.CreateBox("box-idem", "Idem", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	roster, err := s.StaffForBox(box.ID)
+	seeded, err := s.GetBoxNarrator(box.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(roster) != 1 {
-		t.Fatalf("StaffForBox after CreateBox = %d rows, want 1", len(roster))
+	if seeded == nil {
+		t.Fatal("GetBoxNarrator after CreateBox = nil, want the seeded narrator")
 	}
-	seeded := roster[0]
 
 	// Content written over the seed survives a second run: the seed must
 	// not clobber a tuned narrator nor mint a second row.
-	if _, err := s.UpsertStaff("st_b_pi", "Lore", "en", "", "", "", "custom-voice", "female", "box", box.ID, 0, 0, neutralBigFive()); err != nil {
+	if _, err := s.UpdateBoxNarrator(box.ID, "Lore", "en", "", "", "", "custom-voice", "female", 0, 0, neutralBigFive()); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.EnsureSeedBoxNarrator(box.ID); err != nil {
+	if err := s.EnsureSeedNarrator(box.ID); err != nil {
 		t.Fatal(err)
 	}
-	roster, err = s.StaffForBox(box.ID)
+	got, err := s.GetBoxNarrator(box.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(roster) != 1 {
-		t.Fatalf("StaffForBox after the second seed = %d rows, want 1", len(roster))
-	}
-	got := roster[0]
-	if got.ID != seeded.ID {
-		t.Errorf("second seed minted a new narrator row: %s -> %s", seeded.ID, got.ID)
+	if got == nil {
+		t.Fatal("GetBoxNarrator after the second seed = nil, want the narrator")
 	}
 	if got.Name != "Lore" || got.Voice != "custom-voice" || got.Locale != "en" {
 		t.Errorf("second seed overwrote the tuned narrator: %+v", got)
 	}
 }
 
-// Each box seeds its own st_b_pi: the slug is unique per box, not per
-// installation, so box B's seed mints a second st_b_pi row rather than
-// re-homing box A's through the slug-keyed update path.
-func TestEnsureSeedBoxNarratorPerBox(t *testing.T) {
+// Each box owns its own narrator: the narrator is keyed by the box, so box
+// B's seed never re-homes box A's narrator.
+func TestEnsureSeedNarratorPerBox(t *testing.T) {
 	s := testStore(t)
 	boxA, err := s.CreateBox("box-a", "A", "", "")
 	if err != nil {
@@ -139,45 +132,42 @@ func TestEnsureSeedBoxNarratorPerBox(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rosterA, err := s.StaffForBox(boxA.ID)
+	narrA, err := s.GetBoxNarrator(boxA.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rosterA) != 1 || rosterA[0].Slug != "st_b_pi" || rosterA[0].BoxID != boxA.ID {
-		t.Fatalf("box A narrator = %+v, want its own st_b_pi row", rosterA)
+	if narrA == nil || narrA.Slug != "st_b_pi" {
+		t.Fatalf("box A narrator = %+v, want its own st_b_pi narrator", narrA)
 	}
-	rosterB, err := s.StaffForBox(boxB.ID)
+	narrB, err := s.GetBoxNarrator(boxB.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rosterB) != 1 || rosterB[0].Slug != "st_b_pi" || rosterB[0].BoxID != boxB.ID {
-		t.Fatalf("box B narrator = %+v, want its own st_b_pi row", rosterB)
-	}
-	if rosterA[0].ID == rosterB[0].ID {
-		t.Error("both boxes share one narrator row; each box must own its own")
+	if narrB == nil || narrB.Slug != "st_b_pi" {
+		t.Fatalf("box B narrator = %+v, want its own st_b_pi narrator", narrB)
 	}
 
 	// A re-seed still keys on the box: box A's tuned narrator is left alone,
-	// and box B keeps the row it owns.
-	if _, err := s.UpsertStaff("st_b_pi", "Lore", "en", "", "", "", "custom-voice", "female", "box", boxA.ID, 0, 0, neutralBigFive()); err != nil {
+	// and box B keeps its own.
+	if _, err := s.UpdateBoxNarrator(boxA.ID, "Lore", "en", "", "", "", "custom-voice", "female", 0, 0, neutralBigFive()); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.EnsureSeedBoxNarrator(boxB.ID); err != nil {
+	if err := s.EnsureSeedNarrator(boxB.ID); err != nil {
 		t.Fatal(err)
 	}
-	rosterA, err = s.StaffForBox(boxA.ID)
+	narrA, err = s.GetBoxNarrator(boxA.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rosterA[0].Name != "Lore" || rosterA[0].Voice != "custom-voice" {
-		t.Errorf("box A narrator after box B's re-seed = %+v, want the tuned row untouched", rosterA[0])
+	if narrA.Name != "Lore" || narrA.Voice != "custom-voice" {
+		t.Errorf("box A narrator after box B's re-seed = %+v, want the tuned row untouched", narrA)
 	}
-	rosterB, err = s.StaffForBox(boxB.ID)
+	narrB, err = s.GetBoxNarrator(boxB.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rosterB) != 1 {
-		t.Fatalf("box B roster after re-seed = %+v, want its one narrator", rosterB)
+	if narrB == nil || narrB.Slug != "st_b_pi" {
+		t.Fatalf("box B narrator after re-seed = %+v, want its one narrator", narrB)
 	}
 }
 
@@ -394,11 +384,11 @@ func TestDeleteBoxCascades(t *testing.T) {
 	if err := s.SetBoxOrgs(box.ID, []string{"org-a", "org-b"}); err != nil {
 		t.Fatal(err)
 	}
-	// CreateBox seeds the box-scoped narrator, so the staff table has a row
-	// for this box before the delete.
-	roster, err := s.StaffForBox(box.ID)
-	if err != nil || len(roster) != 1 {
-		t.Fatalf("StaffForBox before delete = (%v, %d), want one narrator", err, len(roster))
+	// CreateBox seeds the narrator, so box_narrator has a row for this box
+	// before the delete.
+	narrator, err := s.GetBoxNarrator(box.ID)
+	if err != nil || narrator == nil {
+		t.Fatalf("GetBoxNarrator before delete = (%v, %v), want one narrator", narrator, err)
 	}
 	// A sync token, revoked so even a non-live row has to die with the box.
 	_, tokenRow, err := s.CreateBoxToken(box.ID, "primary")
@@ -424,9 +414,9 @@ func TestDeleteBoxCascades(t *testing.T) {
 	if err != nil || len(orgs) != 0 {
 		t.Fatalf("ListBoxOrgs after delete = (%v, %v), want empty", orgs, err)
 	}
-	roster, err = s.StaffForBox(box.ID)
-	if err != nil || len(roster) != 0 {
-		t.Fatalf("StaffForBox after delete = (%v, %v), want empty", roster, err)
+	narrator, err = s.GetBoxNarrator(box.ID)
+	if err != nil || narrator != nil {
+		t.Fatalf("GetBoxNarrator after delete = (%v, %v), want nil", narrator, err)
 	}
 	var tokens int
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM box_tokens WHERE box_id = ?`, box.ID).Scan(&tokens); err != nil {
@@ -528,10 +518,13 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Rewind the legacy box's narrator to the slug and name the pre-rename
-	// build seeded.
-	if _, err := s.db.Exec(`UPDATE staff SET slug = ?, name = 'Data'
-		WHERE scope = 'box' AND box_id = ?`, narratorOldSlug, legacy.ID); err != nil {
+	// Rewind the legacy box's narrator to the pre-migration shape: a
+	// box-scoped staff row under the old slug and name.
+	if _, err := s.db.Exec(`DELETE FROM box_narrator WHERE box_id = ?`, legacy.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at)
+		VALUES ('staff-00000000-0000-0000-0000-000000000000', ?, 'Data', 'pl', 0, '{}', '', 0, '', '', 'pl_PL-gosia-medium', 'female', 'box', ?, 1, 1)`, narratorOldSlug, legacy.ID); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
@@ -544,22 +537,22 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 	}
 	t.Cleanup(func() { again.Close() })
 
-	roster, err := again.StaffForBox(legacy.ID)
+	narrator, err := again.GetBoxNarrator(legacy.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(roster) != 1 || roster[0].Slug != "st_b_pi" || roster[0].Name != "Ania" {
-		t.Errorf("migrated narrator = %+v, want st_b_pi/Ania", roster)
+	if narrator == nil || narrator.Slug != "st_b_pi" || narrator.Name != "Ania" {
+		t.Errorf("migrated narrator = %+v, want st_b_pi/Ania in box_narrator", narrator)
 	}
-	if got, _ := again.GetBox(legacy.ID); got.ConfigVersion != 2 {
-		t.Errorf("legacy box config_version = %d, want 2 (one rename bump)", got.ConfigVersion)
+	if got, _ := again.GetBox(legacy.ID); got.ConfigVersion != 3 {
+		t.Errorf("legacy box config_version = %d, want 3 (rename bump + move bump)", got.ConfigVersion)
 	}
 	if got, _ := again.GetBox(fresh.ID); got.ConfigVersion != 1 {
 		t.Errorf("fresh box config_version = %d, want 1 (unaffected boxes stay)", got.ConfigVersion)
 	}
 
-	// A second reopen is a no-op: the row is already st_b_pi and the version
-	// stays at 2.
+	// A second reopen is a no-op: the row is already st_b_pi and in
+	// box_narrator, and the version stays at 3.
 	if err := again.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -568,8 +561,8 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 		t.Fatalf("third open on a renamed store: %v", err)
 	}
 	t.Cleanup(func() { third.Close() })
-	if got, _ := third.GetBox(legacy.ID); got.ConfigVersion != 2 {
-		t.Errorf("legacy box config_version after a second reopen = %d, want 2 (no re-bump)", got.ConfigVersion)
+	if got, _ := third.GetBox(legacy.ID); got.ConfigVersion != 3 {
+		t.Errorf("legacy box config_version after a second reopen = %d, want 3 (no re-bump)", got.ConfigVersion)
 	}
 }
 
@@ -588,10 +581,13 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Rewind the box's narrator to the name the pre-rename build seeded; the
-	// slug already rides st_b_pi, so only the name migration applies.
-	if _, err := s.db.Exec(`UPDATE staff SET name = ?
-		WHERE scope = 'box' AND box_id = ?`, narratorOldName, box.ID); err != nil {
+	// Rewind the box's narrator to the pre-migration shape: a box-scoped
+	// staff row under st_b_pi but the old name.
+	if _, err := s.db.Exec(`DELETE FROM box_narrator WHERE box_id = ?`, box.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at)
+		VALUES ('staff-00000000-0000-0000-0000-000000000000', 'st_b_pi', ?, 'pl', 0, '{}', '', 0, '', '', 'pl_PL-gosia-medium', 'female', 'box', ?, 1, 1)`, narratorOldName, box.ID); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
@@ -604,19 +600,19 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 	}
 	t.Cleanup(func() { again.Close() })
 
-	roster, err := again.StaffForBox(box.ID)
+	narrator, err := again.GetBoxNarrator(box.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(roster) != 1 || roster[0].Slug != "st_b_pi" || roster[0].Name != "Ania" {
-		t.Errorf("migrated narrator = %+v, want st_b_pi/Ania", roster)
+	if narrator == nil || narrator.Slug != "st_b_pi" || narrator.Name != "Ania" {
+		t.Errorf("migrated narrator = %+v, want st_b_pi/Ania in box_narrator", narrator)
 	}
-	if got, _ := again.GetBox(box.ID); got.ConfigVersion != 2 {
-		t.Errorf("box config_version = %d, want 2 (one name-rename bump)", got.ConfigVersion)
+	if got, _ := again.GetBox(box.ID); got.ConfigVersion != 3 {
+		t.Errorf("box config_version = %d, want 3 (name-rename bump + move bump)", got.ConfigVersion)
 	}
 
 	// A second reopen is a no-op: the row already carries the new name and
-	// the version stays at 2.
+	// is in box_narrator, and the version stays at 3.
 	if err := again.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -625,7 +621,7 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 		t.Fatalf("third open on a renamed store: %v", err)
 	}
 	t.Cleanup(func() { third.Close() })
-	if got, _ := third.GetBox(box.ID); got.ConfigVersion != 2 {
-		t.Errorf("box config_version after a second reopen = %d, want 2 (no re-bump)", got.ConfigVersion)
+	if got, _ := third.GetBox(box.ID); got.ConfigVersion != 3 {
+		t.Errorf("box config_version after a second reopen = %d, want 3 (no re-bump)", got.ConfigVersion)
 	}
 }

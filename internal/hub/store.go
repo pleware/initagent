@@ -227,6 +227,21 @@ CREATE TABLE IF NOT EXISTS boxes (
 	edition        TEXT NOT NULL DEFAULT 'lite',
 	config_version INTEGER NOT NULL DEFAULT 1
 );
+CREATE TABLE IF NOT EXISTS box_narrator (
+	box_id          TEXT PRIMARY KEY,
+	name            TEXT NOT NULL,
+	locale          TEXT NOT NULL DEFAULT 'en',
+	age             INTEGER NOT NULL,
+	big_five        TEXT NOT NULL DEFAULT '{}',
+	brief           TEXT NOT NULL DEFAULT '',
+	word_budget     INTEGER NOT NULL DEFAULT 0,
+	avatar_model_3d TEXT NOT NULL DEFAULT '',
+	soul_core       TEXT NOT NULL DEFAULT '',
+	voice           TEXT NOT NULL DEFAULT '',
+	biological_gender TEXT NOT NULL DEFAULT '',
+	created_at      INTEGER NOT NULL,
+	updated_at      INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS box_orgs (
 	box_id TEXT NOT NULL,
 	org_id TEXT NOT NULL,
@@ -464,6 +479,21 @@ CREATE TABLE IF NOT EXISTS boxes (
 	edition        TEXT NOT NULL DEFAULT 'lite',
 	config_version BIGINT NOT NULL DEFAULT 1
 );
+CREATE TABLE IF NOT EXISTS box_narrator (
+	box_id          TEXT PRIMARY KEY,
+	name            TEXT NOT NULL,
+	locale          TEXT NOT NULL DEFAULT 'en',
+	age             BIGINT NOT NULL,
+	big_five        TEXT NOT NULL DEFAULT '{}',
+	brief           TEXT NOT NULL DEFAULT '',
+	word_budget     BIGINT NOT NULL DEFAULT 0,
+	avatar_model_3d TEXT NOT NULL DEFAULT '',
+	soul_core       TEXT NOT NULL DEFAULT '',
+	voice           TEXT NOT NULL DEFAULT '',
+	biological_gender TEXT NOT NULL DEFAULT '',
+	created_at      BIGINT NOT NULL,
+	updated_at      BIGINT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS box_orgs (
 	box_id TEXT NOT NULL,
 	org_id TEXT NOT NULL,
@@ -623,6 +653,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureNarratorNameAnia(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("renaming box narrator name: %w", err)
+	}
+	if err := s.ensureBoxNarrator(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("promoting box narrator to a box property: %w", err)
 	}
 	if err := s.ensureBoxTokens(); err != nil {
 		db.Close()
@@ -1466,6 +1500,94 @@ func (s *Store) ensureNarratorNameAnia() error {
 	defer tx.Rollback()
 	if _, err := tx.Exec(`UPDATE staff SET name = 'Ania'
 		WHERE scope = 'box' AND slug = 'st_b_pi' AND name = ?`, narratorOldName); err != nil {
+		return err
+	}
+	for _, boxID := range boxIDs {
+		if err := bumpBoxConfig(tx, boxID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// ensureBoxNarrator promotes a box's narrator from a box-scoped staff row to
+// the box's own 1:1 being: it creates the box_narrator table on a store that
+// predates it and moves every scope='box' staff row into it, keyed by the
+// row's box_id. A narrator is 1:1 with its box, so the box's id becomes the
+// narrator's identity and the minted staff id is dropped. The moved rows
+// leave the staff table (staff is org-scoped only), and every affected box's
+// config_version bumps once so a connector re-syncs the reshaped narrator.
+//
+// A fresh store already has the table from the schema batch and CreateBox
+// seeds box_narrator directly, so the move finds no box-scoped rows and does
+// nothing. The box list is read before the write transaction — a store opens
+// single-threaded — so the move and the bumps commit together.
+func (s *Store) ensureBoxNarrator() error {
+	ok, err := s.hasTable("box_narrator")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		ageType := "INTEGER NOT NULL"
+		wordType := "INTEGER NOT NULL DEFAULT 0"
+		stamp := "INTEGER NOT NULL"
+		if s.db.Dialect() == store.Postgres {
+			ageType = "BIGINT NOT NULL"
+			wordType = "BIGINT NOT NULL DEFAULT 0"
+			stamp = "BIGINT NOT NULL"
+		}
+		if _, err := s.db.Exec(`CREATE TABLE box_narrator (
+			box_id           TEXT PRIMARY KEY,
+			name             TEXT NOT NULL,
+			locale           TEXT NOT NULL DEFAULT 'en',
+			age              ` + ageType + `,
+			big_five         TEXT NOT NULL DEFAULT '{}',
+			brief            TEXT NOT NULL DEFAULT '',
+			word_budget      ` + wordType + `,
+			avatar_model_3d  TEXT NOT NULL DEFAULT '',
+			soul_core        TEXT NOT NULL DEFAULT '',
+			voice            TEXT NOT NULL DEFAULT '',
+			biological_gender TEXT NOT NULL DEFAULT '',
+			created_at       ` + stamp + `,
+			updated_at       ` + stamp + `
+		)`); err != nil {
+			return err
+		}
+	}
+
+	// Read the affected box ids before the write transaction.
+	rows, err := s.db.Query(`SELECT DISTINCT box_id FROM staff WHERE scope = 'box'`)
+	if err != nil {
+		return err
+	}
+	boxIDs := []string{}
+	for rows.Next() {
+		var boxID string
+		if err := rows.Scan(&boxID); err != nil {
+			rows.Close()
+			return err
+		}
+		boxIDs = append(boxIDs, boxID)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(boxIDs) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO box_narrator (box_id, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, created_at, updated_at)
+		SELECT box_id, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, created_at, updated_at
+		FROM staff WHERE scope = 'box'`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM staff WHERE scope = 'box'`); err != nil {
 		return err
 	}
 	for _, boxID := range boxIDs {

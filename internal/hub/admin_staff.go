@@ -83,7 +83,7 @@ func (s *Server) handleUpsertStaff(w http.ResponseWriter, r *http.Request, cred 
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	st, err := s.store.UpsertStaff(req.Slug, req.Name, req.Locale, req.AvatarModel3D, req.Brief, req.SoulCore, req.Voice, req.BiologicalGender, "org", "", req.Age, req.WordBudget, req.BigFive)
+	st, err := s.store.UpsertStaff(req.Slug, req.Name, req.Locale, req.AvatarModel3D, req.Brief, req.SoulCore, req.Voice, req.BiologicalGender, req.Age, req.WordBudget, req.BigFive)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

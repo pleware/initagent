@@ -122,9 +122,9 @@ func TestBoxDelete(t *testing.T) {
 	if got, err := f.srv.store.GetBox(box.ID); err != nil || got != nil {
 		t.Fatalf("GetBox after delete = (%v, %v), want (nil, nil)", got, err)
 	}
-	roster, err := f.srv.store.StaffForBox(box.ID)
-	if err != nil || len(roster) != 0 {
-		t.Fatalf("StaffForBox after delete = (%v, %v), want empty", roster, err)
+	narrator, err := f.srv.store.GetBoxNarrator(box.ID)
+	if err != nil || narrator != nil {
+		t.Fatalf("GetBoxNarrator after delete = (%v, %v), want nil", narrator, err)
 	}
 	orgs, err := f.srv.store.ListBoxOrgs(box.ID)
 	if err != nil || len(orgs) != 0 {
@@ -276,7 +276,7 @@ func TestBoxSetOrgs(t *testing.T) {
 }
 
 // A box is born with its narrator already seeded (CreateBox runs
-// EnsureSeedBoxNarrator), so the endpoint serves it straight away; a box
+// EnsureSeedNarrator), so the endpoint serves it straight away; a box
 // whose narrator row is gone answers 404 with the reason until it is
 // seeded again.
 func TestBoxNarrator(t *testing.T) {
@@ -290,17 +290,17 @@ func TestBoxNarrator(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("narrator after create: %d, want 200", resp.StatusCode)
 	}
-	var narrator Staff
+	var narrator Narrator
 	if err := json.NewDecoder(resp.Body).Decode(&narrator); err != nil {
 		t.Fatal(err)
 	}
-	if narrator.Slug != "st_b_pi" || narrator.Scope != "box" || narrator.BoxID != box.ID {
-		t.Errorf("narrator = %+v, want the seeded box-scoped st_b_pi row", narrator)
+	if narrator.Slug != "st_b_pi" {
+		t.Errorf("narrator = %+v, want the seeded st_b_pi narrator", narrator)
 	}
 
 	// Take the narrator away: a box with no narrator answers 404 with the
 	// reason, so the cockpit can tell "nothing to show" from "not allowed".
-	if _, err := f.srv.store.db.Exec(`DELETE FROM staff WHERE scope = 'box' AND box_id = ?`, box.ID); err != nil {
+	if _, err := f.srv.store.db.Exec(`DELETE FROM box_narrator WHERE box_id = ?`, box.ID); err != nil {
 		t.Fatal(err)
 	}
 	resp = f.do(t, http.MethodGet, "/api/boxes/"+box.ID+"/narrator", nil)
@@ -308,7 +308,7 @@ func TestBoxNarrator(t *testing.T) {
 		t.Fatalf("narrator of a box without one: %d, want 404", resp.StatusCode)
 	}
 
-	if err := f.srv.store.EnsureSeedBoxNarrator(box.ID); err != nil {
+	if err := f.srv.store.EnsureSeedNarrator(box.ID); err != nil {
 		t.Fatal(err)
 	}
 	resp = f.do(t, http.MethodGet, "/api/boxes/"+box.ID+"/narrator", nil)
@@ -350,12 +350,12 @@ func TestBoxNarratorEdit(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("PATCH narrator: %d, want 200", resp.StatusCode)
 	}
-	var narrator Staff
+	var narrator Narrator
 	if err := json.NewDecoder(resp.Body).Decode(&narrator); err != nil {
 		t.Fatal(err)
 	}
-	if narrator.Slug != "st_b_pi" || narrator.Scope != "box" || narrator.BoxID != box.ID {
-		t.Errorf("narrator identity = %+v, want the box-scoped st_b_pi row", narrator)
+	if narrator.Slug != "st_b_pi" {
+		t.Errorf("narrator identity = %+v, want the box's st_b_pi narrator", narrator)
 	}
 	if narrator.Name != "Lore" || narrator.Locale != "en" || narrator.Age != 42 ||
 		narrator.WordBudget != 1200 || narrator.AvatarModel3D != "lore.glb" ||
@@ -372,11 +372,11 @@ func TestBoxNarratorEdit(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET narrator after the edit: %d, want 200", resp.StatusCode)
 	}
-	var readBack Staff
+	var readBack Narrator
 	if err := json.NewDecoder(resp.Body).Decode(&readBack); err != nil {
 		t.Fatal(err)
 	}
-	if readBack.ID != narrator.ID || readBack.Name != "Lore" {
+	if readBack.Name != "Lore" {
 		t.Errorf("narrator read back = %+v, want the edited row %+v", readBack, narrator)
 	}
 
@@ -391,7 +391,7 @@ func TestBoxNarratorEdit(t *testing.T) {
 		t.Errorf("config_version after the second edit = %d, want 3", got.ConfigVersion)
 	}
 	// The locale was omitted, so it falls back to the Polish default.
-	var after Staff
+	var after Narrator
 	if err := json.NewDecoder(resp.Body).Decode(&after); err != nil {
 		t.Fatal(err)
 	}

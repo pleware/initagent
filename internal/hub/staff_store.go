@@ -22,22 +22,19 @@ type staffScanner interface {
 
 // scanStaff reads one staff row selected in schema order:
 // id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d,
-// soul_core, voice, biological_gender, scope, box_id, created_at, updated_at.
+// soul_core, voice, biological_gender, created_at, updated_at.
 // A missing row is (nil, nil). big_five travels as JSON text, the same
-// round-trip shape skill.mcp uses for its optional config; box_id is NULL on
-// org-scoped rows.
+// round-trip shape skill.mcp uses for its optional config.
 func scanStaff(row staffScanner) (*Staff, error) {
 	var st Staff
 	var bigFive string
-	var boxID sql.NullString
 	if err := row.Scan(&st.ID, &st.Slug, &st.Name, &st.Locale, &st.Age, &bigFive,
-		&st.Brief, &st.WordBudget, &st.AvatarModel3D, &st.SoulCore, &st.Voice, &st.BiologicalGender, &st.Scope, &boxID, &st.CreatedAt, &st.UpdatedAt); err != nil {
+		&st.Brief, &st.WordBudget, &st.AvatarModel3D, &st.SoulCore, &st.Voice, &st.BiologicalGender, &st.CreatedAt, &st.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	st.BoxID = boxID.String
 	if bigFive != "" {
 		if err := json.Unmarshal([]byte(bigFive), &st.BigFive); err != nil {
 			return nil, fmt.Errorf("staff: decode big_five: %w", err)
@@ -56,12 +53,11 @@ func encodeBigFive(c Character) (string, error) {
 	return string(b), nil
 }
 
-// ListStaff returns the canonical org-scoped staff catalogue, ordered by
-// slug. Box-scoped narrators are never part of it — they are a box's own
-// rows, listed by StaffForBox, not the installation's roster.
+// ListStaff returns the canonical staff catalogue, ordered by slug. Staff
+// are org-scoped only; a box's narrator is never part of it.
 func (s *Store) ListStaff() ([]Staff, error) {
-	rows, err := s.db.Query(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at
-		FROM staff WHERE scope = 'org' ORDER BY slug`)
+	rows, err := s.db.Query(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, created_at, updated_at
+		FROM staff ORDER BY slug`)
 	if err != nil {
 		return nil, err
 	}
@@ -79,30 +75,21 @@ func (s *Store) ListStaff() ([]Staff, error) {
 
 // StaffById looks up one staff member. A missing one is (nil, nil).
 func (s *Store) StaffById(id string) (*Staff, error) {
-	return scanStaff(s.db.QueryRow(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at
+	return scanStaff(s.db.QueryRow(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, created_at, updated_at
 		FROM staff WHERE id = ?`, id))
 }
 
-// ErrStaffScopeMismatch reports an UpsertStaff whose slug and scope disagree:
-// a st_b_* slug names a box-scoped narrator, every other slug an org-scoped
-// member, and the two cannot be mixed (58).
-var ErrStaffScopeMismatch = errors.New("staff scope does not match its slug")
+// ErrBoxScopedSlugRejected reports a staff slug in the box-scoped namespace
+// st_b_*: staff are org-scoped only, and the one box-scoped being — a box's
+// narrator — is not a staff row (58).
+var ErrBoxScopedSlugRejected = errors.New("st_b_* is the narrator namespace, not a staff slug")
 
-// validateStaffScope enforces the slug↔scope agreement the store insists on,
-// not only the HTTP layer: the scope is part of the slug, so a st_b_* row
-// must be box-scoped and carry the box, while staff-*, st_o_* and every other
-// slug must be org-scoped with no box.
-func validateStaffScope(slug, scope, boxID string) error {
+// validateStaffSlug enforces that a staff slug stays out of the box-scoped
+// namespace. Staff are org-scoped only; a st_b_* slug names a narrator, which
+// lives in box_narrator, not in the staff table.
+func validateStaffSlug(slug string) error {
 	if strings.HasPrefix(slug, "st_b_") {
-		if scope != "box" || boxID == "" {
-			return fmt.Errorf("%w: slug %q is box-scoped; want scope %q and a non-empty box_id, got %q and %q",
-				ErrStaffScopeMismatch, slug, "box", scope, boxID)
-		}
-		return nil
-	}
-	if scope != "org" || boxID != "" {
-		return fmt.Errorf("%w: slug %q is org-scoped; want scope %q and an empty box_id, got %q and %q",
-			ErrStaffScopeMismatch, slug, "org", scope, boxID)
+		return fmt.Errorf("%w: slug %q is box-scoped; a box's narrator is not a staff row", ErrBoxScopedSlugRejected, slug)
 	}
 	return nil
 }
@@ -118,19 +105,16 @@ func validateBiologicalGender(s string) error {
 	return fmt.Errorf("biological_gender must be \"male\" or \"female\", got %q", s)
 }
 
-// UpsertStaff writes a staff member keyed by scope-aware slug: an org-scoped
-// slug updates the row carrying that slug, a box-scoped slug updates the row
-// carrying that slug inside that box (58). An existing key updates the row
-// and refreshes updated_at, a new key mints a `staff-` identifier. scope and
-// boxID are validated against the slug convention: a st_b_* slug requires
-// scope "box" and the box id, any other slug scope "org" and no box.
+// UpsertStaff writes a staff member keyed by slug. Staff are org-scoped only;
+// an existing slug updates the row and refreshes updated_at, a new slug mints
+// a `staff-` identifier. A st_b_* slug is refused — that namespace belongs to
+// a box's narrator, which is not a staff row (58).
 //
-// The write runs in a transaction with the config_version bump it causes:
-// an org-scoped write changes every box's manifest (bumpAllBoxes), while a
-// box-scoped write — the narrator — changes only that box and does not bump,
-// because a fresh box already starts at version 1 (CreateBox seeds it).
-func (s *Store) UpsertStaff(slug, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender, scope, boxID string, age, wordBudget int, bigFive Character) (*Staff, error) {
-	if err := validateStaffScope(slug, scope, boxID); err != nil {
+// The write runs in a transaction with the config_version bump it causes: a
+// staff edit changes every box's manifest (bumpAllBoxes), because StaffForOrg
+// serves the roster regardless of which org a box carries.
+func (s *Store) UpsertStaff(slug, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender string, age, wordBudget int, bigFive Character) (*Staff, error) {
+	if err := validateStaffSlug(slug); err != nil {
 		return nil, err
 	}
 	if err := validateBiologicalGender(biologicalGender); err != nil {
@@ -141,14 +125,12 @@ func (s *Store) UpsertStaff(slug, name, locale, avatarModel3D, brief, soulCore, 
 		return nil, err
 	}
 	defer tx.Rollback()
-	st, existingID, err := upsertStaffTx(tx, slug, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender, scope, boxID, age, wordBudget, bigFive)
+	st, existingID, err := upsertStaffTx(tx, slug, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender, age, wordBudget, bigFive)
 	if err != nil {
 		return nil, err
 	}
-	if scope == "org" {
-		if err := bumpAllBoxes(tx); err != nil {
-			return nil, err
-		}
+	if err := bumpAllBoxes(tx); err != nil {
+		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
@@ -159,24 +141,23 @@ func (s *Store) UpsertStaff(slug, name, locale, avatarModel3D, brief, soulCore, 
 	return s.StaffById(existingID)
 }
 
-// upsertStaffTx is the SELECT/UPDATE/INSERT core of a staff upsert, shared
-// by UpsertStaff and UpdateBoxNarrator. It runs inside the caller's
-// transaction: an existing key is updated and the row's id comes back with
-// a nil staff — the caller re-reads it after commit, so it sees the
-// committed row — while a new key mints a `staff-` identifier and returns
-// the freshly built row whose fields are exactly the submitted values. The
-// config_version bump the write causes is the caller's business, not the
-// core's.
-func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender, scope, boxID string, age, wordBudget int, bigFive Character) (*Staff, string, error) {
+// upsertStaffTx is the SELECT/UPDATE/INSERT core of a staff upsert. It runs
+// inside the caller's transaction: an existing key is updated and the row's
+// id comes back with a nil staff — the caller re-reads it after commit, so it
+// sees the committed row — while a new key mints a `staff-` identifier and
+// returns the freshly built row whose fields are exactly the submitted
+// values. The config_version bump the write causes is the caller's business,
+// not the core's.
+func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender string, age, wordBudget int, bigFive Character) (*Staff, string, error) {
 	bigFiveJSON, err := encodeBigFive(bigFive)
 	if err != nil {
 		return nil, "", err
 	}
 	var existing string
-	err = tx.QueryRow(`SELECT id FROM staff WHERE slug = ? AND COALESCE(box_id, '') = COALESCE(?, '')`, slug, boxID).Scan(&existing)
+	err = tx.QueryRow(`SELECT id FROM staff WHERE slug = ?`, slug).Scan(&existing)
 	if err == nil {
-		if _, err = tx.Exec(`UPDATE staff SET name = ?, locale = ?, avatar_model_3d = ?, brief = ?, age = ?, word_budget = ?, soul_core = ?, voice = ?, biological_gender = ?, big_five = ?, scope = ?, box_id = ?, updated_at = ?
-			WHERE id = ?`, name, locale, avatarModel3D, brief, age, wordBudget, soulCore, voice, biologicalGender, bigFiveJSON, scope, boxID, time.Now().Unix(), existing); err != nil {
+		if _, err = tx.Exec(`UPDATE staff SET name = ?, locale = ?, avatar_model_3d = ?, brief = ?, age = ?, word_budget = ?, soul_core = ?, voice = ?, biological_gender = ?, big_five = ?, updated_at = ?
+			WHERE id = ?`, name, locale, avatarModel3D, brief, age, wordBudget, soulCore, voice, biologicalGender, bigFiveJSON, time.Now().Unix(), existing); err != nil {
 			return nil, "", err
 		}
 		return nil, existing, nil
@@ -202,15 +183,13 @@ func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulC
 		SoulCore:      soulCore,
 		Voice:         voice,
 		BiologicalGender: biologicalGender,
-		Scope:         scope,
-		BoxID:         boxID,
 		BigFive:       bigFive,
 		CreatedAt:     now,
 		UpdatedAt:     now,
 	}
-	if _, err = tx.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		st.ID, st.Slug, st.Name, st.Locale, st.Age, bigFiveJSON, st.Brief, st.WordBudget, st.AvatarModel3D, st.SoulCore, st.Voice, st.BiologicalGender, st.Scope, st.BoxID, st.CreatedAt, st.UpdatedAt); err != nil {
+	if _, err = tx.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		st.ID, st.Slug, st.Name, st.Locale, st.Age, bigFiveJSON, st.Brief, st.WordBudget, st.AvatarModel3D, st.SoulCore, st.Voice, st.BiologicalGender, st.CreatedAt, st.UpdatedAt); err != nil {
 		if uniqueConstraint(err) {
 			return nil, "", fmt.Errorf("staff slug %q already exists: %w", slug, err)
 		}
@@ -219,47 +198,12 @@ func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulC
 	return st, "", nil
 }
 
-// UpdateBoxNarrator writes the narrator staff row of one box — the
-// box-scoped "Ania" (st_b_pi) — and bumps the box's config_version in the
-// same transaction, so a connector's next sync picks the edited narrator
-// up. CreateBox seeds the row, so the normal path is an update; the upsert
-// core also creates the row when it is missing. The bump is single-box
-// (bumpBoxConfig), unlike UpsertStaff's org-scoped bumpAllBoxes: an edit
-// changes only this box's manifest.
-func (s *Store) UpdateBoxNarrator(boxID, name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender string, age, wordBudget int, bigFive Character) (*Staff, error) {
-	if err := validateStaffScope("st_b_pi", "box", boxID); err != nil {
-		return nil, err
-	}
-	if err := validateBiologicalGender(biologicalGender); err != nil {
-		return nil, err
-	}
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	st, existingID, err := upsertStaffTx(tx, "st_b_pi", name, locale, avatarModel3D, brief, soulCore, voice, biologicalGender, "box", boxID, age, wordBudget, bigFive)
-	if err != nil {
-		return nil, err
-	}
-	if err := bumpBoxConfig(tx, boxID); err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	if st != nil {
-		return st, nil
-	}
-	return s.StaffById(existingID)
-}
-
 // StaffForOrg returns the staff roster as one organization sees it: each
 // overridable field is the org override when the override column is not NULL,
 // the shared base row otherwise (override ?? base). Box-scoped narrators are
 // never part of an org roster.
 func (s *Store) StaffForOrg(orgID string) ([]Staff, error) {
-	rows, err := s.db.Query(`SELECT st.id, st.slug, st.name, st.locale, st.age, st.big_five, st.brief, st.word_budget, st.avatar_model_3d, st.soul_core, st.voice, st.biological_gender, st.scope, st.created_at, st.updated_at,
+	rows, err := s.db.Query(`SELECT st.id, st.slug, st.name, st.locale, st.age, st.big_five, st.brief, st.word_budget, st.avatar_model_3d, st.soul_core, st.voice, st.biological_gender, st.created_at, st.updated_at,
 		ov.name, ov.age, ov.soul_override, ov.voice, ov.big_five, ov.brief, ov.word_budget, ov.avatar_model_3d
 		FROM staff st
 		LEFT JOIN org_staff_overrides ov ON ov.org_id = ? AND ov.staff_id = st.id
@@ -280,28 +224,6 @@ func (s *Store) StaffForOrg(orgID string) ([]Staff, error) {
 	return out, rows.Err()
 }
 
-// StaffForBox returns the box-scoped staff rows attached to one box — the
-// narrator roster a box syncs down (58). Box-scoped staff carries no org
-// override, so this is a plain select with no join; org-scoped members are
-// never listed for a box.
-func (s *Store) StaffForBox(boxID string) ([]Staff, error) {
-	rows, err := s.db.Query(`SELECT id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at
-		FROM staff WHERE scope = 'box' AND box_id = ? ORDER BY slug`, boxID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []Staff{}
-	for rows.Next() {
-		st, err := scanStaff(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, *st)
-	}
-	return out, rows.Err()
-}
-
 // scanStaffForOrg reads one joined staff+override row. A NULL override column
 // means "inherit the base row"; a set column replaces it even when it holds a
 // zero value, because NULL — not emptiness — is the inherit marker. The soul
@@ -313,7 +235,7 @@ func scanStaffForOrg(row staffScanner) (*Staff, error) {
 	var ovName, ovSoul, ovVoice, ovBigFive, ovBrief, ovAvatarModel3D sql.NullString
 	var ovAge, ovWordBudget sql.NullInt64
 	if err := row.Scan(&st.ID, &st.Slug, &st.Name, &st.Locale, &st.Age, &baseBigFive,
-		&st.Brief, &st.WordBudget, &st.AvatarModel3D, &st.SoulCore, &st.Voice, &st.BiologicalGender, &st.Scope, &st.CreatedAt, &st.UpdatedAt,
+		&st.Brief, &st.WordBudget, &st.AvatarModel3D, &st.SoulCore, &st.Voice, &st.BiologicalGender, &st.CreatedAt, &st.UpdatedAt,
 		&ovName, &ovAge, &ovSoul, &ovVoice, &ovBigFive, &ovBrief, &ovWordBudget, &ovAvatarModel3D); err != nil {
 		return nil, err
 	}
@@ -465,30 +387,9 @@ func (s *Store) EnsureSeedStaff() error {
 		if !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
-		if _, err := s.UpsertStaff(sd.slug, sd.name, sd.locale, sd.avatarModel3D, "", "", sd.voice, sd.biologicalGender, "org", "", sd.age, 0, neutralCharacter()); err != nil {
+		if _, err := s.UpsertStaff(sd.slug, sd.name, sd.locale, sd.avatarModel3D, "", "", sd.voice, sd.biologicalGender, sd.age, 0, neutralCharacter()); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// EnsureSeedBoxNarrator creates the narrator staff row of a box — the
-// box-scoped "Ania" (st_b_pi) — when it is missing and leaves it alone
-// otherwise, so content written over the seed survives a restart.
-// Idempotent.
-//
-// The existence check keys on the box, not on the slug: slug uniqueness is
-// per scope (staff(slug) for org, staff(box_id, slug) for box), so every box
-// carries its own st_b_pi and UpsertStaff updates the one this box owns (58).
-func (s *Store) EnsureSeedBoxNarrator(boxID string) error {
-	var existing string
-	err := s.db.QueryRow(`SELECT id FROM staff WHERE scope = 'box' AND box_id = ?`, boxID).Scan(&existing)
-	if err == nil {
-		return nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-	_, err = s.UpsertStaff("st_b_pi", "Ania", "pl", "", "", "", "pl_PL-gosia-medium", "female", "box", boxID, 0, 0, neutralCharacter())
-	return err
 }

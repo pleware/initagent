@@ -246,10 +246,9 @@ func (s *Server) handleListBoxOrgs(w http.ResponseWriter, r *http.Request, cred 
 	writeJSON(w, map[string][]string{"orgIds": orgIDs})
 }
 
-// handleGetBoxNarrator serves the box's narrator — its one box-scoped staff
-// member (58). A box whose narrator has not been seeded yet answers 404
-// with the reason, so the cockpit can tell "nothing to show" from "not
-// authorized".
+// handleGetBoxNarrator serves the box's narrator — its own 1:1 being (58). A
+// box whose narrator has not been seeded yet answers 404 with the reason, so
+// the cockpit can tell "nothing to show" from "not authorized".
 func (s *Server) handleGetBoxNarrator(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	if !cred.Can(authz.ReadBox, "", "") {
 		forbid(w, authz.ErrForbidden)
@@ -259,24 +258,23 @@ func (s *Server) handleGetBoxNarrator(w http.ResponseWriter, r *http.Request, cr
 	if !ok {
 		return
 	}
-	staff, err := s.store.StaffForBox(box.ID)
+	narrator, err := s.store.GetBoxNarrator(box.ID)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if len(staff) == 0 {
+	if narrator == nil {
 		httpError(w, http.StatusNotFound, "this box has no narrator yet")
 		return
 	}
-	writeJSON(w, staff[0])
+	writeJSON(w, narrator)
 }
 
-// handleUpdateBoxNarrator edits the box's narrator — its one box-scoped
-// staff member (58). The write upserts the row (CreateBox seeds it, so the
-// normal path is an update) and bumps the box's config_version in the same
-// transaction, so the connector's next sync picks the edited narrator up.
-// A missing box is a 404; a blank name and a negative age or word budget
-// are refused with 400.
+// handleUpdateBoxNarrator edits the box's narrator — its own 1:1 being (58).
+// The write upserts the row (CreateBox seeds it, so the normal path is an
+// update) and bumps the box's config_version in the same transaction, so the
+// connector's next sync picks the edited narrator up. A missing box is a 404;
+// a blank name and a negative age or word budget are refused with 400.
 func (s *Server) handleUpdateBoxNarrator(w http.ResponseWriter, r *http.Request, cred authz.Credential) {
 	if !cred.Can(authz.AdminBox, "", "") {
 		forbid(w, authz.ErrForbidden)
@@ -324,10 +322,10 @@ func (s *Server) handleUpdateBoxNarrator(w http.ResponseWriter, r *http.Request,
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	staff, err := s.store.UpdateBoxNarrator(box.ID, req.Name, req.Locale, req.AvatarModel3D, req.Brief, req.SoulCore, req.Voice, req.BiologicalGender, req.Age, req.WordBudget, req.BigFive)
+	narrator, err := s.store.UpdateBoxNarrator(box.ID, req.Name, req.Locale, req.AvatarModel3D, req.Brief, req.SoulCore, req.Voice, req.BiologicalGender, req.Age, req.WordBudget, req.BigFive)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, staff)
+	writeJSON(w, narrator)
 }

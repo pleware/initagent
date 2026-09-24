@@ -90,7 +90,7 @@ func (s *Store) CreateBox(slug, name, hostID, edition string) (*Box, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := s.EnsureSeedBoxNarrator(boxID); err != nil {
+	if err := s.EnsureSeedNarrator(boxID); err != nil {
 		return nil, err
 	}
 	return b, nil
@@ -226,10 +226,9 @@ func nullableHostID(hostID string) any {
 }
 
 // DeleteBox removes a box and everything bound to it in one transaction:
-// its organization set, its box-scoped staff (the narrator), its sync
-// tokens, its model overrides, and the box row itself. The cascade is
-// hand-written because the schema carries no foreign keys. A missing box
-// is (false, nil).
+// its organization set, its narrator, its sync tokens, its model overrides,
+// and the box row itself. The cascade is hand-written because the schema
+// carries no foreign keys. A missing box is (false, nil).
 func (s *Store) DeleteBox(id string) (bool, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -239,7 +238,7 @@ func (s *Store) DeleteBox(id string) (bool, error) {
 	if _, err := tx.Exec(`DELETE FROM box_orgs WHERE box_id = ?`, id); err != nil {
 		return false, err
 	}
-	if _, err := tx.Exec(`DELETE FROM staff WHERE scope = 'box' AND box_id = ?`, id); err != nil {
+	if _, err := tx.Exec(`DELETE FROM box_narrator WHERE box_id = ?`, id); err != nil {
 		return false, err
 	}
 	if _, err := tx.Exec(`DELETE FROM box_tokens WHERE box_id = ?`, id); err != nil {

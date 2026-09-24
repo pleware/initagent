@@ -13,7 +13,7 @@ import "errors"
 //	  "box":     {"id","slug","name","edition","hostId"},
 //	  "orgs":    [{"id","name","level"} for each bound org],
 //	  "staff":   {"<orgId>": StaffForOrg(org) for each bound org},
-//	  "narrator": <first StaffForBox row, or null when unseeded>,
+//	  "narrator": <the box's Narrator, or null when unseeded>,
 //	  "models":  {"<purpose>": {"id","source","quant","file","digest","licence","files"}}
 //	}
 //
@@ -57,12 +57,12 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 		staff[orgID] = roster
 	}
 	var narrator any
-	roster, err := s.StaffForBox(boxID)
+	n, err := s.GetBoxNarrator(boxID)
 	if err != nil {
 		return nil, err
 	}
-	if len(roster) > 0 {
-		narrator = roster[0]
+	if n != nil {
+		narrator = n
 	}
 	resolved, err := s.ResolvedModels(boxID)
 	if err != nil {

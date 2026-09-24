@@ -66,7 +66,7 @@ func findStaff(t *testing.T, list []Staff, slug string) *Staff {
 func newBaseStaff(t *testing.T, s *Store) Staff {
 	t.Helper()
 	st := testStaff()
-	created, err := s.UpsertStaff(st.Slug, st.Name, st.Locale, st.AvatarModel3D, st.Brief, st.SoulCore, st.Voice, st.BiologicalGender, "org", "", st.Age, st.WordBudget, st.BigFive)
+	created, err := s.UpsertStaff(st.Slug, st.Name, st.Locale, st.AvatarModel3D, st.Brief, st.SoulCore, st.Voice, st.BiologicalGender, st.Age, st.WordBudget, st.BigFive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func countSlug(list []Staff, slug string) int {
 func TestListStaffOrderedBySlug(t *testing.T) {
 	s := testStore(t)
 	for _, slug := range []string{"zeta", "alpha", "mike"} {
-		if _, err := s.UpsertStaff(slug, slug, "en", "", "", "", "", "female", "org", "", 30, 0, Character{}); err != nil {
+		if _, err := s.UpsertStaff(slug, slug, "en", "", "", "", "", "female", 30, 0, Character{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -130,9 +130,9 @@ func TestStaffByIdMissing(t *testing.T) {
 	}
 }
 
-// The canonical list excludes box-scoped rows: a box's narrator stays
-// visible through StaffForBox but never reaches ListStaff.
-func TestListStaffExcludesBoxScoped(t *testing.T) {
+// A box's narrator is a box property, not a staff row: ListStaff never
+// carries it, and GetBoxNarrator serves it keyed by the box.
+func TestListStaffExcludesNarrator(t *testing.T) {
 	s := testStore(t)
 	box, err := s.CreateBox("box-scope", "Scoped", "", "")
 	if err != nil {
@@ -143,16 +143,16 @@ func TestListStaffExcludesBoxScoped(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, st := range list {
-		if st.Scope == "box" {
-			t.Errorf("ListStaff carries the box-scoped %q", st.Slug)
+		if st.Slug == "st_b_pi" {
+			t.Errorf("ListStaff carries the narrator %q", st.Slug)
 		}
 	}
-	roster, err := s.StaffForBox(box.ID)
+	narrator, err := s.GetBoxNarrator(box.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(roster) != 1 || roster[0].Slug != "st_b_pi" {
-		t.Errorf("StaffForBox = %+v, want the box's one narrator", roster)
+	if narrator == nil || narrator.Slug != "st_b_pi" {
+		t.Errorf("GetBoxNarrator = %+v, want the box's st_b_pi narrator", narrator)
 	}
 }
 
@@ -185,8 +185,8 @@ func TestUpdateBoxNarrator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.ID == "" || st.Slug != "st_b_pi" || st.Scope != "box" || st.BoxID != boxA.ID {
-		t.Errorf("narrator identity = %+v, want the box-scoped st_b_pi row", st)
+	if st.Slug != "st_b_pi" {
+		t.Errorf("narrator identity = %+v, want the box's st_b_pi narrator", st)
 	}
 	if st.Name != "Lore" || st.Locale != "en" || st.Age != 42 || st.WordBudget != 1200 ||
 		st.AvatarModel3D != "lore.glb" || st.Voice != "lore-v2" || st.BiologicalGender != "female" ||
@@ -202,15 +202,15 @@ func TestUpdateBoxNarrator(t *testing.T) {
 
 	// The upsert core creates the row when the seed has not run, and the
 	// create path bumps too.
-	if _, err := s.db.Exec(`DELETE FROM staff WHERE scope = 'box' AND box_id = ?`, boxB.ID); err != nil {
+	if _, err := s.db.Exec(`DELETE FROM box_narrator WHERE box_id = ?`, boxB.ID); err != nil {
 		t.Fatal(err)
 	}
 	created, err := s.UpdateBoxNarrator(boxB.ID, "Data", "pl", "", "", "", "pl-v1", "male", 0, 0, Character{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.ID == "" || created.Slug != "st_b_pi" || created.BoxID != boxB.ID {
-		t.Errorf("created narrator = %+v, want a minted st_b_pi row on box B", created)
+	if created.Slug != "st_b_pi" {
+		t.Errorf("created narrator = %+v, want a st_b_pi narrator on box B", created)
 	}
 	if got, _ := s.GetBox(boxB.ID); got.ConfigVersion != 2 {
 		t.Errorf("box B after the create-if-missing edit = %d, want 2", got.ConfigVersion)
@@ -235,7 +235,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := testStore(t)
-			created, err := s.UpsertStaff(tt.in.Slug, tt.in.Name, tt.in.Locale, tt.in.AvatarModel3D, tt.in.Brief, tt.in.SoulCore, tt.in.Voice, tt.in.BiologicalGender, "org", "", tt.in.Age, tt.in.WordBudget, tt.in.BigFive)
+			created, err := s.UpsertStaff(tt.in.Slug, tt.in.Name, tt.in.Locale, tt.in.AvatarModel3D, tt.in.Brief, tt.in.SoulCore, tt.in.Voice, tt.in.BiologicalGender, tt.in.Age, tt.in.WordBudget, tt.in.BigFive)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -272,7 +272,7 @@ func TestUpsertStaffCreate(t *testing.T) {
 func TestUpsertStaffUpdate(t *testing.T) {
 	s := testStore(t)
 	base := testStaff()
-	created, err := s.UpsertStaff(base.Slug, base.Name, base.Locale, base.AvatarModel3D, base.Brief, base.SoulCore, base.Voice, base.BiologicalGender, "org", "", base.Age, base.WordBudget, base.BigFive)
+	created, err := s.UpsertStaff(base.Slug, base.Name, base.Locale, base.AvatarModel3D, base.Brief, base.SoulCore, base.Voice, base.BiologicalGender, base.Age, base.WordBudget, base.BigFive)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +282,7 @@ func TestUpsertStaffUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := s.UpsertStaff("coder-zeta", "Zeta Two", "en", "zeta2.glb", "sharper now", "explain first", "zeta-v2", "male", "org", "", 42, 3000,
+	got, err := s.UpsertStaff("coder-zeta", "Zeta Two", "en", "zeta2.glb", "sharper now", "explain first", "zeta-v2", "male", 42, 3000,
 		Character{Openness: 1, Conscientiousness: 1, Extraversion: 1, Agreeableness: 1, Neuroticism: 0})
 	if err != nil {
 		t.Fatal(err)
@@ -320,7 +320,7 @@ func TestUpsertStaffUpdate(t *testing.T) {
 
 func TestUpsertStaffSlugUnique(t *testing.T) {
 	s := testStore(t)
-	if _, err := s.UpsertStaff("staff-taken", "One", "en", "", "", "", "", "female", "org", "", 30, 0, Character{}); err != nil {
+	if _, err := s.UpsertStaff("staff-taken", "One", "en", "", "", "", "", "female", 30, 0, Character{}); err != nil {
 		t.Fatal(err)
 	}
 	// A direct second insert on the same slug is refused by the unique index.
@@ -331,11 +331,26 @@ func TestUpsertStaffSlugUnique(t *testing.T) {
 	}
 }
 
-// Slug uniqueness is per scope: an org-scoped slug stays unique across the
-// installation, while a box-scoped slug keys on the box — two boxes may
-// carry the same st_b_* slug, one box may not carry it twice, and tuning one
-// box's row must not touch another box's.
-func TestUpsertStaffSlugUniquePerScope(t *testing.T) {
+// Staff slugs are unique across the installation, and a st_b_* slug — the
+// narrator namespace — is refused: staff are org-scoped only, and a box's
+// narrator is the box's own being, not a staff row (58).
+func TestUpsertStaffRejectsBoxScopedSlug(t *testing.T) {
+	s := testStore(t)
+	if _, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "male", 30, 0, Character{}); err == nil {
+		t.Fatal("UpsertStaff accepted a st_b_* slug, want ErrBoxScopedSlugRejected")
+	} else if !errors.Is(err, ErrBoxScopedSlugRejected) {
+		t.Fatalf("UpsertStaff error = %v, want ErrBoxScopedSlugRejected", err)
+	}
+	if _, err := s.UpsertStaff("st_o_da", "Data", "en", "", "", "", "", "male", 30, 0, Character{}); err != nil {
+		t.Fatalf("UpsertStaff on an org-scoped st_o_* slug = %v, want success", err)
+	}
+}
+
+// A narrator is the box's own 1:1 being: CreateBox seeds one per box, each
+// carries the fixed slug st_b_pi, and none of them reach ListStaff or an org
+// roster. The box's id is the narrator's identity — there is no minted staff
+// id, no scope and no boxId on it.
+func TestGetBoxNarrator(t *testing.T) {
 	s := testStore(t)
 	boxA, err := s.CreateBox("box-a", "A", "", "")
 	if err != nil {
@@ -346,187 +361,61 @@ func TestUpsertStaffSlugUniquePerScope(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s.UpsertStaff("staff-org-only", "One", "en", "", "", "", "", "female", "org", "", 30, 0, Character{}); err != nil {
-		t.Fatal(err)
-	}
-	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, created_at, updated_at)
-		VALUES ('staff-00000000-0000-0000-0000-000000000000', 'staff-org-only', 'Two', 'en', 31, '{}', '', 0, '', 1, 1)`)
-	if err == nil {
-		t.Fatal("second org-scoped insert with the same slug succeeded, want a unique constraint refusal")
-	}
-
-	// CreateBox already seeded st_b_pi for both boxes; the box-keyed update
-	// tunes only box B's row.
-	if _, err := s.UpsertStaff("st_b_pi", "Data B", "en", "", "", "", "", "male", "box", boxB.ID, 0, 0, neutralBigFive()); err != nil {
-		t.Fatal(err)
-	}
-	rosterA, err := s.StaffForBox(boxA.ID)
+	narrA, err := s.GetBoxNarrator(boxA.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rosterA) != 1 || rosterA[0].Name != "Ania" {
-		t.Errorf("box A narrator = %+v, want the untouched seed", rosterA)
-	}
-	rosterB, err := s.StaffForBox(boxB.ID)
+	narrB, err := s.GetBoxNarrator(boxB.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rosterB) != 1 || rosterB[0].Name != "Data B" {
-		t.Errorf("box B narrator = %+v, want the tuned row", rosterB)
+	if narrA == nil || narrB == nil {
+		t.Fatalf("GetBoxNarrator = (%+v, %+v), want one narrator per box", narrA, narrB)
+	}
+	if narrA.Slug != "st_b_pi" || narrB.Slug != "st_b_pi" {
+		t.Errorf("narrator slugs = %q / %q, want st_b_pi for both", narrA.Slug, narrB.Slug)
 	}
 
-	// The same slug twice in one box is refused by the per-box partial index.
-	_, err = s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, scope, box_id, created_at, updated_at)
-		VALUES ('staff-00000000-0000-0000-0000-000000000001', 'st_b_pi', 'Twin', 'en', 0, '{}', '', 0, '', 'box', ?, 1, 1)`, boxA.ID)
-	if err == nil {
-		t.Fatal("second insert of the same slug in the same box succeeded, want a unique constraint refusal")
+	// Editing one box's narrator never touches the other.
+	tuned, err := s.UpdateBoxNarrator(boxB.ID, "Lore", "en", "", "", "", "lore-v2", "female", 0, 0, Character{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tuned.Slug != "st_b_pi" || tuned.Name != "Lore" {
+		t.Errorf("tuned narrator = %+v, want the st_b_pi Lore row", tuned)
+	}
+	if again, _ := s.GetBoxNarrator(boxA.ID); again.Name != "Ania" {
+		t.Errorf("box A narrator after editing B = %q, want the untouched Ania", again.Name)
+	}
+
+	// A box with no narrator row answers nil, never an empty object.
+	if missing, err := s.GetBoxNarrator("box-00000000-0000-0000-0000-000000000000"); err != nil || missing != nil {
+		t.Errorf("GetBoxNarrator for an unknown box = (%v, %v), want (nil, nil)", missing, err)
+	}
+
+	// The narrator never reaches the installation roster.
+	list, err := s.ListStaff()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := countSlug(list, "st_b_pi"); n != 0 {
+		t.Errorf("ListStaff carries the narrator %d times, want 0", n)
 	}
 }
 
-func TestUpsertStaffScopeValidation(t *testing.T) {
+// The org roster never carries a narrator: staff are org-scoped only, and a
+// box's narrator is a box property (58).
+func TestStaffForOrgExcludesNarrator(t *testing.T) {
 	s := testStore(t)
-	const boxID = "box-00000000-0000-0000-0000-000000000000"
-	tests := []struct {
-		name      string
-		slug      string
-		scope     string
-		boxID     string
-		wantError error
-	}{
-		{name: "box slug with box scope", slug: "st_b_pi", scope: "box", boxID: boxID},
-		{name: "box slug with org scope", slug: "st_b_pi", scope: "org", wantError: ErrStaffScopeMismatch},
-		{name: "box slug without a box", slug: "st_b_pi", scope: "box", wantError: ErrStaffScopeMismatch},
-		{name: "org slug with org scope", slug: "staff-mike-00", scope: "org"},
-		{name: "org slug with box scope", slug: "staff-mike-00", scope: "box", boxID: boxID, wantError: ErrStaffScopeMismatch},
-		{name: "org slug carrying a box", slug: "st_o_da", scope: "org", boxID: boxID, wantError: ErrStaffScopeMismatch},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := s.UpsertStaff(tt.slug, tt.slug, "en", "", "", "", "", "female", tt.scope, tt.boxID, 30, 0, Character{})
-			if tt.wantError != nil {
-				if !errors.Is(err, tt.wantError) {
-					t.Fatalf("UpsertStaff error = %v, want %v", err, tt.wantError)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("UpsertStaff = %v, want success", err)
-			}
-		})
-	}
-}
-
-func TestUpsertStaffScopeRoundTrip(t *testing.T) {
-	s := testStore(t)
-	box, err := s.CreateBox("box-one", "One", "", "")
-	if err != nil {
+	if _, err := s.CreateBox("box-x", "X", "", ""); err != nil {
 		t.Fatal(err)
 	}
-	narrator, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "male", "box", box.ID, 30, 0, Character{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := s.StaffById(narrator.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Scope != "box" || got.BoxID != box.ID {
-		t.Errorf("box-scoped row = scope %q box_id %q, want box/%s", got.Scope, got.BoxID, box.ID)
-	}
-
-	orgStaff, err := s.UpsertStaff("staff-nova-00", "Nova", "en", "", "", "", "", "female", "org", "", 30, 0, Character{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err = s.StaffById(orgStaff.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Scope != "org" || got.BoxID != "" {
-		t.Errorf("org-scoped row = scope %q box_id %q, want org/empty", got.Scope, got.BoxID)
-	}
-}
-
-func TestStaffForBoxReturnsBoxScopedOnly(t *testing.T) {
-	s := testStore(t)
-	boxA, err := s.CreateBox("box-a", "A", "", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	boxB, err := s.CreateBox("box-b", "B", "", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.UpsertStaff("staff-org-00", "Org Narr", "en", "", "", "", "", "female", "org", "", 30, 0, Character{}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "male", "box", boxA.ID, 30, 0, Character{}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.UpsertStaff("st_b_jl", "Jean-Luc", "en", "", "", "", "", "male", "box", boxB.ID, 30, 0, Character{}); err != nil {
-		t.Fatal(err)
-	}
-
-	rosterA, err := s.StaffForBox(boxA.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rosterA) != 1 {
-		t.Fatalf("StaffForBox(%s) = %d rows, want only the box narrator", boxA.ID, len(rosterA))
-	}
-	if got := rosterA[0]; got.Slug != "st_b_pi" || got.Scope != "box" || got.BoxID != boxA.ID {
-		t.Errorf("box A narrator = %+v, want the st_b_pi box-scoped row", got)
-	}
-
-	rosterB, err := s.StaffForBox(boxB.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rosterB) != 2 {
-		t.Fatalf("StaffForBox(%s) = %d rows, want the seeded st_b_pi and the added st_b_jl", boxB.ID, len(rosterB))
-	}
-	for _, st := range rosterB {
-		if st.BoxID != boxB.ID {
-			t.Errorf("box B row %s bound to %q, want box B", st.Slug, st.BoxID)
-		}
-	}
-	if countSlug(rosterB, "st_b_jl") != 1 {
-		t.Errorf("StaffForBox(%s) = %+v, want the st_b_jl row", boxB.ID, rosterB)
-	}
-
-	empty, err := s.StaffForBox("box-00000000-0000-0000-0000-000000000000")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(empty) != 0 {
-		t.Errorf("StaffForBox for an unknown box = %d rows, want 0", len(empty))
-	}
-}
-
-func TestStaffForOrgExcludesBoxScoped(t *testing.T) {
-	s := testStore(t)
-	box, err := s.CreateBox("box-x", "X", "", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "male", "box", box.ID, 30, 0, Character{}); err != nil {
-		t.Fatal(err)
-	}
-
 	roster, err := s.StaffForOrg("org-anyone")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, st := range roster {
-		if st.Scope != "org" {
-			t.Errorf("org roster row %s has scope %q, want org", st.Slug, st.Scope)
-		}
-		if st.BoxID != "" {
-			t.Errorf("org roster row %s carries box_id %q, want empty", st.Slug, st.BoxID)
-		}
-	}
 	if n := countSlug(roster, "st_b_pi"); n != 0 {
-		t.Errorf("org roster contains the box narrator %d times, want 0", n)
+		t.Errorf("org roster contains the narrator %d times, want 0", n)
 	}
 	if n := countSlug(roster, "staff-male-00"); n != 1 {
 		t.Errorf("org roster contains the seed staff-male-00 %d times, want 1", n)
@@ -1309,7 +1198,7 @@ func TestOpenStoreRelaxesGlobalStaffSlugUnique(t *testing.T) {
 		t.Errorf("migrated row = %+v, want the carried values", carried)
 	}
 
-	// The global unique is gone: two boxes seed their own st_b_pi.
+	// The global unique is gone: two boxes each own their own narrator.
 	boxA, err := s.CreateBox("box-a", "A", "", "")
 	if err != nil {
 		t.Fatal(err)
@@ -1318,16 +1207,16 @@ func TestOpenStoreRelaxesGlobalStaffSlugUnique(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second box under the relaxed slug contract: %v", err)
 	}
-	rosterA, err := s.StaffForBox(boxA.ID)
+	narrA, err := s.GetBoxNarrator(boxA.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rosterB, err := s.StaffForBox(boxB.ID)
+	narrB, err := s.GetBoxNarrator(boxB.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rosterA) != 1 || len(rosterB) != 1 || rosterA[0].ID == rosterB[0].ID {
-		t.Errorf("narrators after migration = %+v / %+v, want one distinct st_b_pi per box", rosterA, rosterB)
+	if narrA == nil || narrB == nil || narrA.Slug != "st_b_pi" || narrB.Slug != "st_b_pi" {
+		t.Errorf("narrators after migration = %+v / %+v, want one st_b_pi narrator per box", narrA, narrB)
 	}
 
 	// Both partial indexes exist…
@@ -1359,14 +1248,14 @@ func TestOpenStoreRelaxesGlobalStaffSlugUnique(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The canonical list carries the org-scoped rows only: the carried row
-	// and the two seeds. The two narrators are box-scoped — visible through
-	// StaffForBox, never through ListStaff.
+	// and the two seeds. The two narrators are box properties — visible
+	// through GetBoxNarrator, never through ListStaff.
 	if len(list) != 3 {
 		t.Errorf("ListStaff after the second open = %d rows, want the carried row and the two seeds", len(list))
 	}
 	for _, st := range list {
-		if st.Scope != "org" {
-			t.Errorf("ListStaff carries %q with scope %q, want org-scoped rows only", st.Slug, st.Scope)
+		if st.Slug == "st_b_pi" {
+			t.Errorf("ListStaff carries the narrator %q", st.Slug)
 		}
 	}
 }

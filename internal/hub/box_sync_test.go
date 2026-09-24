@@ -178,7 +178,7 @@ func TestOrgScopedStaffBumpsAllBoxes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := s.UpsertStaff("staff-custom-00", "Custom", "pl", "", "", "", "voice-x", "female", "org", "", 30, 0, neutralBigFive()); err != nil {
+	if _, err := s.UpsertStaff("staff-custom-00", "Custom", "pl", "", "", "", "voice-x", "female", 30, 0, neutralBigFive()); err != nil {
 		t.Fatal(err)
 	}
 	if a, _ := s.GetBox(boxA.ID); a.ConfigVersion != 2 {
@@ -196,8 +196,8 @@ func TestOrgScopedStaffBumpsAllBoxes(t *testing.T) {
 		t.Errorf("box A after a second seed = %d, want 2 (no re-bump)", a.ConfigVersion)
 	}
 
-	// Creating another box seeds its narrator at box scope: no bump anywhere,
-	// and the new box is exactly version 1.
+	// Creating another box seeds its narrator as the box's own being: no
+	// bump anywhere, and the new box is exactly version 1.
 	boxC, err := s.CreateBox("box-bump-c", "C", "", "")
 	if err != nil {
 		t.Fatal(err)
@@ -208,11 +208,12 @@ func TestOrgScopedStaffBumpsAllBoxes(t *testing.T) {
 	if a, _ := s.GetBox(boxA.ID); a.ConfigVersion != 2 {
 		t.Errorf("box A after creating box C = %d, want 2 (narrator seed must not bump)", a.ConfigVersion)
 	}
-	if _, err := s.UpsertStaff("st_b_pi", "Lore", "en", "", "", "", "voice-y", "female", "box", boxC.ID, 0, 0, neutralBigFive()); err != nil {
+	// A narrator edit bumps only that box.
+	if _, err := s.UpdateBoxNarrator(boxC.ID, "Lore", "en", "", "", "", "voice-y", "female", 0, 0, neutralBigFive()); err != nil {
 		t.Fatal(err)
 	}
-	if c, _ := s.GetBox(boxC.ID); c.ConfigVersion != 1 {
-		t.Errorf("box C after a narrator tune = %d, want 1 (box scope does not bump)", c.ConfigVersion)
+	if c, _ := s.GetBox(boxC.ID); c.ConfigVersion != 2 {
+		t.Errorf("box C after a narrator tune = %d, want 2 (a narrator edit bumps the box)", c.ConfigVersion)
 	}
 
 	// A poll with the pre-bump version serves the new manifest.

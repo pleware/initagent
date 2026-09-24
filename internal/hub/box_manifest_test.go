@@ -86,12 +86,12 @@ func TestBuildBoxManifestShape(t *testing.T) {
 		}
 	}
 
-	narrator, ok := got["narrator"].(Staff)
+	narrator, ok := got["narrator"].(*Narrator)
 	if !ok {
 		t.Fatalf("manifest narrator = %T, want the box's seeded narrator", got["narrator"])
 	}
-	if narrator.Slug != "st_b_pi" || narrator.BoxID != box.ID {
-		t.Errorf("narrator = %+v, want the box's st_b_pi row", narrator)
+	if narrator.Slug != "st_b_pi" {
+		t.Errorf("narrator = %+v, want the box's st_b_pi narrator", narrator)
 	}
 }
 
@@ -140,7 +140,7 @@ func TestBuildBoxManifestNarratorNullWhenUnseeded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(`DELETE FROM staff WHERE scope = 'box' AND box_id = ?`, box.ID); err != nil {
+	if _, err := s.db.Exec(`DELETE FROM box_narrator WHERE box_id = ?`, box.ID); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.BuildBoxManifest(box.ID)

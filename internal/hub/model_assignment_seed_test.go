@@ -2,17 +2,20 @@ package hub
 
 import "testing"
 
-// testStoreNoAssignments opens a fresh store and clears its factory defaults.
-// It is the starting point for the tests that examine the assignment layer's
-// own behaviour — set, clear, validate, resolve, serialize: the seeded persona
+// testStoreNoAssignments opens a fresh store and clears its factory defaults —
+// the assignments and the generation limits — so a test examines the layer's
+// own behaviour with no seeded row beside it. The seeded persona and worker
 // would otherwise be a second row in every assertion about that layer, and
 // rewriting those assertions around it would hide what they are testing. The
-// marker stays, which is exactly the state of an installation whose admin has
-// cleared everything: the seed must not fill those purposes again.
+// markers stay, which is exactly the state of an installation whose admin has
+// cleared everything: the seeds must not fill those purposes again.
 func testStoreNoAssignments(t *testing.T) *Store {
 	t.Helper()
 	s := testStore(t)
 	if _, err := s.db.Exec(`DELETE FROM model_assignments`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`DELETE FROM model_limits`); err != nil {
 		t.Fatal(err)
 	}
 	return s

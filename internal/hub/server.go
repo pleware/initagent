@@ -513,6 +513,9 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/boxes/{id}/models", s.requireCredential(s.handleListBoxModels))
 	m.HandleFunc("PUT /api/boxes/{id}/models", s.requireCredential(s.handleSetBoxModelOverride))
 	m.HandleFunc("DELETE /api/boxes/{id}/models/{purpose}", s.requireCredential(s.handleClearBoxModelOverride))
+	m.HandleFunc("GET /api/boxes/{id}/limits", s.requireCredential(s.handleListBoxLimits))
+	m.HandleFunc("PUT /api/boxes/{id}/limits", s.requireCredential(s.handleSetBoxLimit))
+	m.HandleFunc("DELETE /api/boxes/{id}/limits/{purpose}", s.requireCredential(s.handleClearBoxLimit))
 
 	// Box sync tokens are session-only for the same reason credentials
 	// are: a token that can mint a token launders a narrow grant into a
@@ -561,6 +564,9 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/admin/models/assignments", s.requireCredential(s.handleListAssignments))
 	m.HandleFunc("PUT /api/admin/models/assignments", s.requireCredential(s.handleSetAssignment))
 	m.HandleFunc("DELETE /api/admin/models/assignments/{purpose}", s.requireCredential(s.handleClearAssignment))
+	m.HandleFunc("GET /api/admin/models/limits", s.requireCredential(s.handleListLimits))
+	m.HandleFunc("PUT /api/admin/models/limits", s.requireCredential(s.handleSetLimit))
+	m.HandleFunc("DELETE /api/admin/models/limits/{purpose}", s.requireCredential(s.handleClearLimit))
 	m.HandleFunc("GET /api/admin/models/hf/search", s.requireCredential(s.handleHfSearch))
 	m.HandleFunc("GET /api/admin/models/hf/repo/{org}/{repo}", s.requireCredential(s.handleHfRepoFiles))
 	m.HandleFunc("PATCH /api/orgs/{id}", s.requireCredential(s.handleRenameOrg))

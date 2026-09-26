@@ -23,6 +23,7 @@ func TestParsePurpose(t *testing.T) {
 	}{
 		{"persona", "persona", "persona", false},
 		{"worker", "worker", "worker", false},
+		{"narrator", "narrator", "narrator", false},
 		{"embedding", "embedding", "embedding", false},
 		{"stt", "stt", "stt", false},
 		{"trimmed and folded", "  Worker  ", "worker", false},

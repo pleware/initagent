@@ -14,7 +14,7 @@ import "errors"
 //	  "orgs":    [{"id","name","level"} for each bound org],
 //	  "staff":   {"<orgId>": StaffForOrg(org) for each bound org},
 //	  "narrator": <the box's Narrator, or null when unseeded>,
-//	  "models":  {"<purpose>": {"id","source","quant","file","digest","licence","files"}}
+//	  "models":  {"<purpose>": {"id","source","quant","file","digest","licence","files","limits"}}
 //	}
 //
 // The models section is the resolved roster: per purpose the box's
@@ -68,13 +68,17 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	limits, err := s.ResolvedLimits(boxID)
+	if err != nil {
+		return nil, err
+	}
 	models := map[string]map[string]any{}
 	for _, purpose := range modelPurposeOrder {
 		m, ok := resolved[purpose]
 		if !ok {
 			continue
 		}
-		models[purpose] = map[string]any{
+		entry := map[string]any{
 			"id":      m.ID,
 			"source":  m.Source,
 			"engine":  m.Engine,
@@ -84,6 +88,12 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 			"licence": m.Licence,
 			"files":   manifestFiles(m.Files, m.File, m.Digest),
 		}
+		if l, ok := limits[purpose]; ok && generativePurposes[purpose] {
+			if lm, ok := manifestLimits(l); ok {
+				entry["limits"] = lm
+			}
+		}
+		models[purpose] = entry
 	}
 	return map[string]any{
 		"version": box.ConfigVersion,
@@ -121,4 +131,24 @@ func manifestFiles(files []ModelFile, anchor, anchorDigest string) []ModelFile {
 		}
 	}
 	return out
+}
+
+// manifestLimits is the models-section spelling of one slot's generation
+// limits: a map carrying only the positive fields, so a 0 (or absent) limit
+// is simply omitted — 0 and absent mean the same thing to the box ("no
+// limit"). A limit whose fields are all zero answers (nil, false), which the
+// builder treats as "no limits key". Only generative slots reach this helper;
+// the builder gates on generativePurposes.
+func manifestLimits(l ModelLimits) (map[string]any, bool) {
+	lm := map[string]any{}
+	if l.MaxTokens > 0 {
+		lm["maxTokens"] = l.MaxTokens
+	}
+	if l.TimeoutSeconds > 0 {
+		lm["timeoutSeconds"] = l.TimeoutSeconds
+	}
+	if len(lm) == 0 {
+		return nil, false
+	}
+	return lm, true
 }

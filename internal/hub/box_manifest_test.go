@@ -278,3 +278,60 @@ func TestBuildBoxManifestModelsEmpty(t *testing.T) {
 		t.Errorf("bare box models = %#v, want an empty map", got["models"])
 	}
 }
+
+// The manifest models section carries a slot's generation limits beside the
+// resolved pin: a factory limit answers when the box has none, a box override
+// wins when it has one, and a non-generative slot carries no limits key even
+// when a limit is set. A zeroed field is omitted — 0 and absent mean the same
+// thing to the box.
+func TestBuildBoxManifestLimits(t *testing.T) {
+	s := testStoreNoAssignments(t)
+
+	worker := verifiedModel(t, s, "manifest-limit-worker", "limit-digest", "worker")
+	if _, err := s.SetAssignment("worker", worker.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetLimit("worker", 777, 60); err != nil {
+		t.Fatal(err)
+	}
+
+	box := testBox(t, s, "manifest-limit-box")
+	got, err := s.BuildBoxManifest(box.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	models := got["models"].(map[string]map[string]any)
+	if want := map[string]any{"maxTokens": 777, "timeoutSeconds": 60}; !reflect.DeepEqual(models["worker"]["limits"], want) {
+		t.Errorf("worker limits = %v, want %v", models["worker"]["limits"], want)
+	}
+
+	// A box override wins, and a zeroed timeout is omitted.
+	if _, err := s.SetBoxLimit(box.ID, "worker", 999, 0); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.BuildBoxManifest(box.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	models = got["models"].(map[string]map[string]any)
+	if want := map[string]any{"maxTokens": 999}; !reflect.DeepEqual(models["worker"]["limits"], want) {
+		t.Errorf("override worker limits = %v, want %v", models["worker"]["limits"], want)
+	}
+
+	// A non-generative slot carries no limits key even when one is set.
+	stt := verifiedModel(t, s, "manifest-limit-stt", "stt-digest", "stt")
+	if _, err := s.SetAssignment("stt", stt.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetLimit("stt", 100, 0); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.BuildBoxManifest(box.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	models = got["models"].(map[string]map[string]any)
+	if _, hasLimits := models["stt"]["limits"]; hasLimits {
+		t.Errorf("stt carries a limits key, want none for a non-generative slot: %v", models["stt"])
+	}
+}

@@ -273,6 +273,18 @@ CREATE TABLE IF NOT EXISTS box_model_overrides (
 	model_id TEXT NOT NULL,
 	PRIMARY KEY (box_id, purpose)
 );
+CREATE TABLE IF NOT EXISTS model_limits (
+	purpose         TEXT PRIMARY KEY,
+	max_tokens      INTEGER NOT NULL DEFAULT 0,
+	timeout_seconds INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS box_model_limits (
+	box_id          TEXT NOT NULL,
+	purpose         TEXT NOT NULL,
+	max_tokens      INTEGER NOT NULL DEFAULT 0,
+	timeout_seconds INTEGER NOT NULL DEFAULT 0,
+	PRIMARY KEY (box_id, purpose)
+);
 `
 
 // schemaPostgres is the same store on Postgres. Timestamps widen to BIGINT so
@@ -523,6 +535,18 @@ CREATE TABLE IF NOT EXISTS box_model_overrides (
 	model_id TEXT NOT NULL,
 	PRIMARY KEY (box_id, purpose)
 );
+CREATE TABLE IF NOT EXISTS model_limits (
+	purpose         TEXT PRIMARY KEY,
+	max_tokens      BIGINT NOT NULL DEFAULT 0,
+	timeout_seconds BIGINT NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS box_model_limits (
+	box_id          TEXT NOT NULL,
+	purpose         TEXT NOT NULL,
+	max_tokens      BIGINT NOT NULL DEFAULT 0,
+	timeout_seconds BIGINT NOT NULL DEFAULT 0,
+	PRIMARY KEY (box_id, purpose)
+);
 `
 
 // OpenStore opens the hub store on a SQLite file (self-host / OSS path).
@@ -697,6 +721,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.EnsureSeedAssignments(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("seeding assignments: %w", err)
+	}
+	if err := s.EnsureSeedLimits(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("seeding limits: %w", err)
 	}
 	if err := s.ensureBoxModelOverrides(); err != nil {
 		db.Close()

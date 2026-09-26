@@ -175,22 +175,25 @@ type ModelMeta struct {
 	Gated         bool   `json:"gated"`
 }
 
-// modelPurposes names the six purposes a pinned model can serve: the
-// persona's LLM, the coder's LLM, the embedder, the speech-to-text
-// transcriber, the voice-activity detector, and the text-to-speech voice.
+// modelPurposes names the seven purposes a pinned model can serve: the
+// persona's LLM, the coder's LLM, the narrator's LLM, the embedder, the
+// speech-to-text transcriber, the voice-activity detector, and the
+// text-to-speech voice.
 var modelPurposes = map[string]bool{
 	"persona":   true,
 	"worker":    true,
+	"narrator":  true,
 	"embedding": true,
 	"stt":       true,
 	"vad":       true,
 	"tts":       true,
 }
 
-// modelPurposeOrder lists the six purposes in canonical order. Map
+// modelPurposeOrder lists the seven purposes in canonical order. Map
 // iteration order is not deterministic, so ResolvedModels walks this slice
-// to build the roster in a stable order.
-var modelPurposeOrder = []string{"persona", "worker", "embedding", "stt", "vad", "tts"}
+// to build the roster in a stable order. The three generative roles —
+// persona, worker and narrator — come first, then the non-generative pins.
+var modelPurposeOrder = []string{"persona", "worker", "narrator", "embedding", "stt", "vad", "tts"}
 
 // ParsePurpose accepts a model purpose from the wire, trimmed and
 // case-insensitive. There is no default — a model's purpose is required —
@@ -200,7 +203,7 @@ var modelPurposeOrder = []string{"persona", "worker", "embedding", "stt", "vad",
 func ParsePurpose(s string) (string, error) {
 	p := strings.ToLower(strings.TrimSpace(s))
 	if !modelPurposes[p] {
-		return "", fmt.Errorf("purpose %q: want persona, worker, embedding, stt, vad or tts", s)
+		return "", fmt.Errorf("purpose %q: want persona, worker, narrator, embedding, stt, vad or tts", s)
 	}
 	return p, nil
 }

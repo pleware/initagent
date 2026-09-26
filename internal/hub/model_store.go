@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -28,14 +29,19 @@ var ErrModelInUse = errors.New("this model is still in use by an assignment or o
 // means unverified. Quant is the canonical GGUF quantization (see ParseQuant)
 // and empty for non-GGUF models (embedding, stt).
 type Model struct {
-	ID            string `json:"id"`
-	Org           string `json:"org"`
-	Source        string `json:"source"`
-	Quant         string `json:"quant"`
-	File          string `json:"file"`
-	Digest        string `json:"digest"`
-	Licence       string `json:"licence"`
-	Purpose       string `json:"purpose"`
+	ID      string `json:"id"`
+	Org     string `json:"org"`
+	Source  string `json:"source"`
+	Quant   string `json:"quant"`
+	File    string `json:"file"`
+	Digest  string `json:"digest"`
+	Licence string `json:"licence"`
+	Purpose string `json:"purpose"`
+	// Purposes is every role the pin may serve — the eligibility set, of
+	// which Purpose is the first (primary). A persona model also serves the
+	// narrator, so its set is ["persona","narrator"]; a single-purpose pin
+	// carries a one-entry set.
+	Purposes []string `json:"purposes,omitempty"`
 	// Engine is the runtime that serves the pinned artifact. Empty is
 	// llama.cpp — every pin written before this field existed means it, and
 	// it stays the default so no historical pin changes shape. `audio.cpp`
@@ -208,6 +214,77 @@ func ParsePurpose(s string) (string, error) {
 	return p, nil
 }
 
+// purposeIndex answers a purpose's position in the canonical order, so a
+// purpose set sorts deterministically. An unknown purpose sorts last — the
+// ParsePurposes call before it has already refused unknowns.
+func purposeIndex(p string) int {
+	for i, q := range modelPurposeOrder {
+		if q == p {
+			return i
+		}
+	}
+	return len(modelPurposeOrder)
+}
+
+// ParsePurposes validates and canonicalizes a model's purpose set: each entry
+// must parse, duplicates collapse, and the result is ordered in the canonical
+// purpose order. An empty set is refused — a pin must serve at least one
+// purpose. A persona pin also serves the narrator (the narrator is the box's
+// own voice, so it rides the persona's LLM); the reverse is not true — a
+// narrator-only pin stays narrator-only.
+func ParsePurposes(purposes []string) ([]string, error) {
+	if len(purposes) == 0 {
+		return nil, errors.New("a model must serve at least one purpose")
+	}
+	seen := make(map[string]bool, len(purposes))
+	out := make([]string, 0, len(purposes)+1)
+	for _, p := range purposes {
+		canon, err := ParsePurpose(p)
+		if err != nil {
+			return nil, err
+		}
+		if seen[canon] {
+			continue
+		}
+		seen[canon] = true
+		out = append(out, canon)
+	}
+	if seen["persona"] && !seen["narrator"] {
+		out = append(out, "narrator")
+	}
+	sort.SliceStable(out, func(i, j int) bool { return purposeIndex(out[i]) < purposeIndex(out[j]) })
+	return out, nil
+}
+
+// ServesPurpose reports whether the pin may serve a given role: the role is
+// one of the pin's purposes.
+func (m *Model) ServesPurpose(purpose string) bool {
+	for _, p := range m.Purposes {
+		if p == purpose {
+			return true
+		}
+	}
+	return false
+}
+
+// samePurposes reports whether two purpose sets carry the same roles, in any
+// order.
+func samePurposes(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	set := make(map[string]bool, len(a))
+	for _, p := range a {
+		set[p] = true
+	}
+	for _, p := range b {
+		if !set[p] {
+			return false
+		}
+	}
+	return true
+}
+
 // canonicalQuants is the GGUF quantization dictionary: the canonical set
 // documented at huggingface.co/docs/hub/gguf (floats, legacy quants,
 // K-quants, I-quants) plus the Unsloth Dynamic tier — the Q*_K_XL K-quants
@@ -258,15 +335,47 @@ type modelScanner interface {
 	Scan(dest ...any) error
 }
 
+// marshalPurposes renders a purpose set for storage: the empty string for an
+// empty set, so a pin written before the purposes column existed keeps the
+// column default and the scan falls back to its single primary purpose.
+func marshalPurposes(purposes []string) (string, error) {
+	if len(purposes) == 0 {
+		return "", nil
+	}
+	raw, err := json.Marshal(purposes)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
+// unmarshalPurposes reads a stored purposes list, falling back to the single
+// primary purpose when the column is empty or unparseable — the shape a pin
+// from before the purposes column existed carries.
+func unmarshalPurposes(raw, primary string) []string {
+	if raw == "" {
+		return []string{primary}
+	}
+	var out []string
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return []string{primary}
+	}
+	if len(out) == 0 {
+		return []string{primary}
+	}
+	return out
+}
+
 // scanModel reads one models row selected in schema order:
-// id, org, source, quant, file, digest, licence, purpose, pipeline_tag,
-// library_name, base_model, architecture, context_length, downloads, gated,
-// files. A missing row is (nil, nil).
+// id, org, source, quant, file, digest, licence, purpose, purposes,
+// pipeline_tag, library_name, base_model, architecture, context_length,
+// downloads, gated, files, engine. A missing row is (nil, nil).
 func scanModel(row modelScanner) (*Model, error) {
 	var m Model
 	var gated int
 	var files string
-	if err := row.Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.File, &m.Digest, &m.Licence, &m.Purpose,
+	var purposes string
+	if err := row.Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.File, &m.Digest, &m.Licence, &m.Purpose, &purposes,
 		&m.PipelineTag, &m.LibraryName, &m.BaseModel, &m.Architecture, &m.ContextLength, &m.Downloads, &gated,
 		&files, &m.Engine); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -280,23 +389,24 @@ func scanModel(row modelScanner) (*Model, error) {
 			return nil, fmt.Errorf("model %s: files column is not a file list: %w", m.ID, err)
 		}
 	}
+	m.Purposes = unmarshalPurposes(purposes, m.Purpose)
 	return &m, nil
 }
 
 // CreateModel registers a model pin. The id is the pin slug the admin
 // chooses (e.g. "qwen3.5-4b-q4_k_m"): it names one model+quant, so it is
 // not minted. Org is the Hugging Face namespace the source lives under.
-// The purpose runs through ParsePurpose and the quant through ParseQuant
-// (empty allowed for non-GGUF pins); digest may be empty — an unverified
-// pin — and an admin fills it after checking the artifact. A collision on
-// id returns ErrModelIDTaken.
+// The purposes run through ParsePurposes (an empty set is refused) and the
+// quant through ParseQuant (empty allowed for non-GGUF pins); digest may be
+// empty — an unverified pin — and an admin fills it after checking the
+// artifact. A collision on id returns ErrModelIDTaken.
 //
 // The insert and the fleet bump commit together: a new pin changes the
 // catalogue every box's resolved roster draws from, so every box's
 // config_version advances — boxes carrying an override included, which is
 // an acceptable over-bump.
-func (s *Store) CreateModel(id, org, source, quant, file, digest, licence, purpose string) (*Model, error) {
-	purpose, err := ParsePurpose(purpose)
+func (s *Store) CreateModel(id, org, source, quant, file, digest, licence string, purposes []string) (*Model, error) {
+	purposes, err := ParsePurposes(purposes)
 	if err != nil {
 		return nil, err
 	}
@@ -304,14 +414,18 @@ func (s *Store) CreateModel(id, org, source, quant, file, digest, licence, purpo
 	if err != nil {
 		return nil, err
 	}
-	m := &Model{ID: id, Org: org, Source: source, Quant: quant, File: file, Digest: digest, Licence: licence, Purpose: purpose}
+	rawPurposes, err := marshalPurposes(purposes)
+	if err != nil {
+		return nil, err
+	}
+	m := &Model{ID: id, Org: org, Source: source, Quant: quant, File: file, Digest: digest, Licence: licence, Purpose: purposes[0], Purposes: purposes}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	_, err = tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, m.ID, m.Org, m.Source, m.Quant, m.File, m.Digest, m.Licence, m.Purpose)
+	_, err = tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose, purposes)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, m.ID, m.Org, m.Source, m.Quant, m.File, m.Digest, m.Licence, m.Purpose, rawPurposes)
 	if uniqueConstraint(err) {
 		return nil, ErrModelIDTaken
 	}
@@ -329,14 +443,14 @@ func (s *Store) CreateModel(id, org, source, quant, file, digest, licence, purpo
 
 // GetModel returns one model pin by id. A missing pin is (nil, nil).
 func (s *Store) GetModel(id string) (*Model, error) {
-	return scanModel(s.db.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose,
+	return scanModel(s.db.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose, purposes,
 		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine
 		FROM models WHERE id = ?`, id))
 }
 
 // ListModels returns every pinned model on this installation, ordered by id.
 func (s *Store) ListModels() ([]Model, error) {
-	rows, err := s.db.Query(`SELECT id, org, source, quant, file, digest, licence, purpose,
+	rows, err := s.db.Query(`SELECT id, org, source, quant, file, digest, licence, purpose, purposes,
 		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine
 		FROM models ORDER BY id`)
 	if err != nil {
@@ -361,8 +475,8 @@ func (s *Store) ListModels() ([]Model, error) {
 // catalogue every box's resolved roster draws from. An update that matched
 // no row (a missing pin) bumps nothing — a no-op must not re-sync the
 // fleet.
-func (s *Store) UpdateModel(id, org, source, quant, file, digest, licence, purpose string) (*Model, error) {
-	purpose, err := ParsePurpose(purpose)
+func (s *Store) UpdateModel(id, org, source, quant, file, digest, licence string, purposes []string) (*Model, error) {
+	purposes, err := ParsePurposes(purposes)
 	if err != nil {
 		return nil, err
 	}
@@ -382,13 +496,17 @@ func (s *Store) UpdateModel(id, org, source, quant, file, digest, licence, purpo
 	if err := ValidateModelFiles(file, existing.Files); err != nil {
 		return nil, err
 	}
+	rawPurposes, err := marshalPurposes(purposes)
+	if err != nil {
+		return nil, err
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, digest = ?, licence = ?, purpose = ?
-		WHERE id = ?`, org, source, quant, file, digest, licence, purpose, id)
+	res, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, digest = ?, licence = ?, purpose = ?, purposes = ?
+		WHERE id = ?`, org, source, quant, file, digest, licence, purposes[0], rawPurposes, id)
 	if err != nil {
 		return nil, err
 	}
@@ -936,7 +1054,7 @@ func (s *Store) EnsureSeedModels() error {
 	defer tx.Rollback()
 	changed := false
 	for _, sm := range seeds {
-		m, err := scanModel(tx.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose,
+		m, err := scanModel(tx.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose, purposes,
 			pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine
 			FROM models WHERE id = ?`, sm.id))
 		if err != nil {
@@ -946,23 +1064,33 @@ func (s *Store) EnsureSeedModels() error {
 		if sm.gated {
 			gated = 1
 		}
+		// The seed declares one primary purpose; ParsePurposes expands it —
+		// a persona model also serves the narrator.
+		purposes, err := ParsePurposes([]string{sm.purpose})
+		if err != nil {
+			return err
+		}
+		rawPurposes, err := marshalPurposes(purposes)
+		if err != nil {
+			return err
+		}
 		switch {
 		case m == nil:
 			filesJSON, err := marshalFiles(sm.files)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose,
+			if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose, purposes,
 				pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				sm.id, sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose,
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				sm.id, sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose, rawPurposes,
 				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated,
 				filesJSON, sm.engine); err != nil {
 				return err
 			}
 			changed = true
 		case m.Org != sm.org || m.Source != sm.source || m.Quant != sm.quant || m.File != sm.file ||
-			m.Licence != sm.licence || m.Purpose != sm.purpose ||
+			m.Licence != sm.licence || m.Purpose != sm.purpose || !samePurposes(m.Purposes, purposes) ||
 			m.PipelineTag != sm.pipelineTag || m.LibraryName != sm.libraryName || m.BaseModel != sm.baseModel ||
 			m.Architecture != sm.architecture || m.ContextLength != sm.contextLength || m.Downloads != sm.downloads ||
 			m.Gated != sm.gated || m.Engine != sm.engine || !sameFileList(m.Files, mergeSeedFiles(m.Files, sm.files)):
@@ -975,10 +1103,10 @@ func (s *Store) EnsureSeedModels() error {
 			if err != nil {
 				return err
 			}
-			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, licence = ?, purpose = ?,
+			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, licence = ?, purpose = ?, purposes = ?,
 				pipeline_tag = ?, library_name = ?, base_model = ?, architecture = ?, context_length = ?, downloads = ?, gated = ?, files = ?, engine = ?
 				WHERE id = ?`,
-				sm.org, sm.source, sm.quant, sm.file, sm.licence, sm.purpose,
+				sm.org, sm.source, sm.quant, sm.file, sm.licence, sm.purpose, rawPurposes,
 				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated,
 				filesJSON, sm.engine, sm.id); err != nil {
 				return err

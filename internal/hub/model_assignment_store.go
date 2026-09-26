@@ -70,7 +70,7 @@ func (s *Store) SetAssignment(purpose, modelID string) (*ModelAssignment, error)
 	if m == nil {
 		return nil, ErrUnknownModel
 	}
-	if m.Purpose != purpose {
+	if !m.ServesPurpose(purpose) {
 		return nil, ErrModelPurposeMismatch
 	}
 	if m.Digest == "" {

@@ -16,3 +16,16 @@ export const GENERATIVE_PURPOSES: Purpose[] = ['persona', 'worker', 'narrator']
 export function modelLabel(model: Model): string {
   return model.quant ? `${model.id} · ${model.quant}` : model.id
 }
+
+// modelPurposes answers the eligibility set a pin carries. Older hubs (or a
+// stale cache) may send only the single `purpose`; that falls back to a
+// one-entry set.
+export function modelPurposes(model: Model): Purpose[] {
+  return model.purposes?.length ? model.purposes : [model.purpose]
+}
+
+// modelServes reports whether a pin may serve a given role — the picker's
+// filter, and the mirror of the hub's assignment validation.
+export function modelServes(model: Model, purpose: Purpose): boolean {
+  return modelPurposes(model).includes(purpose)
+}

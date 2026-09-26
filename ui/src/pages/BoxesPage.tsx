@@ -16,7 +16,7 @@ import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 import LimitsEditor from '../components/LimitsEditor'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
-import { GENERATIVE_PURPOSES, PURPOSES, modelLabel } from '../models'
+import { GENERATIVE_PURPOSES, PURPOSES, modelLabel, modelServes } from '../models'
 import type { Box, BoxEdition, BoxToken, Model, ModelAssignment, ModelLimits, Org, Purpose } from '../types'
 
 // The editions the hub knows, weakest-named first, in select order. The
@@ -776,9 +776,10 @@ function TokensPanel({ box }: { box: Box }) {
 // ModelsPanel shows one box's resolved model roster and the per-box pins
 // that shadow the factory assignments. The roster is what the box syncs
 // (override ?? factory, a purpose with neither is omitted); the select only
-// offers models of the same purpose, and the clear action restores the
-// factory pin. The hub owns the rules — an unverified model comes back as a
-// 400 — so this panel submits and shows what the hub answered.
+// offers models that serve the purpose (a persona pin also serves the
+// narrator), and the clear action restores the factory pin. The hub owns the
+// rules — an unverified model comes back as a 400 — so this panel submits and
+// shows what the hub answered.
 function ModelsPanel({ box }: { box: Box }) {
   const { t } = useTranslation()
   const [roster, setRoster] = useState<Partial<Record<Purpose, Model>> | null>(null)
@@ -913,7 +914,7 @@ function ModelsPanel({ box }: { box: Box }) {
         <ul className="divide-y divide-line-2/60">
           {PURPOSES.map((purpose) => {
             const resolved = roster[purpose]
-            const pickable = (catalog ?? []).filter((m) => m.purpose === purpose)
+            const pickable = (catalog ?? []).filter((m) => modelServes(m, purpose))
             const items = pickable.map((m) => ({ value: m.id, label: modelLabel(m) }))
             if (resolved && !items.some((item) => item.value === resolved.id)) {
               items.unshift({ value: resolved.id, label: modelLabel(resolved) })

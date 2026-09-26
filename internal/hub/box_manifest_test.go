@@ -167,7 +167,7 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 	s := testStoreNoAssignments(t)
 	// Create the pin directly (not via verifiedModel) so it carries a real
 	// file — the manifest must emit it, not just round-trip an empty value.
-	canonical, err := s.CreateModel("manifest-worker", "Org", "Org/manifest-worker@rev", "", "manifest-worker.gguf", "canonical-digest", "MIT", "worker")
+	canonical, err := s.CreateModel("manifest-worker", "Org", "Org/manifest-worker@rev", "", "manifest-worker.gguf", "canonical-digest", "MIT", []string{"worker"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +224,7 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 	// the ear loads the directory. A single-artifact pin answers [] — one
 	// shape for the box's parser either way.
 	ear, err := s.CreateModel("manifest-ear", "Systran", "Systran/faster-whisper-medium@rev",
-		"", "model.bin", "ear-digest", "MIT", "stt")
+		"", "model.bin", "ear-digest", "MIT", []string{"stt"})
 	if err != nil {
 		t.Fatal(err)
 	}

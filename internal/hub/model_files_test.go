@@ -69,7 +69,7 @@ func TestOpenStoreMigratesModelFiles(t *testing.T) {
 func TestSetModelFilesAnchorAndRoundTrip(t *testing.T) {
 	s := testStore(t)
 	m, err := s.CreateModel("dir-pin", "Systran", "Systran/faster-whisper-medium@rev",
-		"", "model.bin", "anchor-digest", "MIT", "stt")
+		"", "model.bin", "anchor-digest", "MIT", []string{"stt"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -109,7 +109,7 @@ func TestCreateModelRejectsUnknownQuant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateModel("bad-quant", "SomeOrg", "s", "bogus", "", "", "MIT", "persona"); err == nil {
+	if _, err := s.CreateModel("bad-quant", "SomeOrg", "s", "bogus", "", "", "MIT", []string{"persona"}); err == nil {
 		t.Fatal("CreateModel accepted a non-canonical quant")
 	}
 	after, err := s.ListModels()
@@ -123,11 +123,11 @@ func TestCreateModelRejectsUnknownQuant(t *testing.T) {
 
 func TestUpdateModelRejectsUnknownQuant(t *testing.T) {
 	s := testStore(t)
-	created, err := s.CreateModel("quant-guard", "SomeOrg", "s", "Q4_0", "", "", "MIT", "persona")
+	created, err := s.CreateModel("quant-guard", "SomeOrg", "s", "Q4_0", "", "", "MIT", []string{"persona"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.UpdateModel(created.ID, "SomeOrg", "s2", "bogus", "", "", "MIT", "persona"); err == nil {
+	if _, err := s.UpdateModel(created.ID, "SomeOrg", "s2", "bogus", "", "", "MIT", []string{"persona"}); err == nil {
 		t.Fatal("UpdateModel accepted a non-canonical quant")
 	}
 	got, err := s.GetModel(created.ID)
@@ -141,7 +141,7 @@ func TestUpdateModelRejectsUnknownQuant(t *testing.T) {
 
 func TestModelCRUDRoundTrip(t *testing.T) {
 	s := testStore(t)
-	created, err := s.CreateModel("test-model-7b-q4_0", "SomeOrg", "SomeOrg/test-model-7B-GGUF@rev", "q4_0", "", "", "Apache-2.0", "persona")
+	created, err := s.CreateModel("test-model-7b-q4_0", "SomeOrg", "SomeOrg/test-model-7B-GGUF@rev", "q4_0", "", "", "Apache-2.0", []string{"persona"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestModelCRUDRoundTrip(t *testing.T) {
 		t.Errorf("read-back = %+v, want the created fields", got)
 	}
 
-	updated, err := s.UpdateModel(created.ID, "RenamedOrg", "other-source", "q5_k_m", "", "blake3-of-the-artifact", "MIT", "Worker")
+	updated, err := s.UpdateModel(created.ID, "RenamedOrg", "other-source", "q5_k_m", "", "blake3-of-the-artifact", "MIT", []string{"Worker"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func TestGetModelMissing(t *testing.T) {
 
 func TestUpdateModelMissing(t *testing.T) {
 	s := testStore(t)
-	got, err := s.UpdateModel("no-such-model", "o", "s", "", "", "", "MIT", "persona")
+	got, err := s.UpdateModel("no-such-model", "o", "s", "", "", "", "MIT", []string{"persona"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,10 +212,10 @@ func TestUpdateModelMissing(t *testing.T) {
 
 func TestCreateModelDuplicateID(t *testing.T) {
 	s := testStore(t)
-	if _, err := s.CreateModel("dup-model", "o", "s", "", "", "", "MIT", "persona"); err != nil {
+	if _, err := s.CreateModel("dup-model", "o", "s", "", "", "", "MIT", []string{"persona"}); err != nil {
 		t.Fatal(err)
 	}
-	_, err := s.CreateModel("dup-model", "o2", "second", "", "", "", "MIT", "worker")
+	_, err := s.CreateModel("dup-model", "o2", "second", "", "", "", "MIT", []string{"worker"})
 	if !errors.Is(err, ErrModelIDTaken) {
 		t.Fatalf("err = %v, want ErrModelIDTaken", err)
 	}
@@ -227,7 +227,7 @@ func TestCreateModelRejectsUnknownPurpose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CreateModel("bad-purpose", "o", "s", "", "", "", "MIT", "chat"); err == nil {
+	if _, err := s.CreateModel("bad-purpose", "o", "s", "", "", "", "MIT", []string{"chat"}); err == nil {
 		t.Fatal("CreateModel accepted an unknown purpose")
 	}
 	after, err := s.ListModels()
@@ -239,9 +239,71 @@ func TestCreateModelRejectsUnknownPurpose(t *testing.T) {
 	}
 }
 
+func TestParsePurposes(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []string
+		want []string
+		err  bool
+	}{
+		{"empty refused", nil, nil, true},
+		{"single non-persona", []string{"worker"}, []string{"worker"}, false},
+		{"persona gains narrator", []string{"persona"}, []string{"persona", "narrator"}, false},
+		{"persona plus narrator dedupes", []string{"persona", "narrator"}, []string{"persona", "narrator"}, false},
+		{"narrator alone stays", []string{"narrator"}, []string{"narrator"}, false},
+		{"dedupe and order", []string{"narrator", "persona", "narrator"}, []string{"persona", "narrator"}, false},
+		{"case-insensitive", []string{"Persona"}, []string{"persona", "narrator"}, false},
+		{"unknown refused", []string{"chat"}, nil, true},
+		{"worker plus persona", []string{"worker", "persona"}, []string{"persona", "worker", "narrator"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParsePurposes(tt.in)
+			if tt.err {
+				if err == nil {
+					t.Fatalf("ParsePurposes(%v) = %v, want an error", tt.in, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParsePurposes(%v): %v", tt.in, err)
+			}
+			if !samePurposes(got, tt.want) {
+				t.Errorf("ParsePurposes(%v) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPersonaPinServesNarrator(t *testing.T) {
+	s := testStore(t)
+	persona, err := s.CreateModel("multi-persona", "Org", "Org/multi-persona@rev", "", "", "digest", "MIT", []string{"persona"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !samePurposes(persona.Purposes, []string{"persona", "narrator"}) {
+		t.Fatalf("persona pin purposes = %v, want [persona narrator]", persona.Purposes)
+	}
+	// A persona pin may be assigned to its own role and to the narrator's.
+	if _, err := s.SetAssignment("persona", persona.ID); err != nil {
+		t.Fatalf("assign persona: %v", err)
+	}
+	if _, err := s.SetAssignment("narrator", persona.ID); err != nil {
+		t.Fatalf("assign narrator: %v", err)
+	}
+	// A worker pin serves only itself, never the narrator.
+	worker, err := s.CreateModel("multi-worker", "Org", "Org/multi-worker@rev", "", "", "digest", "MIT", []string{"worker"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetAssignment("narrator", worker.ID); !errors.Is(err, ErrModelPurposeMismatch) {
+		t.Fatalf("worker → narrator = %v, want ErrModelPurposeMismatch", err)
+	}
+}
+
 func TestDeleteModel(t *testing.T) {
 	s := testStore(t)
-	created, err := s.CreateModel("doomed-model", "o", "s", "", "", "", "MIT", "stt")
+	created, err := s.CreateModel("doomed-model", "o", "s", "", "", "", "MIT", []string{"stt"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +329,7 @@ func TestDeleteModelInUse(t *testing.T) {
 	s := testStore(t)
 	// SetAssignment and SetBoxModelOverride both refuse an empty digest, so
 	// the pin carries one.
-	created, err := s.CreateModel("pinned-model", "o", "s", "", "", "pinned-digest", "MIT", "persona")
+	created, err := s.CreateModel("pinned-model", "o", "s", "", "", "pinned-digest", "MIT", []string{"persona"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -427,7 +489,7 @@ func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	// The admin edits a factory pin; the seed restores it to the factory
 	// definition — factory pins are factory-owned, an admin customizes through
 	// assignments/overrides, not by editing the pin itself.
-	if _, err := s.UpdateModel("qwen3.5-4b-q4_k_m", "custom-org", "custom-source", "q4_k_m", "", "admin-computed-digest", "Custom", "persona"); err != nil {
+	if _, err := s.UpdateModel("qwen3.5-4b-q4_k_m", "custom-org", "custom-source", "q4_k_m", "", "admin-computed-digest", "Custom", []string{"persona"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.EnsureSeedModels(); err != nil {

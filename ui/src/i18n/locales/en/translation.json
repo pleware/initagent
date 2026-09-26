@@ -697,6 +697,7 @@
     "addModelTitle": "Add {{name}}",
     "suggestedPurpose": "Suggested purpose",
     "suggestedPurposeHint": "Read from the model card's task — change it if the pin serves another purpose.",
+    "personaServesNarrator": "A persona pin also serves the narrator — it is the box's own voice.",
     "hfDownloads": "{{count}} downloads",
     "id": "Model id",
     "idHint": "The pin key — e.g. qwen3.5-4b-q4_k_m. Immutable after creation.",

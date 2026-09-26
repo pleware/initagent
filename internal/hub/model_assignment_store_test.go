@@ -16,7 +16,7 @@ import (
 // point at it. The purpose and digest are test-controlled.
 func verifiedModel(t *testing.T, s *Store, id, digest, purpose string) *Model {
 	t.Helper()
-	m, err := s.CreateModel(id, "Org", "Org/"+id+"@rev", "", "", digest, "MIT", purpose)
+	m, err := s.CreateModel(id, "Org", "Org/"+id+"@rev", "", "", digest, "MIT", []string{purpose})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestSetAssignmentRefusesUnverifiedModels(t *testing.T) {
 	s := testStoreNoAssignments(t)
 	// A pin with an empty digest cannot be assigned until the artifact is
 	// verified and the digest filled.
-	if _, err := s.CreateModel("unverified-pin", "org", "source", "", "", "", "MIT", "persona"); err != nil {
+	if _, err := s.CreateModel("unverified-pin", "org", "source", "", "", "", "MIT", []string{"persona"}); err != nil {
 		t.Fatal(err)
 	}
 	_, err := s.SetAssignment("persona", "unverified-pin")
@@ -218,7 +218,7 @@ func TestAdminAssignmentEndpoints(t *testing.T) {
 	}
 
 	// A pin with an empty digest is unverified: 400.
-	if _, err := f.srv.store.CreateModel("unverified-pin", "org", "source", "", "", "", "MIT", "persona"); err != nil {
+	if _, err := f.srv.store.CreateModel("unverified-pin", "org", "source", "", "", "", "MIT", []string{"persona"}); err != nil {
 		t.Fatal(err)
 	}
 	resp = f.do(t, http.MethodPut, "/api/admin/models/assignments", map[string]string{

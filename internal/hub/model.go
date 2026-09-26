@@ -21,14 +21,25 @@ import (
 // update. The update handler takes the id from the path, so an id in the
 // body is ignored there.
 type modelInput struct {
-	ID      string `json:"id"`
-	Org     string `json:"org"`
-	Source  string `json:"source"`
-	Quant   string `json:"quant"`
-	File    string `json:"file"`
-	Digest  string `json:"digest"`
-	Licence string `json:"licence"`
-	Purpose string `json:"purpose"`
+	ID       string   `json:"id"`
+	Org      string   `json:"org"`
+	Source   string   `json:"source"`
+	Quant    string   `json:"quant"`
+	File     string   `json:"file"`
+	Digest   string   `json:"digest"`
+	Licence  string   `json:"licence"`
+	Purpose  string   `json:"purpose"`
+	Purposes []string `json:"purposes"`
+}
+
+// inputPurposes derives the eligibility set from the wire: the purposes array
+// when present, otherwise the legacy single purpose field — so an old client
+// that sends only "purpose" still works.
+func inputPurposes(in modelInput) ([]string, error) {
+	if len(in.Purposes) > 0 {
+		return ParsePurposes(in.Purposes)
+	}
+	return ParsePurposes([]string{in.Purpose})
 }
 
 // handleListModels serves every pinned model on this installation, ordered
@@ -65,7 +76,7 @@ func (s *Server) handleCreateModel(w http.ResponseWriter, r *http.Request, cred 
 		httpError(w, http.StatusBadRequest, "id is required")
 		return
 	}
-	purpose, err := ParsePurpose(in.Purpose)
+	purposes, err := inputPurposes(in)
 	if err != nil {
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
@@ -76,7 +87,7 @@ func (s *Server) handleCreateModel(w http.ResponseWriter, r *http.Request, cred 
 		return
 	}
 	m, err := s.store.CreateModel(in.ID, strings.TrimSpace(in.Org), strings.TrimSpace(in.Source), quant,
-		strings.TrimSpace(in.File), strings.TrimSpace(in.Digest), strings.TrimSpace(in.Licence), purpose)
+		strings.TrimSpace(in.File), strings.TrimSpace(in.Digest), strings.TrimSpace(in.Licence), purposes)
 	if errors.Is(err, ErrModelIDTaken) {
 		httpError(w, http.StatusConflict, err.Error())
 		return
@@ -101,7 +112,7 @@ func (s *Server) handleUpdateModel(w http.ResponseWriter, r *http.Request, cred 
 		httpError(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	purpose, err := ParsePurpose(in.Purpose)
+	purposes, err := inputPurposes(in)
 	if err != nil {
 		httpError(w, http.StatusBadRequest, err.Error())
 		return
@@ -112,7 +123,7 @@ func (s *Server) handleUpdateModel(w http.ResponseWriter, r *http.Request, cred 
 		return
 	}
 	m, err := s.store.UpdateModel(r.PathValue("id"), strings.TrimSpace(in.Org), strings.TrimSpace(in.Source), quant,
-		strings.TrimSpace(in.File), strings.TrimSpace(in.Digest), strings.TrimSpace(in.Licence), purpose)
+		strings.TrimSpace(in.File), strings.TrimSpace(in.Digest), strings.TrimSpace(in.Licence), purposes)
 	if err != nil {
 		httpError(w, http.StatusInternalServerError, err.Error())
 		return

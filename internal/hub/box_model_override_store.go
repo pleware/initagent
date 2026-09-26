@@ -68,7 +68,7 @@ func (s *Store) SetBoxModelOverride(boxID, purpose, modelID string) (*BoxModelOv
 	if m == nil {
 		return nil, ErrUnknownModel
 	}
-	if m.Purpose != purpose {
+	if !m.ServesPurpose(purpose) {
 		return nil, ErrModelPurposeMismatch
 	}
 	if m.Digest == "" {

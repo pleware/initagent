@@ -463,6 +463,8 @@ export type Purpose = 'persona' | 'worker' | 'narrator' | 'embedding' | 'stt' | 
 // slash), so the registry can group pins into org → model → quant. `quant`
 // is empty for non-GGUF pins (embedding, stt); `digest` is the
 // admin-provided BLAKE3 of the pinned artifact, empty until verified.
+// `purpose` is the primary role; `purposes` is the full eligibility set — a
+// persona pin also serves the narrator, so its set is ["persona","narrator"].
 // Not to be confused with `Staff.avatarModel3d`, which is the avatar GLB
 // string.
 export interface Model {
@@ -474,6 +476,7 @@ export interface Model {
   digest: string
   licence: string
   purpose: Purpose
+  purposes: Purpose[]
   pipelineTag: string
   libraryName: string
   baseModel: string

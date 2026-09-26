@@ -710,6 +710,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model metadata columns: %w", err)
 	}
+	if err := s.ensureModelPurposes(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring model purposes column: %w", err)
+	}
 	if err := s.EnsureSeedModels(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("seeding models: %w", err)
@@ -1607,6 +1611,16 @@ func (s *Store) ensureModelFiles() error {
 // value on the next EnsureSeedModels pass (the drift check sees the change).
 func (s *Store) ensureModelEngine() error {
 	return s.ensureColumn("models", "engine", "TEXT NOT NULL DEFAULT ''")
+}
+
+// ensureModelPurposes adds the purposes column to a live models table that
+// predates it: the JSON list of roles a pin may serve (Model.Purposes). It
+// arrives as TEXT NOT NULL DEFAULT '' — an empty list means the pin serves
+// its single primary purpose, exactly the shape every pin had before the
+// column existed — and the factory seeds write the real set on the next
+// EnsureSeedModels pass (persona models gain the narrator).
+func (s *Store) ensureModelPurposes() error {
+	return s.ensureColumn("models", "purposes", "TEXT NOT NULL DEFAULT ''")
 }
 
 // ensureModelOrg adds the org column to a live models table that predates

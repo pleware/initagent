@@ -705,6 +705,7 @@
     "addModelTitle": "Dodaj {{name}}",
     "suggestedPurpose": "Sugerowany purpose",
     "suggestedPurposeHint": "Z zadania na karcie modelu — zmień, jeśli pin ma służyć innemu purpose.",
+    "personaServesNarrator": "Pin persona służy też narratorowi — to głos samego boksa.",
     "hfDownloads": "{{count}} pobrań",
     "id": "Id modelu",
     "idHint": "Klucz pinu — np. qwen3.5-4b-q4_k_m. Niezmienny po utworzeniu.",

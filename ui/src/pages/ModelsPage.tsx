@@ -13,7 +13,7 @@ import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 import LimitsEditor from '../components/LimitsEditor'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
-import { GENERATIVE_PURPOSES, PURPOSES, modelLabel } from '../models'
+import { GENERATIVE_PURPOSES, PURPOSES, modelLabel, modelPurposes, modelServes } from '../models'
 import type { HfRepoFile, HfSearchResult, Model, ModelAssignment, ModelLimits, Purpose } from '../types'
 
 // The platform operator's model layer surface: the registry of pinned
@@ -164,8 +164,15 @@ export default function ModelsPage() {
               {
                 header: t('models.purpose'),
                 cell: (m) => (
-                  <span className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft">
-                    {t('purpose.' + m.purpose)}
+                  <span className="flex flex-wrap gap-1">
+                    {modelPurposes(m).map((p) => (
+                      <span
+                        key={p}
+                        className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft"
+                      >
+                        {t('purpose.' + p)}
+                      </span>
+                    ))}
                   </span>
                 ),
               },
@@ -227,7 +234,7 @@ export default function ModelsPage() {
         <div className="mt-4 divide-y divide-line-2/60 rounded-2xl border border-line-2/60">
           {PURPOSES.map((purpose) => {
             const assignment = assignments?.find((a) => a.purpose === purpose)
-            const pickable = (catalog ?? []).filter((m) => m.purpose === purpose)
+            const pickable = (catalog ?? []).filter((m) => modelServes(m, purpose))
             const assigned = assignment
               ? (catalog ?? []).find((m) => m.id === assignment.modelId)
               : undefined
@@ -751,6 +758,11 @@ function ModelForm({
               aria-label={t('models.purpose')}
               items={PURPOSES.map((p) => ({ value: p, label: t('purpose.' + p) }))}
             />
+            {purpose === 'persona' && (
+              <span className="mt-1 block text-xs text-fg-subtle">
+                {t('models.personaServesNarrator')}
+              </span>
+            )}
             {prefill?.purpose !== undefined && (
               <span className="mt-1 block text-xs text-fg-subtle">
                 {t('models.suggestedPurposeHint')}

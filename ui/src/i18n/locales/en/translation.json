@@ -733,11 +733,20 @@
     "assignFailed": "Could not save the assignment",
     "clearFailed": "Could not clear the assignment",
     "overrideFailed": "Could not set the override",
-    "clearOverrideFailed": "Could not clear the override"
+    "clearOverrideFailed": "Could not clear the override",
+    "limits": "Generation limits",
+    "limitsHint": "The hard ceiling per generative slot. 0 leaves it unbounded — maxTokens caps a reply (the runaway fix); timeoutSeconds is declared (streaming enforcement is still open).",
+    "maxTokens": "Max tokens",
+    "timeoutSeconds": "Timeout (s)",
+    "noLimit": "no limit",
+    "limitSetFailed": "Could not save the limit",
+    "clearLimit": "Clear limit",
+    "clearLimitConfirm": "Clear this limit? The purpose falls back to the factory limit."
   },
   "purpose": {
     "persona": "Persona",
     "worker": "Worker",
+    "narrator": "Narrator",
     "embedding": "Embedding",
     "stt": "STT",
     "vad": "VAD",

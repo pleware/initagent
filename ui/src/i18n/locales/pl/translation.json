@@ -741,11 +741,20 @@
     "assignFailed": "Nie udało się zapisać przypisania",
     "clearFailed": "Nie udało się wyczyścić przypisania",
     "overrideFailed": "Nie udało się ustawić nadpisania",
-    "clearOverrideFailed": "Nie udało się wyczyścić nadpisania"
+    "clearOverrideFailed": "Nie udało się wyczyścić nadpisania",
+    "limits": "Limity generacji",
+    "limitsHint": "Twardy pułap dla każdego slotu generatywnego. 0 zostawia go bez limitu — maxTokens ucina odpowiedź (fix runaway); timeoutSeconds to deklaracja (egzekucja streamingu wciąż otwarta).",
+    "maxTokens": "Max tokenów",
+    "timeoutSeconds": "Timeout (s)",
+    "noLimit": "bez limitu",
+    "limitSetFailed": "Nie udało się zapisać limitu",
+    "clearLimit": "Wyczyść limit",
+    "clearLimitConfirm": "Wyczyścić ten limit? Purpose wróci do limitu fabrycznego."
   },
   "purpose": {
     "persona": "Persona",
     "worker": "Worker",
+    "narrator": "Narrator",
     "embedding": "Embedding",
     "stt": "STT",
     "vad": "VAD",

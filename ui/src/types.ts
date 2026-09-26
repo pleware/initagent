@@ -455,7 +455,7 @@ export interface Skill {
 // Purpose is the role a pinned model serves on a box. The hub owns the set;
 // an unknown value on the wire never reaches this union — the hub refuses it
 // with a 400 before it gets here.
-export type Purpose = 'persona' | 'worker' | 'embedding' | 'stt' | 'vad' | 'tts'
+export type Purpose = 'persona' | 'worker' | 'narrator' | 'embedding' | 'stt' | 'vad' | 'tts'
 
 // Model is one pinned model of the installation's registry
 // (`initagent.hub.model`): identity and provenance only — the hub holds no
@@ -512,4 +512,14 @@ export interface HfRepoFile {
 export interface ModelAssignment {
   purpose: Purpose
   modelId: string
+}
+
+// ModelLimits is one generation limit: the per-slot ceiling a generative
+// purpose resolves against. maxTokens is the hard runaway cap (→ llama-server
+// -n); timeoutSeconds is a wall-clock declaration (streaming enforcement is
+// still open). 0 means "no limit".
+export interface ModelLimits {
+  purpose: Purpose
+  maxTokens: number
+  timeoutSeconds: number
 }

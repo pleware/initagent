@@ -14,9 +14,10 @@ import {
 import { usePoll } from '../hooks'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
+import LimitsEditor from '../components/LimitsEditor'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
-import { PURPOSES, modelLabel } from '../models'
-import type { Box, BoxEdition, BoxToken, Model, ModelAssignment, Org, Purpose } from '../types'
+import { GENERATIVE_PURPOSES, PURPOSES, modelLabel } from '../models'
+import type { Box, BoxEdition, BoxToken, Model, ModelAssignment, ModelLimits, Org, Purpose } from '../types'
 
 // The editions the hub knows, weakest-named first, in select order. The
 // labels live in i18n under boxes.edition*.
@@ -784,27 +785,38 @@ function ModelsPanel({ box }: { box: Box }) {
   const [catalog, setCatalog] = useState<Model[] | null>(null)
   const [assignments, setAssignments] = useState<ModelAssignment[] | null>(null)
   const [busy, setBusy] = useState<Purpose | null>(null)
+  const [limits, setLimits] = useState<Partial<Record<Purpose, ModelLimits>> | null>(null)
+  const [factoryLimits, setFactoryLimits] = useState<ModelLimits[] | null>(null)
+  const [limitBusy, setLimitBusy] = useState<Purpose | null>(null)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     try {
-      const [rosterRows, publicModels] = await Promise.all([
+      const [rosterRows, publicModels, limitRows] = await Promise.all([
         api.get<Partial<Record<Purpose, Model>>>(`/api/boxes/${box.id}/models`),
         api.get<Model[]>('/api/models'),
+        api.get<Partial<Record<Purpose, ModelLimits>>>(`/api/boxes/${box.id}/limits`),
       ])
       setRoster(rosterRows)
       setCatalog(publicModels)
+      setLimits(limitRows)
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : t('models.loadFailed'))
     }
-    // The factory list distinguishes an override from an inherited pin. It is
-    // not fatal when it cannot load — the clear action then simply asks the
-    // hub, which answers 404 when there is nothing to clear.
+    // The factory lists distinguish an override from an inherited value. They
+    // are not fatal when they cannot load — the clear action then simply asks
+    // the hub, which answers 404 when there is nothing to clear.
     try {
-      setAssignments(await api.get<ModelAssignment[]>('/api/admin/models/assignments'))
+      const [assignmentRows, factoryLimitRows] = await Promise.all([
+        api.get<ModelAssignment[]>('/api/admin/models/assignments'),
+        api.get<ModelLimits[]>('/api/admin/models/limits'),
+      ])
+      setAssignments(assignmentRows)
+      setFactoryLimits(factoryLimitRows)
     } catch {
       setAssignments(null)
+      setFactoryLimits(null)
     }
   }, [box.id, t])
 
@@ -844,6 +856,43 @@ function ModelsPanel({ box }: { box: Box }) {
     if (!resolved) return false
     if (assignments === null) return true
     return assignments.find((a) => a.purpose === purpose)?.modelId !== resolved.id
+  }
+
+  const setBoxLimit = async (purpose: Purpose, maxTokens: number, timeoutSeconds: number) => {
+    setLimitBusy(purpose)
+    setError('')
+    try {
+      await api.put(`/api/boxes/${box.id}/limits`, { purpose, maxTokens, timeoutSeconds })
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('models.limitSetFailed'))
+      throw err
+    } finally {
+      setLimitBusy(null)
+    }
+  }
+
+  const clearBoxLimit = async (purpose: Purpose) => {
+    if (!window.confirm(t('models.clearLimitConfirm'))) return
+    setLimitBusy(purpose)
+    setError('')
+    try {
+      await api.del(`/api/boxes/${box.id}/limits/${purpose}`)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('models.limitSetFailed'))
+    } finally {
+      setLimitBusy(null)
+    }
+  }
+
+  const isLimitOverride = (purpose: Purpose): boolean => {
+    const resolved = limits?.[purpose]
+    if (!resolved) return false
+    if (factoryLimits === null) return true
+    const factory = factoryLimits.find((l) => l.purpose === purpose)
+    if (!factory) return true
+    return factory.maxTokens !== resolved.maxTokens || factory.timeoutSeconds !== resolved.timeoutSeconds
   }
 
   return (
@@ -926,6 +975,44 @@ function ModelsPanel({ box }: { box: Box }) {
           })}
         </ul>
       )}
+
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-fg-strong">{t('models.limits')}</h3>
+        <p className="mt-1 text-xs text-fg-subtle">{t('models.limitsHint')}</p>
+        <ul className="mt-3 divide-y divide-line-2/60">
+          {GENERATIVE_PURPOSES.map((purpose) => {
+            const resolved = limits?.[purpose]
+            return (
+              <li key={purpose} className="flex flex-wrap items-center gap-3 py-3">
+                <span className="w-28 shrink-0 text-sm font-medium text-fg">
+                  {t('purpose.' + purpose)}
+                </span>
+                {isLimitOverride(purpose) && (
+                  <span className="rounded-full border border-accent/30 px-2 py-0.5 text-xs text-accent">
+                    {t('models.override')}
+                  </span>
+                )}
+                <LimitsEditor
+                  current={resolved}
+                  disabled={limitBusy === purpose}
+                  onCommit={(maxTokens, timeoutSeconds) =>
+                    setBoxLimit(purpose, maxTokens, timeoutSeconds)
+                  }
+                />
+                {isLimitOverride(purpose) && (
+                  <button
+                    onClick={() => void clearBoxLimit(purpose)}
+                    disabled={limitBusy === purpose}
+                    className="text-xs text-fg-subtle hover:text-fg disabled:opacity-50"
+                  >
+                    {t('models.clearLimit')}
+                  </button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </div>
     </div>
   )
 }

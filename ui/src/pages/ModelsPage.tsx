@@ -11,9 +11,10 @@ import { api, ApiError, hfRepoFiles, inspectModel, localizeError, searchHf } fro
 import { usePoll } from '../hooks'
 import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
+import LimitsEditor from '../components/LimitsEditor'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
-import { PURPOSES, modelLabel } from '../models'
-import type { HfRepoFile, HfSearchResult, Model, ModelAssignment, Purpose } from '../types'
+import { GENERATIVE_PURPOSES, PURPOSES, modelLabel } from '../models'
+import type { HfRepoFile, HfSearchResult, Model, ModelAssignment, ModelLimits, Purpose } from '../types'
 
 // The platform operator's model layer surface: the registry of pinned
 // models and the factory assignments each purpose resolves to. The hub owns
@@ -30,20 +31,24 @@ export default function ModelsPage() {
   const [error, setError] = useState('')
   const [editor, setEditor] = useState<Model | 'new' | null>(null)
   const [busy, setBusy] = useState<Purpose | null>(null)
+  const [limits, setLimits] = useState<ModelLimits[] | null>(null)
+  const [limitBusy, setLimitBusy] = useState<Purpose | null>(null)
   // The pre-fill the Hugging Face browser hands to the create form; nothing
   // saves until the admin confirms.
   const [prefill, setPrefill] = useState<Partial<Model> | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const [adminModels, assignmentRows, publicModels] = await Promise.all([
+      const [adminModels, assignmentRows, publicModels, limitRows] = await Promise.all([
         api.get<Model[]>('/api/admin/models'),
         api.get<ModelAssignment[]>('/api/admin/models/assignments'),
         api.get<Model[]>('/api/models'),
+        api.get<ModelLimits[]>('/api/admin/models/limits'),
       ])
       setModels(adminModels)
       setAssignments(assignmentRows)
       setCatalog(publicModels)
+      setLimits(limitRows)
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : t('models.loadFailed'))
@@ -83,6 +88,20 @@ export default function ModelsPage() {
       setError(err instanceof Error ? err.message : t('models.assignFailed'))
     } finally {
       setBusy(null)
+    }
+  }
+
+  const setFactoryLimit = async (purpose: Purpose, maxTokens: number, timeoutSeconds: number) => {
+    setLimitBusy(purpose)
+    setError('')
+    try {
+      await api.put('/api/admin/models/limits', { purpose, maxTokens, timeoutSeconds })
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('models.limitSetFailed'))
+      throw err
+    } finally {
+      setLimitBusy(null)
     }
   }
 
@@ -239,6 +258,32 @@ export default function ModelsPage() {
                     ]}
                   />
                 )}
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-fg-strong">
+          {t('models.limits')}
+        </h2>
+        <p className="mt-1 text-sm text-fg-muted">{t('models.limitsHint')}</p>
+        <div className="mt-4 divide-y divide-line-2/60 rounded-2xl border border-line-2/60">
+          {GENERATIVE_PURPOSES.map((purpose) => {
+            const limit = limits?.find((l) => l.purpose === purpose)
+            return (
+              <div key={purpose} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <span className="w-28 shrink-0 text-sm font-medium text-fg">
+                  {t('purpose.' + purpose)}
+                </span>
+                <LimitsEditor
+                  current={limit}
+                  disabled={limitBusy === purpose}
+                  onCommit={(maxTokens, timeoutSeconds) =>
+                    setFactoryLimit(purpose, maxTokens, timeoutSeconds)
+                  }
+                />
               </div>
             )
           })}

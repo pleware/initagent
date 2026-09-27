@@ -801,7 +801,7 @@
   },
   "narrator": {
     "pageTitle": "Box narrator",
-    "subtitle": "The voice and the soul the box presents to its people. The row is keyed on the narrator slug st_b_pi.",
+    "subtitle": "The voice and the soul the box presents to its people. One row per box, marked narrator-profile.",
     "loadFailed": "Could not load the narrator",
     "notFound": "This box has no narrator."
   },

@@ -294,8 +294,8 @@ func TestBoxNarrator(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&narrator); err != nil {
 		t.Fatal(err)
 	}
-	if narrator.Slug != "st_b_pi" {
-		t.Errorf("narrator = %+v, want the seeded st_b_pi narrator", narrator)
+	if narrator.Slug != "narrator-profile" {
+		t.Errorf("narrator = %+v, want the seeded narrator-profile narrator", narrator)
 	}
 
 	// Take the narrator away: a box with no narrator answers 404 with the
@@ -354,8 +354,8 @@ func TestBoxNarratorEdit(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&narrator); err != nil {
 		t.Fatal(err)
 	}
-	if narrator.Slug != "st_b_pi" {
-		t.Errorf("narrator identity = %+v, want the box's st_b_pi narrator", narrator)
+	if narrator.Slug != "narrator-profile" {
+		t.Errorf("narrator identity = %+v, want the box's narrator-profile narrator", narrator)
 	}
 	if narrator.Name != "Lore" || narrator.Locale != "en" || narrator.Age != 42 ||
 		narrator.WordBudget != 1200 || narrator.AvatarModel3D != "lore.glb" ||

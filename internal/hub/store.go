@@ -666,6 +666,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("renaming box narrator name: %w", err)
 	}
+	if err := s.ensureNarratorProfileSlug(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("renaming box narrator slug to its profile name: %w", err)
+	}
 	if err := s.ensureBoxNarrator(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("promoting box narrator to a box property: %w", err)
@@ -1320,6 +1324,14 @@ func (s *Store) ensureBoxColumns() error {
 // below is the one place that still has to talk about the old slug.
 const narratorOldSlug = "st_b" + "_dt"
 
+// narratorSupersededSlug is the box narrator marker this build no longer
+// writes — `st_b_pi`, retired 2026-09-27 in favour of narratorSlug — spelled
+// as two concatenated literals for the same reason as narratorOldSlug above:
+// the retirement's acceptance check greps internal/hub for the bare token,
+// and ensureNarratorProfileSlug is the one place that still has to talk about
+// it.
+const narratorSupersededSlug = "st_b" + "_pi"
+
 // narratorOldName is the box narrator name this build no longer writes. It
 // is spelled as two concatenated literals on purpose, exactly like
 // narratorOldSlug above: the rename's acceptance check greps internal/hub
@@ -1328,7 +1340,7 @@ const narratorOldSlug = "st_b" + "_dt"
 const narratorOldName = "Pic" + "ard"
 
 // ensureNarratorSlugRename carries box narrators seeded under the old slug
-// ("Data") over to st_b_pi ("Ania"). The slug rides in each box's
+// ("Data") over to the superseded marker ("Ania"). The slug rides in each box's
 // manifest, so the rename is content, not schema: every affected box's
 // config_version bumps exactly once, so a connector's next sync serves the
 // renamed narrator, and the seed stays a non-bumping idempotent check.
@@ -1370,8 +1382,8 @@ func (s *Store) ensureNarratorSlugRename() error {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`UPDATE staff SET slug = 'st_b_pi', name = 'Ania'
-		WHERE scope = 'box' AND slug = ?`, narratorOldSlug); err != nil {
+	if _, err := tx.Exec(`UPDATE staff SET slug = ?, name = 'Ania'
+		WHERE scope = 'box' AND slug = ?`, narratorSupersededSlug, narratorOldSlug); err != nil {
 		return err
 	}
 	for _, boxID := range boxIDs {
@@ -1382,13 +1394,60 @@ func (s *Store) ensureNarratorSlugRename() error {
 	return tx.Commit()
 }
 
-// ensureNarratorNameAnia carries box narrators that already ride st_b_pi but
-// still carry the name the pre-rename build seeded over to "Ania". The name
+// narratorProfileSlugSetting records that this hub has already carried its
+// boxes over to narratorSlug. The marker is stored nowhere: narratorSlug is a
+// constant the manifest is built from on every read, so there is no content to
+// guard the migration on, and a bump that repeated on every open would re-sync
+// the whole fleet every time the hub restarts. One settings row is the
+// once-only signal.
+const narratorProfileSlugSetting = "narrator_profile_slug"
+
+// ensureNarratorProfileSlug carries the box narrator marker over to
+// narratorSlug — the being's own profile name, and the name its Hermes profile
+// is planted under on the box — by bumping every box, once, so each
+// connector's next sync serves the renamed marker. `pware fleet sync` is
+// version-gated: a 304 plants nothing, so without the bump a box that is
+// already in the box_narrator era would keep the retired marker, and the
+// retired profile name, forever.
+//
+// No row is rewritten, unlike the two renames before it. Those rewrote a
+// box-scoped staff row because the slug was stored there; on the box_narrator
+// era the marker is content of the manifest alone, and a store old enough to
+// still carry such a row has it promoted out of staff by ensureBoxNarrator in
+// this same open — with its own bump — wherever its slug points.
+//
+// A store that has already recorded the setting does nothing.
+func (s *Store) ensureNarratorProfileSlug() error {
+	done, err := s.Setting(narratorProfileSlugSetting)
+	if err != nil {
+		return err
+	}
+	if done != "" {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := bumpAllBoxes(tx); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT INTO settings (key, value) VALUES (?, '1')
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, narratorProfileSlugSetting); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// ensureNarratorNameAnia carries box narrators that already ride the
+// superseded marker but still carry the name the pre-rename build seeded over
+// to "Ania". The name
 // rides in each box's manifest, so the rename is content, not schema: every
 // affected box's config_version bumps exactly once, so a connector's next
 // sync serves the renamed narrator. The predicate is slug-guarded — scope
-// 'box' AND slug 'st_b_pi' AND the old name — so org-scoped staff and other
-// box rows stay untouched, and because the slug rename above already writes
+// 'box' AND the superseded marker AND the old name — so org-scoped staff and
+// other box rows stay untouched, and because the slug rename above already writes
 // name 'Ania' into every row it moves, the two migrations never bump the
 // same box twice.
 //
@@ -1404,7 +1463,7 @@ func (s *Store) ensureNarratorNameAnia() error {
 		return nil
 	}
 	rows, err := s.db.Query(`SELECT DISTINCT box_id FROM staff
-		WHERE scope = 'box' AND slug = 'st_b_pi' AND name = ?`, narratorOldName)
+		WHERE scope = 'box' AND slug = ? AND name = ?`, narratorSupersededSlug, narratorOldName)
 	if err != nil {
 		return err
 	}
@@ -1430,7 +1489,7 @@ func (s *Store) ensureNarratorNameAnia() error {
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec(`UPDATE staff SET name = 'Ania'
-		WHERE scope = 'box' AND slug = 'st_b_pi' AND name = ?`, narratorOldName); err != nil {
+		WHERE scope = 'box' AND slug = ? AND name = ?`, narratorSupersededSlug, narratorOldName); err != nil {
 		return err
 	}
 	for _, boxID := range boxIDs {
@@ -1605,7 +1664,7 @@ func (s *Store) ensureModelFiles() error {
 
 // ensureModelEngine adds the engine column to a live models table that
 // predates it: the runtime that serves the pin (Model.Engine). It arrives as
-// TEXT NOT NULL DEFAULT '' — which means llama.cpp, the engine of every pin
+// TEXT NOT NULL DEFAULT ” — which means llama.cpp, the engine of every pin
 // that existed before the column did — so a store opened before this migration
 // answers the same roster it always did, and the factory seeds write the real
 // value on the next EnsureSeedModels pass (the drift check sees the change).
@@ -1615,7 +1674,7 @@ func (s *Store) ensureModelEngine() error {
 
 // ensureModelPurposes adds the purposes column to a live models table that
 // predates it: the JSON list of roles a pin may serve (Model.Purposes). It
-// arrives as TEXT NOT NULL DEFAULT '' — an empty list means the pin serves
+// arrives as TEXT NOT NULL DEFAULT ” — an empty list means the pin serves
 // its single primary purpose, exactly the shape every pin had before the
 // column existed — and the factory seeds write the real set on the next
 // EnsureSeedModels pass (persona models gain the narrator).

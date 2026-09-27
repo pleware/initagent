@@ -96,7 +96,7 @@ func upsertNarratorTx(tx *store.Tx, boxID, name, locale, avatarModel3D, brief, s
 }
 
 // EnsureSeedNarrator creates the narrator of a box — the box's own "Ania"
-// (st_b_pi) — when it is missing and leaves it alone otherwise, so content
+// (narratorSlug) — when it is missing and leaves it alone otherwise, so content
 // written over the seed survives a restart. Idempotent; the seed does not
 // bump the box's config_version (CreateBox already starts at version 1).
 func (s *Store) EnsureSeedNarrator(boxID string) error {

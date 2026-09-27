@@ -73,9 +73,9 @@ func TestCreateBoxSeedsNarrator(t *testing.T) {
 	if got == nil {
 		t.Fatal("GetBoxNarrator = nil, want the seeded narrator")
 	}
-	if got.Slug != "st_b_pi" || got.Name != "Ania" || got.Locale != "pl" ||
+	if got.Slug != "narrator-profile" || got.Name != "Ania" || got.Locale != "pl" ||
 		got.Voice != "pl_PL-gosia-medium" || got.BiologicalGender != "female" {
-		t.Errorf("narrator = %+v, want the st_b_pi seed for %s", got, box.ID)
+		t.Errorf("narrator = %+v, want the narrator-profile seed for %s", got, box.ID)
 	}
 	if got.SoulCore != "" {
 		t.Errorf("narrator soul_core = %q, want empty (content later)", got.SoulCore)
@@ -136,15 +136,15 @@ func TestEnsureSeedNarratorPerBox(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if narrA == nil || narrA.Slug != "st_b_pi" {
-		t.Fatalf("box A narrator = %+v, want its own st_b_pi narrator", narrA)
+	if narrA == nil || narrA.Slug != "narrator-profile" {
+		t.Fatalf("box A narrator = %+v, want its own narrator-profile narrator", narrA)
 	}
 	narrB, err := s.GetBoxNarrator(boxB.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if narrB == nil || narrB.Slug != "st_b_pi" {
-		t.Fatalf("box B narrator = %+v, want its own st_b_pi narrator", narrB)
+	if narrB == nil || narrB.Slug != "narrator-profile" {
+		t.Fatalf("box B narrator = %+v, want its own narrator-profile narrator", narrB)
 	}
 
 	// A re-seed still keys on the box: box A's tuned narrator is left alone,
@@ -166,7 +166,7 @@ func TestEnsureSeedNarratorPerBox(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if narrB == nil || narrB.Slug != "st_b_pi" {
+	if narrB == nil || narrB.Slug != "narrator-profile" {
 		t.Fatalf("box B narrator after re-seed = %+v, want its one narrator", narrB)
 	}
 }
@@ -500,10 +500,13 @@ func TestOpenStoreMigratesBoxColumns(t *testing.T) {
 }
 
 // A store whose box narrator row still carries the pre-rename slug has that
-// row carried over to st_b_pi/"Ania" on reopen, and only the affected
-// box's config_version bumps — the rename is manifest content, so a
-// connector's next sync must serve it. The migration is idempotent: a
-// second reopen finds no old-slug rows and bumps nothing.
+// row carried over to the current marker/"Ania" on reopen, and only the
+// affected box's config_version bumps — the rename is manifest content, so a
+// connector's next sync must serve it. The chain the reopen walks is
+// st_b_dt → superseded marker → narrator-profile, one bump per link, and the
+// marker rename bumps every box besides. The migration is idempotent: a
+// second reopen finds no old-slug rows, no missing record, and bumps
+// nothing.
 func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "narrator-slug-migration.db")
 	s, err := OpenStore(path)
@@ -535,6 +538,11 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 		VALUES ('staff-00000000-0000-0000-0000-000000000000', ?, 'Data', 'pl', 0, '{}', '', 0, '', '', 'pl_PL-gosia-medium', 'female', 'box', ?, 1, 1)`, narratorOldSlug, legacy.ID); err != nil {
 		t.Fatal(err)
 	}
+	// The store was opened by this build, so it already records the marker
+	// rename: drop the record to stand in for the hub the row came from.
+	if _, err := s.db.Exec(`DELETE FROM settings WHERE key = ?`, narratorProfileSlugSetting); err != nil {
+		t.Fatal(err)
+	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -549,18 +557,19 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if narrator == nil || narrator.Slug != "st_b_pi" || narrator.Name != "Ania" {
-		t.Errorf("migrated narrator = %+v, want st_b_pi/Ania in box_narrator", narrator)
+	if narrator == nil || narrator.Slug != "narrator-profile" || narrator.Name != "Ania" {
+		t.Errorf("migrated narrator = %+v, want narrator-profile/Ania in box_narrator", narrator)
 	}
-	if got, _ := again.GetBox(legacy.ID); got.ConfigVersion != 3 {
-		t.Errorf("legacy box config_version = %d, want 3 (rename bump + move bump)", got.ConfigVersion)
+	if got, _ := again.GetBox(legacy.ID); got.ConfigVersion != 4 {
+		t.Errorf("legacy box config_version = %d, want 4 (two rename bumps + move bump)", got.ConfigVersion)
 	}
-	if got, _ := again.GetBox(fresh.ID); got.ConfigVersion != 1 {
-		t.Errorf("fresh box config_version = %d, want 1 (unaffected boxes stay)", got.ConfigVersion)
+	if got, _ := again.GetBox(fresh.ID); got.ConfigVersion != 2 {
+		t.Errorf("fresh box config_version = %d, want 2 (the marker rename bumps every box)", got.ConfigVersion)
 	}
 
-	// A second reopen is a no-op: the row is already st_b_pi and in
-	// box_narrator, and the version stays at 3.
+	// A second reopen is a no-op: the row already rides the current marker
+	// and sits in box_narrator, the setting is recorded, and the version
+	// stays at 4.
 	if err := again.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -569,16 +578,17 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 		t.Fatalf("third open on a renamed store: %v", err)
 	}
 	t.Cleanup(func() { third.Close() })
-	if got, _ := third.GetBox(legacy.ID); got.ConfigVersion != 3 {
-		t.Errorf("legacy box config_version after a second reopen = %d, want 3 (no re-bump)", got.ConfigVersion)
+	if got, _ := third.GetBox(legacy.ID); got.ConfigVersion != 4 {
+		t.Errorf("legacy box config_version after a second reopen = %d, want 4 (no re-bump)", got.ConfigVersion)
 	}
 }
 
-// A store whose box narrator row already rides st_b_pi but still carries the
-// pre-rename name has that name carried over to "Ania" on reopen, and the
-// affected box's config_version bumps exactly once — the name is manifest
-// content, so a connector's next sync must serve it. The migration is
-// idempotent: a second reopen finds no old-name rows and bumps nothing.
+// A store whose box narrator row already rides the superseded marker but
+// still carries the pre-rename name has that name carried over to "Ania" on
+// reopen, and the affected box's config_version bumps once per link of the
+// chain — the name is manifest content, so a connector's next sync must serve
+// it. The migration is idempotent: a second reopen finds no old-name rows and
+// bumps nothing.
 func TestOpenStoreRenamesNarratorName(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "narrator-name-migration.db")
 	s, err := OpenStore(path)
@@ -590,9 +600,9 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Rewind the box's narrator to the pre-migration shape: a box-scoped
-	// staff row under st_b_pi but the old name. The scope/box_id columns are
-	// gone from the live schema, so re-add them to write the row the way the
-	// old build did.
+	// staff row under the superseded marker but the old name. The scope/box_id
+	// columns are gone from the live schema, so re-add them to write the row
+	// the way the old build did.
 	if _, err := s.db.Exec(`DELETE FROM box_narrator WHERE box_id = ?`, box.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -603,7 +613,12 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := s.db.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, scope, box_id, created_at, updated_at)
-		VALUES ('staff-00000000-0000-0000-0000-000000000000', 'st_b_pi', ?, 'pl', 0, '{}', '', 0, '', '', 'pl_PL-gosia-medium', 'female', 'box', ?, 1, 1)`, narratorOldName, box.ID); err != nil {
+		VALUES ('staff-00000000-0000-0000-0000-000000000000', ?, ?, 'pl', 0, '{}', '', 0, '', '', 'pl_PL-gosia-medium', 'female', 'box', ?, 1, 1)`, narratorSupersededSlug, narratorOldName, box.ID); err != nil {
+		t.Fatal(err)
+	}
+	// The store was opened by this build, so it already records the marker
+	// rename: drop the record to stand in for the hub the row came from.
+	if _, err := s.db.Exec(`DELETE FROM settings WHERE key = ?`, narratorProfileSlugSetting); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Close(); err != nil {
@@ -620,15 +635,15 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if narrator == nil || narrator.Slug != "st_b_pi" || narrator.Name != "Ania" {
-		t.Errorf("migrated narrator = %+v, want st_b_pi/Ania in box_narrator", narrator)
+	if narrator == nil || narrator.Slug != "narrator-profile" || narrator.Name != "Ania" {
+		t.Errorf("migrated narrator = %+v, want narrator-profile/Ania in box_narrator", narrator)
 	}
-	if got, _ := again.GetBox(box.ID); got.ConfigVersion != 3 {
-		t.Errorf("box config_version = %d, want 3 (name-rename bump + move bump)", got.ConfigVersion)
+	if got, _ := again.GetBox(box.ID); got.ConfigVersion != 4 {
+		t.Errorf("box config_version = %d, want 4 (name bump + marker bump + move bump)", got.ConfigVersion)
 	}
 
-	// A second reopen is a no-op: the row already carries the new name and
-	// is in box_narrator, and the version stays at 3.
+	// A second reopen is a no-op: the row already carries the new name and the
+	// current marker, and it is in box_narrator, so the version stays at 4.
 	if err := again.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -637,7 +652,65 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 		t.Fatalf("third open on a renamed store: %v", err)
 	}
 	t.Cleanup(func() { third.Close() })
-	if got, _ := third.GetBox(box.ID); got.ConfigVersion != 3 {
-		t.Errorf("box config_version after a second reopen = %d, want 3 (no re-bump)", got.ConfigVersion)
+	if got, _ := third.GetBox(box.ID); got.ConfigVersion != 4 {
+		t.Errorf("box config_version after a second reopen = %d, want 4 (no re-bump)", got.ConfigVersion)
+	}
+}
+
+// A hub from before this build has no narrator_profile_slug setting, and every
+// box it carries is bumped exactly once — the marker rides in every box's
+// manifest, so every connector has to re-sync or a box keeps serving the
+// retired profile name. The bump is once-only: the settings row the first open
+// writes is what a second open finds.
+func TestOpenStoreBumpsBoxesForNarratorProfileSlug(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "narrator-profile-bump.db")
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := s.CreateBox("box-first", "First", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.CreateBox("box-second", "Second", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The store was opened by this build, so it already carries the setting:
+	// drop it to stand in for a hub that predates the rename.
+	if _, err := s.db.Exec(`DELETE FROM settings WHERE key = ?`, narratorProfileSlugSetting); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopen on a pre-rename hub: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+	for _, box := range []struct{ name, id string }{{"first", first.ID}, {"second", second.ID}} {
+		if got, _ := again.GetBox(box.id); got.ConfigVersion != 2 {
+			t.Errorf("%s box config_version = %d, want 2 (the marker rename bumps every box)", box.name, got.ConfigVersion)
+		}
+	}
+	if got, err := again.Setting(narratorProfileSlugSetting); err != nil || got == "" {
+		t.Errorf("Setting(%q) = %q, %v; want the once-only record written", narratorProfileSlugSetting, got, err)
+	}
+
+	// A second reopen finds the record and bumps nothing.
+	if err := again.Close(); err != nil {
+		t.Fatal(err)
+	}
+	third, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("third open on a migrated hub: %v", err)
+	}
+	t.Cleanup(func() { third.Close() })
+	for _, box := range []struct{ name, id string }{{"first", first.ID}, {"second", second.ID}} {
+		if got, _ := third.GetBox(box.id); got.ConfigVersion != 2 {
+			t.Errorf("%s box config_version after a second reopen = %d, want 2 (no re-bump)", box.name, got.ConfigVersion)
+		}
 	}
 }

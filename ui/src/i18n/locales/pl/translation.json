@@ -809,7 +809,7 @@
   },
   "narrator": {
     "pageTitle": "Narrator boksu",
-    "subtitle": "Głos i dusza, które boks prezentuje swoim ludziom. Wiersz jest kluczowany na slugu narratora st_b_pi.",
+    "subtitle": "Głos i dusza, które boks prezentuje swoim ludziom. Jeden wiersz na boks, oznaczony jako narrator-profile.",
     "loadFailed": "Nie udało się wczytać narratora",
     "notFound": "Ten boks nie ma narratora."
   },

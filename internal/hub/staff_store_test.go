@@ -13,15 +13,15 @@ import (
 // testStaff is a fully-populated staff member used where a test needs a set one.
 func testStaff() Staff {
 	return Staff{
-		Slug:          "coder-zeta",
-		Name:          "Zeta",
-		Locale:        "pl",
-		AvatarModel3D: "zeta.glb",
-		Brief:         "a sharp coder",
-		Age:           41,
-		WordBudget:    2500,
-		SoulCore:      "debug first, explain after",
-		Voice:         "zeta-v1",
+		Slug:             "coder-zeta",
+		Name:             "Zeta",
+		Locale:           "pl",
+		AvatarModel3D:    "zeta.glb",
+		Brief:            "a sharp coder",
+		Age:              41,
+		WordBudget:       2500,
+		SoulCore:         "debug first, explain after",
+		Voice:            "zeta-v1",
 		BiologicalGender: "male",
 		BigFive: Character{
 			Openness:          0.9,
@@ -143,7 +143,7 @@ func TestListStaffExcludesNarrator(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, st := range list {
-		if st.Slug == "st_b_pi" {
+		if st.Slug == "narrator-profile" {
 			t.Errorf("ListStaff carries the narrator %q", st.Slug)
 		}
 	}
@@ -151,8 +151,8 @@ func TestListStaffExcludesNarrator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if narrator == nil || narrator.Slug != "st_b_pi" {
-		t.Errorf("GetBoxNarrator = %+v, want the box's st_b_pi narrator", narrator)
+	if narrator == nil || narrator.Slug != "narrator-profile" {
+		t.Errorf("GetBoxNarrator = %+v, want the box's narrator-profile narrator", narrator)
 	}
 }
 
@@ -185,8 +185,8 @@ func TestUpdateBoxNarrator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.Slug != "st_b_pi" {
-		t.Errorf("narrator identity = %+v, want the box's st_b_pi narrator", st)
+	if st.Slug != "narrator-profile" {
+		t.Errorf("narrator identity = %+v, want the box's narrator-profile narrator", st)
 	}
 	if st.Name != "Lore" || st.Locale != "en" || st.Age != 42 || st.WordBudget != 1200 ||
 		st.AvatarModel3D != "lore.glb" || st.Voice != "lore-v2" || st.BiologicalGender != "female" ||
@@ -209,8 +209,8 @@ func TestUpdateBoxNarrator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.Slug != "st_b_pi" {
-		t.Errorf("created narrator = %+v, want a st_b_pi narrator on box B", created)
+	if created.Slug != "narrator-profile" {
+		t.Errorf("created narrator = %+v, want a narrator-profile narrator on box B", created)
 	}
 	if got, _ := s.GetBox(boxB.ID); got.ConfigVersion != 2 {
 		t.Errorf("box B after the create-if-missing edit = %d, want 2", got.ConfigVersion)
@@ -331,13 +331,19 @@ func TestUpsertStaffSlugUnique(t *testing.T) {
 	}
 }
 
-// Staff slugs are unique across the installation, and a st_b_* slug — the
-// narrator namespace — is refused: staff are org-scoped only, and a box's
-// narrator is the box's own being, not a staff row (58).
+// Staff slugs are unique across the installation, and a slug in a box-scoped
+// name — the retired st_b_* namespace, or the narrator's current marker — is
+// refused: staff are org-scoped only, and a box's narrator is the box's own
+// being, not a staff row (58).
 func TestUpsertStaffRejectsBoxScopedSlug(t *testing.T) {
 	s := testStore(t)
-	if _, err := s.UpsertStaff("st_b_pi", "Data", "en", "", "", "", "", "male", 30, 0, Character{}); err == nil {
-		t.Fatal("UpsertStaff accepted a st_b_* slug, want ErrBoxScopedSlugRejected")
+	if _, err := s.UpsertStaff("narrator-profile", "Data", "en", "", "", "", "", "male", 30, 0, Character{}); err == nil {
+		t.Fatal("UpsertStaff accepted the narrator's marker, want ErrBoxScopedSlugRejected")
+	} else if !errors.Is(err, ErrBoxScopedSlugRejected) {
+		t.Fatalf("UpsertStaff error = %v, want ErrBoxScopedSlugRejected", err)
+	}
+	if _, err := s.UpsertStaff(narratorSupersededSlug, "Data", "en", "", "", "", "", "male", 30, 0, Character{}); err == nil {
+		t.Fatal("UpsertStaff accepted a retired st_b_* slug, want ErrBoxScopedSlugRejected")
 	} else if !errors.Is(err, ErrBoxScopedSlugRejected) {
 		t.Fatalf("UpsertStaff error = %v, want ErrBoxScopedSlugRejected", err)
 	}
@@ -347,8 +353,8 @@ func TestUpsertStaffRejectsBoxScopedSlug(t *testing.T) {
 }
 
 // A narrator is the box's own 1:1 being: CreateBox seeds one per box, each
-// carries the fixed slug st_b_pi, and none of them reach ListStaff or an org
-// roster. The box's id is the narrator's identity — there is no minted staff
+// carries the fixed marker narrator-profile, and none of them reach ListStaff
+// or an org roster. The box's id is the narrator's identity — there is no minted staff
 // id, no scope and no boxId on it.
 func TestGetBoxNarrator(t *testing.T) {
 	s := testStore(t)
@@ -372,8 +378,8 @@ func TestGetBoxNarrator(t *testing.T) {
 	if narrA == nil || narrB == nil {
 		t.Fatalf("GetBoxNarrator = (%+v, %+v), want one narrator per box", narrA, narrB)
 	}
-	if narrA.Slug != "st_b_pi" || narrB.Slug != "st_b_pi" {
-		t.Errorf("narrator slugs = %q / %q, want st_b_pi for both", narrA.Slug, narrB.Slug)
+	if narrA.Slug != "narrator-profile" || narrB.Slug != "narrator-profile" {
+		t.Errorf("narrator slugs = %q / %q, want narrator-profile for both", narrA.Slug, narrB.Slug)
 	}
 
 	// Editing one box's narrator never touches the other.
@@ -381,8 +387,8 @@ func TestGetBoxNarrator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tuned.Slug != "st_b_pi" || tuned.Name != "Lore" {
-		t.Errorf("tuned narrator = %+v, want the st_b_pi Lore row", tuned)
+	if tuned.Slug != "narrator-profile" || tuned.Name != "Lore" {
+		t.Errorf("tuned narrator = %+v, want the narrator-profile Lore row", tuned)
 	}
 	if again, _ := s.GetBoxNarrator(boxA.ID); again.Name != "Ania" {
 		t.Errorf("box A narrator after editing B = %q, want the untouched Ania", again.Name)
@@ -398,7 +404,7 @@ func TestGetBoxNarrator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := countSlug(list, "st_b_pi"); n != 0 {
+	if n := countSlug(list, "narrator-profile"); n != 0 {
 		t.Errorf("ListStaff carries the narrator %d times, want 0", n)
 	}
 }
@@ -414,7 +420,7 @@ func TestStaffForOrgExcludesNarrator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := countSlug(roster, "st_b_pi"); n != 0 {
+	if n := countSlug(roster, "narrator-profile"); n != 0 {
 		t.Errorf("org roster contains the narrator %d times, want 0", n)
 	}
 	if n := countSlug(roster, "staff-male-00"); n != 1 {

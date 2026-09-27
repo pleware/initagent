@@ -79,17 +79,18 @@ func (s *Store) StaffById(id string) (*Staff, error) {
 		FROM staff WHERE id = ?`, id))
 }
 
-// ErrBoxScopedSlugRejected reports a staff slug in the box-scoped namespace
-// st_b_*: staff are org-scoped only, and the one box-scoped being — a box's
-// narrator — is not a staff row (58).
-var ErrBoxScopedSlugRejected = errors.New("st_b_* is the narrator namespace, not a staff slug")
+// ErrBoxScopedSlugRejected reports a staff slug that names a box's own being:
+// staff are org-scoped only, and the narrator is not a staff row (58).
+var ErrBoxScopedSlugRejected = errors.New("a box's own being is not a staff slug")
 
-// validateStaffSlug enforces that a staff slug stays out of the box-scoped
-// namespace. Staff are org-scoped only; a st_b_* slug names a narrator, which
-// lives in box_narrator, not in the staff table.
+// validateStaffSlug keeps a staff slug out of the box-scoped names: the
+// retired `st_b_*` namespace — which no build writes since 2026-09-27, but an
+// old staff row may ring — and the narrator's current marker, narratorSlug.
+// Staff are org-scoped only; the narrator lives in box_narrator, not in the
+// staff table.
 func validateStaffSlug(slug string) error {
-	if strings.HasPrefix(slug, "st_b_") {
-		return fmt.Errorf("%w: slug %q is box-scoped; a box's narrator is not a staff row", ErrBoxScopedSlugRejected, slug)
+	if strings.HasPrefix(slug, "st_b_") || slug == narratorSlug {
+		return fmt.Errorf("%w: slug %q is box-scoped; a box's own being is not a staff row", ErrBoxScopedSlugRejected, slug)
 	}
 	return nil
 }
@@ -172,20 +173,20 @@ func upsertStaffTx(tx *store.Tx, slug, name, locale, avatarModel3D, brief, soulC
 	}
 	now := time.Now().Unix()
 	st := &Staff{
-		ID:            staffId,
-		Slug:          slug,
-		Name:          name,
-		Locale:        locale,
-		AvatarModel3D: avatarModel3D,
-		Brief:         brief,
-		Age:           age,
-		WordBudget:    wordBudget,
-		SoulCore:      soulCore,
-		Voice:         voice,
+		ID:               staffId,
+		Slug:             slug,
+		Name:             name,
+		Locale:           locale,
+		AvatarModel3D:    avatarModel3D,
+		Brief:            brief,
+		Age:              age,
+		WordBudget:       wordBudget,
+		SoulCore:         soulCore,
+		Voice:            voice,
 		BiologicalGender: biologicalGender,
-		BigFive:       bigFive,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		BigFive:          bigFive,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 	if _, err = tx.Exec(`INSERT INTO staff (id, slug, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

@@ -44,21 +44,27 @@ type Staff struct {
 	// including the empty string (a migrated row may read "" until its next
 	// edit, but no new write may leave it unset).
 	BiologicalGender string `json:"biologicalGender"`
-	CreatedAt     int64     `json:"createdAt"`
-	UpdatedAt     int64     `json:"updatedAt"`
+	CreatedAt        int64  `json:"createdAt"`
+	UpdatedAt        int64  `json:"updatedAt"`
 }
 
-// narratorSlug is the fixed slug of every box's narrator — the one being that
-// is the box itself (58). Unlike staff slugs it is never stored as a unique
-// key: a narrator is 1:1 with its box, so the box's id is its identity and
-// the slug is a constant marker the manifest emits.
-const narratorSlug = "st_b_pi"
+// narratorSlug is the fixed marker of every box's narrator — the one being
+// that is the box itself (58) — and it is the name the being's Hermes profile
+// is planted under (`narrator-profile`, the final design §1). Unlike staff
+// slugs it is never stored as a unique key: a narrator is 1:1 with its box,
+// so the box's id is its identity and this is a constant the manifest emits.
+//
+// It replaced `st_b_pi` on 2026-09-27. The old marker was a staff slug in the
+// retired box namespace, carrying "Picard"'s initials while the being answers
+// to Ania — a marker that claimed to be a profile name and a person. The
+// retirement is carried by ensureNarratorProfileSlug.
+const narratorSlug = "narrator-profile"
 
 // Narrator is a box's own voice — the box's 1:1 being, its property rather
 // than an installation-scoped staff member (58). It has no id of its own:
 // box_narrator.box_id is the primary key, so the box's identity is the
-// narrator's identity. It always carries the fixed slug st_b_pi and never
-// appears in an org roster.
+// narrator's identity. It always carries the fixed marker narratorSlug and
+// never appears in an org roster.
 type Narrator struct {
 	Slug             string    `json:"slug"`
 	Name             string    `json:"name"`

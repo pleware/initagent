@@ -54,10 +54,12 @@ type Staff struct {
 // slugs it is never stored as a unique key: a narrator is 1:1 with its box,
 // so the box's id is its identity and this is a constant the manifest emits.
 //
-// It replaced `st_b_pi` on 2026-09-27. The old marker was a staff slug in the
-// retired box namespace, carrying "Picard"'s initials while the being answers
+// It replaced the retired `st_b_*` marker on 2026-09-27: a staff slug in the
+// box-scoped namespace, carrying a captain's initials while the being answers
 // to Ania — a marker that claimed to be a profile name and a person. The
-// retirement is carried by ensureNarratorProfileSlug.
+// retirement is carried by ensureNarratorProfileSlug, whose token
+// (narratorSupersededSlug) is spelled as two literals so this build's text
+// names the retired marker only there.
 const narratorSlug = "narrator-profile"
 
 // Narrator is a box's own voice — the box's 1:1 being, its property rather

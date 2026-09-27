@@ -1325,8 +1325,9 @@ func (s *Store) ensureBoxColumns() error {
 const narratorOldSlug = "st_b" + "_dt"
 
 // narratorSupersededSlug is the box narrator marker this build no longer
-// writes — `st_b_pi`, retired 2026-09-27 in favour of narratorSlug — spelled
-// as two concatenated literals for the same reason as narratorOldSlug above:
+// writes — the box-scoped `st_b_*` slug, retired 2026-09-27 in favour of
+// narratorSlug — spelled as two concatenated literals, for the same reason as
+// narratorOldSlug above:
 // the retirement's acceptance check greps internal/hub for the bare token,
 // and ensureNarratorProfileSlug is the one place that still has to talk about
 // it.

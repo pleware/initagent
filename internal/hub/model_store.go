@@ -1053,7 +1053,7 @@ func (s *Store) EnsureSeedModels() error {
 			source:  "convaiinnovations/laya-multilingual@e4e9ddf21a7b1903b7acffd8814ad4307bf63a67",
 			quant:   "",
 			file:    "model.safetensors",
-			digest:  "",
+			digest:  "fcb32583ebbc758f5cf2a214ed0560f26c8686456902e8a8cae002a85d588631",
 			licence: "Apache-2.0",
 			purpose: "classification",
 			// Not a GGUF and not a llama.cpp model: Laya is a
@@ -1061,22 +1061,26 @@ func (s *Store) EnsureSeedModels() error {
 			// program at `POST /v1/systemone` the way stt/vad/tts are served
 			// by theirs. It is registered here so a box can resolve the
 			// reflex's triage model out of the same pin layer as every other
-			// role. The digest is empty until the artifact is hashed, and
-			// SetAssignment refuses an unverified pin — registered is not
-			// usable.
+			// role. The digest is the BLAKE3 of the artifact the pin names
+			// (`model.safetensors`), and every file below carries its own —
+			// all five hashed twice and checked against the pinned revision's
+			// byte counts on 2026-09-28. Registered is not assigned, and
+			// assigned is not served: SetAssignment points a purpose at it,
+			// and no program answers for it yet.
 			pipelineTag:   "text-classification",
 			libraryName:   "transformers",
 			architecture:  "modernbert",
 			contextLength: 1024,
 			// The encoder loads a directory, not one file (the faster-whisper
-			// shape). Names only: the seed declares which files the model is,
-			// and an adoption fills in their BLAKE3 sums.
+			// shape), so each artifact carries its own sum and the pin's own
+			// Digest is the loaded one. Biggest first: 614 MiB is the rare
+			// transfer, the four declarations are not.
 			files: []ModelFile{
-				{File: "model.safetensors"},
-				{File: "encoder/config.json"},
-				{File: "rl_agent_config.json"},
-				{File: "tokenizer/tokenizer.json"},
-				{File: "tokenizer/tokenizer_config.json"},
+				{File: "model.safetensors", Digest: "fcb32583ebbc758f5cf2a214ed0560f26c8686456902e8a8cae002a85d588631"},
+				{File: "encoder/config.json", Digest: "a831925d30809ab5bb2ad5424eff016a422310a8989758c44631748276eee06a"},
+				{File: "rl_agent_config.json", Digest: "dd2da6b7f43afd2babffa290bb1857784e49d825e6f76c5c0ab1d0fbdf441714"},
+				{File: "tokenizer/tokenizer.json", Digest: "01e0f0d31015fa48f99c5e7aea639fbf136181e632cfbf40156862aced7b20b1"},
+				{File: "tokenizer/tokenizer_config.json", Digest: "7360e6d74c660f826bffabc39bae1c391d3290dd47e3bb4c02d3b29af3b54183"},
 			},
 		},
 	}

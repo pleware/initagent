@@ -759,7 +759,8 @@
     "embedding": "Embedding",
     "stt": "STT",
     "vad": "VAD",
-    "tts": "TTS"
+    "tts": "TTS",
+    "classification": "Classification"
   },
   "staff": {
     "name": "Imię",

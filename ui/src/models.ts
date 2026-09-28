@@ -4,7 +4,7 @@ import type { Model, Purpose } from './types'
 // admin page and the per-box override panel iterate this list, so it lives
 // here rather than in either page. The labels sit in i18n under purpose.*
 // and stay identical in both locales.
-export const PURPOSES: Purpose[] = ['persona', 'worker', 'narrator', 'embedding', 'stt', 'vad', 'tts']
+export const PURPOSES: Purpose[] = ['persona', 'worker', 'narrator', 'embedding', 'stt', 'vad', 'tts', 'classification']
 
 // GENERATIVE_PURPOSES names the slots an LLM serves through llama.cpp — the
 // only purposes that carry generation limits. embedding/stt/vad/tts are

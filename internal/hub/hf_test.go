@@ -48,6 +48,7 @@ func TestSuggestPurpose(t *testing.T) {
 		{"feature extraction", "feature-extraction", "embedding"},
 		{"asr", "automatic-speech-recognition", "stt"},
 		{"text to speech", "text-to-speech", "tts"},
+		{"text classification", "text-classification", "classification"},
 		{"unmapped tag", "image-classification", ""},
 		{"empty tag", "", ""},
 	}

@@ -101,6 +101,8 @@ func suggestPurpose(pipelineTag string) string {
 		return "vad"
 	case "text-to-speech":
 		return "tts"
+	case "text-classification":
+		return "classification"
 	default:
 		return ""
 	}

@@ -181,25 +181,27 @@ type ModelMeta struct {
 	Gated         bool   `json:"gated"`
 }
 
-// modelPurposes names the seven purposes a pinned model can serve: the
+// modelPurposes names the eight purposes a pinned model can serve: the
 // persona's LLM, the coder's LLM, the narrator's LLM, the embedder, the
-// speech-to-text transcriber, the voice-activity detector, and the
-// text-to-speech voice.
+// speech-to-text transcriber, the voice-activity detector, the
+// text-to-speech voice, and the fast typed-decision classifier the reflex
+// triages an ordinary utterance with.
 var modelPurposes = map[string]bool{
-	"persona":   true,
-	"worker":    true,
-	"narrator":  true,
-	"embedding": true,
-	"stt":       true,
-	"vad":       true,
-	"tts":       true,
+	"persona":        true,
+	"worker":         true,
+	"narrator":       true,
+	"embedding":      true,
+	"stt":            true,
+	"vad":            true,
+	"tts":            true,
+	"classification": true,
 }
 
-// modelPurposeOrder lists the seven purposes in canonical order. Map
+// modelPurposeOrder lists the eight purposes in canonical order. Map
 // iteration order is not deterministic, so ResolvedModels walks this slice
 // to build the roster in a stable order. The three generative roles —
 // persona, worker and narrator — come first, then the non-generative pins.
-var modelPurposeOrder = []string{"persona", "worker", "narrator", "embedding", "stt", "vad", "tts"}
+var modelPurposeOrder = []string{"persona", "worker", "narrator", "embedding", "stt", "vad", "tts", "classification"}
 
 // ParsePurpose accepts a model purpose from the wire, trimmed and
 // case-insensitive. There is no default — a model's purpose is required —
@@ -209,7 +211,7 @@ var modelPurposeOrder = []string{"persona", "worker", "narrator", "embedding", "
 func ParsePurpose(s string) (string, error) {
 	p := strings.ToLower(strings.TrimSpace(s))
 	if !modelPurposes[p] {
-		return "", fmt.Errorf("purpose %q: want persona, worker, narrator, embedding, stt, vad or tts", s)
+		return "", fmt.Errorf("purpose %q: want persona, worker, narrator, embedding, stt, vad, tts or classification", s)
 	}
 	return p, nil
 }
@@ -1044,6 +1046,38 @@ func (s *Store) EnsureSeedModels() error {
 			// to the Piper voice, because the mouth the box runs today is
 			// Piper's container. Registering it is what lets an admin — or a
 			// per-box override — point a box's speech at it.
+		},
+		{
+			id:      "laya-multilingual",
+			org:     "convaiinnovations",
+			source:  "convaiinnovations/laya-multilingual@e4e9ddf21a7b1903b7acffd8814ad4307bf63a67",
+			quant:   "",
+			file:    "model.safetensors",
+			digest:  "",
+			licence: "Apache-2.0",
+			purpose: "classification",
+			// Not a GGUF and not a llama.cpp model: Laya is a
+			// non-autoregressive typed-decision encoder, served by its own
+			// program at `POST /v1/systemone` the way stt/vad/tts are served
+			// by theirs. It is registered here so a box can resolve the
+			// reflex's triage model out of the same pin layer as every other
+			// role. The digest is empty until the artifact is hashed, and
+			// SetAssignment refuses an unverified pin — registered is not
+			// usable.
+			pipelineTag:   "text-classification",
+			libraryName:   "transformers",
+			architecture:  "modernbert",
+			contextLength: 1024,
+			// The encoder loads a directory, not one file (the faster-whisper
+			// shape). Names only: the seed declares which files the model is,
+			// and an adoption fills in their BLAKE3 sums.
+			files: []ModelFile{
+				{File: "model.safetensors"},
+				{File: "encoder/config.json"},
+				{File: "rl_agent_config.json"},
+				{File: "tokenizer/tokenizer.json"},
+				{File: "tokenizer/tokenizer_config.json"},
+			},
 		},
 	}
 

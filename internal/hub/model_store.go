@@ -1067,6 +1067,13 @@ func (s *Store) EnsureSeedModels() error {
 			// byte counts on 2026-09-28. Registered is not assigned, and
 			// assigned is not served: SetAssignment points a purpose at it,
 			// and no program answers for it yet.
+			// engine is stated because the roster spawns it: the box asks the
+			// pin which program opens its bytes, and this one is not ggml — it
+			// rides the unified llama-swap image and the same swapper as the
+			// voices, so llama-swap starts the encoder on the first request and
+			// unloads it when idle (`84` §4). No container of its own, and no
+			// gigabyte of VRAM held resident.
+			engine:        "laya",
 			pipelineTag:   "text-classification",
 			libraryName:   "transformers",
 			architecture:  "modernbert",

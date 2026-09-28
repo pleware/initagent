@@ -266,3 +266,64 @@ func TestVerifiedSTTFilesCarryTheirDigest(t *testing.T) {
 		}
 	}
 }
+
+// The pin's own digest, one level up from the file list, and the same trap: a
+// row seeded before the artifact was hashed has to take the factory's sum on
+// the next pass, and a row that already carries one has to keep it. Leaving
+// the column out of the UPDATE outright (the first attempt at this) meant the
+// pin stayed bare for ever on every box that had already seeded it, while a
+// fresh box took the sum at INSERT — so a deploy could not fix it either.
+func TestSeedFillsThePinDigestTheStoreDoesNotHave(t *testing.T) {
+	s := testStore(t)
+	if err := s.EnsureSeedModels(); err != nil {
+		t.Fatal(err)
+	}
+	seeded, err := s.GetModel("laya-multilingual")
+	if err != nil || seeded == nil {
+		t.Fatalf("GetModel(laya-multilingual) = (%v, %v), want the factory pin", seeded, err)
+	}
+	if seeded.Digest == "" {
+		t.Fatal("the factory pin landed with no digest, and the seed carries one")
+	}
+
+	// A box that seeded the pin before the artifact was hashed.
+	if _, err := s.UpdateModel(seeded.ID, seeded.Org, seeded.Source, seeded.Quant,
+		seeded.File, "", seeded.Licence, seeded.Purposes); err != nil {
+		t.Fatal(err)
+	}
+	emptied, err := s.GetModel(seeded.ID)
+	if err != nil || emptied == nil {
+		t.Fatalf("GetModel after emptying = (%v, %v)", emptied, err)
+	}
+	if emptied.Digest != "" {
+		t.Fatalf("digest = %q, want the row emptied for the test", emptied.Digest)
+	}
+
+	if err := s.EnsureSeedModels(); err != nil {
+		t.Fatal(err)
+	}
+	filled, err := s.GetModel(seeded.ID)
+	if err != nil || filled == nil {
+		t.Fatalf("GetModel after the seed pass = (%v, %v)", filled, err)
+	}
+	if filled.Digest != seeded.Digest {
+		t.Errorf("digest after a seed pass = %q, want the factory sum %q — the change went undetected",
+			filled.Digest, seeded.Digest)
+	}
+
+	// The other half: a sum an adoption or an admin wrote is never overwritten.
+	if _, err := s.UpdateModel(seeded.ID, seeded.Org, seeded.Source, seeded.Quant,
+		seeded.File, "verified-elsewhere", seeded.Licence, seeded.Purposes); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EnsureSeedModels(); err != nil {
+		t.Fatal(err)
+	}
+	kept, err := s.GetModel(seeded.ID)
+	if err != nil || kept == nil {
+		t.Fatalf("GetModel after the second seed pass = (%v, %v)", kept, err)
+	}
+	if kept.Digest != "verified-elsewhere" {
+		t.Errorf("digest = %q, want the verified sum kept against the factory's", kept.Digest)
+	}
+}

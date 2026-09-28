@@ -1131,20 +1131,31 @@ func (s *Store) EnsureSeedModels() error {
 			m.Licence != sm.licence || m.Purpose != sm.purpose || !samePurposes(m.Purposes, purposes) ||
 			m.PipelineTag != sm.pipelineTag || m.LibraryName != sm.libraryName || m.BaseModel != sm.baseModel ||
 			m.Architecture != sm.architecture || m.ContextLength != sm.contextLength || m.Downloads != sm.downloads ||
-			m.Gated != sm.gated || m.Engine != sm.engine || !sameFileList(m.Files, mergeSeedFiles(m.Files, sm.files)):
-			// The digest column is deliberately absent from this SET: the
-			// factory seed never overwrites a verified digest. The file
-			// list is written *merged* — the seed's names, the digests the
-			// store already holds — so a seed pass cannot wipe an adoption
-			// either, and it can still drop a file the seed has dropped.
+			m.Gated != sm.gated || m.Engine != sm.engine || !sameFileList(m.Files, mergeSeedFiles(m.Files, sm.files)) ||
+			(m.Digest == "" && sm.digest != ""):
+			// The pin's own digest is filled, never overwritten: the factory
+			// seed takes an EMPTY column and leaves a populated one — an
+			// adoption's or an admin's — exactly as it is. Leaving the column
+			// out of the SET altogether (as this once did) kept a pin that
+			// landed empty empty for ever on every box that had already
+			// seeded it, while a fresh box took the sum at INSERT — the
+			// file-list trap below, one level up: the merge was right and the
+			// change detection was blind. The file list is written *merged*
+			// for the same reason — the seed's names, the digests the store
+			// already holds — so a seed pass cannot wipe an adoption either,
+			// and it can still drop a file the seed has dropped.
+			pinDigest := m.Digest
+			if pinDigest == "" {
+				pinDigest = sm.digest
+			}
 			filesJSON, err := marshalFiles(mergeSeedFiles(m.Files, sm.files))
 			if err != nil {
 				return err
 			}
-			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, licence = ?, purpose = ?, purposes = ?,
+			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, digest = ?, licence = ?, purpose = ?, purposes = ?,
 				pipeline_tag = ?, library_name = ?, base_model = ?, architecture = ?, context_length = ?, downloads = ?, gated = ?, files = ?, engine = ?
 				WHERE id = ?`,
-				sm.org, sm.source, sm.quant, sm.file, sm.licence, sm.purpose, rawPurposes,
+				sm.org, sm.source, sm.quant, sm.file, pinDigest, sm.licence, sm.purpose, rawPurposes,
 				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated,
 				filesJSON, sm.engine, sm.id); err != nil {
 				return err

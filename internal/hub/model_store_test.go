@@ -375,8 +375,8 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 20 {
-		t.Fatalf("ListModels = %+v, want the twenty factory pins", list)
+	if len(list) != 19 {
+		t.Fatalf("ListModels = %+v, want the nineteen factory pins", list)
 	}
 	byID := map[string]Model{}
 	for _, m := range list {
@@ -394,8 +394,13 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		{"qwen3.5-4b-q4_k_m", "bartowski", "bartowski/Qwen_Qwen3.5-4B-GGUF@", "Q4_K_M", "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980", "Apache-2.0", "persona"},
 		{"qwen2.5-coder-7b-q4_k_m", "Qwen", "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@", "Q4_K_M", "e0abfc1f71fa8f1454f3bc443f7608a63263ed2d41664f2820c3d92c45f3bd52", "Apache-2.0", "worker"},
 		{"bge-m3", "gpustack", "gpustack/bge-m3-GGUF@", "Q4_K_M", "f455475d60569f7ba086863c6ff4b79bb19201664259c5128b9f4f131408dd32", "MIT", "embedding"},
-		{"faster-whisper-medium", "Systran", "Systran/faster-whisper-medium@", "", "7b1053dea7640cc96b5b65b7168487db81010bfce317115d17ca358db970673d", "MIT", "stt"},
-		{"faster-whisper-large-v3", "Systran", "Systran/faster-whisper-large-v3@", "", "64b4dc2dfe6589860e4e39e0ba4f50ea0f6026e509447d8873368e1a73a3bd0a", "MIT", "stt"},
+		// The digest is filled in the same commit as the pin, because the
+		// factory ASSIGNS `stt` to it and `SetAssignment` refuses a pin with
+		// no digest: an empty one here would leave the purpose unassigned on
+		// a fresh installation. The sum is zest's own verdict on the pull of
+		// the pinned revision (2026-09-28), not a local hash of a file that
+		// happened to be lying around.
+		{"ggml-large-v3-turbo", "ggerganov", "ggerganov/whisper.cpp@", "", "e8990f8de5cc6cc442829f37de1f2e0a6a4826c35ae67fdb8c8068425174b262", "MIT", "stt"},
 		{"silero-vad", "istupakov", "istupakov/silero-vad-onnx@", "", "bd861b19a51c83ee067b54d7d8b7f40bc11bafcc526506edc00b163e1c53bb8e", "MIT", "vad"},
 		{"pl_PL-bass-high", "rhasspy", "rhasspy/piper-voices@", "", "d122a10b565681d97ae302b0a4cc617ca59e0cd87b5196ec667ff9c125357b9f", "MIT", "tts"},
 		{"pl_PL-darkman-medium", "rhasspy", "rhasspy/piper-voices@", "", "7554030dd8b3cd40529098054600dc7194f4d146e29fc24f89b89a94c7a43df4", "MIT", "tts"},
@@ -512,8 +517,8 @@ func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 20 {
-		t.Errorf("ListModels after reseed has %d rows, want 20", len(list))
+	if len(list) != 19 {
+		t.Errorf("ListModels after reseed has %d rows, want 19", len(list))
 	}
 }
 
@@ -555,8 +560,8 @@ func TestEnsureSeedModelsBumpsBoxesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 20 {
-		t.Errorf("ListModels after reseed has %d rows, want 20", len(list))
+	if len(list) != 19 {
+		t.Errorf("ListModels after reseed has %d rows, want 19", len(list))
 	}
 }
 
@@ -570,8 +575,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 20 {
-		t.Errorf("fresh open has %d pins, want the twenty seeds", len(list))
+	if len(list) != 19 {
+		t.Errorf("fresh open has %d pins, want the nineteen seeds", len(list))
 	}
 	box, err := s.CreateBox("reopen-box", "Reopen", "", "")
 	if err != nil {
@@ -599,8 +604,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 20 {
-		t.Errorf("reopen has %d pins, want 20", len(list))
+	if len(list) != 19 {
+		t.Errorf("reopen has %d pins, want 19", len(list))
 	}
 }
 
@@ -780,8 +785,8 @@ func TestListModelsPublic(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 20 {
-		t.Fatalf("public catalog has %d pins, want the twenty seeds", len(got))
+	if len(got) != 19 {
+		t.Fatalf("public catalog has %d pins, want the nineteen seeds", len(got))
 	}
 	for _, m := range got {
 		if m.ID == "" || m.Org == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
@@ -848,7 +853,7 @@ func TestAdminModelEndpoints(t *testing.T) {
 		t.Errorf("update missing: %d, want 404", resp.StatusCode)
 	}
 
-	// List includes the new pin (nineteen seeds + one).
+	// List includes the new pin (nineteen seeds + the admin's).
 	resp = f.do(t, http.MethodGet, "/api/admin/models", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list: %d, want 200", resp.StatusCode)
@@ -857,8 +862,8 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 21 {
-		t.Errorf("list has %d pins, want 21 (seeds + admin-model)", len(list))
+	if len(list) != 20 {
+		t.Errorf("list has %d pins, want 20 (seeds + admin-model)", len(list))
 	}
 
 	// Delete.

@@ -61,11 +61,11 @@ type Model struct {
 
 	// Files is every artifact the pin is made of, when that is more than the
 	// one File names. Empty is the single-artifact shape (File + Digest). A
-	// pin whose consumer loads a *directory* — faster-whisper reads
-	// model.bin, config.json, tokenizer.json, vocabulary.json and
-	// preprocessor_config.json — lists every member here, each with the
-	// BLAKE3 the puller verifies when it has one. File stays the anchor: the
-	// member a file-consuming program is pointed at, and one of these.
+	// pin whose consumer loads a *directory* — the typed-decision encoder
+	// reads model.safetensors beside its config and tokenizer — lists every
+	// member here, each with the BLAKE3 the puller verifies when it has one.
+	// File stays the anchor: the member a file-consuming program is pointed
+	// at, and one of these.
 	Files []ModelFile `json:"files,omitempty"`
 }
 
@@ -876,59 +876,30 @@ func (s *Store) EnsureSeedModels() error {
 			downloads:     382659,
 		},
 		{
-			id:      "faster-whisper-medium",
-			org:     "Systran",
-			source:  "Systran/faster-whisper-medium@08e178d48790749d25932bbc082711ddcfdfbc4f",
+			id:      "ggml-large-v3-turbo",
+			org:     "ggerganov",
+			source:  "ggerganov/whisper.cpp@5359861c739e955e79d9a303bcbc70fb988958b1",
 			quant:   "",
-			file:    "model.bin",
-			digest:  "7b1053dea7640cc96b5b65b7168487db81010bfce317115d17ca358db970673d",
+			file:    "ggml-large-v3-turbo.bin",
+			digest:  "e8990f8de5cc6cc442829f37de1f2e0a6a4826c35ae67fdb8c8068425174b262",
 			licence: "MIT",
 			purpose: "stt",
-			// The ear loads a directory, not a file. This list is the
-			// snapshot as it exists on the box (2026-09-23): medium ships
-			// vocabulary.txt where large-v3 ships vocabulary.json, and has
-			// no preprocessor_config.json at all — which is exactly why the
-			// pin has to name them rather than assume a shape.
+			// The ear runs on whisper.cpp now — served by the box's one swapper
+			// (`engine` below) instead of a container of its own. Turbo is the
+			// card's fastest AND most accurate pin: measured on this box
+			// 2026-09-28 over one corpus of 12 sentences, 0.12 s a sentence, RTF
+			// 0.06, WER 0.085, against faster-whisper's 0.31 s and 0.123. Its
+			// 4-layer decoder is why it beats the smaller `medium` (0.19 s) on a
+			// card — the exact reverse of the CPU, where faster-whisper wins by
+			// 2.5× against whisper.cpp. STT belongs on the card.
 			//
-			// Every entry carries its digest. A file the pin leaves bare is
-			// not a file pulled unverified: zest is sent an empty digest,
-			// downloads the whole artifact, and then fails it as a
-			// DigestMismatch — three of these four were thrown away that way
-			// before the sums were known. These four were computed from the
-			// pinned revision and confirmed by zest's own verification of the
-			// pull (pull-5/6/7, 2026-09-23).
-			files: []ModelFile{
-				{File: "model.bin", Digest: "7b1053dea7640cc96b5b65b7168487db81010bfce317115d17ca358db970673d"},
-				{File: "config.json", Digest: "bec2cf9a5185532a55ffa18bf3880ac5b003f492321a90fa03996e9fb73f5d1d"},
-				{File: "tokenizer.json", Digest: "08e31ef36c475d42c5327c06acc218fc51e0e91284dc20cbdd62772baad5a119"},
-				{File: "vocabulary.txt", Digest: "1ebf5419ef1b33ce95393150786292f88a685685c599ab692ef4237f4bcff97b"},
-			},
-		},
-		{
-			id:      "faster-whisper-large-v3",
-			org:     "Systran",
-			source:  "Systran/faster-whisper-large-v3@edaa852ec7e145841d8ffdb056a99866b5f0a478",
-			quant:   "",
-			file:    "model.bin",
-			digest:  "64b4dc2dfe6589860e4e39e0ba4f50ea0f6026e509447d8873368e1a73a3bd0a",
-			licence: "MIT",
-			purpose: "stt",
-			// The five files, every entry carrying its digest — the same rule as
-			// `medium` above, and learned the same way. A bare entry is not a file
-			// pulled unverified: zest is sent an empty digest, downloads the whole
-			// artifact and then fails it as a DigestMismatch, which is how this pin
-			// served *nothing at all* on 2026-09-23 (no file arrived, model.bin.part
-			// 0 B, bt_peers 0). The four side sums were computed from the pinned
-			// revision — blake3 of the files Hugging Face serves at `edaa852e…`,
-			// which is the check the `medium` sums already pass — and the pull
-			// confirms them the way zest verifies every artifact it accepts.
-			files: []ModelFile{
-				{File: "model.bin", Digest: "64b4dc2dfe6589860e4e39e0ba4f50ea0f6026e509447d8873368e1a73a3bd0a"},
-				{File: "config.json", Digest: "cf10383cbfc26ea7219211d727ca94d245836b449dd108940ad79ca92a71329a"},
-				{File: "tokenizer.json", Digest: "64844f44c24de4be682518e9488bc8df9ca4bc52d6a64446db308825afbd2718"},
-				{File: "vocabulary.json", Digest: "0090ca007a335d393c7d16fe506bd62c17aed382d664c886495980d3cb268acd"},
-				{File: "preprocessor_config.json", Digest: "5e15a781ba862ae5f464755771d7277fa276ce539af13f5ea886170f328edcb0"},
-			},
+			// ONE artifact, not a directory: whisper.cpp opens the .bin and
+			// nothing beside it, which is why this pin carries no `files` list
+			// and its quant is empty without meaning "another program seats
+			// this": a ggml .bin is not a GGUF, so the box's GGUF-shaped gates
+			// have to ask the engine instead of the extension (`99`). Warm it
+			// holds ~2 GiB of the card; for how long is the roster's `ttl`.
+			engine: "whisper.cpp",
 		},
 		{
 			id:      "silero-vad",
@@ -1078,10 +1049,10 @@ func (s *Store) EnsureSeedModels() error {
 			libraryName:   "transformers",
 			architecture:  "modernbert",
 			contextLength: 1024,
-			// The encoder loads a directory, not one file (the faster-whisper
-			// shape), so each artifact carries its own sum and the pin's own
-			// Digest is the loaded one. Biggest first: 614 MiB is the rare
-			// transfer, the four declarations are not.
+			// The encoder loads a directory, not one file, so each artifact
+			// carries its own sum and the pin's own Digest is the loaded one.
+			// Biggest first: 614 MiB is the rare transfer, the four
+			// declarations are not.
 			files: []ModelFile{
 				{File: "model.safetensors", Digest: "fcb32583ebbc758f5cf2a214ed0560f26c8686456902e8a8cae002a85d588631"},
 				{File: "encoder/config.json", Digest: "a831925d30809ab5bb2ad5424eff016a422310a8989758c44631748276eee06a"},

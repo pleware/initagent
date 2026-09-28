@@ -19,7 +19,7 @@ type factoryAssignment struct {
 //
 // Five of the six mirror what the live installation resolves, so a new box
 // comes up with the shape of box we actually run: bge-m3 embeds, the piper
-// voice speaks, faster-whisper-medium transcribes, silero-vad listens for
+// voice speaks, whisper.cpp's turbo transcribes, silero-vad listens for
 // speech. The two that differ are deliberate. persona is Qwen3.6-35B-A3B: it
 // answers a role that reasons, codes and calls tools rather than the small
 // dense pin that used to be the only option, and it is a MoE the box serves at
@@ -33,13 +33,14 @@ func factoryAssignments() []factoryAssignment {
 		{purpose: "persona", modelID: "qwen3.6-35b-a3b-q4_k_m"},
 		{purpose: "worker", modelID: "kat-coder-v2.5-dev-q4_k_m"},
 		{purpose: "embedding", modelID: "bge-m3"},
-		// medium, not large-v3, and the measurement decided it (2026-09-23):
-		// on the box's CPU the ear is 0.75–1.00× real time with `medium` and
-		// ~2× real time with `large-v3`, while the 12-sentence round trip put
-		// them inside one noise band of each other (WER 0.13–0.19 against
-		// 0.12–0.17). large-v3 stays pinned for a GPU or batch role, where
-		// being twice real time does not cost a conversation.
-		{purpose: "stt", modelID: "faster-whisper-medium"},
+		// whisper.cpp's turbo, and the measurement decided it (2026-09-28):
+		// on the card turbo is both the fastest and the most accurate pin —
+		// 0.12 s a sentence against faster-whisper's 0.31 s, WER 0.085
+		// against 0.123 — while on the CPU the two swap places and
+		// faster-whisper wins by 2.5×. Placement decides, and the ear's
+		// placement is the card. It is served by the box's one swapper, not
+		// by a container: `engine: whisper.cpp` is what says so.
+		{purpose: "stt", modelID: "ggml-large-v3-turbo"},
 		{purpose: "vad", modelID: "silero-vad"},
 		{purpose: "tts", modelID: "pl_PL-gosia-medium"},
 	}

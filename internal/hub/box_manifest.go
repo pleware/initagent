@@ -21,8 +21,8 @@ import "errors"
 // override wins when present, the factory assignment answers when not, and
 // a purpose with neither is omitted. `file` is the anchor artifact a
 // file-consuming program is pointed at; `files` is every artifact the pin is
-// made of, which is what a directory-consuming program (the ear on a
-// faster-whisper pin) needs and what the box's puller fetches — always an
+// made of, which is what a directory-consuming program (the typed-decision
+// encoder) needs and what the box's puller fetches — always an
 // array, empty for a single-artifact pin. A missing box is an error; the sync
 // handler checks existence first and answers 404 itself.
 func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {

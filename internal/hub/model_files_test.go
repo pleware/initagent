@@ -117,20 +117,18 @@ func TestSeedKeepsAdoptedFileDigests(t *testing.T) {
 	if err := s.EnsureSeedModels(); err != nil {
 		t.Fatal(err)
 	}
-	seeded, err := s.GetModel("faster-whisper-medium")
+	seeded, err := s.GetModel("laya-multilingual")
 	if err != nil || seeded == nil {
-		t.Fatalf("GetModel(faster-whisper-medium) = (%v, %v), want the factory pin", seeded, err)
+		t.Fatalf("GetModel(laya-multilingual) = (%v, %v), want the factory pin", seeded, err)
 	}
 	if len(seeded.Files) == 0 {
-		t.Fatal("the factory stt pin carries no file list: the ear loads a directory")
+		t.Fatal("the factory encoder pin carries no file list: the encoder loads a directory")
 	}
 
 	// An adoption fills in what the bytes are.
-	adopted := []ModelFile{
-		{File: "model.bin", Digest: "adopted-model"},
-		{File: "config.json", Digest: "adopted-config"},
-		{File: "tokenizer.json", Digest: "adopted-tokenizer"},
-		{File: "vocabulary.txt", Digest: "adopted-vocabulary"},
+	adopted := make([]ModelFile, 0, len(seeded.Files))
+	for _, f := range seeded.Files {
+		adopted = append(adopted, ModelFile{File: f.File, Digest: "adopted-" + f.File})
 	}
 	if _, err := s.SetModelFiles(seeded.ID, adopted); err != nil {
 		t.Fatal(err)
@@ -143,8 +141,8 @@ func TestSeedKeepsAdoptedFileDigests(t *testing.T) {
 	if err != nil || after == nil {
 		t.Fatalf("GetModel after the seed pass = (%v, %v)", after, err)
 	}
-	if len(after.Files) != 4 {
-		t.Fatalf("after the seed pass files = %+v, want the four seeded names", after.Files)
+	if len(after.Files) != len(seeded.Files) {
+		t.Fatalf("after the seed pass files = %+v, want the %d seeded names", after.Files, len(seeded.Files))
 	}
 	for _, f := range after.Files {
 		if f.Digest == "" {
@@ -163,12 +161,12 @@ func TestSeedFillsDigestsTheStoreDoesNotHave(t *testing.T) {
 	if err := s.EnsureSeedModels(); err != nil {
 		t.Fatal(err)
 	}
-	seeded, err := s.GetModel("faster-whisper-medium")
+	seeded, err := s.GetModel("laya-multilingual")
 	if err != nil || seeded == nil {
-		t.Fatalf("GetModel(faster-whisper-medium) = (%v, %v)", seeded, err)
+		t.Fatalf("GetModel(laya-multilingual) = (%v, %v)", seeded, err)
 	}
 	if len(seeded.Files) == 0 {
-		t.Fatal("the factory stt pin carries no file list")
+		t.Fatal("the factory encoder pin carries no file list")
 	}
 
 	// A store whose list predates the sums: the seeded names, no digests.
@@ -197,40 +195,28 @@ func TestSeedFillsDigestsTheStoreDoesNotHave(t *testing.T) {
 	}
 }
 
-// The factory's two stt pins describe the two different snapshots as they
-// actually are on disk: medium ships vocabulary.txt where large-v3 ships
-// vocabulary.json, and medium has no preprocessor_config.json. A pin that
-// assumed one shape for both would leave the ear unable to load one of them.
-func TestSTTSeedListsTheFilesEachModelHas(t *testing.T) {
+// The factory's stt pin is ONE artifact, and a different kind from the two
+// that came before it: whisper.cpp opens the .bin and nothing beside it, so
+// the pin carries no file list. The directory shape belonged to
+// faster-whisper's snapshot, which the box no longer serves — and a pin that
+// grew a file list would be a box pulling files nothing opens.
+func TestTheSTTPinIsOneArtifact(t *testing.T) {
 	s := testStore(t)
 	if err := s.EnsureSeedModels(); err != nil {
 		t.Fatal(err)
 	}
-	cases := map[string][]string{
-		"faster-whisper-medium":   {"model.bin", "config.json", "tokenizer.json", "vocabulary.txt"},
-		"faster-whisper-large-v3": {"model.bin", "config.json", "tokenizer.json", "vocabulary.json", "preprocessor_config.json"},
+	m, err := s.GetModel("ggml-large-v3-turbo")
+	if err != nil || m == nil {
+		t.Fatalf("GetModel(ggml-large-v3-turbo) = (%v, %v), want the factory pin", m, err)
 	}
-	for id, want := range cases {
-		m, err := s.GetModel(id)
-		if err != nil || m == nil {
-			t.Fatalf("GetModel(%s) = (%v, %v)", id, m, err)
-		}
-		got := map[string]bool{}
-		for _, f := range m.Files {
-			got[f.File] = true
-		}
-		if len(m.Files) != len(want) {
-			t.Errorf("%s files = %+v, want %v", id, m.Files, want)
-			continue
-		}
-		for _, name := range want {
-			if !got[name] {
-				t.Errorf("%s is missing %q (has %+v)", id, name, m.Files)
-			}
-		}
-		if !got[m.File] {
-			t.Errorf("%s anchor %q is not in its own file list (%+v)", id, m.File, m.Files)
-		}
+	if len(m.Files) != 0 {
+		t.Errorf("the stt pin lists %+v, want the single-artifact shape", m.Files)
+	}
+	if m.File != "ggml-large-v3-turbo.bin" || m.Quant != "" {
+		t.Errorf("the stt pin names %q (quant %q), want a ggml .bin and no quantization", m.File, m.Quant)
+	}
+	if m.Engine != "whisper.cpp" {
+		t.Errorf("engine = %q, want whisper.cpp — the engine is what tells the box which program opens these bytes", m.Engine)
 	}
 }
 
@@ -238,16 +224,16 @@ func TestSTTSeedListsTheFilesEachModelHas(t *testing.T) {
 // handed only one digest per file, so an empty one is not "pulled unverified" —
 // zest downloads the whole artifact and then fails it as a DigestMismatch, which
 // is how three files of medium's snapshot were thrown away before their sums were
-// known (99). medium is the pin we have verified end to end; large-v3's list is
-// still names-only, and the same rule applies to it the moment it is assigned.
-func TestVerifiedSTTFilesCarryTheirDigest(t *testing.T) {
+// known (99). The typed-decision encoder is the factory's directory-shaped pin
+// today, so its list is the one held to that rule.
+func TestVerifiedEncoderFilesCarryTheirDigest(t *testing.T) {
 	s := testStore(t)
 	if err := s.EnsureSeedModels(); err != nil {
 		t.Fatal(err)
 	}
-	m, err := s.GetModel("faster-whisper-medium")
+	m, err := s.GetModel("laya-multilingual")
 	if err != nil || m == nil {
-		t.Fatalf("GetModel(faster-whisper-medium) = (%v, %v)", m, err)
+		t.Fatalf("GetModel(laya-multilingual) = (%v, %v)", m, err)
 	}
 	if len(m.Files) == 0 {
 		t.Fatal("the pin names no files")

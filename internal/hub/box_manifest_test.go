@@ -220,24 +220,24 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 	}
 
 	// A directory-shaped pin carries its whole file list into the manifest,
-	// not just the anchor: the box's puller fetches what the pin names, and
-	// the ear loads the directory. A single-artifact pin answers [] — one
-	// shape for the box's parser either way.
-	ear, err := s.CreateModel("manifest-ear", "Systran", "Systran/faster-whisper-medium@rev",
-		"", "model.bin", "ear-digest", "MIT", []string{"stt"})
+	// not just the anchor: the box's puller fetches what the pin names, and a
+	// directory-consuming program is handed all of them. A single-artifact pin
+	// answers [] — one shape for the box's parser either way.
+	dirPin, err := s.CreateModel("manifest-dir-pin", "convaiinnovations", "convaiinnovations/laya-multilingual@rev",
+		"", "model.safetensors", "anchor-digest", "Apache-2.0", []string{"stt"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	earFiles := []ModelFile{
-		{File: "model.bin"},
+	dirFiles := []ModelFile{
+		{File: "model.safetensors"},
 		{File: "config.json"},
 		{File: "tokenizer.json"},
 		{File: "vocabulary.txt"},
 	}
-	if _, err := s.SetModelFiles(ear.ID, earFiles); err != nil {
+	if _, err := s.SetModelFiles(dirPin.ID, dirFiles); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.SetAssignment("stt", ear.ID); err != nil {
+	if _, err := s.SetAssignment("stt", dirPin.ID); err != nil {
 		t.Fatal(err)
 	}
 	got, err = s.BuildBoxManifest(factoryBox.ID)
@@ -249,13 +249,13 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 	if !ok {
 		t.Fatalf("manifest stt files = %T, want a file list", models["stt"]["files"])
 	}
-	if len(listed) != len(earFiles) || listed[3].File != "vocabulary.txt" {
-		t.Errorf("manifest stt files = %+v, want %+v", listed, earFiles)
+	if len(listed) != len(dirFiles) || listed[3].File != "vocabulary.txt" {
+		t.Errorf("manifest stt files = %+v, want %+v", listed, dirFiles)
 	}
 	// The seed writes names only, so the anchor's entry arrives empty — the
 	// manifest fills it from the pin's own verified digest, or the one file the
 	// hub has verified would be the one file the box pulls unverified.
-	if listed[0].Digest != "ear-digest" {
+	if listed[0].Digest != "anchor-digest" {
 		t.Errorf("manifest anchor entry = %+v, want the pin's digest on the anchor", listed[0])
 	}
 	if listed[1].Digest != "" {

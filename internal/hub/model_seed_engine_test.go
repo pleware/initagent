@@ -33,6 +33,15 @@ func TestTheSeedNamesTheEngineOfEveryNonLlamaPin(t *testing.T) {
 			t.Errorf("%s engine = %q, want piper", id, m.Engine)
 		}
 	}
+	// The ear's engine is stated too, and it is the pin that made the field
+	// load-bearing for a NON-GGUF artifact: a ggml .bin is opened by
+	// whisper-server through the box's swapper, and nothing about the file
+	// says so.
+	if m, ok := byID["ggml-large-v3-turbo"]; !ok {
+		t.Error("the seed lost the whisper pin")
+	} else if m.Engine != "whisper.cpp" {
+		t.Errorf("ggml-large-v3-turbo engine = %q, want whisper.cpp", m.Engine)
+	}
 	// llama.cpp pins keep the default: empty, so no historical pin changed
 	// shape when the field arrived.
 	for _, id := range []string{"qwen3.5-4b-q4_k_m", "bge-m3"} {

@@ -24,7 +24,7 @@ func TestDemoBoxManifestForOwner(t *testing.T) {
 		{"persona", "qwen3.5-4b-q4_k_m"},
 		{"worker", "qwen2.5-coder-7b-q4_k_m"},
 		{"embedding", "bge-m3"},
-		{"stt", "faster-whisper-medium"},
+		{"stt", "ggml-large-v3-turbo"},
 		{"vad", "silero-vad"},
 		{"tts", "pl_PL-gosia-medium"},
 	} {

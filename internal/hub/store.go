@@ -226,6 +226,7 @@ CREATE TABLE IF NOT EXISTS boxes (
 	config_version INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS box_narrator (
+	id              TEXT,
 	box_id          TEXT PRIMARY KEY,
 	name            TEXT NOT NULL,
 	locale          TEXT NOT NULL DEFAULT 'en',
@@ -488,6 +489,7 @@ CREATE TABLE IF NOT EXISTS boxes (
 	config_version BIGINT NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS box_narrator (
+	id              TEXT,
 	box_id          TEXT PRIMARY KEY,
 	name            TEXT NOT NULL,
 	locale          TEXT NOT NULL DEFAULT 'en',
@@ -673,6 +675,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 	if err := s.ensureBoxNarrator(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("promoting box narrator to a box property: %w", err)
+	}
+	if err := s.ensureNarratorID(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("minting the box narrator id: %w", err)
 	}
 	if err := s.dropStaffScopeColumns(); err != nil {
 		db.Close()
@@ -1513,6 +1519,54 @@ func (s *Store) ensureNarratorNameAnia() error {
 // seeds box_narrator directly, so the move finds no box-scoped rows and does
 // nothing. The box list is read before the write transaction — a store opens
 // single-threaded — so the move and the bumps commit together.
+// ensureNarratorID adds the minted id column to box_narrator and backfills
+// one for every row that predates it. The id is a staff-<uuidv7> minted on the
+// hub and rides in the manifest, so each backfilled box bumps config_version
+// once — a second open finds no empty ids and does nothing.
+func (s *Store) ensureNarratorID() error {
+	if err := s.ensureColumn("box_narrator", "id", "TEXT"); err != nil {
+		return err
+	}
+	rows, err := s.db.Query(`SELECT box_id FROM box_narrator WHERE id IS NULL OR id = ''`)
+	if err != nil {
+		return err
+	}
+	boxIDs := []string{}
+	for rows.Next() {
+		var b string
+		if err := rows.Scan(&b); err != nil {
+			rows.Close()
+			return err
+		}
+		boxIDs = append(boxIDs, b)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(boxIDs) == 0 {
+		return nil
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, b := range boxIDs {
+		narrID, err := id.New(id.Staff)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(`UPDATE box_narrator SET id = ? WHERE box_id = ?`, narrID, b); err != nil {
+			return err
+		}
+		if err := bumpBoxConfig(tx, b); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 func (s *Store) ensureBoxNarrator() error {
 	ok, err := s.hasTable("box_narrator")
 	if err != nil {

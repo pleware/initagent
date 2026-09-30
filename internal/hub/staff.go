@@ -51,8 +51,10 @@ type Staff struct {
 // narratorSlug is the fixed marker of every box's narrator — the one being
 // that is the box itself (58) — and it is the name the being's Hermes profile
 // is planted under (`narrator-profile`, the final design §1). Unlike staff
-// slugs it is never stored as a unique key: a narrator is 1:1 with its box,
-// so the box's id is its identity and this is a constant the manifest emits.
+// slugs it is never stored as a unique key: a narrator is 1:1 with its box, so
+// box_narrator stays keyed by box_id. The narrator carries its own minted id
+// (staff-<uuidv7>, see Narrator.ID) that the seam and the reflex cite — the
+// box's id is no longer the narrator's identity.
 //
 // It replaced the retired `st_b_*` marker on 2026-09-27: a staff slug in the
 // box-scoped namespace, carrying a captain's initials while the being answers
@@ -63,11 +65,14 @@ type Staff struct {
 const narratorSlug = "narrator-profile"
 
 // Narrator is a box's own voice — the box's 1:1 being, its property rather
-// than an installation-scoped staff member (58). It has no id of its own:
-// box_narrator.box_id is the primary key, so the box's identity is the
-// narrator's identity. It always carries the fixed marker narratorSlug and
-// never appears in an org roster.
+// than an installation-scoped staff member (58). It stays keyed by box_id (one
+// narrator per box), but it carries its own minted identity: ID is a
+// staff-<uuidv7> minted on the hub, so the box's id is no longer the
+// narrator's identity and the seam/reflex can cite the narrator by id. It
+// always carries the fixed marker narratorSlug and never appears in an org
+// roster.
 type Narrator struct {
+	ID               string    `json:"id"`
 	Slug             string    `json:"slug"`
 	Name             string    `json:"name"`
 	Locale           string    `json:"locale"`

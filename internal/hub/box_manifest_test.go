@@ -93,6 +93,9 @@ func TestBuildBoxManifestShape(t *testing.T) {
 	if narrator.Slug != "narrator-profile" {
 		t.Errorf("narrator = %+v, want the box's narrator-profile narrator", narrator)
 	}
+	if narrator.ID == "" || narrator.ID == box.ID {
+		t.Errorf("narrator id = %q, want a minted id distinct from the box id %q", narrator.ID, box.ID)
+	}
 }
 
 // Only the organizations bound to the box appear: an org elsewhere on the

@@ -560,8 +560,8 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 	if narrator == nil || narrator.Slug != "narrator-profile" || narrator.Name != "Ania" {
 		t.Errorf("migrated narrator = %+v, want narrator-profile/Ania in box_narrator", narrator)
 	}
-	if got, _ := again.GetBox(legacy.ID); got.ConfigVersion != 4 {
-		t.Errorf("legacy box config_version = %d, want 4 (two rename bumps + move bump)", got.ConfigVersion)
+	if got, _ := again.GetBox(legacy.ID); got.ConfigVersion != 5 {
+		t.Errorf("legacy box config_version = %d, want 5 (two rename bumps + move bump + id mint)", got.ConfigVersion)
 	}
 	if got, _ := again.GetBox(fresh.ID); got.ConfigVersion != 2 {
 		t.Errorf("fresh box config_version = %d, want 2 (the marker rename bumps every box)", got.ConfigVersion)
@@ -578,8 +578,8 @@ func TestOpenStoreRenamesBoxNarratorSlug(t *testing.T) {
 		t.Fatalf("third open on a renamed store: %v", err)
 	}
 	t.Cleanup(func() { third.Close() })
-	if got, _ := third.GetBox(legacy.ID); got.ConfigVersion != 4 {
-		t.Errorf("legacy box config_version after a second reopen = %d, want 4 (no re-bump)", got.ConfigVersion)
+	if got, _ := third.GetBox(legacy.ID); got.ConfigVersion != 5 {
+		t.Errorf("legacy box config_version after a second reopen = %d, want 5 (no re-bump)", got.ConfigVersion)
 	}
 }
 
@@ -638,8 +638,8 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 	if narrator == nil || narrator.Slug != "narrator-profile" || narrator.Name != "Ania" {
 		t.Errorf("migrated narrator = %+v, want narrator-profile/Ania in box_narrator", narrator)
 	}
-	if got, _ := again.GetBox(box.ID); got.ConfigVersion != 4 {
-		t.Errorf("box config_version = %d, want 4 (name bump + marker bump + move bump)", got.ConfigVersion)
+	if got, _ := again.GetBox(box.ID); got.ConfigVersion != 5 {
+		t.Errorf("box config_version = %d, want 5 (name bump + marker bump + move bump + id mint)", got.ConfigVersion)
 	}
 
 	// A second reopen is a no-op: the row already carries the new name and the
@@ -652,8 +652,8 @@ func TestOpenStoreRenamesNarratorName(t *testing.T) {
 		t.Fatalf("third open on a renamed store: %v", err)
 	}
 	t.Cleanup(func() { third.Close() })
-	if got, _ := third.GetBox(box.ID); got.ConfigVersion != 4 {
-		t.Errorf("box config_version after a second reopen = %d, want 4 (no re-bump)", got.ConfigVersion)
+	if got, _ := third.GetBox(box.ID); got.ConfigVersion != 5 {
+		t.Errorf("box config_version after a second reopen = %d, want 5 (no re-bump)", got.ConfigVersion)
 	}
 }
 

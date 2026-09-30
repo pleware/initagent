@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pleware/initagent/internal/id"
 	"github.com/pleware/initagent/internal/store"
 )
 
@@ -19,13 +20,13 @@ import (
 // stored as a key.
 
 // scanNarrator reads one box_narrator row selected in schema order:
-// name, locale, age, big_five, brief, word_budget, avatar_model_3d,
+// id, name, locale, age, big_five, brief, word_budget, avatar_model_3d,
 // soul_core, voice, biological_gender, created_at, updated_at.
 // A missing row is (nil, nil).
 func scanNarrator(row staffScanner) (*Narrator, error) {
 	var n Narrator
 	var bigFive string
-	if err := row.Scan(&n.Name, &n.Locale, &n.Age, &bigFive, &n.Brief, &n.WordBudget,
+	if err := row.Scan(&n.ID, &n.Name, &n.Locale, &n.Age, &bigFive, &n.Brief, &n.WordBudget,
 		&n.AvatarModel3D, &n.SoulCore, &n.Voice, &n.BiologicalGender, &n.CreatedAt, &n.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -44,7 +45,7 @@ func scanNarrator(row staffScanner) (*Narrator, error) {
 // GetBoxNarrator returns one box's narrator. A box whose narrator has not
 // been seeded yet is (nil, nil).
 func (s *Store) GetBoxNarrator(boxID string) (*Narrator, error) {
-	return scanNarrator(s.db.QueryRow(`SELECT name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, created_at, updated_at
+	return scanNarrator(s.db.QueryRow(`SELECT id, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, created_at, updated_at
 		FROM box_narrator WHERE box_id = ?`, boxID))
 }
 
@@ -71,8 +72,13 @@ func upsertNarratorTx(tx *store.Tx, boxID, name, locale, avatarModel3D, brief, s
 		return nil, err
 	}
 
+	staffId, err := id.New(id.Staff)
+	if err != nil {
+		return nil, err
+	}
 	now := time.Now().Unix()
 	n := &Narrator{
+		ID:               staffId,
 		Slug:             narratorSlug,
 		Name:             name,
 		Locale:           locale,
@@ -87,9 +93,9 @@ func upsertNarratorTx(tx *store.Tx, boxID, name, locale, avatarModel3D, brief, s
 		CreatedAt:        now,
 		UpdatedAt:        now,
 	}
-	if _, err = tx.Exec(`INSERT INTO box_narrator (box_id, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		boxID, n.Name, n.Locale, n.Age, bigFiveJSON, n.Brief, n.WordBudget, n.AvatarModel3D, n.SoulCore, n.Voice, n.BiologicalGender, n.CreatedAt, n.UpdatedAt); err != nil {
+	if _, err = tx.Exec(`INSERT INTO box_narrator (id, box_id, name, locale, age, big_five, brief, word_budget, avatar_model_3d, soul_core, voice, biological_gender, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		staffId, boxID, n.Name, n.Locale, n.Age, bigFiveJSON, n.Brief, n.WordBudget, n.AvatarModel3D, n.SoulCore, n.Voice, n.BiologicalGender, n.CreatedAt, n.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return n, nil

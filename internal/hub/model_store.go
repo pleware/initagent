@@ -1099,11 +1099,23 @@ func (s *Store) EnsureSeedModels() error {
 			// per-box override — point a box's speech at it.
 		},
 		{
-			id:      "laya-multilingual",
-			org:     "convaiinnovations",
-			source:  "convaiinnovations/laya-multilingual@e4e9ddf21a7b1903b7acffd8814ad4307bf63a67",
+			id:  "laya-multilingual",
+			org: "convaiinnovations",
+			// The BUNDLE repository, not the standalone one: `laya-serve` builds its
+			// Router with `standalone_repos` at its default (`laya/router.py`,
+			// `DEFAULT_MODELS`), so `LAYA_MODELS=multilingual` opens
+			// `convaiinnovations/laya` at subfolder `multilingual`. The standalone
+			// `convaiinnovations/laya-multilingual` this pin used to name was pulled,
+			// verified and then never opened — measured on the box 2026-10-03, where
+			// llama-swap answered `starting laya-multilingual failed: upstream command
+			// exited prematurely` because the loader asked the Hub for the bundle at
+			// `e4e9ddf2` and `HF_HUB_OFFLINE=1` refused it. The revision below is the
+			// bundle's own reviewed SHA (`laya/revisions.py`, PINNED_REVISIONS), which
+			// is what `LAYA_REVISION=reviewed` resolves to once the router loads the
+			// bundle — and what the roster passes.
+			source:  "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851",
 			quant:   "",
-			file:    "model.safetensors",
+			file:    "multilingual/model.safetensors",
 			digest:  "fcb32583ebbc758f5cf2a214ed0560f26c8686456902e8a8cae002a85d588631",
 			licence: "Apache-2.0",
 			purpose: "classification",
@@ -1113,11 +1125,18 @@ func (s *Store) EnsureSeedModels() error {
 			// by theirs. It is registered here so a box can resolve the
 			// reflex's triage model out of the same pin layer as every other
 			// role. The digest is the BLAKE3 of the artifact the pin names
-			// (`model.safetensors`), and every file below carries its own —
-			// all five hashed twice and checked against the pinned revision's
-			// byte counts on 2026-09-28. Registered is not assigned, and
-			// assigned is not served: SetAssignment points a purpose at it,
-			// and no program answers for it yet.
+			// (`multilingual/model.safetensors`), and every file below carries
+			// its own. Four of the five are byte-identical to the standalone
+			// repository's copies — same size and same sha256 in the Hub's own
+			// tree, so the same BLAKE3 applies — and the fifth does not:
+			// `tokenizer_config.json` differs between the two homes (the
+			// bundle's spells `extra_special_tokens` as a dict, the
+			// standalone's as a list; 524 bytes against 502). Its sum is
+			// recomputed from the bundle's own bytes, and the whole list was
+			// re-checked against the pinned revision's byte counts on
+			// 2026-10-03. Registered is not assigned, and assigned is not
+			// served: SetAssignment points a purpose at it, and no program
+			// answers for it yet.
 			// engine is stated because the roster spawns it: the box asks the
 			// pin which program opens its bytes, and this one is not ggml — it
 			// rides the unified llama-swap image and the same swapper as the
@@ -1132,13 +1151,15 @@ func (s *Store) EnsureSeedModels() error {
 			// The encoder loads a directory, not one file, so each artifact
 			// carries its own sum and the pin's own Digest is the loaded one.
 			// Biggest first: 614 MiB is the rare transfer, the four
-			// declarations are not.
+			// declarations are not. The `multilingual/` prefix is the
+			// subfolder the engine loads, so a file here is the cache
+			// path the puller materialises and the loader opens.
 			files: []ModelFile{
-				{File: "model.safetensors", Digest: "fcb32583ebbc758f5cf2a214ed0560f26c8686456902e8a8cae002a85d588631"},
-				{File: "encoder/config.json", Digest: "a831925d30809ab5bb2ad5424eff016a422310a8989758c44631748276eee06a"},
-				{File: "rl_agent_config.json", Digest: "dd2da6b7f43afd2babffa290bb1857784e49d825e6f76c5c0ab1d0fbdf441714"},
-				{File: "tokenizer/tokenizer.json", Digest: "01e0f0d31015fa48f99c5e7aea639fbf136181e632cfbf40156862aced7b20b1"},
-				{File: "tokenizer/tokenizer_config.json", Digest: "7360e6d74c660f826bffabc39bae1c391d3290dd47e3bb4c02d3b29af3b54183"},
+				{File: "multilingual/model.safetensors", Digest: "fcb32583ebbc758f5cf2a214ed0560f26c8686456902e8a8cae002a85d588631"},
+				{File: "multilingual/encoder/config.json", Digest: "a831925d30809ab5bb2ad5424eff016a422310a8989758c44631748276eee06a"},
+				{File: "multilingual/rl_agent_config.json", Digest: "dd2da6b7f43afd2babffa290bb1857784e49d825e6f76c5c0ab1d0fbdf441714"},
+				{File: "multilingual/tokenizer/tokenizer.json", Digest: "01e0f0d31015fa48f99c5e7aea639fbf136181e632cfbf40156862aced7b20b1"},
+				{File: "multilingual/tokenizer/tokenizer_config.json", Digest: "8486197d7556f869092d214857a10fc9b75f8108250197ba08e7e9df8dba6637"},
 			},
 		},
 	}

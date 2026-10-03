@@ -910,6 +910,46 @@ func (s *Store) EnsureSeedModels() error {
 			digest:  "bd861b19a51c83ee067b54d7d8b7f40bc11bafcc526506edc00b163e1c53bb8e",
 			licence: "MIT",
 			purpose: "vad",
+			// No engine field: nothing on a box serves this pin. The engine
+			// opens its own copy of the same family under `vendor/silero/`,
+			// and an ONNX artifact is outside every engine this roster
+			// spawns — see the pulsevad pin below for the one a box can
+			// actually be served (`99`).
+		},
+		{
+			id:      "pulsevad-f32",
+			org:     "audio-cpp",
+			source:  "audio-cpp/audio.cpp-gguf@351dbab8d8534675ee29440bb402e348b09e55e2",
+			quant:   "F32",
+			file:    "PulseVAD-GGUF/pulsevad-2.1k-f32.gguf",
+			digest:  "7cf79fd58584ef0a3b2a195770d616fe5ca0f544cc1880caec41d7bf82c1a894",
+			licence: "MIT",
+			purpose: "vad",
+			// The runtime that opens these bytes, not the family: the same
+			// `audiocpp_server` the roster already spawns for VoxCPM2 reads
+			// this pin. The id is the FAMILY (`pulsevad`) plus its
+			// quantization — the box derives the family audio.cpp wants by
+			// trimming the quant suffix, so the id is `pulsevad-f32` and not
+			// the catalogue's package name `pulsevad_2_1k_f32`, which names
+			// one build of the family and would be read as a family of its
+			// own.
+			engine: "audio.cpp",
+			// A SECOND pin for `vad`, and the assignment still names
+			// silero-vad: a row here makes a model available, it does not
+			// point the box at it (`99`). 81,408 bytes, MIT © 2026 Aydin
+			// Adnan; the family ships in the unified image's own catalogue
+			// (`model_specs/pulsevad.json`, status `supported`, task `vad`,
+			// mode `offline`, package `pulsevad_2_1k_f32`). It is the
+			// smallest useful pin in this registry, which is why the VAD is
+			// the first audio role to move onto audio.cpp.
+			//
+			// The digest lands HERE rather than in a follow-up commit, the
+			// same deliberate deviation the ear's pin took: the sum is not a
+			// hash of a convenient download but of the artifact AT the pinned
+			// revision (fetched from `resolve/351dbab8…`, not from `main`),
+			// hashed twice with the same answer, and a pin that spent a
+			// deploy cycle unverifiable would be one `SetAssignment` away from
+			// being handed to a box with no proof behind it.
 		},
 		{
 			id:      "pl_PL-bass-high",

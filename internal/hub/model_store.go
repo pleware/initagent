@@ -1099,6 +1099,40 @@ func (s *Store) EnsureSeedModels() error {
 			// per-box override — point a box's speech at it.
 		},
 		{
+			id:      "audio8_tts-q8_0",
+			org:     "js-byte",
+			source:  "js-byte/Audio8-TTS-Preview-0.6b-GGUF@788f6fdb0bbdbbc407c63f3265cea9875b4a7c14",
+			quant:   "Q8_0",
+			file:    "audio8-tts-preview-0.6b-q8_0.gguf",
+			digest:  "",
+			licence: "Apache-2.0",
+			purpose: "tts",
+			// Same runtime as VoxCPM2 — the roster spawns `audiocpp_server` for
+			// this pin too, so a second mouth costs no container and no port.
+			// The id is the family (`audio8_tts`) plus its quantization, so the
+			// box derives the family audio.cpp opens by trimming `-q8_0`.
+			engine: "audio.cpp",
+			// A THIRD kind of mouth under `tts`, registered and NOT assigned:
+			// factoryAssignments still resolves `tts` to `voxcpm2-q8_0` (`75`
+			// §2, §5). Audio8 TTS Preview is 0.6B — a quarter of VoxCPM2's 2B —
+			// so on a card shared with the desktop it costs less VRAM and
+			// synthesises faster, which is the whole point of offering it
+			// beside VoxCPM2. It is Apache-2.0 end to end (Hugging Face tags
+			// `apache-2.0`, no gating), streams and speaks Polish.
+			//
+			// The digest is EMPTY on purpose: this pin lands as a candidate
+			// before any byte has run on a box, and an empty digest is what
+			// makes `SetAssignment` refuse it (`ErrModelUnverified`). It is
+			// filled in the same turn the artifact is fetched, hashed twice
+			// and measured against VoxCPM2 — a pin a deploy could hand to a
+			// box with no proof behind it is worse than an unassignable one.
+			//
+			// One caveat: the image's catalogue marks the family `community`,
+			// not `supported` (`model_specs/audio8_tts.json`, task `tts`,
+			// modes offline + streaming) — servable today, less walked than
+			// VoxCPM2. That is a measurement question, not a licence one.
+		},
+		{
 			id:  "laya-multilingual",
 			org: "convaiinnovations",
 			// The BUNDLE repository, not the standalone one: `laya-serve` builds its

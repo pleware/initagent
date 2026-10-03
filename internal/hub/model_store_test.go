@@ -381,8 +381,8 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 21 {
-		t.Fatalf("ListModels = %+v, want the twenty-one factory pins", list)
+	if len(list) != 22 {
+		t.Fatalf("ListModels = %+v, want the twenty-two factory pins", list)
 	}
 	byID := map[string]Model{}
 	for _, m := range list {
@@ -423,6 +423,10 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		{"pl_PL-mc_speech-medium", "rhasspy", "rhasspy/piper-voices@", "", "9ee4676f29dc7125a591f7eb1bdd7a26808040183b3629a7cef56e158fc9132d", "MIT", "tts"},
 		{"pl_PL-mls_6892-low", "rhasspy", "rhasspy/piper-voices@", "", "e9e2971ac7132984c6f6958c21501dec46638332b9e1bcc113a417aead270cde", "MIT", "tts"},
 		{"voxcpm2-q8_0", "audio-cpp", "audio-cpp/audio.cpp-gguf@", "Q8_0", "2c59cf47b411b560579dff54f076e5684c85d11fd8e2c0c9602a39cf6d5ca3e9", "Apache-2.0", "tts"},
+		// Audio8 lands as a candidate mouth: registered, not assigned, and its
+		// digest empty until the artifact is fetched and hashed. The source is
+		// js-byte's own repo, not audio-cpp's — the weights live there.
+		{"audio8_tts-q8_0", "js-byte", "js-byte/Audio8-TTS-Preview-0.6b-GGUF@", "Q8_0", "", "Apache-2.0", "tts"},
 		{"gemma-4-12b-qat", "unsloth", "unsloth/gemma-4-12B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "persona"},
 		{"gemma-4-e4b-qat", "unsloth", "unsloth/gemma-4-E4B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "persona"},
 		{"qwen3.5-9b-q4_k_m", "unsloth", "unsloth/Qwen3.5-9B-GGUF@", "Q4_K_M", "", "Apache-2.0", "persona"},
@@ -535,8 +539,8 @@ func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 21 {
-		t.Errorf("ListModels after reseed has %d rows, want 21", len(list))
+	if len(list) != 22 {
+		t.Errorf("ListModels after reseed has %d rows, want 22", len(list))
 	}
 }
 
@@ -578,8 +582,8 @@ func TestEnsureSeedModelsBumpsBoxesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 21 {
-		t.Errorf("ListModels after reseed has %d rows, want 21", len(list))
+	if len(list) != 22 {
+		t.Errorf("ListModels after reseed has %d rows, want 22", len(list))
 	}
 }
 
@@ -593,8 +597,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 21 {
-		t.Errorf("fresh open has %d pins, want the twenty-one seeds", len(list))
+	if len(list) != 22 {
+		t.Errorf("fresh open has %d pins, want the twenty-two seeds", len(list))
 	}
 	box, err := s.CreateBox("reopen-box", "Reopen", "", "")
 	if err != nil {
@@ -622,8 +626,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 21 {
-		t.Errorf("reopen has %d pins, want 21", len(list))
+	if len(list) != 22 {
+		t.Errorf("reopen has %d pins, want 22", len(list))
 	}
 }
 
@@ -803,8 +807,8 @@ func TestListModelsPublic(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 21 {
-		t.Fatalf("public catalog has %d pins, want the twenty-one seeds", len(got))
+	if len(got) != 22 {
+		t.Fatalf("public catalog has %d pins, want the twenty-two seeds", len(got))
 	}
 	for _, m := range got {
 		if m.ID == "" || m.Org == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
@@ -871,7 +875,7 @@ func TestAdminModelEndpoints(t *testing.T) {
 		t.Errorf("update missing: %d, want 404", resp.StatusCode)
 	}
 
-	// List includes the new pin (twenty-one seeds + the admin's).
+	// List includes the new pin (twenty-two seeds + the admin's).
 	resp = f.do(t, http.MethodGet, "/api/admin/models", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list: %d, want 200", resp.StatusCode)
@@ -880,8 +884,8 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 22 {
-		t.Errorf("list has %d pins, want 22 (seeds + admin-model)", len(list))
+	if len(list) != 23 {
+		t.Errorf("list has %d pins, want 23 (seeds + admin-model)", len(list))
 	}
 
 	// Delete.

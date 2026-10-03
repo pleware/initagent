@@ -682,6 +682,13 @@
     "editTitle": "Edytuj {{id}}",
     "registry": "Rejestr",
     "registryHint": "Jeden pin na model i kwantyzację. Digest to BLAKE3 przypiętego artefaktu — pusty znaczy niezweryfikowany.",
+    "engineHint": {
+      "llamaCpp": "Otwiera je llama-server pudełka: umysły, embedding — i każdy pin z pustym polem engine, bo to domyślna komora huba.",
+      "audioCpp": "Otwiera je audiocpp_server, silnik głosu pudełka: usta i detektory mowy obok nich.",
+      "whisperCpp": "Otwiera je whisper-server — ucho.",
+      "laya": "Otwiera je laya-serve — enkoder decyzji refleksu.",
+      "piper": "Otwiera je własny kontener — głosy na CPU, które router pudełka wciąż podaje."
+    },
     "assignments": "Przypisania fabryczne",
     "assignmentsHint": "Do czego rozwiązuje się każdy purpose, gdy boks nie ma własnego nadpisania. Przypisywalne są tylko zweryfikowane modele.",
     "org": "Org",
@@ -759,8 +766,16 @@
     "embedding": "Embedding",
     "stt": "STT",
     "vad": "VAD",
+    "turn": "Koniec tury",
     "tts": "TTS",
     "classification": "Classification"
+  },
+  "modelEngine": {
+    "llamaCpp": "llama.cpp",
+    "audioCpp": "audio.cpp",
+    "whisperCpp": "whisper.cpp",
+    "laya": "Laya",
+    "piper": "Piper"
   },
   "staff": {
     "name": "Imię",

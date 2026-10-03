@@ -98,6 +98,9 @@ func suggestPurpose(pipelineTag string) string {
 	case "automatic-speech-recognition":
 		return "stt"
 	case "audio-classification":
+		// The closest role HF has: there is no end-of-turn tag, so a turn
+		// detector (`turn`) is chosen by hand on the form rather than
+		// suggested. A VAD is what this tag usually means.
 		return "vad"
 	case "text-to-speech":
 		return "tts"

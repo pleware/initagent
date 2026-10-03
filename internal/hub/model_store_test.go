@@ -26,6 +26,8 @@ func TestParsePurpose(t *testing.T) {
 		{"narrator", "narrator", "narrator", false},
 		{"embedding", "embedding", "embedding", false},
 		{"stt", "stt", "stt", false},
+		{"vad", "vad", "vad", false},
+		{"turn", "turn", "turn", false},
 		{"trimmed and folded", "  Worker  ", "worker", false},
 		{"unknown", "chat", "", true},
 		{"empty", "", "", true},
@@ -255,6 +257,10 @@ func TestParsePurposes(t *testing.T) {
 		{"case-insensitive", []string{"Persona"}, []string{"persona", "narrator"}, false},
 		{"unknown refused", []string{"chat"}, nil, true},
 		{"worker plus persona", []string{"worker", "persona"}, []string{"persona", "worker", "narrator"}, false},
+		// The canonical order is what the box's roster is built in, so a
+		// purpose's place in it is a contract, not a display quirk: turn
+		// sits between the speech detector and the mouth.
+		{"turn sorts between vad and tts", []string{"tts", "turn"}, []string{"turn", "tts"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -375,8 +381,8 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 20 {
-		t.Fatalf("ListModels = %+v, want the twenty factory pins", list)
+	if len(list) != 21 {
+		t.Fatalf("ListModels = %+v, want the twenty-one factory pins", list)
 	}
 	byID := map[string]Model{}
 	for _, m := range list {
@@ -406,6 +412,11 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		// opens it — and its digest is the pinned revision's (fetched from
 		// `resolve/351dbab8…` rather than from `main`), hashed twice.
 		{"pulsevad-f32", "audio-cpp", "audio-cpp/audio.cpp-gguf@", "F32", "7cf79fd58584ef0a3b2a195770d616fe5ca0f544cc1880caec41d7bf82c1a894", "MIT", "vad"},
+		// The turn detector is registered ahead of the engine that can open
+		// it: today's audio.cpp answers `unsupported task: turn`. The pin is
+		// here so the role has a name and a verified artifact the day the
+		// image's audio.cpp passes upstream 8ebcc046f.
+		{"smart_turn-f32", "audio-cpp", "audio-cpp/audio.cpp-gguf@", "F32", "0bb6e15f9446bbabe175243619b1f21bebf5ddac2bd37be676d1238268619cc2", "BSD-2-Clause", "turn"},
 		{"pl_PL-bass-high", "rhasspy", "rhasspy/piper-voices@", "", "d122a10b565681d97ae302b0a4cc617ca59e0cd87b5196ec667ff9c125357b9f", "MIT", "tts"},
 		{"pl_PL-darkman-medium", "rhasspy", "rhasspy/piper-voices@", "", "7554030dd8b3cd40529098054600dc7194f4d146e29fc24f89b89a94c7a43df4", "MIT", "tts"},
 		{"pl_PL-gosia-medium", "rhasspy", "rhasspy/piper-voices@", "", "cec3f38aa9c14d2dfbe43465e818253ee0ed05854288cde7bfda7131acc4fa1b", "MIT", "tts"},
@@ -521,8 +532,8 @@ func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 20 {
-		t.Errorf("ListModels after reseed has %d rows, want 20", len(list))
+	if len(list) != 21 {
+		t.Errorf("ListModels after reseed has %d rows, want 21", len(list))
 	}
 }
 
@@ -564,8 +575,8 @@ func TestEnsureSeedModelsBumpsBoxesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 20 {
-		t.Errorf("ListModels after reseed has %d rows, want 20", len(list))
+	if len(list) != 21 {
+		t.Errorf("ListModels after reseed has %d rows, want 21", len(list))
 	}
 }
 
@@ -579,8 +590,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 20 {
-		t.Errorf("fresh open has %d pins, want the twenty seeds", len(list))
+	if len(list) != 21 {
+		t.Errorf("fresh open has %d pins, want the twenty-one seeds", len(list))
 	}
 	box, err := s.CreateBox("reopen-box", "Reopen", "", "")
 	if err != nil {
@@ -608,8 +619,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 20 {
-		t.Errorf("reopen has %d pins, want 20", len(list))
+	if len(list) != 21 {
+		t.Errorf("reopen has %d pins, want 21", len(list))
 	}
 }
 
@@ -789,8 +800,8 @@ func TestListModelsPublic(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 20 {
-		t.Fatalf("public catalog has %d pins, want the twenty seeds", len(got))
+	if len(got) != 21 {
+		t.Fatalf("public catalog has %d pins, want the twenty-one seeds", len(got))
 	}
 	for _, m := range got {
 		if m.ID == "" || m.Org == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
@@ -857,7 +868,7 @@ func TestAdminModelEndpoints(t *testing.T) {
 		t.Errorf("update missing: %d, want 404", resp.StatusCode)
 	}
 
-	// List includes the new pin (twenty seeds + the admin's).
+	// List includes the new pin (twenty-one seeds + the admin's).
 	resp = f.do(t, http.MethodGet, "/api/admin/models", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list: %d, want 200", resp.StatusCode)
@@ -866,8 +877,8 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 21 {
-		t.Errorf("list has %d pins, want 21 (seeds + admin-model)", len(list))
+	if len(list) != 22 {
+		t.Errorf("list has %d pins, want 22 (seeds + admin-model)", len(list))
 	}
 
 	// Delete.

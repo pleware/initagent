@@ -455,7 +455,7 @@ export interface Skill {
 // Purpose is the role a pinned model serves on a box. The hub owns the set;
 // an unknown value on the wire never reaches this union — the hub refuses it
 // with a 400 before it gets here.
-export type Purpose = 'persona' | 'worker' | 'narrator' | 'embedding' | 'stt' | 'vad' | 'tts' | 'classification'
+export type Purpose = 'persona' | 'worker' | 'narrator' | 'embedding' | 'stt' | 'vad' | 'turn' | 'tts' | 'classification'
 
 // Model is one pinned model of the installation's registry
 // (`initagent.hub.model`): identity and provenance only — the hub holds no
@@ -477,6 +477,11 @@ export interface Model {
   licence: string
   purpose: Purpose
   purposes: Purpose[]
+  // engine is the runtime that opens this pin's bytes, written only when it is
+  // not the hub's default — so an absent field means llama.cpp, which is what
+  // engineOf() resolves. The registry page groups by it: a pin whose engine is
+  // wrong is indistinguishable from a working one until the box fails.
+  engine?: string
   pipelineTag: string
   libraryName: string
   baseModel: string

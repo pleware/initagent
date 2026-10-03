@@ -16,7 +16,7 @@ import DataTable from '../components/DataTable'
 import Modal from '../components/Modal'
 import LimitsEditor from '../components/LimitsEditor'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
-import { GENERATIVE_PURPOSES, PURPOSES, modelLabel, modelServes } from '../models'
+import { engineKey, engineOf, GENERATIVE_PURPOSES, PURPOSES, modelLabel, modelServes } from '../models'
 import type { Box, BoxEdition, BoxToken, Model, ModelAssignment, ModelLimits, Org, Purpose } from '../types'
 
 // The editions the hub knows, weakest-named first, in select order. The
@@ -915,9 +915,20 @@ function ModelsPanel({ box }: { box: Box }) {
           {PURPOSES.map((purpose) => {
             const resolved = roster[purpose]
             const pickable = (catalog ?? []).filter((m) => modelServes(m, purpose))
-            const items = pickable.map((m) => ({ value: m.id, label: modelLabel(m) }))
+            // The same rule as the factory page: the engine is printed only
+            // where the choice is real — a purpose whose candidates span
+            // engines (tts) is the one an operator can land in the wrong
+            // compartment by picking.
+            const spansEngines = new Set(pickable.map(engineOf)).size > 1
+            const labelled = (m: Model) =>
+              spansEngines
+                ? `${modelLabel(m)} — ${t('modelEngine.' + engineKey(engineOf(m)), {
+                    defaultValue: engineOf(m),
+                  })}`
+                : modelLabel(m)
+            const items = pickable.map((m) => ({ value: m.id, label: labelled(m) }))
             if (resolved && !items.some((item) => item.value === resolved.id)) {
-              items.unshift({ value: resolved.id, label: modelLabel(resolved) })
+              items.unshift({ value: resolved.id, label: labelled(resolved) })
             }
             if (!resolved) {
               items.unshift({ value: '', label: t('models.noModel') })
@@ -942,6 +953,11 @@ function ModelsPanel({ box }: { box: Box }) {
                         }
                       >
                         {isOverride(purpose) ? t('models.override') : t('models.factory')}
+                      </span>
+                      <span className="ml-2 rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-subtle">
+                        {t('modelEngine.' + engineKey(engineOf(resolved)), {
+                          defaultValue: engineOf(resolved),
+                        })}
                       </span>
                     </>
                   ) : (

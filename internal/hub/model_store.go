@@ -193,15 +193,18 @@ var modelPurposes = map[string]bool{
 	"embedding":      true,
 	"stt":            true,
 	"vad":            true,
+	"turn":           true,
 	"tts":            true,
 	"classification": true,
 }
 
-// modelPurposeOrder lists the eight purposes in canonical order. Map
+// modelPurposeOrder lists the nine purposes in canonical order. Map
 // iteration order is not deterministic, so ResolvedModels walks this slice
 // to build the roster in a stable order. The three generative roles —
-// persona, worker and narrator — come first, then the non-generative pins.
-var modelPurposeOrder = []string{"persona", "worker", "narrator", "embedding", "stt", "vad", "tts", "classification"}
+// persona, worker and narrator — come first, then the non-generative pins:
+// embedding, then the speech path in the order a turn runs it (stt, vad,
+// turn, tts), then the reflex's encoder.
+var modelPurposeOrder = []string{"persona", "worker", "narrator", "embedding", "stt", "vad", "turn", "tts", "classification"}
 
 // ParsePurpose accepts a model purpose from the wire, trimmed and
 // case-insensitive. There is no default — a model's purpose is required —
@@ -211,7 +214,7 @@ var modelPurposeOrder = []string{"persona", "worker", "narrator", "embedding", "
 func ParsePurpose(s string) (string, error) {
 	p := strings.ToLower(strings.TrimSpace(s))
 	if !modelPurposes[p] {
-		return "", fmt.Errorf("purpose %q: want persona, worker, narrator, embedding, stt, vad, tts or classification", s)
+		return "", fmt.Errorf("purpose %q: want persona, worker, narrator, embedding, stt, vad, turn, tts or classification", s)
 	}
 	return p, nil
 }
@@ -1025,6 +1028,43 @@ func (s *Store) EnsureSeedModels() error {
 			// by name — empty means llama.cpp, which cannot open an ONNX voice
 			// at all.
 			engine: "piper",
+		},
+		{
+			id:      "smart_turn-f32",
+			org:     "audio-cpp",
+			source:  "audio-cpp/audio.cpp-gguf@351dbab8d8534675ee29440bb402e348b09e55e2",
+			quant:   "F32",
+			file:    "Smart-Turn-v3-GGUF/smart-turn-v3.2-f32.gguf",
+			digest:  "0bb6e15f9446bbabe175243619b1f21bebf5ddac2bd37be676d1238268619cc2",
+			licence: "BSD-2-Clause",
+			purpose: "turn",
+			// The id spells the family the way the engine spells it —
+			// `smart_turn`, underscore and all — because the box derives the
+			// family by trimming the quant suffix (`smart_turn-f32` →
+			// `smart_turn`) and that word is what audio.cpp is asked to open.
+			// The catalogue's own package name, `smart_turn_v3_2_f32`, names
+			// one build of the family and would read as a family of its own.
+			engine: "audio.cpp",
+			// REGISTERED, NOT SERVABLE TODAY — measured, not assumed. The
+			// box's audio.cpp (dev, git c0b26a5, from the `unified-cuda13`
+			// tag) refuses the role in its own words:
+			//
+			//   audiocpp_server failed: unsupported task: turn (expected vad,
+			//   asr, diar, sep, gen, tts, clon, vc, s2s, align, vdes, spk,
+			//   svc, or midi)
+			//
+			// The task ships with `model_specs/smart_turn.json`, added
+			// upstream in 0xshug0/audio.cpp 8ebcc046f (2026-10-01); the box's
+			// build carries 86 specs and not that one, upstream main carries
+			// 109 and does. So the turn detector becomes a servable role the
+			// day the image's audio.cpp passes that commit — a bump of the
+			// single tag in `pware-os-cli/internal/cli/assets/llama/Dockerfile`,
+			// which repulls the whole engine family with it (`99`).
+			//
+			// 32,014,304 bytes, BSD-2-Clause © 2024–2025 Daily. The sum is of
+			// the artifact AT the pinned revision — `resolve/351dbab8…`, the
+			// revision the VAD's pin froze too — fetched rather than followed,
+			// and hashed twice.
 		},
 		{
 			id:      "voxcpm2-q8_0",

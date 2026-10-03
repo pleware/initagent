@@ -9,11 +9,20 @@ import {
 import { useTranslation } from 'react-i18next'
 import { api, ApiError, hfRepoFiles, inspectModel, localizeError, searchHf } from '../api'
 import { usePoll } from '../hooks'
-import DataTable from '../components/DataTable'
+import DataTable, { type Column } from '../components/DataTable'
 import Modal from '../components/Modal'
 import LimitsEditor from '../components/LimitsEditor'
 import { SimpleSelect } from '@ia/web/components/SimpleSelect'
-import { GENERATIVE_PURPOSES, PURPOSES, modelLabel, modelPurposes, modelServes } from '../models'
+import {
+  engineGroups,
+  engineKey,
+  engineOf,
+  GENERATIVE_PURPOSES,
+  PURPOSES,
+  modelLabel,
+  modelPurposes,
+  modelServes,
+} from '../models'
 import type { HfRepoFile, HfSearchResult, Model, ModelAssignment, ModelLimits, Purpose } from '../types'
 
 // The platform operator's model layer surface: the registry of pinned
@@ -115,6 +124,81 @@ export default function ModelsPage() {
     }
   }
 
+  // The registry's columns, hoisted out of the table so the section below can
+  // draw one table per engine compartment. `engine` is deliberately not a
+  // column: which compartment a pin belongs to is the table it sits in, not a
+  // cell to read.
+  const registryColumns: Column<Model>[] = [
+    {
+      header: t('models.id'),
+      cell: (m: Model) => <span className="font-mono text-[12px] text-fg">{m.id}</span>,
+    },
+    {
+      header: t('models.org'),
+      cell: (m: Model) => <span className="text-fg-subtle">{m.org || '—'}</span>,
+    },
+    {
+      header: t('models.purpose'),
+      cell: (m: Model) => (
+        <span className="flex flex-wrap gap-1">
+          {modelPurposes(m).map((p) => (
+            <span
+              key={p}
+              className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft"
+            >
+              {t('purpose.' + p)}
+            </span>
+          ))}
+        </span>
+      ),
+    },
+    {
+      header: t('models.quant'),
+      cell: (m: Model) => (
+        <span className="font-mono text-[12px] text-fg-subtle">{m.quant || '—'}</span>
+      ),
+    },
+    {
+      header: t('models.licence'),
+      cell: (m: Model) => <span className="text-fg-subtle">{m.licence || '—'}</span>,
+    },
+    {
+      header: t('models.metadata'),
+      cell: (m: Model) => <ModelMetaCell model={m} />,
+    },
+    {
+      header: t('models.digest'),
+      cell: (m: Model) => <DigestBadge model={m} />,
+    },
+    {
+      header: '',
+      srHeader: t('models.actions'),
+      width: 'w-40',
+      cell: (m: Model) => (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => void inspect(m)}
+            className="text-xs text-fg-subtle hover:text-fg"
+          >
+            {t('models.inspect')}
+          </button>
+          <button
+            onClick={() => setEditor(m)}
+            className="text-xs text-fg-subtle hover:text-fg"
+          >
+            {t('common.edit')}
+          </button>
+          <button
+            onClick={() => void remove(m)}
+            className="text-xs text-fg-subtle hover:text-fail-fg"
+          >
+            {t('common.delete')}
+          </button>
+        </div>
+      ),
+    },
+  ]
+
   return (
     <div className="page-shell">
       <div className="mb-6 flex items-end justify-between">
@@ -147,83 +231,46 @@ export default function ModelsPage() {
           {t('models.registry')}
         </h2>
         <p className="mt-1 text-sm text-fg-muted">{t('models.registryHint')}</p>
-        <div className="mt-4">
-          <DataTable
-            rows={models}
-            rowKey={(m) => m.id}
-            empty={<p className="text-sm text-fg-subtle">{t('models.noModels')}</p>}
-            columns={[
-              {
-                header: t('models.id'),
-                cell: (m) => <span className="font-mono text-[12px] text-fg">{m.id}</span>,
-              },
-              {
-                header: t('models.org'),
-                cell: (m) => <span className="text-fg-subtle">{m.org || '—'}</span>,
-              },
-              {
-                header: t('models.purpose'),
-                cell: (m) => (
-                  <span className="flex flex-wrap gap-1">
-                    {modelPurposes(m).map((p) => (
-                      <span
-                        key={p}
-                        className="rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-soft"
-                      >
-                        {t('purpose.' + p)}
-                      </span>
-                    ))}
-                  </span>
-                ),
-              },
-              {
-                header: t('models.quant'),
-                cell: (m) => (
-                  <span className="font-mono text-[12px] text-fg-subtle">{m.quant || '—'}</span>
-                ),
-              },
-              {
-                header: t('models.licence'),
-                cell: (m) => <span className="text-fg-subtle">{m.licence || '—'}</span>,
-              },
-              {
-                header: t('models.metadata'),
-                cell: (m) => <ModelMetaCell model={m} />,
-              },
-              {
-                header: t('models.digest'),
-                cell: (m) => <DigestBadge model={m} />,
-              },
-              {
-                header: '',
-                srHeader: t('models.actions'),
-                width: 'w-40',
-                cell: (m) => (
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => void inspect(m)}
-                      className="text-xs text-fg-subtle hover:text-fg"
-                    >
-                      {t('models.inspect')}
-                    </button>
-                    <button
-                      onClick={() => setEditor(m)}
-                      className="text-xs text-fg-subtle hover:text-fg"
-                    >
-                      {t('common.edit')}
-                    </button>
-                    <button
-                      onClick={() => void remove(m)}
-                      className="text-xs text-fg-subtle hover:text-fail-fg"
-                    >
-                      {t('common.delete')}
-                    </button>
-                  </div>
-                ),
-              },
-            ]}
-          />
-        </div>
+        {models === null ? (
+          <div className="mt-4">
+            <DataTable rows={null} rowKey={(m) => m.id} empty={null} columns={registryColumns} />
+          </div>
+        ) : models.length === 0 ? (
+          <div className="mt-4">
+            <DataTable
+              rows={models}
+              rowKey={(m) => m.id}
+              empty={<p className="text-sm text-fg-subtle">{t('models.noModels')}</p>}
+              columns={registryColumns}
+            />
+          </div>
+        ) : (
+          // One table per engine. Which program opens a pin's bytes is the
+          // first thing an operator needs to see and the one thing a pin can
+          // be silently wrong about, so the registry is read as compartments
+          // rather than as one undifferentiated list.
+          engineGroups(models).map(({ engine, rows }) => (
+            <div key={engine} className="mt-6">
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <h3 className="text-sm font-semibold text-fg-strong">
+                  {t('modelEngine.' + engineKey(engine), { defaultValue: engine })}
+                </h3>
+                <span className="text-xs text-fg-subtle">{rows.length}</span>
+                <p className="w-full text-xs text-fg-subtle">
+                  {t('models.engineHint.' + engineKey(engine), { defaultValue: '' })}
+                </p>
+              </div>
+              <div className="mt-2">
+                <DataTable
+                  rows={rows}
+                  rowKey={(m) => m.id}
+                  empty={null}
+                  columns={registryColumns}
+                />
+              </div>
+            </div>
+          ))
+        )}
       </section>
 
       <section className="mt-8">
@@ -238,6 +285,10 @@ export default function ModelsPage() {
             const assigned = assignment
               ? (catalog ?? []).find((m) => m.id === assignment.modelId)
               : undefined
+            // A purpose whose candidates span engines is the one place the
+            // engine is a real choice — tts offers the CPU voices beside the
+            // box's own mouth — so only then does the picker print it.
+            const spansEngines = new Set(pickable.map(engineOf)).size > 1
             return (
               <div key={purpose} className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <span className="w-28 shrink-0 text-sm font-medium text-fg">
@@ -245,7 +296,14 @@ export default function ModelsPage() {
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm text-fg-muted">
                   {assigned ? (
-                    <span className="font-mono text-[12px]">{modelLabel(assigned)}</span>
+                    <>
+                      <span className="font-mono text-[12px]">{modelLabel(assigned)}</span>
+                      <span className="ml-2 rounded-full border border-line-2 px-2 py-0.5 text-xs text-fg-subtle">
+                        {t('modelEngine.' + engineKey(engineOf(assigned)), {
+                          defaultValue: engineOf(assigned),
+                        })}
+                      </span>
+                    </>
                   ) : (
                     t('models.unassigned')
                   )}
@@ -261,7 +319,14 @@ export default function ModelsPage() {
                     aria-label={t('models.assignments')}
                     items={[
                       { value: '', label: t('models.unassigned') },
-                      ...pickable.map((m) => ({ value: m.id, label: modelLabel(m) })),
+                      ...pickable.map((m) => ({
+                        value: m.id,
+                        label: spansEngines
+                          ? `${modelLabel(m)} — ${t('modelEngine.' + engineKey(engineOf(m)), {
+                              defaultValue: engineOf(m),
+                            })}`
+                          : modelLabel(m),
+                      })),
                     ]}
                   />
                 )}

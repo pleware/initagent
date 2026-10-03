@@ -674,6 +674,13 @@
     "editTitle": "Edit {{id}}",
     "registry": "Registry",
     "registryHint": "One pin per model and quantisation. The digest is the BLAKE3 of the pinned artifact — empty means unverified.",
+    "engineHint": {
+      "llamaCpp": "Opened by the box's llama-server: the minds, the embedding — and every pin whose engine field is empty, which is the hub's default.",
+      "audioCpp": "Opened by audiocpp_server, the box's voice engine: the mouth, and the speech detectors that sit beside it.",
+      "whisperCpp": "Opened by whisper-server — the ear.",
+      "laya": "Opened by laya-serve — the reflex's typed-decision encoder.",
+      "piper": "Opened by its own container — the CPU voices the box's router still offers."
+    },
     "assignments": "Factory assignments",
     "assignmentsHint": "What each purpose resolves to when a box carries no override of its own. Only verified models are assignable.",
     "org": "Org",
@@ -751,8 +758,16 @@
     "embedding": "Embedding",
     "stt": "STT",
     "vad": "VAD",
+    "turn": "End of turn",
     "tts": "TTS",
     "classification": "Classification"
+  },
+  "modelEngine": {
+    "llamaCpp": "llama.cpp",
+    "audioCpp": "audio.cpp",
+    "whisperCpp": "whisper.cpp",
+    "laya": "Laya",
+    "piper": "Piper"
   },
   "staff": {
     "name": "Name",

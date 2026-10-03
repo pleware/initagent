@@ -1104,7 +1104,7 @@ func (s *Store) EnsureSeedModels() error {
 			source:  "js-byte/Audio8-TTS-Preview-0.6b-GGUF@788f6fdb0bbdbbc407c63f3265cea9875b4a7c14",
 			quant:   "Q8_0",
 			file:    "audio8-tts-preview-0.6b-q8_0.gguf",
-			digest:  "",
+			digest:  "a4f8ab11aa8e34fb3dc17de757c2b627e987ea7c4d351163d088466e2eab339c",
 			licence: "Apache-2.0",
 			purpose: "tts",
 			// Same runtime as VoxCPM2 — the roster spawns `audiocpp_server` for
@@ -1120,12 +1120,15 @@ func (s *Store) EnsureSeedModels() error {
 			// beside VoxCPM2. It is Apache-2.0 end to end (Hugging Face tags
 			// `apache-2.0`, no gating), streams and speaks Polish.
 			//
-			// The digest is EMPTY on purpose: this pin lands as a candidate
-			// before any byte has run on a box, and an empty digest is what
-			// makes `SetAssignment` refuse it (`ErrModelUnverified`). It is
-			// filled in the same turn the artifact is fetched, hashed twice
-			// and measured against VoxCPM2 — a pin a deploy could hand to a
-			// box with no proof behind it is worse than an unassignable one.
+			// The digest is BLAKE3 of the artifact at the pinned revision, hashed
+			// twice (`update_mmap` + 1 MiB streaming, both `a4f8ab11…`, size
+			// 1 429 545 312 B matches the revision's Content-Length). Measured on
+			// the box 2026-10-03 against VoxCPM2, and it LOSES the warm-path
+			// comparison: cold start 5.65 s vs 8.12 s (0.6B loads faster), but
+			// a warm short sentence is a wash (2.9 s vs 2.4–2.9 s) and its
+			// output is 44.1 kHz against VoxCPM2's 48 kHz. It stays registered
+			// and NOT assigned — a smaller mouth that costs less VRAM on a
+			// card shared with the desktop, but not a speed fix.
 			//
 			// One caveat: the image's catalogue marks the family `community`,
 			// not `supported` (`model_specs/audio8_tts.json`, task `tts`,

@@ -423,10 +423,10 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		{"pl_PL-mc_speech-medium", "rhasspy", "rhasspy/piper-voices@", "", "9ee4676f29dc7125a591f7eb1bdd7a26808040183b3629a7cef56e158fc9132d", "MIT", "tts"},
 		{"pl_PL-mls_6892-low", "rhasspy", "rhasspy/piper-voices@", "", "e9e2971ac7132984c6f6958c21501dec46638332b9e1bcc113a417aead270cde", "MIT", "tts"},
 		{"voxcpm2-q8_0", "audio-cpp", "audio-cpp/audio.cpp-gguf@", "Q8_0", "2c59cf47b411b560579dff54f076e5684c85d11fd8e2c0c9602a39cf6d5ca3e9", "Apache-2.0", "tts"},
-		// Audio8 lands as a candidate mouth: registered, not assigned, and its
-		// digest empty until the artifact is fetched and hashed. The source is
-		// js-byte's own repo, not audio-cpp's — the weights live there.
-		{"audio8_tts-q8_0", "js-byte", "js-byte/Audio8-TTS-Preview-0.6b-GGUF@", "Q8_0", "", "Apache-2.0", "tts"},
+		// Audio8 stays a candidate mouth: registered, not assigned, its digest
+		// now filled (hashed twice after the artifact ran on the box). The
+		// source is js-byte's own repo, not audio-cpp's — the weights live there.
+		{"audio8_tts-q8_0", "js-byte", "js-byte/Audio8-TTS-Preview-0.6b-GGUF@", "Q8_0", "a4f8ab11aa8e34fb3dc17de757c2b627e987ea7c4d351163d088466e2eab339c", "Apache-2.0", "tts"},
 		{"gemma-4-12b-qat", "unsloth", "unsloth/gemma-4-12B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "persona"},
 		{"gemma-4-e4b-qat", "unsloth", "unsloth/gemma-4-E4B-it-qat-GGUF@", "UD-Q4_K_XL", "", "Apache-2.0", "persona"},
 		{"qwen3.5-9b-q4_k_m", "unsloth", "unsloth/Qwen3.5-9B-GGUF@", "Q4_K_M", "", "Apache-2.0", "persona"},

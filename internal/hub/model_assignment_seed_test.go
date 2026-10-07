@@ -22,7 +22,7 @@ func testStoreNoAssignments(t *testing.T) *Store {
 }
 
 // The factory defaults are part of a fresh installation: a store opened for the
-// first time resolves all six purposes while nobody has touched the admin.
+// first time resolves all seven purposes while nobody has touched the admin.
 func TestOpenStoreSeedsFactoryAssignments(t *testing.T) {
 	s := testStore(t)
 
@@ -43,6 +43,7 @@ func TestOpenStoreSeedsFactoryAssignments(t *testing.T) {
 		"embedding": "bge-m3",
 		"stt":       "ggml-large-v3-turbo",
 		"vad":       "silero-vad",
+		"turn":      "smart_turn-f32",
 		"tts":       "pl_PL-gosia-medium",
 	}
 
@@ -91,7 +92,7 @@ func TestFactoryAssignmentsNameVerifiedPins(t *testing.T) {
 	}
 }
 
-// The box's side of the same fact: a new box's resolved roster carries all six
+// The box's side of the same fact: a new box's resolved roster carries all seven
 // factory models, not merely the assignment rows.
 func TestResolvedModelsAnswersTheFactoryDefaults(t *testing.T) {
 	s := testStore(t)
@@ -110,6 +111,7 @@ func TestResolvedModelsAnswersTheFactoryDefaults(t *testing.T) {
 		"embedding": "bge-m3",
 		"stt":       "ggml-large-v3-turbo",
 		"vad":       "silero-vad",
+		"turn":      "smart_turn-f32",
 		"tts":       "pl_PL-gosia-medium",
 	}
 	if len(got) != len(want) {

@@ -42,6 +42,20 @@ func factoryAssignments() []factoryAssignment {
 		// by a container: `engine: whisper.cpp` is what says so.
 		{purpose: "stt", modelID: "ggml-large-v3-turbo"},
 		{purpose: "vad", modelID: "silero-vad"},
+		// Smart Turn v3.2, on the one engine that can open it (`engine:
+		// audio.cpp`) and the reason the `turn` purpose exists at all
+		// (`86` §13). Assigned here rather than left to the admin because the
+		// end of a turn is part of a turn, not a taste: until the box serves
+		// this, the decision is the voice engine's own pause heuristic
+		// (`PauseSmartTurn`), which is a stand-in and is written as one.
+		//
+		// ORDERING, and the reason this entry is younger than the pin: the
+		// pin's artifact is servable only by an audio.cpp that knows the
+		// `turn` task — added upstream in `8ebcc046f` (2026-10-01), while the
+		// box's image (git c0b26a5) answers `unsupported task: turn`. Ship
+		// this default WITH the image bump: a resolved `turn` on an older
+		// image has the box generate a roster entry the engine refuses.
+		{purpose: "turn", modelID: "smart_turn-f32"},
 		{purpose: "tts", modelID: "pl_PL-gosia-medium"},
 	}
 }

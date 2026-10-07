@@ -56,6 +56,9 @@ type hfModel struct {
 type hfFile struct {
 	Path  string
 	Quant string
+	// Size is the file's byte count as the repo states it: what a pull has
+	// to fetch, and what the card holds as weights once loaded.
+	Size int64
 }
 
 // hfSearchResult is the wire shape of one search hit: identity, the model
@@ -77,6 +80,9 @@ type hfSearchResult struct {
 type hfRepoFile struct {
 	Filename string `json:"filename"`
 	Quant    string `json:"quant"`
+	// Size is the file's byte count as the repo states it, so the admin
+	// picking artifacts sees what a box will download before it does.
+	Size int64 `json:"size,omitempty"`
 }
 
 const (
@@ -175,6 +181,10 @@ type hfSearchHit struct {
 type hfTreeHit struct {
 	Type string `json:"type"`
 	Path string `json:"path"`
+	// Size is served by the tree endpoint for file entries. 0 for a
+	// directory, and 0 for a file the API did not count — unknown either
+	// way, never stored as "empty".
+	Size int64 `json:"size"`
 }
 
 // Search queries the HF catalog. Entries whose id carries no org/repo
@@ -228,7 +238,7 @@ func (h *httpHFSearcher) RepoFiles(ctx context.Context, repo string) ([]hfFile, 
 		if !ok {
 			continue
 		}
-		out = append(out, hfFile{Path: hit.Path, Quant: quant})
+		out = append(out, hfFile{Path: hit.Path, Quant: quant, Size: hit.Size})
 	}
 	return out, nil
 }
@@ -277,7 +287,8 @@ func (h *httpHFSearcher) get(ctx context.Context, u string, v any) error {
 }
 
 // Inspect answers the derived metadata for one pinned artifact: the HF
-// catalog entry (pipeline tag, library name, base model, downloads, gate)
+// catalog entry (pipeline tag, library name, base model, downloads, gate, and
+// the byte count of the named file at the pinned revision)
 // and, when readGGUF is set, the architecture and context length read from
 // the GGUF header over a ranged GET. A header read failure is non-fatal —
 // the catalog half still answers and the GGUF fields stay empty (unknown,
@@ -290,8 +301,19 @@ func (h *httpHFSearcher) Inspect(ctx context.Context, repo, rev, file string, re
 		Tags        []string `json:"tags"`
 		Downloads   int64    `json:"downloads"`
 		Gated       any      `json:"gated"`
+		// blobs=true makes the API answer one entry per file, and the
+		// entry carries the byte count — the size of the artifact this pin
+		// names, read at the pinned revision rather than at main.
+		Siblings []struct {
+			Rfilename string `json:"rfilename"`
+			Size      int64  `json:"size"`
+		} `json:"siblings"`
 	}
-	if err := h.get(ctx, h.base+"/models/"+repoPath(repo), &hit); err != nil {
+	u := h.base + "/models/" + repoPath(repo) + "?blobs=true"
+	if rev != "" {
+		u += "&revision=" + url.QueryEscape(rev)
+	}
+	if err := h.get(ctx, u, &hit); err != nil {
 		return meta, fmt.Errorf("huggingface model: %w", err)
 	}
 	meta.PipelineTag = hit.PipelineTag
@@ -299,6 +321,12 @@ func (h *httpHFSearcher) Inspect(ctx context.Context, repo, rev, file string, re
 	meta.BaseModel = baseModelFromTags(hit.Tags)
 	meta.Downloads = hit.Downloads
 	meta.Gated = hfGated(hit.Gated)
+	for _, s := range hit.Siblings {
+		if s.Rfilename == file {
+			meta.Size = s.Size
+			break
+		}
+	}
 	if !readGGUF {
 		return meta, nil
 	}
@@ -541,7 +569,7 @@ func (s *Server) handleHfRepoFiles(w http.ResponseWriter, r *http.Request, cred 
 	}
 	out := []hfRepoFile{}
 	for _, f := range files {
-		out = append(out, hfRepoFile{Filename: f.Path, Quant: f.Quant})
+		out = append(out, hfRepoFile{Filename: f.Path, Quant: f.Quant, Size: f.Size})
 	}
 	writeJSON(w, out)
 }

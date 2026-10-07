@@ -59,6 +59,19 @@ type Model struct {
 	Downloads     int64  `json:"downloads"`
 	Gated         bool   `json:"gated"`
 
+	// Size is the anchor artifact's byte count exactly as the source
+	// repository states it — the weights, when the pin is a GGUF, not the
+	// whole pin: a multi-artifact pin carries the other members' sizes in
+	// its file list (see ModelFile.Size).
+	//
+	// It is what a box has to download before the model can run, and, with
+	// every layer offloaded, what the card holds as weights. It is NOT a
+	// VRAM figure: the KV cache and the compute buffers scale with the
+	// context the box itself sets, and the card is shared with whatever
+	// else is on the desktop. Zero means nobody read it — an unverified or
+	// hand-written pin — not that the file is empty.
+	Size int64 `json:"size,omitempty"`
+
 	// Files is every artifact the pin is made of, when that is more than the
 	// one File names. Empty is the single-artifact shape (File + Digest). A
 	// pin whose consumer loads a *directory* — the typed-decision encoder
@@ -75,6 +88,9 @@ type Model struct {
 type ModelFile struct {
 	File   string `json:"file"`
 	Digest string `json:"digest"`
+	// Size is this artifact's byte count as the source repository states
+	// it. Zero means nobody read it, the same rule Digest follows.
+	Size int64 `json:"size,omitempty"`
 }
 
 // marshalFiles renders a file list for storage: the empty string for an
@@ -100,13 +116,16 @@ func sameFileList(a, b []ModelFile) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	type entry struct{ file, digest string }
+	type entry struct {
+		file, digest string
+		size         int64
+	}
 	seen := make(map[entry]bool, len(a))
 	for _, f := range a {
-		seen[entry{f.File, f.Digest}] = true
+		seen[entry{f.File, f.Digest, f.Size}] = true
 	}
 	for _, f := range b {
-		if !seen[entry{f.File, f.Digest}] {
+		if !seen[entry{f.File, f.Digest, f.Size}] {
 			return false
 		}
 	}
@@ -126,17 +145,22 @@ func mergeSeedFiles(stored, seeded []ModelFile) []ModelFile {
 	if len(seeded) == 0 {
 		return nil
 	}
-	held := make(map[string]string, len(stored))
+	held := make(map[string]ModelFile, len(stored))
 	for _, f := range stored {
-		held[f.File] = f.Digest
+		held[f.File] = f
 	}
 	merged := make([]ModelFile, 0, len(seeded))
 	for _, f := range seeded {
-		digest := held[f.File]
+		known := held[f.File]
+		digest := known.Digest
 		if digest == "" {
 			digest = f.Digest
 		}
-		merged = append(merged, ModelFile{File: f.File, Digest: digest})
+		size := known.Size
+		if size == 0 {
+			size = f.Size
+		}
+		merged = append(merged, ModelFile{File: f.File, Digest: digest, Size: size})
 	}
 	return merged
 }
@@ -155,6 +179,9 @@ func ValidateModelFiles(anchor string, files []ModelFile) error {
 		name := strings.TrimSpace(f.File)
 		if name == "" {
 			return errors.New("a listed file has no name")
+		}
+		if f.Size < 0 {
+			return fmt.Errorf("file %q has a negative size", name)
 		}
 		if seen[name] {
 			return fmt.Errorf("file %q is listed twice", name)
@@ -179,6 +206,9 @@ type ModelMeta struct {
 	ContextLength int64  `json:"contextLength"`
 	Downloads     int64  `json:"downloads"`
 	Gated         bool   `json:"gated"`
+	// Size is the byte count of the artifact named by the pin, as the
+	// source repository states it. Zero is unknown, never zero bytes.
+	Size int64 `json:"size,omitempty"`
 }
 
 // modelPurposes names the eight purposes a pinned model can serve: the
@@ -384,7 +414,7 @@ func unmarshalPurposes(raw, primary string) []string {
 // scanModel reads one models row selected in schema order:
 // id, org, source, quant, file, digest, licence, purpose, purposes,
 // pipeline_tag, library_name, base_model, architecture, context_length,
-// downloads, gated, files, engine. A missing row is (nil, nil).
+// downloads, gated, files, engine, size. A missing row is (nil, nil).
 func scanModel(row modelScanner) (*Model, error) {
 	var m Model
 	var gated int
@@ -392,7 +422,7 @@ func scanModel(row modelScanner) (*Model, error) {
 	var purposes string
 	if err := row.Scan(&m.ID, &m.Org, &m.Source, &m.Quant, &m.File, &m.Digest, &m.Licence, &m.Purpose, &purposes,
 		&m.PipelineTag, &m.LibraryName, &m.BaseModel, &m.Architecture, &m.ContextLength, &m.Downloads, &gated,
-		&files, &m.Engine); err != nil {
+		&files, &m.Engine, &m.Size); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -459,14 +489,14 @@ func (s *Store) CreateModel(id, org, source, quant, file, digest, licence string
 // GetModel returns one model pin by id. A missing pin is (nil, nil).
 func (s *Store) GetModel(id string) (*Model, error) {
 	return scanModel(s.db.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose, purposes,
-		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine
+		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine, size
 		FROM models WHERE id = ?`, id))
 }
 
 // ListModels returns every pinned model on this installation, ordered by id.
 func (s *Store) ListModels() ([]Model, error) {
 	rows, err := s.db.Query(`SELECT id, org, source, quant, file, digest, licence, purpose, purposes,
-		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine
+		pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine, size
 		FROM models ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -552,10 +582,10 @@ func (s *Store) SetModelMeta(id string, meta ModelMeta) (*Model, error) {
 		gated = 1
 	}
 	res, err := s.db.Exec(`UPDATE models SET pipeline_tag = ?, library_name = ?, base_model = ?,
-		architecture = ?, context_length = ?, downloads = ?, gated = ?
+		architecture = ?, context_length = ?, downloads = ?, gated = ?, size = ?
 		WHERE id = ?`,
 		meta.PipelineTag, meta.LibraryName, meta.BaseModel, meta.Architecture,
-		meta.ContextLength, meta.Downloads, gated, id)
+		meta.ContextLength, meta.Downloads, gated, meta.Size, id)
 	if err != nil {
 		return nil, err
 	}
@@ -709,6 +739,10 @@ type seedModel struct {
 	contextLength int64
 	downloads     int64
 	gated         bool
+	// size is the anchor artifact's byte count as the *pinned revision*
+	// states it: what the box downloads and what the card holds as weights.
+	// Zero means the seed has not read it — never stored as a verdict.
+	size int64
 
 	// files names every artifact a directory-shaped pin is made of (see
 	// Model.Files). Names only — the seed declares which files the model
@@ -739,6 +773,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "Q4_K_M",
 			file:          "Qwen_Qwen3.5-4B-Q4_K_M.gguf",
 			digest:        "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980",
+			size:          3013027808,
 			licence:       "Apache-2.0",
 			purpose:       "persona",
 			pipelineTag:   "image-text-to-text",
@@ -782,6 +817,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "PQ2_0",
 			file:          "Ternary-Bonsai-2-27B-PQ2_0.gguf",
 			digest:        "b4f6ab953ef6d1452682bd861b7a1711a4a9945a74ca292659803978fd2550f6",
+			size:          7206168928,
 			licence:       "Apache-2.0",
 			purpose:       "persona",
 			engine:        "prism.cpp",
@@ -795,10 +831,12 @@ func (s *Store) EnsureSeedModels() error {
 				{
 					File:   "Ternary-Bonsai-2-27B-PQ2_0.gguf",
 					Digest: "b4f6ab953ef6d1452682bd861b7a1711a4a9945a74ca292659803978fd2550f6",
+					Size:   7206168928,
 				},
 				{
 					File:   "Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf",
 					Digest: "989838a898d46c2665853d8c48a4b958319e24123d5d0c1ddab4f91a81dbb320",
+					Size:   629246976,
 				},
 			},
 		},
@@ -809,6 +847,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "Q4_K_M",
 			file:          "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
 			digest:        "e0abfc1f71fa8f1454f3bc443f7608a63263ed2d41664f2820c3d92c45f3bd52",
+			size:          4683073536,
 			licence:       "Apache-2.0",
 			purpose:       "worker",
 			pipelineTag:   "text-generation",
@@ -825,6 +864,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "Q4_K_M",
 			file:          "bge-m3-Q4_K_M.gguf",
 			digest:        "f455475d60569f7ba086863c6ff4b79bb19201664259c5128b9f4f131408dd32",
+			size:          437778496,
 			licence:       "MIT",
 			purpose:       "embedding",
 			pipelineTag:   "sentence-similarity",
@@ -840,6 +880,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "UD-Q4_K_XL",
 			file:          "gemma-4-12B-it-qat-UD-Q4_K_XL.gguf",
 			digest:        "",
+			size:          6716356800,
 			licence:       "Apache-2.0",
 			purpose:       "persona",
 			pipelineTag:   "any-to-any",
@@ -856,6 +897,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "UD-Q4_K_XL",
 			file:          "gemma-4-E4B-it-qat-UD-Q4_K_XL.gguf",
 			digest:        "",
+			size:          4215695776,
 			licence:       "Apache-2.0",
 			purpose:       "persona",
 			pipelineTag:   "any-to-any",
@@ -872,6 +914,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "Q4_K_M",
 			file:          "Qwen3.5-9B-Q4_K_M.gguf",
 			digest:        "",
+			size:          5680522464,
 			licence:       "Apache-2.0",
 			purpose:       "persona",
 			pipelineTag:   "image-text-to-text",
@@ -888,6 +931,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "UD-Q4_K_XL",
 			file:          "gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf",
 			digest:        "",
+			size:          14249047104,
 			licence:       "Apache-2.0",
 			purpose:       "worker",
 			pipelineTag:   "image-text-to-text",
@@ -904,6 +948,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "UD-IQ3_M",
 			file:          "Muse-Glimmer-30B-UD-IQ3_M.gguf",
 			digest:        "",
+			size:          14122705696,
 			licence:       "Apache-2.0",
 			purpose:       "worker",
 			pipelineTag:   "image-text-to-text",
@@ -920,6 +965,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "Q4_K_M",
 			file:          "Qwen3.6-35B-A3B-Q4_K_M.gguf",
 			digest:        "b8a1dddb19cdffdc8105f7cfac93e1f987b99128edba855ed800306251dfd477",
+			size:          20419565568,
 			licence:       "Apache-2.0",
 			purpose:       "persona",
 			pipelineTag:   "image-text-to-text",
@@ -935,6 +981,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:         "Q4_K_M",
 			file:          "Kwaipilot_KAT-Coder-V2.5-Dev-Q4_K_M.gguf",
 			digest:        "e8bd64e3e79f4d618422eefe4fa06c2903dab6f7cf4109bde9f087eae75da4ae",
+			size:          21391448480,
 			licence:       "Apache-2.0",
 			purpose:       "worker",
 			pipelineTag:   "text-generation",
@@ -950,6 +997,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "",
 			file:    "ggml-large-v3-turbo.bin",
 			digest:  "e8990f8de5cc6cc442829f37de1f2e0a6a4826c35ae67fdb8c8068425174b262",
+			size:    1624555275,
 			licence: "MIT",
 			purpose: "stt",
 			// The ear runs on whisper.cpp now — served by the box's one swapper
@@ -976,6 +1024,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "",
 			file:    "silero_vad.onnx",
 			digest:  "bd861b19a51c83ee067b54d7d8b7f40bc11bafcc526506edc00b163e1c53bb8e",
+			size:    2327524,
 			licence: "MIT",
 			purpose: "vad",
 			// No engine field: nothing on a box serves this pin. The engine
@@ -991,6 +1040,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "F32",
 			file:    "PulseVAD-GGUF/pulsevad-2.1k-f32.gguf",
 			digest:  "7cf79fd58584ef0a3b2a195770d616fe5ca0f544cc1880caec41d7bf82c1a894",
+			size:    81408,
 			licence: "MIT",
 			purpose: "vad",
 			// The runtime that opens these bytes, not the family: the same
@@ -1026,6 +1076,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "",
 			file:    "pl/pl_PL/bass/high/pl_PL-bass-high.onnx",
 			digest:  "d122a10b565681d97ae302b0a4cc617ca59e0cd87b5196ec667ff9c125357b9f",
+			size:    114204024,
 			licence: "MIT",
 			purpose: "tts",
 			// Piper's own container server opens these, never the roster. The
@@ -1041,6 +1092,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "",
 			file:    "pl/pl_PL/darkman/medium/pl_PL-darkman-medium.onnx",
 			digest:  "7554030dd8b3cd40529098054600dc7194f4d146e29fc24f89b89a94c7a43df4",
+			size:    63201294,
 			licence: "MIT",
 			purpose: "tts",
 			// Piper's own container server opens these, never the roster. The
@@ -1056,6 +1108,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "",
 			file:    "pl/pl_PL/gosia/medium/pl_PL-gosia-medium.onnx",
 			digest:  "cec3f38aa9c14d2dfbe43465e818253ee0ed05854288cde7bfda7131acc4fa1b",
+			size:    63201294,
 			licence: "MIT",
 			purpose: "tts",
 			// Piper's own container server opens these, never the roster. The
@@ -1071,6 +1124,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "",
 			file:    "pl/pl_PL/mc_speech/medium/pl_PL-mc_speech-medium.onnx",
 			digest:  "9ee4676f29dc7125a591f7eb1bdd7a26808040183b3629a7cef56e158fc9132d",
+			size:    63201294,
 			licence: "MIT",
 			purpose: "tts",
 			// Piper's own container server opens these, never the roster. The
@@ -1086,6 +1140,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "",
 			file:    "pl/pl_PL/mls_6892/low/pl_PL-mls_6892-low.onnx",
 			digest:  "e9e2971ac7132984c6f6958c21501dec46638332b9e1bcc113a417aead270cde",
+			size:    63104526,
 			licence: "MIT",
 			purpose: "tts",
 			// Piper's own container server opens these, never the roster. The
@@ -1101,6 +1156,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "F32",
 			file:    "Smart-Turn-v3-GGUF/smart-turn-v3.2-f32.gguf",
 			digest:  "0bb6e15f9446bbabe175243619b1f21bebf5ddac2bd37be676d1238268619cc2",
+			size:    32014304,
 			licence: "BSD-2-Clause",
 			purpose: "turn",
 			// The id spells the family the way the engine spells it —
@@ -1138,6 +1194,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "Q8_0",
 			file:    "VoxCPM2-GGUF/voxcpm2-q8_0.gguf",
 			digest:  "2c59cf47b411b560579dff54f076e5684c85d11fd8e2c0c9602a39cf6d5ca3e9",
+			size:    2955000480,
 			licence: "Apache-2.0",
 			purpose: "tts",
 			// The runtime that serves these bytes, not the model family: a
@@ -1170,6 +1227,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "Q8_0",
 			file:    "audio8-tts-preview-0.6b-q8_0.gguf",
 			digest:  "a4f8ab11aa8e34fb3dc17de757c2b627e987ea7c4d351163d088466e2eab339c",
+			size:    1429545312,
 			licence: "Apache-2.0",
 			purpose: "tts",
 			// Same runtime as VoxCPM2 — the roster spawns `audiocpp_server` for
@@ -1219,6 +1277,7 @@ func (s *Store) EnsureSeedModels() error {
 			quant:   "",
 			file:    "multilingual/model.safetensors",
 			digest:  "fcb32583ebbc758f5cf2a214ed0560f26c8686456902e8a8cae002a85d588631",
+			size:    643835514,
 			licence: "Apache-2.0",
 			purpose: "classification",
 			// Not a GGUF and not a llama.cpp model: Laya is a
@@ -1257,11 +1316,11 @@ func (s *Store) EnsureSeedModels() error {
 			// subfolder the engine loads, so a file here is the cache
 			// path the puller materialises and the loader opens.
 			files: []ModelFile{
-				{File: "multilingual/model.safetensors", Digest: "fcb32583ebbc758f5cf2a214ed0560f26c8686456902e8a8cae002a85d588631"},
-				{File: "multilingual/encoder/config.json", Digest: "a831925d30809ab5bb2ad5424eff016a422310a8989758c44631748276eee06a"},
-				{File: "multilingual/rl_agent_config.json", Digest: "dd2da6b7f43afd2babffa290bb1857784e49d825e6f76c5c0ab1d0fbdf441714"},
-				{File: "multilingual/tokenizer/tokenizer.json", Digest: "01e0f0d31015fa48f99c5e7aea639fbf136181e632cfbf40156862aced7b20b1"},
-				{File: "multilingual/tokenizer/tokenizer_config.json", Digest: "8486197d7556f869092d214857a10fc9b75f8108250197ba08e7e9df8dba6637"},
+				{File: "multilingual/model.safetensors", Digest: "fcb32583ebbc758f5cf2a214ed0560f26c8686456902e8a8cae002a85d588631", Size: 643835514},
+				{File: "multilingual/encoder/config.json", Digest: "a831925d30809ab5bb2ad5424eff016a422310a8989758c44631748276eee06a", Size: 1938},
+				{File: "multilingual/rl_agent_config.json", Digest: "dd2da6b7f43afd2babffa290bb1857784e49d825e6f76c5c0ab1d0fbdf441714", Size: 472},
+				{File: "multilingual/tokenizer/tokenizer.json", Digest: "01e0f0d31015fa48f99c5e7aea639fbf136181e632cfbf40156862aced7b20b1", Size: 34363188},
+				{File: "multilingual/tokenizer/tokenizer_config.json", Digest: "8486197d7556f869092d214857a10fc9b75f8108250197ba08e7e9df8dba6637", Size: 524},
 			},
 		},
 	}
@@ -1274,7 +1333,7 @@ func (s *Store) EnsureSeedModels() error {
 	changed := false
 	for _, sm := range seeds {
 		m, err := scanModel(tx.QueryRow(`SELECT id, org, source, quant, file, digest, licence, purpose, purposes,
-			pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine
+			pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine, size
 			FROM models WHERE id = ?`, sm.id))
 		if err != nil {
 			return err
@@ -1300,11 +1359,11 @@ func (s *Store) EnsureSeedModels() error {
 				return err
 			}
 			if _, err := tx.Exec(`INSERT INTO models (id, org, source, quant, file, digest, licence, purpose, purposes,
-				pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				pipeline_tag, library_name, base_model, architecture, context_length, downloads, gated, files, engine, size)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				sm.id, sm.org, sm.source, sm.quant, sm.file, sm.digest, sm.licence, sm.purpose, rawPurposes,
 				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated,
-				filesJSON, sm.engine); err != nil {
+				filesJSON, sm.engine, sm.size); err != nil {
 				return err
 			}
 			changed = true
@@ -1312,7 +1371,8 @@ func (s *Store) EnsureSeedModels() error {
 			m.Licence != sm.licence || m.Purpose != sm.purpose || !samePurposes(m.Purposes, purposes) ||
 			m.PipelineTag != sm.pipelineTag || m.LibraryName != sm.libraryName || m.BaseModel != sm.baseModel ||
 			m.Architecture != sm.architecture || m.ContextLength != sm.contextLength || m.Downloads != sm.downloads ||
-			m.Gated != sm.gated || m.Engine != sm.engine || !sameFileList(m.Files, mergeSeedFiles(m.Files, sm.files)) ||
+			m.Gated != sm.gated || m.Engine != sm.engine || m.Size != sm.size ||
+			!sameFileList(m.Files, mergeSeedFiles(m.Files, sm.files)) ||
 			(m.Digest == "" && sm.digest != ""):
 			// The pin's own digest is filled, never overwritten: the factory
 			// seed takes an EMPTY column and leaves a populated one — an
@@ -1334,11 +1394,11 @@ func (s *Store) EnsureSeedModels() error {
 				return err
 			}
 			if _, err := tx.Exec(`UPDATE models SET org = ?, source = ?, quant = ?, file = ?, digest = ?, licence = ?, purpose = ?, purposes = ?,
-				pipeline_tag = ?, library_name = ?, base_model = ?, architecture = ?, context_length = ?, downloads = ?, gated = ?, files = ?, engine = ?
+				pipeline_tag = ?, library_name = ?, base_model = ?, architecture = ?, context_length = ?, downloads = ?, gated = ?, files = ?, engine = ?, size = ?
 				WHERE id = ?`,
 				sm.org, sm.source, sm.quant, sm.file, pinDigest, sm.licence, sm.purpose, rawPurposes,
 				sm.pipelineTag, sm.libraryName, sm.baseModel, sm.architecture, sm.contextLength, sm.downloads, gated,
-				filesJSON, sm.engine, sm.id); err != nil {
+				filesJSON, sm.engine, sm.size, sm.id); err != nil {
 				return err
 			}
 			changed = true

@@ -163,6 +163,10 @@ export default function ModelsPage() {
       cell: (m: Model) => <span className="text-fg-subtle">{m.licence || '—'}</span>,
     },
     {
+      header: t('models.size'),
+      cell: (m: Model) => <ModelSizeCell model={m} />,
+    },
+    {
       header: t('models.metadata'),
       cell: (m: Model) => <ModelMetaCell model={m} />,
     },
@@ -639,6 +643,9 @@ function HfBrowser({ onAdd }: { onAdd: (prefill: Partial<Model>) => void }) {
                                 <span className="rounded-full border border-line-2 px-2 py-0.5 font-mono text-[10px] text-fg-soft">
                                   {file.quant}
                                 </span>
+                                <span className="w-16 text-right font-mono text-[10px] text-fg-subtle">
+                                  {formatBytes(file.size ?? 0)}
+                                </span>
                                 <button
                                   type="button"
                                   onClick={() => add(item, file.quant)}
@@ -681,6 +688,43 @@ function DigestBadge({ model }: { model: Model }) {
       className="inline-block max-w-[18ch] truncate rounded-full border border-accent/30 px-2 py-0.5 font-mono text-[10px] text-accent"
     >
       {model.digest}
+    </span>
+  )
+}
+
+// formatBytes renders a byte count the way a pull reads it: decimal units
+// (GB = 10^9), the same scale the source repository states the file in — so
+// "7.21 GB" here is the 7,206,168,928 bytes a box downloads and verifies,
+// not a rounded-promise. Zero and below render as an em dash: unknown.
+export function formatBytes(n: number): string {
+  if (n <= 0) return '—'
+  if (n >= 1e9) return `${(n / 1e9).toFixed(2)} GB`
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)} MB`
+  if (n >= 1e3) return `${(n / 1e3).toFixed(0)} kB`
+  return `${n} B`
+}
+
+// ModelSizeCell shows what a pin's artifacts weigh on disk. A multi-artifact
+// pin (weights plus a vision projector, a directory-shaped encoder) reads as
+// the whole set — the number that decides whether the box has room — with the
+// per-file split in the tooltip, and the count of artifacts beside it so a
+// reader knows the figure is a sum rather than one file.
+//
+// It is a file size, deliberately not a VRAM figure: what the card holds
+// depends on the context the box sets and on the card it shares with the
+// desktop, which no catalogue can state.
+function ModelSizeCell({ model }: { model: Model }) {
+  const files = model.files ?? []
+  if (files.length === 0) {
+    if (!model.size) return <span className="text-fg-subtle">—</span>
+    return <span className="font-mono text-[12px] text-fg-soft">{formatBytes(model.size)}</span>
+  }
+  const total = files.reduce((sum, f) => sum + (f.size ?? 0), 0)
+  const detail = files.map((f) => `${f.file} — ${formatBytes(f.size ?? 0)}`).join('\n')
+  return (
+    <span className="font-mono text-[12px] text-fg-soft" title={detail}>
+      {formatBytes(total)}
+      {files.length > 1 ? <span className="text-fg-subtle"> ({files.length})</span> : null}
     </span>
   )
 }

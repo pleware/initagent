@@ -939,3 +939,118 @@ func TestAdminModelRoutesRequireAuth(t *testing.T) {
 		t.Errorf("GET /api/admin/models bare: %d, want 401", resp.StatusCode)
 	}
 }
+
+// TestTheSeededPinsCarryTheirArtifactSizes pins what the size column is for:
+// the factory knows how many bytes each pin's artifacts are — read once from
+// the pinned revision — so the catalog answers it without a box reporting
+// anything. The ternary pin is the two-artifact case, and a non-GGUF pin
+// carries its number too.
+func TestTheSeededPinsCarryTheirArtifactSizes(t *testing.T) {
+	s := testStore(t)
+
+	m, err := s.GetModel("ternary-bonsai-2-27b-pq2_0")
+	if err != nil || m == nil {
+		t.Fatalf("GetModel = (%v, %v), want the ternary pin", m, err)
+	}
+	if m.Size != 7206168928 {
+		t.Errorf("anchor size = %d, want the PQ2_0 weights' 7206168928 bytes", m.Size)
+	}
+	want := map[string]int64{
+		"Ternary-Bonsai-2-27B-PQ2_0.gguf":       7206168928,
+		"Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf": 629246976,
+	}
+	if len(m.Files) != len(want) {
+		t.Fatalf("files = %+v, want the two artifacts", m.Files)
+	}
+	for _, f := range m.Files {
+		if f.Size != want[f.File] {
+			t.Errorf("file %s size = %d, want %d", f.File, f.Size, want[f.File])
+		}
+	}
+
+	vad, err := s.GetModel("silero-vad")
+	if err != nil || vad == nil {
+		t.Fatalf("GetModel(silero-vad) = (%v, %v)", vad, err)
+	}
+	if vad.Size != 2327524 {
+		t.Errorf("silero-vad size = %d, want 2327524", vad.Size)
+	}
+}
+
+// TestASeedPassTeachesAnExistingPinItsSize is the migration's second half: a
+// hub that seeded a pin before the column existed holds 0, and the seed pass
+// has to notice that 0 is *unknown* and write the real count — the file-list
+// trap one level up. Without the size in the drift check the hub would keep
+// the empty column for ever and show an empty cell for a pin it knows.
+func TestASeedPassTeachesAnExistingPinItsSize(t *testing.T) {
+	s := testStore(t)
+	if _, err := s.db.Exec(`UPDATE models SET size = 0 WHERE id = 'ternary-bonsai-2-27b-pq2_0'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EnsureSeedModels(); err != nil {
+		t.Fatal(err)
+	}
+	m, err := s.GetModel("ternary-bonsai-2-27b-pq2_0")
+	if err != nil || m == nil {
+		t.Fatalf("GetModel after reseed = (%v, %v)", m, err)
+	}
+	if m.Size != 7206168928 {
+		t.Errorf("size after reseed = %d, want the seed's 7206168928", m.Size)
+	}
+}
+
+// TestOpenStoreMigratesModelSize opens a store whose models table predates the
+// size column and checks both halves of the migration: the column arrives
+// reading 0 for a row it carried (unknown, never a fabricated count), and the
+// factory pins seeded on the same open carry their real byte counts.
+func TestOpenStoreMigratesModelSize(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "model-size-migration.db")
+
+	db, err := store.OpenDB(store.SQLite, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE models (
+		id      TEXT PRIMARY KEY,
+		source  TEXT NOT NULL,
+		quant   TEXT NOT NULL,
+		digest  TEXT NOT NULL,
+		licence TEXT NOT NULL,
+		purpose TEXT NOT NULL
+	)`); err != nil {
+		_ = db.Close()
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO models (id, source, quant, digest, licence, purpose)
+		VALUES ('pre-size-pin', 'unsloth/Qwen3.5-4B-GGUF@rev', 'Q4_K_M', '', 'Apache-2.0', 'persona')`); err != nil {
+		_ = db.Close()
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	again, err := OpenStore(path)
+	if err != nil {
+		t.Fatalf("reopen on a pre-size models table: %v", err)
+	}
+	t.Cleanup(func() { again.Close() })
+	ok, err := again.hasColumn("models", "size")
+	if err != nil || !ok {
+		t.Fatalf("models.size after reopen: ok=%v err=%v", ok, err)
+	}
+	carried, err := again.GetModel("pre-size-pin")
+	if err != nil || carried == nil {
+		t.Fatalf("GetModel after migration = (%v, %v), want the carried row", carried, err)
+	}
+	if carried.Size != 0 {
+		t.Errorf("carried row size = %d, want 0 (nobody read it)", carried.Size)
+	}
+	seeded, err := again.GetModel("ternary-bonsai-2-27b-pq2_0")
+	if err != nil || seeded == nil {
+		t.Fatalf("GetModel(factory pin) = (%v, %v)", seeded, err)
+	}
+	if seeded.Size != 7206168928 {
+		t.Errorf("factory pin size on a migrated store = %d, want 7206168928", seeded.Size)
+	}
+}

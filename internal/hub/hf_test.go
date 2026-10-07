@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/pleware/initagent/internal/offering"
@@ -245,8 +246,8 @@ func TestHfRepoFilesEndpoint(t *testing.T) {
 		repoFiles: func(ctx context.Context, repo string) ([]hfFile, error) {
 			gotRepo = repo
 			return []hfFile{
-				{Path: "Qwen3.5-4B-Q4_K_M.gguf", Quant: "Q4_K_M"},
-				{Path: "Qwen3.5-4B-IQ2_XXS.gguf", Quant: "IQ2_XXS"},
+				{Path: "Qwen3.5-4B-Q4_K_M.gguf", Quant: "Q4_K_M", Size: 3013027808},
+				{Path: "Qwen3.5-4B-IQ2_XXS.gguf", Quant: "IQ2_XXS", Size: 1200000000},
 			}, nil
 		},
 	}
@@ -268,6 +269,9 @@ func TestHfRepoFilesEndpoint(t *testing.T) {
 	if files[0].Filename != "Qwen3.5-4B-Q4_K_M.gguf" || files[0].Quant != "Q4_K_M" ||
 		files[1].Filename != "Qwen3.5-4B-IQ2_XXS.gguf" || files[1].Quant != "IQ2_XXS" {
 		t.Errorf("files = %+v, want the submitted entries", files)
+	}
+	if files[0].Size != 3013027808 || files[1].Size != 1200000000 {
+		t.Errorf("files sizes = %d/%d, want the byte counts the form shows the admin", files[0].Size, files[1].Size)
 	}
 }
 
@@ -378,8 +382,8 @@ func TestHTTPSearcherRepoFiles(t *testing.T) {
 			return
 		}
 		writeJSON(w, []hfTreeHit{
-			{Type: "file", Path: "Qwen3.5-4B-Q4_K_M.gguf"},
-			{Type: "file", Path: "Qwen3.5-4B-q5_k_m.gguf"},
+			{Type: "file", Path: "Qwen3.5-4B-Q4_K_M.gguf", Size: 3013027808},
+			{Type: "file", Path: "Qwen3.5-4B-q5_k_m.gguf", Size: 3400000000},
 			{Type: "file", Path: "Qwen3.5-4B-bogus.gguf"},
 			{Type: "file", Path: "config.json"},
 			{Type: "directory", Path: "subdir"},
@@ -398,6 +402,9 @@ func TestHTTPSearcherRepoFiles(t *testing.T) {
 	if files[0].Path != "Qwen3.5-4B-Q4_K_M.gguf" || files[0].Quant != "Q4_K_M" ||
 		files[1].Path != "Qwen3.5-4B-q5_k_m.gguf" || files[1].Quant != "Q5_K_M" {
 		t.Errorf("RepoFiles = %+v, want canonical quants only", files)
+	}
+	if files[0].Size != 3013027808 || files[1].Size != 3400000000 {
+		t.Errorf("RepoFiles sizes = %d/%d, want the tree's byte counts carried", files[0].Size, files[1].Size)
 	}
 }
 
@@ -519,7 +526,7 @@ func TestInspectModelEndpoint(t *testing.T) {
 		},
 		inspect: func(ctx context.Context, repo, rev, file string, readGGUF bool) (ModelMeta, error) {
 			gotRepo, gotRev, gotFile, gotGGUF = repo, rev, file, readGGUF
-			return ModelMeta{PipelineTag: "text-generation", Architecture: "qwen2", ContextLength: 131072, Downloads: 42, Gated: true}, nil
+			return ModelMeta{PipelineTag: "text-generation", Architecture: "qwen2", ContextLength: 131072, Downloads: 42, Gated: true, Size: 3013027808}, nil
 		},
 	}
 
@@ -541,6 +548,9 @@ func TestInspectModelEndpoint(t *testing.T) {
 		updated.ContextLength != 131072 || updated.Downloads != 42 || !updated.Gated {
 		t.Errorf("updated = %+v, want the inspected metadata persisted", updated)
 	}
+	if updated.Size != 3013027808 {
+		t.Errorf("updated size = %d, want the artifact's byte count persisted", updated.Size)
+	}
 
 	// A missing pin is a 404.
 	resp = f.do(t, http.MethodPost, "/api/admin/models/no-such/inspect", nil)
@@ -554,5 +564,54 @@ func TestInspectModelRefusesNonAdmin(t *testing.T) {
 	resp := f.do(t, http.MethodPost, "/api/admin/models/qwen3.5-4b-q4_k_m/inspect", nil)
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("inspect as customer: %d, want 403", resp.StatusCode)
+	}
+}
+
+// TestHTTPSearcherInspectReadsTheArtifactSize pins the one request the hub
+// makes to learn a pin's size: the catalog entry, asked with blobs=true and
+// at the *pinned revision* rather than at main, so the count belongs to the
+// bytes the puller verifies. A file the repo does not list stays unknown.
+func TestHTTPSearcherInspectReadsTheArtifactSize(t *testing.T) {
+	var gotQuery string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/models/prism-ml/Ternary-Bonsai-2-27B-gguf" {
+			http.NotFound(w, r)
+			return
+		}
+		gotQuery = r.URL.RawQuery
+		writeJSON(w, map[string]any{
+			"pipeline_tag": "text-generation",
+			"tags":         []string{"base_model:Qwen/Qwen3.8-27B"},
+			"siblings": []map[string]any{
+				{"rfilename": "README.md", "size": 4096},
+				{"rfilename": "Ternary-Bonsai-2-27B-PQ2_0.gguf", "size": 7206168928},
+				{"rfilename": "Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf", "size": 629246976},
+			},
+		})
+	}))
+	t.Cleanup(ts.Close)
+
+	h := &httpHFSearcher{client: ts.Client(), base: ts.URL}
+	meta, err := h.Inspect(context.Background(), "prism-ml/Ternary-Bonsai-2-27B-gguf", "b072e1d3", "Ternary-Bonsai-2-27B-PQ2_0.gguf", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Size != 7206168928 {
+		t.Errorf("Inspect size = %d, want the named artifact's byte count", meta.Size)
+	}
+	if meta.PipelineTag != "text-generation" || meta.BaseModel != "Qwen/Qwen3.8-27B" {
+		t.Errorf("Inspect = %+v, want the catalog half unchanged", meta)
+	}
+	if !strings.Contains(gotQuery, "blobs=true") || !strings.Contains(gotQuery, "revision=b072e1d3") {
+		t.Errorf("Inspect query = %q, want blobs=true at the pinned revision", gotQuery)
+	}
+
+	// A name the repo does not list is unknown, never a zero-byte file.
+	meta, err = h.Inspect(context.Background(), "prism-ml/Ternary-Bonsai-2-27B-gguf", "b072e1d3", "not-in-the-repo.gguf", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Size != 0 {
+		t.Errorf("Inspect size for an unlisted file = %d, want 0 (unknown)", meta.Size)
 	}
 }

@@ -86,7 +86,12 @@ func (s *Store) BuildBoxManifest(boxID string) (map[string]any, error) {
 			"file":    m.File,
 			"digest":  m.Digest,
 			"licence": m.Licence,
-			"files":   manifestFiles(m.Files, m.File, m.Digest),
+			// size is the anchor artifact's byte count as the catalog states
+			// it, and the file list carries each member's own. It rides the
+			// manifest so a box can answer "does this fit before I fetch it"
+			// from the hub it already polls — the hub is asked, never told.
+			"size":  m.Size,
+			"files": manifestFiles(m.Files, m.File, m.Digest),
 		}
 		if l, ok := limits[purpose]; ok && generativePurposes[purpose] {
 			if lm, ok := manifestLimits(l); ok {

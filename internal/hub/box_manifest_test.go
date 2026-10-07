@@ -162,16 +162,24 @@ func TestBuildBoxManifestMissingBox(t *testing.T) {
 	}
 }
 
-// The manifest models section is the resolved roster: per purpose the six
-// pin fields, the override winning over the assignment, and a purpose with
-// neither omitted. The value carries exactly id, source, quant, file, digest
-// and licence — the purpose rides in the key, never inside the value.
+// The manifest models section is the resolved roster: per purpose the pin's
+// own fields, the override winning over the assignment, and a purpose with
+// neither omitted. The value carries exactly id, source, engine, quant, file,
+// digest, licence, size and the file list — the purpose rides in the key,
+// never inside the value. Size is the anchor's byte count as the catalogue
+// states it, so a box can answer "does this fit" before it fetches.
 func TestBuildBoxManifestModelsSection(t *testing.T) {
 	s := testStoreNoAssignments(t)
 	// Create the pin directly (not via verifiedModel) so it carries a real
 	// file — the manifest must emit it, not just round-trip an empty value.
 	canonical, err := s.CreateModel("manifest-worker", "Org", "Org/manifest-worker@rev", "", "manifest-worker.gguf", "canonical-digest", "MIT", []string{"worker"})
 	if err != nil {
+		t.Fatal(err)
+	}
+	// The size is learned, not authored — it arrives with the inspected
+	// metadata — and it must reach the box, not stay in the catalogue.
+	const pinSize int64 = 7206168928
+	if _, err := s.SetModelMeta(canonical.ID, ModelMeta{Size: pinSize}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.SetAssignment("worker", canonical.ID); err != nil {
@@ -198,6 +206,7 @@ func TestBuildBoxManifestModelsSection(t *testing.T) {
 		"file":    canonical.File,
 		"digest":  canonical.Digest,
 		"licence": canonical.Licence,
+		"size":    pinSize,
 		"files":   []ModelFile{},
 	}
 	if !reflect.DeepEqual(models["worker"], wantPin) {

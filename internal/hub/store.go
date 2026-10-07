@@ -716,6 +716,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model files column: %w", err)
 	}
+	if err := s.ensureModelSize(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("ensuring model size column: %w", err)
+	}
 	if err := s.ensureModelMetadata(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model metadata columns: %w", err)
@@ -1715,6 +1719,17 @@ func (s *Store) ensureModels() error {
 // merged, never overwritten).
 func (s *Store) ensureModelFiles() error {
 	return s.ensureColumn("models", "files", "TEXT NOT NULL DEFAULT ''")
+}
+
+// ensureModelSize adds the size column to a live models table that predates
+// it: the anchor artifact's byte count as the source repository states it
+// (Model.Size). It arrives as INTEGER NOT NULL DEFAULT 0 — which reads as
+// "nobody read it", the same meaning an empty digest carries — and the
+// factory seeds write the real count on the next EnsureSeedModels pass (the
+// drift check sees the change, so a hub that already holds the pin learns the
+// size instead of keeping the column empty for ever).
+func (s *Store) ensureModelSize() error {
+	return s.ensureColumn("models", "size", "INTEGER NOT NULL DEFAULT 0")
 }
 
 // ensureModelEngine adds the engine column to a live models table that

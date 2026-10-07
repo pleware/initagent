@@ -716,6 +716,7 @@
     "digest": "Digest",
     "digestHint": "The BLAKE3 of the pinned artifact. Empty means unverified — compute it and fill it before assigning.",
     "licence": "Licence",
+    "size": "Size",
     "metadata": "Metadata",
     "inspect": "Inspect",
     "inspectFailed": "Could not inspect the model",

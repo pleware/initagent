@@ -489,6 +489,24 @@ export interface Model {
   contextLength: number
   downloads: number
   gated: boolean
+  // size is the anchor artifact's byte count as the source repository states
+  // it — what a box downloads, and what the card holds as weights once every
+  // layer is offloaded. It is NOT a VRAM figure: KV cache and compute buffers
+  // depend on the context the box sets and on the card it shares with the
+  // desktop. Absent/0 means nobody read it.
+  size?: number
+  // files is every artifact a multi-artifact pin is made of (weights plus a
+  // vision projector, a directory-shaped encoder). Absent is the
+  // single-artifact shape, where `file`+`size` is the whole model.
+  files?: ModelFile[]
+}
+
+// ModelFile is one artifact inside a pinned model: its name, the BLAKE3 the
+// box verifies it with, and its byte count as the source repository states it.
+export interface ModelFile {
+  file: string
+  digest: string
+  size?: number
 }
 
 // HfSearchResult is one hit of GET /api/admin/models/hf/search: a Hugging
@@ -512,6 +530,9 @@ export interface HfSearchResult {
 export interface HfRepoFile {
   filename: string
   quant: string
+  // size is the file's byte count as the repo states it, so the admin sees
+  // what a box will download before choosing the artifact.
+  size?: number
 }
 
 // ModelAssignment is one factory pin: the model a purpose resolves to when a

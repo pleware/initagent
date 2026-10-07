@@ -724,6 +724,7 @@
     "digest": "Digest",
     "digestHint": "BLAKE3 przypiętego artefaktu. Pusty znaczy niezweryfikowany — policz go i uzupełnij przed przypisaniem.",
     "licence": "Licencja",
+    "size": "Rozmiar",
     "metadata": "Metadane",
     "inspect": "Sprawdź",
     "inspectFailed": "Nie udało się sprawdzić modelu",

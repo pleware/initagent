@@ -42,6 +42,14 @@ func TestTheSeedNamesTheEngineOfEveryNonLlamaPin(t *testing.T) {
 	} else if m.Engine != "whisper.cpp" {
 		t.Errorf("ggml-large-v3-turbo engine = %q, want whisper.cpp", m.Engine)
 	}
+	// The ternary pin names its engine too, and it is the one that looks most
+	// like it does not need to: the artifact IS a GGUF, opened by a server
+	// whose name is llama-server — just not the one in this image.
+	if m, ok := byID["ternary-bonsai-2-27b-pq2_0"]; !ok {
+		t.Error("the seed lost the ternary pin")
+	} else if m.Engine != "prism.cpp" {
+		t.Errorf("ternary-bonsai-2-27b-pq2_0 engine = %q, want prism.cpp", m.Engine)
+	}
 	// llama.cpp pins keep the default: empty, so no historical pin changed
 	// shape when the field arrived.
 	for _, id := range []string{"qwen3.5-4b-q4_k_m", "bge-m3"} {

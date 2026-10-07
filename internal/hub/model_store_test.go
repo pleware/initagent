@@ -381,8 +381,8 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 22 {
-		t.Fatalf("ListModels = %+v, want the twenty-two factory pins", list)
+	if len(list) != 23 {
+		t.Fatalf("ListModels = %+v, want the twenty-three factory pins", list)
 	}
 	byID := map[string]Model{}
 	for _, m := range list {
@@ -398,6 +398,11 @@ func TestEnsureSeedModelsSeedsFactoryPins(t *testing.T) {
 		purpose      string
 	}{
 		{"qwen3.5-4b-q4_k_m", "bartowski", "bartowski/Qwen_Qwen3.5-4B-GGUF@", "Q4_K_M", "fe7ad96fac5c979c790dc2a8ae06cf85ddf1ffd5a4d4f83d1fdaddc350d17980", "Apache-2.0", "persona"},
+		// The ternary pin: a two-artifact model, an engine only one build of
+		// llama.cpp can open it with, and a digest, because `SetAssignment`
+		// refuses an unverified pin — an empty one here would leave both
+		// purposes it may serve unassignable on a fresh installation.
+		{"ternary-bonsai-2-27b-pq2_0", "prism-ml", "prism-ml/Ternary-Bonsai-2-27B-gguf@", "PQ2_0", "b4f6ab953ef6d1452682bd861b7a1711a4a9945a74ca292659803978fd2550f6", "Apache-2.0", "persona"},
 		{"qwen2.5-coder-7b-q4_k_m", "Qwen", "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF@", "Q4_K_M", "e0abfc1f71fa8f1454f3bc443f7608a63263ed2d41664f2820c3d92c45f3bd52", "Apache-2.0", "worker"},
 		{"bge-m3", "gpustack", "gpustack/bge-m3-GGUF@", "Q4_K_M", "f455475d60569f7ba086863c6ff4b79bb19201664259c5128b9f4f131408dd32", "MIT", "embedding"},
 		// The digest is filled in the same commit as the pin, because the
@@ -471,6 +476,9 @@ func TestEnsureSeedModelsSeedsGGUFMetadata(t *testing.T) {
 		contextLength int64
 	}{
 		{"qwen3.5-4b-q4_k_m", "image-text-to-text", "", "Qwen/Qwen3.5-4B", "qwen35", 262144},
+		// The ternary model's own card is tagged text-generation and stays
+		// mirrored as such; its vision tower is a file, not a tag.
+		{"ternary-bonsai-2-27b-pq2_0", "text-generation", "llama.cpp", "Qwen/Qwen3.8-27B", "qwen35", 262144},
 		{"qwen2.5-coder-7b-q4_k_m", "text-generation", "transformers", "Qwen/Qwen2.5-Coder-7B-Instruct", "qwen2", 131072},
 		{"bge-m3", "sentence-similarity", "sentence-transformers", "", "bert", 8192},
 		{"gemma-4-12b-qat", "any-to-any", "transformers", "google/gemma-4-12B-it-qat-q4_0-unquantized", "gemma4", 262144},
@@ -539,8 +547,8 @@ func TestEnsureSeedModelsRestoresFactoryPins(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 22 {
-		t.Errorf("ListModels after reseed has %d rows, want 22", len(list))
+	if len(list) != 23 {
+		t.Errorf("ListModels after reseed has %d rows, want 23", len(list))
 	}
 }
 
@@ -582,8 +590,8 @@ func TestEnsureSeedModelsBumpsBoxesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 22 {
-		t.Errorf("ListModels after reseed has %d rows, want 22", len(list))
+	if len(list) != 23 {
+		t.Errorf("ListModels after reseed has %d rows, want 23", len(list))
 	}
 }
 
@@ -597,8 +605,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 22 {
-		t.Errorf("fresh open has %d pins, want the twenty-two seeds", len(list))
+	if len(list) != 23 {
+		t.Errorf("fresh open has %d pins, want the twenty-three seeds", len(list))
 	}
 	box, err := s.CreateBox("reopen-box", "Reopen", "", "")
 	if err != nil {
@@ -626,8 +634,8 @@ func TestOpenStoreSeedsModelsOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 22 {
-		t.Errorf("reopen has %d pins, want 22", len(list))
+	if len(list) != 23 {
+		t.Errorf("reopen has %d pins, want 23", len(list))
 	}
 }
 
@@ -807,8 +815,8 @@ func TestListModelsPublic(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 22 {
-		t.Fatalf("public catalog has %d pins, want the twenty-two seeds", len(got))
+	if len(got) != 23 {
+		t.Fatalf("public catalog has %d pins, want the twenty-three seeds", len(got))
 	}
 	for _, m := range got {
 		if m.ID == "" || m.Org == "" || m.Source == "" || m.Licence == "" || m.Purpose == "" {
@@ -875,7 +883,7 @@ func TestAdminModelEndpoints(t *testing.T) {
 		t.Errorf("update missing: %d, want 404", resp.StatusCode)
 	}
 
-	// List includes the new pin (twenty-two seeds + the admin's).
+	// List includes the new pin (twenty-three seeds + the admin's).
 	resp = f.do(t, http.MethodGet, "/api/admin/models", nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("list: %d, want 200", resp.StatusCode)
@@ -884,8 +892,8 @@ func TestAdminModelEndpoints(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 23 {
-		t.Errorf("list has %d pins, want 23 (seeds + admin-model)", len(list))
+	if len(list) != 24 {
+		t.Errorf("list has %d pins, want 24 (seeds + admin-model)", len(list))
 	}
 
 	// Delete.

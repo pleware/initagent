@@ -676,6 +676,7 @@
     "registryHint": "One pin per model and quantisation. The digest is the BLAKE3 of the pinned artifact — empty means unverified.",
     "engineHint": {
       "llamaCpp": "Opened by the box's llama-server: the minds, the embedding — and every pin whose engine field is empty, which is the hub's default.",
+      "prismCpp": "Opened by prism-llama-server, the ternary build of llama.cpp the box also carries: a stored-ternary file (PTQ1_0, PQ2_0) is a GGUF stock llama.cpp refuses to open.",
       "audioCpp": "Opened by audiocpp_server, the box's voice engine: the mouth, and the speech detectors that sit beside it.",
       "whisperCpp": "Opened by whisper-server — the ear.",
       "laya": "Opened by laya-serve — the reflex's typed-decision encoder.",
@@ -764,6 +765,7 @@
   },
   "modelEngine": {
     "llamaCpp": "llama.cpp",
+    "prismCpp": "prism.cpp",
     "audioCpp": "audio.cpp",
     "whisperCpp": "whisper.cpp",
     "laya": "Laya",

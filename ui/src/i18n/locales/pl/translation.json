@@ -684,6 +684,7 @@
     "registryHint": "Jeden pin na model i kwantyzację. Digest to BLAKE3 przypiętego artefaktu — pusty znaczy niezweryfikowany.",
     "engineHint": {
       "llamaCpp": "Otwiera je llama-server pudełka: umysły, embedding — i każdy pin z pustym polem engine, bo to domyślna komora huba.",
+      "prismCpp": "Otwiera je prism-llama-server, ternarna kompilacja llama.cpp, którą pudełko też wiezie: pliku o wagach ternarnych (PTQ1_0, PQ2_0) stockowy llama.cpp nie otworzy.",
       "audioCpp": "Otwiera je audiocpp_server, silnik głosu pudełka: usta i detektory mowy obok nich.",
       "whisperCpp": "Otwiera je whisper-server — ucho.",
       "laya": "Otwiera je laya-serve — enkoder decyzji refleksu.",
@@ -772,6 +773,7 @@
   },
   "modelEngine": {
     "llamaCpp": "llama.cpp",
+    "prismCpp": "prism.cpp",
     "audioCpp": "audio.cpp",
     "whisperCpp": "whisper.cpp",
     "laya": "Laya",

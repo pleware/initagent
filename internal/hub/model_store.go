@@ -314,6 +314,16 @@ var canonicalQuants = map[string]bool{
 	"UD-IQ2_XXS": true, "UD-IQ2_XS": true, "UD-IQ2_S": true, "UD-IQ2_M": true,
 	"UD-IQ3_XXS": true, "UD-IQ3_XS": true, "UD-IQ3_S": true, "UD-IQ3_M": true,
 	"UD-IQ4_XS": true, "UD-IQ4_NL": true,
+	// Ternary packings. They are real GGUF quant types, not a made-up label:
+	// `TQ1_0`/`TQ2_0` are llama.cpp's own, and `PTQ1_0`/`PQ2_0` are the two a
+	// stored-ternary model ships instead — `PTQ1_0` packs trits densely at
+	// 1.75 bits a weight, `PQ2_0` puts each trit in a 2-bit slot and trades
+	// ~1.3 GB for a faster prefill. They are absent from the HF table this
+	// dictionary was written from because the model card is the only place
+	// they are documented. A ternary file opens only in an engine that knows
+	// them, which is exactly what the pin's `engine` states.
+	"TQ1_0": true, "TQ2_0": true,
+	"PTQ1_0": true, "PQ2_0": true,
 }
 
 // ParseQuant validates a quantization name against the canonical GGUF set
@@ -736,6 +746,61 @@ func (s *Store) EnsureSeedModels() error {
 			architecture:  "qwen35",
 			contextLength: 262144,
 			downloads:     335270,
+		},
+		{
+			// Bonsai 2 27B, ternary: 27B-class reasoning in weights stored as
+			// {-1, 0, +1} with one FP16 scale per 128 — 7.2 GB in the `PQ2_0`
+			// packing instead of 53.8 GB of F16, and the reason it is here at
+			// all is that it fits a 16 GB card while staying a 27B model.
+			//
+			// Its engine is stated because the file cannot be opened without
+			// it: `PQ2_0` is a ternary quant TYPE the stock llama.cpp in the
+			// box's image does not know, so the pin must say `prism.cpp` — the
+			// PrismML fork of llama.cpp — or the box hands the file to a
+			// server that refuses it. Nothing about the GGUF says so; this
+			// field is the whole answer.
+			//
+			// Two purposes from one primary: `persona` expands to
+			// [persona, narrator], which is exactly what an admin needs to
+			// serve the same model to the staff and to the box's own being —
+			// or to serve the being with it alone.
+			//
+			// Two artifacts: the weights, and the vision tower as its own
+			// Q8_0 projector (0.63 GB) — loaded only for image input, and the
+			// reason the box's roster passes `--mmproj` for this pin. The
+			// repository's own `pipeline_tag` is text-generation and stays
+			// mirrored here; the multimodality is a fact about the file list.
+			//
+			// The digests are zest's verdict on the pinned revision, and the
+			// same bytes were cross-checked against Hugging Face's own LFS
+			// sha256 — `3907dc16…` for the weights, `6807ede6…` for the
+			// projector — so a pull that ever disagrees is a real mismatch
+			// rather than a hash this pin got wrong.
+			id:            "ternary-bonsai-2-27b-pq2_0",
+			org:           "prism-ml",
+			source:        "prism-ml/Ternary-Bonsai-2-27B-gguf@b072e1d3b35a0a630cece372c2127528e0994386",
+			quant:         "PQ2_0",
+			file:          "Ternary-Bonsai-2-27B-PQ2_0.gguf",
+			digest:        "b4f6ab953ef6d1452682bd861b7a1711a4a9945a74ca292659803978fd2550f6",
+			licence:       "Apache-2.0",
+			purpose:       "persona",
+			engine:        "prism.cpp",
+			pipelineTag:   "text-generation",
+			libraryName:   "llama.cpp",
+			baseModel:     "Qwen/Qwen3.8-27B",
+			architecture:  "qwen35",
+			contextLength: 262144,
+			downloads:     4271466,
+			files: []ModelFile{
+				{
+					File:   "Ternary-Bonsai-2-27B-PQ2_0.gguf",
+					Digest: "b4f6ab953ef6d1452682bd861b7a1711a4a9945a74ca292659803978fd2550f6",
+				},
+				{
+					File:   "Ternary-Bonsai-2-27B-mmproj-Q8_0.gguf",
+					Digest: "989838a898d46c2665853d8c48a4b958319e24123d5d0c1ddab4f91a81dbb320",
+				},
+			},
 		},
 		{
 			id:            "qwen2.5-coder-7b-q4_k_m",

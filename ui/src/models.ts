@@ -23,11 +23,11 @@ export const GENERATIVE_PURPOSES: Purpose[] = ['persona', 'worker', 'narrator']
 
 // ENGINES is the order the registry is grouped in: llama.cpp first — an empty
 // `engine` on the wire means it, so it holds most pins — then the audio.cpp
-// compartment the same box runs beside it, then the three engines that each
-// answer one role. A pin's engine is what decides which program opens its
-// bytes, so this grouping shows a fact the hub already holds rather than
-// classifying anything a second time.
-export const ENGINES = ['llama.cpp', 'audio.cpp', 'whisper.cpp', 'laya', 'piper']
+// compartment the same box runs beside it, then the engines that each answer
+// one role. A pin's engine is what decides which program opens its bytes, so
+// this grouping shows a fact the hub already holds rather than classifying
+// anything a second time.
+export const ENGINES = ['llama.cpp', 'prism.cpp', 'audio.cpp', 'whisper.cpp', 'laya', 'piper']
 
 // engineOf answers which program a pin belongs to. Empty on the wire means
 // llama.cpp: the hub writes the field only for engines that are not the

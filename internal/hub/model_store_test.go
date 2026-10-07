@@ -1054,3 +1054,19 @@ func TestOpenStoreMigratesModelSize(t *testing.T) {
 		t.Errorf("factory pin size on a migrated store = %d, want 7206168928", seeded.Size)
 	}
 }
+
+// TestModelSizeDeclIsBigintOnPostgres pins the dialect split on the one
+// numeric column `models` has. A model's byte count does not fit int4 — the
+// 27B ternary pin's weights are 7 206 168 928 against a 2 147 483 647 ceiling
+// — and Postgres is where `INTEGER` means int4. A SQLite-only run can never
+// see this: there INTEGER is 64-bit, so the seed passes and the live hub
+// crash-loops. Asserting the declaration keeps the trap visible without a
+// database.
+func TestModelSizeDeclIsBigintOnPostgres(t *testing.T) {
+	if got := modelSizeDecl(store.Postgres); got != "BIGINT NOT NULL DEFAULT 0" {
+		t.Errorf("Postgres decl = %q, want BIGINT NOT NULL DEFAULT 0", got)
+	}
+	if got := modelSizeDecl(store.SQLite); got != "INTEGER NOT NULL DEFAULT 0" {
+		t.Errorf("SQLite decl = %q, want INTEGER NOT NULL DEFAULT 0", got)
+	}
+}

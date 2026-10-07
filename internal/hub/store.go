@@ -720,6 +720,10 @@ func openStore(d store.Dialect, dsn, schema string) (*Store, error) {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model size column: %w", err)
 	}
+	if err := s.widenModelSize(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("widening model size column: %w", err)
+	}
 	if err := s.ensureModelMetadata(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ensuring model metadata columns: %w", err)
@@ -1721,15 +1725,60 @@ func (s *Store) ensureModelFiles() error {
 	return s.ensureColumn("models", "files", "TEXT NOT NULL DEFAULT ''")
 }
 
+// modelSizeDecl is the declaration models.size is created with. It is a
+// function of the dialect because this is the FIRST numeric column on
+// `models` — every other one is TEXT (see ensureModels) — and a model's byte
+// count does not fit int4: the 27B ternary pin's weights are 7 206 168 928,
+// past the 2 147 483 647 an `INTEGER` holds on Postgres. SQLite's INTEGER is
+// already 64-bit, so only the Postgres spelling has to widen.
+func modelSizeDecl(d store.Dialect) string {
+	if d == store.Postgres {
+		return "BIGINT NOT NULL DEFAULT 0"
+	}
+	return "INTEGER NOT NULL DEFAULT 0"
+}
+
 // ensureModelSize adds the size column to a live models table that predates
 // it: the anchor artifact's byte count as the source repository states it
-// (Model.Size). It arrives as INTEGER NOT NULL DEFAULT 0 — which reads as
-// "nobody read it", the same meaning an empty digest carries — and the
-// factory seeds write the real count on the next EnsureSeedModels pass (the
-// drift check sees the change, so a hub that already holds the pin learns the
-// size instead of keeping the column empty for ever).
+// (Model.Size). It arrives reading 0 — "nobody read it", the same meaning an
+// empty digest carries — and the factory seeds write the real count on the
+// next EnsureSeedModels pass (the drift check sees the change, so a hub that
+// already holds the pin learns the size instead of keeping the column empty
+// for ever).
 func (s *Store) ensureModelSize() error {
-	return s.ensureColumn("models", "size", "INTEGER NOT NULL DEFAULT 0")
+	return s.ensureColumn("models", "size", modelSizeDecl(s.db.Dialect()))
+}
+
+// widenModelSize repairs a models.size that a live hub already carries as
+// int4. The first cut of the column was declared `INTEGER NOT NULL DEFAULT 0`
+// regardless of dialect; on Postgres that is int4, the seed pass then failed
+// on every pin past 2 GiB (`unable to encode 3013027808 into binary format
+// for int4`) and the hub crash-looped — while every SQLite test, where
+// INTEGER is 64-bit, stayed green.
+//
+// ensureColumn cannot fix it: the column exists, so there is nothing for it
+// to add, and a store that crashed on the way in is exactly the one that
+// needs the widening. SQLite has nothing to widen (its INTEGER is 64-bit and
+// the declared type is advisory), and a store that already reads bigint is
+// left alone.
+func (s *Store) widenModelSize() error {
+	if s.db.Dialect() != store.Postgres {
+		return nil
+	}
+	var dataType string
+	err := s.db.QueryRow(`SELECT data_type FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = 'models' AND column_name = 'size'`).Scan(&dataType)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if dataType != "integer" {
+		return nil
+	}
+	_, err = s.db.Exec(`ALTER TABLE models ALTER COLUMN size TYPE BIGINT`)
+	return err
 }
 
 // ensureModelEngine adds the engine column to a live models table that
